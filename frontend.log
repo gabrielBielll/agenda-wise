@@ -1,0 +1,71 @@
+
+> nextn@0.1.0 dev
+> next dev --turbopack -p 9002
+
+   ▲ Next.js 15.3.3 (Turbopack)
+   - Local:        http://localhost:9002
+   - Network:      http://192.168.1.64:9002
+   - Environments: .env.local
+
+ ✓ Starting...
+ ○ Compiling middleware ...
+ ✓ Compiled middleware in 659ms
+ ✓ Ready in 3.5s
+ ○ Compiling /admin/psicologos ...
+ ✓ Compiled /admin/psicologos in 11s
+Erro ao buscar psicólogos: Error: Token inválido ou expirado.
+    at getPsicologos (src/app/admin/psicologos/page.tsx:28:12)
+    at async AdminPsicologosPage (src/app/admin/psicologos/page.tsx:49:25)
+  26 |     if (!response.ok) {
+  27 |       const errorData = await response.json();
+> 28 |       throw new Error(errorData.erro || 'Falha ao buscar os dados dos psicólogos.');
+     |            ^
+  29 |     }
+  30 |     return response.json();
+  31 |   } catch (error: any) {
+ GET /admin/psicologos 200 in 12079ms
+ ○ Compiling /favicon.ico ...
+ GET /favicon.ico?favicon.56766c03.ico 200 in 2912ms
+ GET /favicon.ico 200 in 3472ms
+ ✓ Compiled /favicon.ico in 4s
+ GET /api/auth/session 200 in 4916ms
+ ○ Compiling /admin/pacientes ...
+Erro ao buscar pacientes: Error: Token inválido ou expirado.
+    at getPacientes (src/app/admin/pacientes/page.tsx:30:12)
+    at async AdminPacientesPage (src/app/admin/pacientes/page.tsx:50:24)
+  28 |     if (!response.ok) {
+  29 |       const errorData = await response.json();
+> 30 |       throw new Error(errorData.erro || 'Falha ao buscar os dados dos pacientes.');
+     |            ^
+  31 |     }
+  32 |     return response.json();
+  33 |   } catch (error: any) {
+ GET /admin/pacientes 200 in 7956ms
+ ✓ Compiled /admin/pacientes in 9.7s
+ GET /admin/dashboard 200 in 8540ms
+ GET /admin/dashboard 200 in 9268ms
+ GET /admin/dashboard 200 in 1635ms
+ GET /api/auth/session 200 in 255ms
+ GET /favicon.ico 200 in 509ms
+Erro ao buscar psicólogos: Error: Token inválido ou expirado.
+    at getPsicologos (src/app/admin/psicologos/page.tsx:28:12)
+    at async AdminPsicologosPage (src/app/admin/psicologos/page.tsx:49:25)
+  26 |     if (!response.ok) {
+  27 |       const errorData = await response.json();
+> 28 |       throw new Error(errorData.erro || 'Falha ao buscar os dados dos psicólogos.');
+     |            ^
+  29 |     }
+  30 |     return response.json();
+  31 |   } catch (error: any) {
+ GET /admin/psicologos 200 in 438ms
+Erro ao buscar pacientes: Error: Token inválido ou expirado.
+    at getPacientes (src/app/admin/pacientes/page.tsx:30:12)
+    at async AdminPacientesPage (src/app/admin/pacientes/page.tsx:50:24)
+  28 |     if (!response.ok) {
+  29 |       const errorData = await response.json();
+> 30 |       throw new Error(errorData.erro || 'Falha ao buscar os dados dos pacientes.');
+     |            ^
+  31 |     }
+  32 |     return response.json();
+  33 |   } catch (error: any) {
+ GET /admin/pacientes 200 in 253ms

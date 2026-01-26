@@ -1,0 +1,95 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  font-family: var(--font-body), sans-serif;
+}
+
+@layer base {
+  :root {
+    --background: 36 43% 94%; /* Cream #F5F0E8 */
+    --foreground: 0 0% 29%; /* Charcoal #4A4A4A */
+    --card: 36 43% 94%; /* Cream #F5F0E8 */
+    --card-foreground: 0 0% 29%; /* Charcoal #4A4A4A */
+    --popover: 36 43% 94%; /* Cream #F5F0E8 */
+    --popover-foreground: 0 0% 29%; /* Charcoal #4A4A4A */
+    --primary: 87 10% 57%; /* Sage Green #95A084 */
+    --primary-foreground: 36 100% 98%; /* Light Cream/Off-white */
+    --secondary: 30 33% 64%; /* Warm Beige #C4A584 */
+    --secondary-foreground: 0 0% 29%; /* Charcoal #4A4A4A */
+    --muted: 36 43% 90%; /* Muted Cream */
+    --muted-foreground: 0 0% 40%; /* Lighter Charcoal */
+    --accent: 21 58% 59%; /* Terracotta #D2845A */
+    --accent-foreground: 36 100% 98%; /* Light Cream/Off-white */
+    --destructive: 21 58% 59%; /* Terracotta #D2845A */
+    --destructive-foreground: 36 100% 98%; /* Light Cream/Off-white */
+    --border: 0 0% 83%; /* Light Gray #D3D3D3 */
+    --input: 0 0% 83%; /* Light Gray #D3D3D3 - border for input */
+    --ring: 21 58% 59%; /* Terracotta #D2845A - for focus rings */
+    --chart-1: 87 10% 57%;
+    --chart-2: 30 33% 64%;
+    --chart-3: 21 58% 59%;
+    --chart-4: 87 10% 47%;
+    --chart-5: 30 33% 54%;
+    --radius: 0.5rem;
+
+    /* Sidebar specific colors */
+    --sidebar-background: 87 10% 50%; /* Darker Sage Green */
+    --sidebar-foreground: 36 100% 98%; /* Light Cream/Off-white */
+    --sidebar-primary: 21 58% 59%; /* Terracotta for active items */
+    --sidebar-primary-foreground: 36 100% 98%;
+    --sidebar-accent: 87 10% 65%; /* Lighter Sage Green for hover */
+    --sidebar-accent-foreground: 0 0% 20%; /* Darker charcoal for hover text on light sage */
+    --sidebar-border: 0 0% 75%; /* Slightly darker gray for sidebar internal borders */
+    --sidebar-ring: 21 58% 59%; /* Terracotta */
+  }
+
+  .dark {
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 240 10% 3.9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 87 10% 67%; /* Lighter Sage Green for dark mode */
+    --primary-foreground: 0 0% 15%; /* Darker for contrast */
+    --secondary: 30 33% 54%; /* Darker Warm Beige */
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 5% 15%;
+    --muted-foreground: 0 0% 63.9%;
+    --accent: 21 58% 69%; /* Lighter Terracotta */
+    --accent-foreground: 0 0% 15%;
+    --destructive: 21 58% 50%; /* Darker Terracotta for destructive */
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 20%; /* Darker Gray */
+    --input: 0 0% 20%;
+    --ring: 21 58% 69%; /* Lighter Terracotta */
+    --chart-1: 87 10% 67%;
+    --chart-2: 30 33% 54%;
+    --chart-3: 21 58% 69%;
+    --chart-4: 87 10% 57%;
+    --chart-5: 30 33% 44%;
+
+    /* Sidebar specific colors for dark mode */
+    --sidebar-background: 87 10% 20%; /* Very Dark Sage Green */
+    --sidebar-foreground: 0 0% 85%; /* Lighter gray/off-white */
+    --sidebar-primary: 21 58% 69%; /* Lighter Terracotta */
+    --sidebar-primary-foreground: 0 0% 10%; /* Very dark for contrast */
+    --sidebar-accent: 87 10% 30%; /* Dark Sage Green for hover */
+    --sidebar-accent-foreground: 0 0% 95%; /* Light for hover text */
+    --sidebar-border: 0 0% 25%; 
+    --sidebar-ring: 21 58% 69%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}

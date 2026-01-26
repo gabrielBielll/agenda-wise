@@ -1,0 +1,20 @@
+SLF4J: No SLF4J providers were found.
+SLF4J: Defaulting to no-operation (NOP) logger implementation
+SLF4J: See https://www.slf4j.org/codes.html#noProviders for further details.
+SUCCESS: JWT_SECRET encontrada. Início: 'chav...', Fim: '...rios'.
+DATABASE_URL encontrada.
+Tentando conectar ao banco de dados...
+Conexão com o banco de dados estabelecida com sucesso!
+Servidor iniciado na porta 3000
+ERRO DE VALIDAÇÃO JWT: ERROR: operator does not exist: uuid = character varying
+  Dica: No operator matches the given name and argument types. You might need to add explicit type casts.
+  Posição: 192
+ERRO DE VALIDAÇÃO JWT: ERROR: operator does not exist: uuid = character varying
+  Dica: No operator matches the given name and argument types. You might need to add explicit type casts.
+  Posição: 192
+ERRO DE VALIDAÇÃO JWT: ERROR: operator does not exist: uuid = character varying
+  Dica: No operator matches the given name and argument types. You might need to add explicit type casts.
+  Posição: 192
+ERRO DE VALIDAÇÃO JWT: ERROR: operator does not exist: uuid = character varying
+  Dica: No operator matches the given name and argument types. You might need to add explicit type casts.
+  Posição: 192
