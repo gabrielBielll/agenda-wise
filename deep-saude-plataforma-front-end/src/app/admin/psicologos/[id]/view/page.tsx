@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { notFound } from 'next/navigation';
 
-import EditPsicologoForm from './EditPsicologoForm'; // Componente cliente que vamos criar abaixo
+import EditPsicologoForm from '../edit/EditPsicologoForm'; 
 
 interface Psicologo {
   id: string;
@@ -51,7 +51,7 @@ async function getPsicologo(token: string, psicologoId: string): Promise<Psicolo
   }
 }
 
-export default async function AdminEditPsicologoPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function AdminViewPsicologoPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = await params;
   const session = await getServerSession(authOptions);
   const token = (session as any)?.backendToken;
@@ -72,5 +72,6 @@ export default async function AdminEditPsicologoPage({ params }: { params: Promi
     return <div>Erro ao carregar os dados: {psicologoData.error}</div>;
   }
 
-  return <EditPsicologoForm psicologo={psicologoData} />;
+  // AQUI É A DIFERENÇA: readOnly={true}
+  return <EditPsicologoForm psicologo={psicologoData} readOnly={true} />;
 }

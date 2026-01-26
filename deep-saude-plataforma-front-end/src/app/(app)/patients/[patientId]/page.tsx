@@ -2,6 +2,7 @@ import React from 'react';
 import { getServerSession } from "next-auth/next";
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'; // Importar authOptions
 import { notFound } from 'next/navigation';
+import Link from 'next/link';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -80,7 +81,8 @@ const mockDocuments: Document[] = [
 ];
 
 // --- O COMPONENTE DA PÁGINA (SERVER COMPONENT) ---
-export default async function PatientDetailPage({ params }: { params: { patientId: string } }) {
+export default async function PatientDetailPage({ params }: { params: Promise<{ patientId: string }> }) {
+  const { patientId } = await params;
   // CORREÇÃO: Busca a sessão de forma robusta no servidor
   const session = await getServerSession(authOptions);
   const token = (session as any)?.backendToken;
@@ -91,8 +93,8 @@ export default async function PatientDetailPage({ params }: { params: { patientI
 
   // Busca dados em paralelo
   const [patient, prontuarios] = await Promise.all([
-    getPatientDetails(params.patientId, token),
-    getProntuarios(params.patientId, token)
+    getPatientDetails(patientId, token),
+    getProntuarios(patientId, token)
   ]);
 
   if (!patient) {
@@ -119,6 +121,13 @@ export default async function PatientDetailPage({ params }: { params: { patientI
               <span className="flex items-center"><Mail className="h-4 w-4 mr-1 text-primary" /> {patient.email || 'N/A'}</span>
               <span className="flex items-center"><Phone className="h-4 w-4 mr-1 text-primary" /> {patient.telefone || 'N/A'}</span>
               <span className="flex items-center"><CalendarDays className="h-4 w-4 mr-1 text-primary" /> Cadastrado em: {new Date(patient.data_cadastro).toLocaleDateString('pt-BR')}</span>
+            </div>
+            <div className="mt-4">
+               <Button variant="outline" size="sm" asChild>
+                 <Link href={`/patients/${patient.id}/edit`}>
+                   Editar Perfil
+                 </Link>
+               </Button>
             </div>
           </div>
         </CardHeader>

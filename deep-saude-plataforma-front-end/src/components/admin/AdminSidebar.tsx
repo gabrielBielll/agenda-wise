@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { signOut } from "next-auth/react";
 import { Home, Users, CalendarDays, DollarSign, BriefcaseMedical, Settings, LogOut, Building } from "lucide-react"; // Adicionei mais ícones
 import { cn } from "@/lib/utils";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -92,7 +93,7 @@ export default function AdminSidebar({ isCollapsed = false, className }: { isCol
         {secondaryNavLinks.map((link) => (
           <NavLink key={link.href} {...link} isCollapsed={isCollapsed} />
         ))}
-        {/* Exemplo de botão de logout - pode ser um link ou um componente mais complexo */}
+        {/* Botão de logout real */}
         <TooltipProvider delayDuration={0}>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -100,7 +101,7 @@ export default function AdminSidebar({ isCollapsed = false, className }: { isCol
                 variant="ghost"
                 size={isCollapsed ? "icon" : "default"}
                 className={cn("w-full justify-start gap-2", isCollapsed && "h-9 w-9")}
-                onClick={() => alert("Logout action placeholder")} // Substituir por lógica de logout real
+                onClick={() => signOut({ callbackUrl: "/admin/login" })}
               >
                 <LogOut className={cn("h-5 w-5", isCollapsed && "h-4 w-4")} />
                 {!isCollapsed && <span className="truncate">Sair</span>}
@@ -167,7 +168,7 @@ export function AdminSidebarSheetContent() {
         <Button
           variant="ghost"
           className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground"
-          onClick={() => alert("Logout action placeholder")}
+          onClick={() => signOut({ callbackUrl: "/admin/login" })}
         >
           <LogOut className="h-5 w-5" />
           Sair

@@ -2,7 +2,7 @@ import React from 'react';
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { notFound } from 'next/navigation';
-import EditPacienteForm from './EditPacienteForm'; // O formulário que vamos criar a seguir
+import EditPacienteForm from '../edit/EditPacienteForm'; // Reusing the form
 
 interface Paciente {
   id: string;
@@ -11,8 +11,10 @@ interface Paciente {
   telefone: string | null;
   data_nascimento: string | null;
   endereco: string | null;
+  psicologo_id?: string | null;
 }
 
+// Reuse the fetch logic or import it if extracted
 async function getPaciente(token: string, pacienteId: string): Promise<Paciente | { error: string }> {
   const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/pacientes/${pacienteId}`;
   try {
@@ -28,7 +30,6 @@ async function getPaciente(token: string, pacienteId: string): Promise<Paciente 
       throw new Error(errorData.erro || 'Falha ao buscar dados do paciente.');
     }
     const data = await response.json();
-    // A API retorna a data com timestamp, precisamos formatar para 'YYYY-MM-DD' para o input type="date"
     if (data.data_nascimento) {
       data.data_nascimento = new Date(data.data_nascimento).toISOString().split('T')[0];
     }
@@ -39,7 +40,6 @@ async function getPaciente(token: string, pacienteId: string): Promise<Paciente 
   }
 }
 
-// Função para buscar os psicólogos (para o dropdown)
 async function getPsicologos(token: string): Promise<{ id: string; nome: string }[] | []> {
   const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/psicologos`;
   try {
@@ -56,7 +56,7 @@ async function getPsicologos(token: string): Promise<{ id: string; nome: string 
   }
 }
 
-export default async function AdminEditPacientePage({ params }: { params: Promise<{ id: string }> }) {
+export default async function AdminViewPacientePage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = await params;
   const session = await getServerSession(authOptions);
   const token = (session as any)?.backendToken;
@@ -78,5 +78,5 @@ export default async function AdminEditPacientePage({ params }: { params: Promis
     return <div>Erro ao carregar os dados: {pacienteData.error}</div>;
   }
 
-  return <EditPacienteForm paciente={pacienteData} psicologos={psicologosData} />;
+  return <EditPacienteForm paciente={pacienteData} psicologos={psicologosData} readOnly={true} />;
 }

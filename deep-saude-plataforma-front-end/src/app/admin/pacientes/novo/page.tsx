@@ -1,5 +1,6 @@
 import React from 'react';
-import { cookies } from 'next/headers';
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,8 +31,8 @@ async function getPsicologos(token: string): Promise<Psicologo[]> {
 
 // A página agora é um Server Component
 export default async function AdminNovoPacientePage() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get('sessionToken')?.value;
+  const session = await getServerSession(authOptions);
+  const token = (session as any)?.backendToken;
 
   if (!token) {
     return <p>Não autorizado.</p>;

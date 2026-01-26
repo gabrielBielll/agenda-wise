@@ -1,8 +1,9 @@
 "use server";
 
 import { z } from "zod";
-import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 
 const pacienteSchema = z.object({
   nome: z.string().min(3, { message: "O nome deve ter pelo menos 3 caracteres." }),
@@ -43,7 +44,9 @@ export async function createPaciente(
     };
   }
 
-  const token = (await cookies()).get("sessionToken")?.value;
+  const session = await getServerSession(authOptions);
+  const token = (session as any)?.backendToken;
+  
   if (!token) {
     return { message: "Erro de autenticação.", success: false };
   }

@@ -55,19 +55,29 @@
 
 (defn wrap-jwt-autenticacao [handler]
   (fn [request]
-    (try
-      (if-let [token (extract-token request)]
-        (let [claims (jwt/unsign token jwt-secret)
-              request-com-identidade (assoc request :identity claims)]
-          (handler request-com-identidade))
-        {:status 401 :body {:erro "Token de autorização não fornecido."}})
-      (catch Exception e
-        (println "ERRO DE VALIDAÇÃO JWT:" (.getMessage e))
-        {:status 401 :body {:erro "Token inválido ou expirado."}}))))
+    (let [token (extract-token request)]
+      (println "DEBUG: Middleware JWT. Token presente?" (boolean token))
+      (if-not token
+        {:status 401 :body {:erro "Token de autorização não fornecido."}}
+        (let [auth-data (try
+                          (let [claims (jwt/unsign token jwt-secret)
+                                claims-parsed (-> claims
+                                                  (update :user_id #(java.util.UUID/fromString %))
+                                                  (update :clinica_id #(java.util.UUID/fromString %))
+                                                  (update :papel_id #(java.util.UUID/fromString %)))]
+                             {:identity claims-parsed})
+                          (catch Exception e
+                            (println "ERRO DE VALIDAÇÃO JWT:" (.getMessage e))
+                            nil))]
+          (if auth-data
+            (handler (assoc request :identity (:identity auth-data)))
+            {:status 401 :body {:erro "Token inválido ou expirado."}}))))))
 
 (defn wrap-checar-permissao [handler nome-permissao-requerida]
   (fn [request]
+    (println "DEBUG: Middleware Permissao. Requer:" nome-permissao-requerida)
     (let [papel-id (get-in request [:identity :papel_id])]
+      (println "DEBUG: Papel ID:" papel-id)
       (if-not papel-id
         {:status 403 :body {:erro "Identidade do usuário ou papel não encontrado na requisição."}}
         (let [permissao (execute-one!
@@ -76,6 +86,7 @@
                            JOIN permissoes p ON pp.permissao_id = p.id
                            WHERE pp.papel_id = ? AND p.nome_permissao = ?"
                           papel-id nome-permissao-requerida])]
+          (println "DEBUG: Permissao encontrada?" permissao)
           (if permissao
             (handler request)
             {:status 403 :body {:erro (str "Usuário não tem a permissão necessária: " nome-permissao-requerida)}}))))))
@@ -131,14 +142,19 @@
                       :exp        (-> (java.time.Instant/now) (.plusSeconds 3600) .getEpochSecond)}
               token (jwt/sign claims jwt-secret)]
           {:status 200 :body {:message "Usuário autenticado com sucesso."
-                               :token   token}})
+                               :token   token
+                               :user    {:id         (:id usuario)
+                                         :email      email
+                                         :clinica_id (:clinica_id usuario)
+                                         :papel_id   (:papel_id usuario)
+                                         :role       (:nome_papel usuario)}}})
         {:status 401 :body {:erro "Credenciais inválidas."}})
       {:status 401 :body {:erro "Credenciais inválidas."}})))
 
 ;; --- Handlers de Usuários ---
 (defn criar-usuario-handler [request]
   (let [clinica-id-admin (get-in request [:identity :clinica_id])
-        {:keys [nome email senha papel]} (:body request)]
+        {:keys [nome email senha papel cpf telefone data_nascimento endereco crp registro_e_psi abordagem area_de_atuacao]} (:body request)]
     (cond
       (or (str/blank? nome) (str/blank? email) (str/blank? senha) (str/blank? papel))
       {:status 400, :body {:erro "Nome, email, senha e papel são obrigatórios."}}
@@ -153,14 +169,22 @@
                                          :papel_id   papel-id
                                          :nome       nome
                                          :email      email
-                                         :senha_hash (hashers/encrypt senha)}
-                                        {:builder-fn rs/as-unqualified-lower-maps :return-keys [:id :nome :email :clinica_id :papel_id]})]
+                                         :senha_hash (hashers/encrypt senha)
+                                         :cpf cpf
+                                         :telefone telefone
+                                         :data_nascimento (when data_nascimento (Date/valueOf data_nascimento))
+                                         :endereco endereco
+                                         :crp crp
+                                         :registro_e_psi registro_e_psi
+                                         :abordagem abordagem
+                                         :area_de_atuacao area_de_atuacao}
+                                        {:builder-fn rs/as-unqualified-lower-maps :return-keys [:id :nome :email :clinica_id :papel_id :cpf :telefone :data_nascimento :endereco :crp :registro_e_psi :abordagem :area_de_atuacao]})]
           {:status 201, :body novo-usuario})
         {:status 400, :body {:erro (str "O papel '" papel "' não é válido.")}}))))
 
 (defn remover-usuario-handler [request]
   (let [clinica-id-admin (get-in request [:identity :clinica_id])
-        usuario-id-para-remover (get-in request [:params :id])]
+        usuario-id-para-remover (java.util.UUID/fromString (get-in request [:params :id]))]
     (let [resultado (sql/delete! @datasource :usuarios {:id usuario-id-para-remover :clinica_id clinica-id-admin})]
       (if (zero? (:next.jdbc/update-count resultado))
         {:status 404 :body {:erro "Usuário não encontrado nesta clínica ou você não tem permissão para removê-lo."}}
@@ -168,15 +192,15 @@
 
 (defn obter-usuario-handler [request]
   (let [clinica-id (get-in request [:identity :clinica_id])
-        usuario-id (get-in request [:params :id])]
-    (if-let [usuario (execute-one! ["SELECT id, nome, email, papel_id FROM usuarios WHERE id = ? AND clinica_id = ?" usuario-id clinica-id])]
+        usuario-id (java.util.UUID/fromString (get-in request [:params :id]))]
+    (if-let [usuario (execute-one! ["SELECT id, nome, email, papel_id, cpf, telefone, data_nascimento, endereco, crp, registro_e_psi, abordagem, area_de_atuacao FROM usuarios WHERE id = ? AND clinica_id = ?" usuario-id clinica-id])]
       {:status 200 :body usuario}
       {:status 404 :body {:erro "Usuário não encontrado nesta clínica."}})))
 
 (defn atualizar-usuario-handler [request]
   (let [clinica-id (get-in request [:identity :clinica_id])
-        usuario-id (get-in request [:params :id])
-        {:keys [nome email]} (:body request)]
+        usuario-id (java.util.UUID/fromString (get-in request [:params :id]))
+        {:keys [nome email cpf telefone data_nascimento endereco crp registro_e_psi abordagem area_de_atuacao]} (:body request)]
     (cond
       (and (str/blank? nome) (str/blank? email))
       {:status 400 :body {:erro "Pelo menos um campo (nome ou email) deve ser fornecido para atualização."}}
@@ -187,11 +211,19 @@
       :else
       (let [update-map (cond-> {}
                          (not (str/blank? nome)) (assoc :nome nome)
-                         (not (str/blank? email)) (assoc :email email))
+                         (not (str/blank? email)) (assoc :email email)
+                         (some? cpf) (assoc :cpf cpf)
+                         (some? telefone) (assoc :telefone telefone)
+                         (some? data_nascimento) (assoc :data_nascimento (when data_nascimento (Date/valueOf data_nascimento)))
+                         (some? endereco) (assoc :endereco endereco)
+                         (some? crp) (assoc :crp crp)
+                         (some? registro_e_psi) (assoc :registro_e_psi registro_e_psi)
+                         (some? abordagem) (assoc :abordagem abordagem)
+                         (some? area_de_atuacao) (assoc :area_de_atuacao area_de_atuacao))
             resultado (sql/update! @datasource :usuarios update-map {:id usuario-id :clinica_id clinica-id})]
         (if (zero? (:next.jdbc/update-count resultado))
           {:status 404 :body {:erro "Usuário não encontrado nesta clínica ou nenhum dado foi alterado."}}
-          (let [usuario-atualizado (execute-one! ["SELECT id, nome, email, papel_id FROM usuarios WHERE id = ?" usuario-id])]
+          (let [usuario-atualizado (execute-one! ["SELECT id, nome, email, papel_id, cpf, telefone, data_nascimento, endereco, crp, registro_e_psi, abordagem, area_de_atuacao FROM usuarios WHERE id = ?" usuario-id])]
             {:status 200 :body usuario-atualizado}))))))
 
 ;; --- Handlers de Psicólogos ---
@@ -203,7 +235,7 @@
         (if-not papel-psicologo-id
           {:status 500 :body {:erro "Configuração de papel 'psicologo' não encontrada."}}
           (let [psicologos (execute-query!
-                             ["SELECT id, nome, email, clinica_id, papel_id FROM usuarios WHERE clinica_id = ? AND papel_id = ?"
+                             ["SELECT id, nome, email, clinica_id, papel_id, cpf, telefone, data_nascimento, endereco, crp, registro_e_psi, abordagem, area_de_atuacao FROM usuarios WHERE clinica_id = ? AND papel_id = ?"
                               clinica-id papel-psicologo-id])]
             {:status 200 :body psicologos}))))))
 
@@ -223,7 +255,7 @@
                                         :data_nascimento (when data_nascimento (Date/valueOf data_nascimento))
                                         :endereco        endereco
                                         :avatar_url      avatar_url
-                                        :psicologo_id    psicologo_id} ; Adicionar o novo campo
+                                        :psicologo_id    (when psicologo_id (java.util.UUID/fromString psicologo_id))} ; Adicionar o novo campo com cast para UUID
                                        {:builder-fn rs/as-unqualified-lower-maps :return-keys true})]
         {:status 201, :body novo-paciente}))))
 
@@ -252,7 +284,7 @@
 ;; ESBOÇO DOS PRÓXIMOS HANDLERS DE PACIENTES
 (defn obter-paciente-handler [request]
   (let [clinica-id (get-in request [:identity :clinica_id])
-        paciente-id (get-in request [:params :id])]
+        paciente-id (java.util.UUID/fromString (get-in request [:params :id]))]
     (if-let [paciente (execute-one! ["SELECT * FROM pacientes WHERE id = ? AND clinica_id = ?" paciente-id clinica-id])]
       {:status 200 :body paciente}
       {:status 404 :body {:erro "Paciente não encontrado nesta clínica."}})))
@@ -262,8 +294,8 @@
         clinica-id (:clinica_id identity)
         usuario-id (:user_id identity)
         papel (:role identity)
-        paciente-id (get-in request [:params :id])
-        {:keys [nome email telefone data_nascimento endereco avatar_url]} (:body request)]
+        paciente-id (java.util.UUID/fromString (get-in request [:params :id]))
+        {:keys [nome email telefone data_nascimento endereco avatar_url psicologo_id]} (:body request)]
     
     ;; Verificação de Propriedade para Psicólogos
     (if (and (= papel "psicologo")
@@ -279,12 +311,13 @@
         {:status 409 :body {:erro "O email fornecido já está em uso por outro paciente nesta clínica."}}
 
         :else
-        (let [update-map {:nome nome
-                          :email email
-                          :telefone telefone
-                          :data_nascimento (when data_nascimento (Date/valueOf data_nascimento))
-                          :endereco endereco
-                          :avatar_url avatar_url}
+        (let [update-map (cond-> {:nome nome
+                                  :email email
+                                  :telefone telefone
+                                  :data_nascimento (when data_nascimento (Date/valueOf data_nascimento))
+                                  :endereco endereco
+                                  :avatar_url avatar_url}
+                           (some? psicologo_id) (assoc :psicologo_id (when (not (str/blank? psicologo_id)) (java.util.UUID/fromString psicologo_id)))) ;; Se psicologo_id for passado, atualiza. Se null/blank, remove (seta pra null).
               resultado (sql/update! @datasource :pacientes update-map {:id paciente-id :clinica_id clinica-id})]
           (if (zero? (:next.jdbc/update-count resultado))
             {:status 404 :body {:erro "Paciente não encontrado nesta clínica ou nenhum dado foi alterado."}}
@@ -296,7 +329,7 @@
         clinica-id (:clinica_id identity)
         usuario-id (:user_id identity)
         papel (:role identity)
-        paciente-id-para-remover (get-in request [:params :id])]
+        paciente-id-para-remover (java.util.UUID/fromString (get-in request [:params :id]))]
     
     ;; Verificação de Propriedade para Psicólogos
     (if (and (= papel "psicologo")
@@ -311,22 +344,80 @@
 
 ;; --- Handlers de Agendamentos ---
 (defn criar-agendamento-handler [request]
+  (try
+    (let [clinica-id (get-in request [:identity :clinica_id])
+          {:keys [paciente_id psicologo_id data_hora_sessao valor_consulta]} (:body request)]
+      (println "DEBUG: Handler iniciado. Payload:" (:body request))
+      (if (or (nil? paciente_id) (nil? psicologo_id) (nil? data_hora_sessao))
+        {:status 400, :body {:erro "paciente_id, psicologo_id e data_hora_sessao são obrigatórios."}}
+        (let [paciente-uuid (java.util.UUID/fromString paciente_id)
+              psicologo-uuid (java.util.UUID/fromString psicologo_id)
+              paciente-valido? (execute-one! ["SELECT id FROM pacientes WHERE id = ? AND clinica_id = ?" 
+                                              paciente-uuid clinica-id])
+              psicologo-valido? (execute-one! ["SELECT id FROM usuarios WHERE id = ? AND clinica_id = ?" 
+                                               psicologo-uuid clinica-id])]
+          (if (and paciente-valido? psicologo-valido?)
+            (let [novo-agendamento (sql/insert! @datasource :agendamentos
+                                                {:clinica_id       clinica-id
+                                                 :paciente_id      paciente-uuid
+                                                 :psicologo_id     psicologo-uuid
+                                                 :data_hora_sessao (java.sql.Timestamp/valueOf data_hora_sessao)
+                                                 :valor_consulta   valor_consulta}
+                                                {:builder-fn rs/as-unqualified-lower-maps :return-keys true})]
+              {:status 201, :body novo-agendamento})
+            {:status 422, :body {:erro "Paciente ou psicólogo não pertence à clínica do usuário autenticado."}}))))
+    (catch Exception e
+      (println "ERRO FATAL NO HANDLER:" (.getMessage e))
+      (.printStackTrace e)
+      {:status 500 :body {:erro (str "Erro interno: " (.getMessage e))}})))
+
+
+(defn obter-agendamento-handler [request]
   (let [clinica-id (get-in request [:identity :clinica_id])
-        {:keys [paciente_id psicologo_id data_hora_sessao valor_consulta]} (:body request)]
-    (if (or (nil? paciente_id) (nil? psicologo_id) (nil? data_hora_sessao))
-      {:status 400, :body {:erro "paciente_id, psicologo_id e data_hora_sessao são obrigatórios."}}
-      (let [paciente-valido? (execute-one! ["SELECT id FROM pacientes WHERE id = ? AND clinica_id = ?" paciente_id clinica-id])
-            psicologo-valido? (execute-one! ["SELECT id FROM usuarios WHERE id = ? AND clinica_id = ?" psicologo_id clinica-id])]
-        (if (and paciente-valido? psicologo-valido?)
-          (let [novo-agendamento (sql/insert! @datasource :agendamentos
-                                              {:clinica_id       clinica-id
-                                               :paciente_id      paciente_id
-                                               :psicologo_id     psicologo_id
-                                               :data_hora_sessao data_hora_sessao
-                                               :valor_consulta   valor_consulta}
-                                              {:builder-fn rs/as-unqualified-lower-maps :return-keys true})]
-            {:status 201, :body novo-agendamento})
-          {:status 422, :body {:erro "Paciente ou psicólogo não pertence à clínica do usuário autenticado."}})))))
+        agendamento-id (java.util.UUID/fromString (get-in request [:params :id]))]
+    (if-let [agendamento (execute-one! ["SELECT * FROM agendamentos WHERE id = ? AND clinica_id = ?" agendamento-id clinica-id])]
+      {:status 200 :body agendamento}
+      {:status 404 :body {:erro "Agendamento não encontrado."}})))
+
+(defn atualizar-agendamento-handler [request]
+  (try
+    (let [clinica-id (get-in request [:identity :clinica_id])
+          agendamento-id (java.util.UUID/fromString (get-in request [:params :id]))
+          {:keys [paciente_id psicologo_id data_hora_sessao valor_consulta]} (:body request)]
+      
+      (if (execute-one! ["SELECT id FROM agendamentos WHERE id = ? AND clinica_id = ?" agendamento-id clinica-id])
+        (let [update-map (cond-> {}
+                           (some? paciente_id) (assoc :paciente_id (java.util.UUID/fromString paciente_id))
+                           (some? psicologo_id) (assoc :psicologo_id (java.util.UUID/fromString psicologo_id))
+                           (some? data_hora_sessao) (assoc :data_hora_sessao (java.sql.Timestamp/valueOf data_hora_sessao))
+                           (some? valor_consulta) (assoc :valor_consulta valor_consulta))
+              resultado (sql/update! @datasource :agendamentos update-map {:id agendamento-id :clinica_id clinica-id})]
+          (if (zero? (:next.jdbc/update-count resultado))
+            {:status 500 :body {:erro "Erro ao atualizar agendamento."}}
+            (let [agendamento-atualizado (execute-one! ["SELECT * FROM agendamentos WHERE id = ?" agendamento-id])]
+              {:status 200 :body agendamento-atualizado})))
+        {:status 404 :body {:erro "Agendamento não encontrado."}}))
+    (catch Exception e
+      (println "ERRO AO ATUALIZAR AGENDAMENTO:" (.getMessage e))
+      (.printStackTrace e)
+      {:status 500 :body {:erro (str "Erro interno: " (.getMessage e))}})))
+
+
+(defn remover-agendamento-handler [request]
+  (try
+    (let [clinica-id (get-in request [:identity :clinica_id])
+          agendamento-id (java.util.UUID/fromString (get-in request [:params :id]))]
+      
+      (if (execute-one! ["SELECT id FROM agendamentos WHERE id = ? AND clinica_id = ?" agendamento-id clinica-id])
+        (let [resultado (sql/delete! @datasource :agendamentos {:id agendamento-id :clinica_id clinica-id})]
+          (if (zero? (:next.jdbc/update-count resultado))
+            {:status 500 :body {:erro "Erro ao remover agendamento."}}
+            {:status 204 :body ""}))
+        {:status 404 :body {:erro "Agendamento não encontrado."}}))
+    (catch Exception e
+      (println "ERRO AO REMOVER AGENDAMENTO:" (.getMessage e))
+      (.printStackTrace e)
+      {:status 500 :body {:erro (str "Erro interno: " (.getMessage e))}})))
 
 (defn listar-agendamentos-handler [request]
   (let [identity (:identity request)
@@ -334,11 +425,19 @@
         papel-id (:papel_id identity)
         user-id (:user_id identity)
         nome-papel (:nome_papel (execute-one! ["SELECT nome_papel FROM papeis WHERE id = ?" papel-id]))]
+    (println "DEBUG: Listar Agendamentos - User:" user-id "Papel:" nome-papel "Clinica:" clinica-id)
     (let [agendamentos (if (or (= nome-papel "admin_clinica") (= nome-papel "secretario"))
-                         (execute-query! ["SELECT * FROM agendamentos WHERE clinica_id = ?" clinica-id])
-                         (execute-query! ["SELECT * FROM agendamentos WHERE clinica_id = ? AND psicologo_id = ?" clinica-id user-id]))]
+                         (execute-query! ["SELECT a.*, p.nome as nome_paciente, u.nome as nome_psicologo
+                                           FROM agendamentos a
+                                           JOIN pacientes p ON a.paciente_id = p.id
+                                           LEFT JOIN usuarios u ON a.psicologo_id = u.id
+                                           WHERE a.clinica_id = ?" clinica-id])
+                         (execute-query! ["SELECT a.*, p.nome as nome_paciente, u.nome as nome_psicologo
+                                           FROM agendamentos a
+                                           JOIN pacientes p ON a.paciente_id = p.id
+                                           LEFT JOIN usuarios u ON a.psicologo_id = u.id
+                                           WHERE a.clinica_id = ? AND a.psicologo_id = ?" clinica-id user-id]))]
       {:status 200 :body agendamentos})))
-
 
 ;; --- Handlers de Prontuários ---
 (defn criar-prontuario-handler [request]
@@ -373,7 +472,7 @@
         clinica-id (:clinica_id identity)
         usuario-id (:user_id identity)
         papel (:role identity)
-        paciente-id (get-in request [:params :paciente-id])]
+        paciente-id (java.util.UUID/fromString (get-in request [:params :paciente-id]))]
     
     (let [paciente (execute-one! ["SELECT id, psicologo_id FROM pacientes WHERE id = ? AND clinica_id = ?" paciente-id clinica-id])]
       (if-not paciente
@@ -420,7 +519,10 @@
 
 (defroutes agendamentos-routes
   (POST "/" request (wrap-checar-permissao criar-agendamento-handler "gerenciar_agendamentos_clinica"))
-  (GET  "/" request (wrap-jwt-autenticacao listar-agendamentos-handler)))
+  (GET  "/" request (wrap-jwt-autenticacao listar-agendamentos-handler))
+  (GET  "/:id" request (wrap-jwt-autenticacao obter-agendamento-handler))
+  (PUT  "/:id" request (wrap-checar-permissao atualizar-agendamento-handler "gerenciar_agendamentos_clinica"))
+  (DELETE "/:id" request (wrap-checar-permissao remover-agendamento-handler "gerenciar_agendamentos_clinica")))
 
 (defroutes protected-routes
   (POST   "/api/usuarios" request (wrap-checar-permissao criar-usuario-handler "gerenciar_usuarios"))

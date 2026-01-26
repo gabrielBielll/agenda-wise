@@ -30,7 +30,15 @@ CREATE TABLE IF NOT EXISTS usuarios (
   papel_id UUID REFERENCES papeis(id),
   nome VARCHAR(255) NOT NULL,
   email VARCHAR(255) UNIQUE NOT NULL,
-  senha_hash VARCHAR(255) NOT NULL
+  senha_hash VARCHAR(255) NOT NULL,
+  cpf VARCHAR(14),
+  telefone VARCHAR(20),
+  data_nascimento DATE,
+  endereco TEXT,
+  crp VARCHAR(20),
+  registro_e_psi VARCHAR(50),
+  abordagem VARCHAR(100),
+  area_de_atuacao VARCHAR(100)
 );
 
 CREATE TABLE IF NOT EXISTS pacientes (

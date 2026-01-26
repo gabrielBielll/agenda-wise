@@ -1,5 +1,6 @@
 import React from 'react';
-import { cookies } from 'next/headers';
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import ClientComponent from './ClientComponent'; // Vamos criar este componente a seguir
 
 // Definindo o tipo de dados para um paciente (deve corresponder ao que a API retorna)
@@ -39,8 +40,8 @@ async function getPacientes(token: string): Promise<Paciente[] | { error: string
 
 // A página em si, que executa no servidor
 export default async function AdminPacientesPage() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get('sessionToken')?.value;
+  const session = await getServerSession(authOptions);
+  const token = (session as any)?.backendToken;
 
   if (!token) {
     // Se não houver token, passa um erro para o componente cliente

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { signOut } from "next-auth/react";
 import { PanelLeft, Search, Settings, UserCircle } from "lucide-react"; // Adicionando alguns ícones de exemplo
 import { Button } from "@/components/ui/button";
 import {
@@ -84,7 +85,9 @@ export default function AdminHeader({
           <DropdownMenuItem>Configurações</DropdownMenuItem>
           <DropdownMenuItem>Suporte</DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem>Sair</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => signOut({ callbackUrl: "/admin/login" })}>
+            Sair
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     </header>

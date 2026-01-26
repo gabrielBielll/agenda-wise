@@ -8,11 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { createAgendamento, type FormState } from "../actions";
-import { CalendarIcon, Clock, DollarSign, User } from "lucide-react";
+import { updateAgendamento, type FormState } from "../../actions";
 import { useRouter } from "next/navigation";
-
-// interfaces...
 
 interface Psicologo {
   id: string;
@@ -22,6 +19,14 @@ interface Psicologo {
 interface Paciente {
   id: string;
   nome: string;
+}
+
+interface Agendamento {
+  id: string;
+  paciente_id: string;
+  psicologo_id: string;
+  data_hora_sessao: string; // ISO string
+  valor_consulta: number;
 }
 
 const initialState: FormState = {
@@ -34,31 +39,50 @@ function SubmitButton() {
   const { pending } = useFormStatus();
   return (
     <Button type="submit" className="w-full" disabled={pending}>
-      {pending ? "Agendando..." : "Confirmar Agendamento"}
+      {pending ? "Salvando..." : "Salvar Alterações"}
     </Button>
   );
 }
 
-export default function NovoAgendamentoForm({
+export default function EditarAgendamentoForm({
+  agendamento,
   psicologos,
   pacientes
 }: {
+  agendamento: Agendamento;
   psicologos: Psicologo[];
   pacientes: Paciente[];
 }) {
-  const router = useRouter();
   const { toast } = useToast();
-  const [state, formAction] = useFormState(createAgendamento, initialState);
+  const updateWithId = updateAgendamento.bind(null, agendamento.id);
+  const [state, formAction] = useFormState(updateWithId, initialState);
 
   useEffect(() => {
     if (state.message && !state.success) {
       toast({
-        title: "Erro no Agendamento",
+        title: "Erro na Edição",
         description: state.message,
         variant: "destructive",
       });
     }
   }, [state, toast]);
+
+  // Format date for input datetime-local (YYYY-MM-DDTHH:mm)
+  // Backend sends "2024-01-01 10:00:00.0" or ISO. 
+  // We need to parse it safely.
+  const formatForInput = (dateString: string) => {
+      try {
+          const date = new Date(dateString);
+          // Adjust for timezone offset if needed or use local ISO string
+          // Simple approach: toISOString().slice(0, 16) gives UTC. 
+          // For local time input, we need local time.
+          const offset = date.getTimezoneOffset() * 60000;
+          const localISOTime = (new Date(date.getTime() - offset)).toISOString().slice(0, 16);
+          return localISOTime;
+      } catch (e) {
+          return "";
+      }
+  };
 
   return (
     <form action={formAction}>
@@ -66,7 +90,7 @@ export default function NovoAgendamentoForm({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="paciente_id">Paciente</Label>
-            <Select name="paciente_id" required>
+            <Select name="paciente_id" defaultValue={agendamento.paciente_id} required>
               <SelectTrigger>
                 <SelectValue placeholder="Selecione um paciente" />
               </SelectTrigger>
@@ -81,7 +105,7 @@ export default function NovoAgendamentoForm({
 
           <div className="space-y-2">
             <Label htmlFor="psicologo_id">Psicólogo</Label>
-            <Select name="psicologo_id" required>
+            <Select name="psicologo_id" defaultValue={agendamento.psicologo_id} required>
               <SelectTrigger>
                 <SelectValue placeholder="Selecione um psicólogo" />
               </SelectTrigger>
@@ -98,13 +122,28 @@ export default function NovoAgendamentoForm({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="data_hora_sessao">Data e Hora</Label>
-            <Input id="data_hora_sessao" name="data_hora_sessao" type="datetime-local" required />
+            <Input 
+                id="data_hora_sessao" 
+                name="data_hora_sessao" 
+                type="datetime-local" 
+                defaultValue={formatForInput(agendamento.data_hora_sessao)}
+                required 
+            />
             {state.errors?.data_hora_sessao && <p className="text-sm font-medium text-destructive">{state.errors.data_hora_sessao[0]}</p>}
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="valor_consulta">Valor (R$)</Label>
-            <Input id="valor_consulta" name="valor_consulta" type="number" step="0.01" min="0" placeholder="0.00" required />
+            <Input 
+                id="valor_consulta" 
+                name="valor_consulta" 
+                type="number" 
+                step="0.01" 
+                min="0" 
+                placeholder="0.00" 
+                defaultValue={agendamento.valor_consulta}
+                required 
+            />
             {state.errors?.valor_consulta && <p className="text-sm font-medium text-destructive">{state.errors.valor_consulta[0]}</p>}
           </div>
         </div>

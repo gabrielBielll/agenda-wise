@@ -1,13 +1,16 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useTransition } from 'react';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Search, ArrowRight, Leaf, Loader2, AlertTriangle } from "lucide-react";
+import { Search, ArrowRight, Leaf, Loader2, AlertTriangle, UserPlus, Trash2, Edit } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { deletePaciente, getPacientes } from "./actions";
 
 // Interface do Paciente que esperamos da API
 interface Patient {
@@ -20,55 +23,64 @@ interface Patient {
 
 export default function PatientsPage() {
   const { data: session, status: sessionStatus } = useSession();
+  const router = useRouter();
+  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [patients, setPatients] = useState<Patient[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const fetchPatientsData = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await getPacientes();
+      console.log("PatientsPage: Resultado do getPacientes:", result);
+      
+      if (result.success && result.data) {
+        setPatients(result.data);
+      } else {
+        throw new Error(result.error || 'Falha ao buscar os dados dos pacientes.');
+      }
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    // Só executa a busca quando a sessão estiver carregada e autenticada
     if (sessionStatus === 'authenticated') {
-      const backendToken = (session as any)?.backendToken;
-
-      if (backendToken) {
-        const fetchPatients = async () => {
-          setLoading(true);
-          setError(null);
-          try {
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/pacientes`, {
-              method: 'GET',
-              headers: {
-                'Authorization': `Bearer ${backendToken}`,
-              },
-            });
-
-            if (!response.ok) {
-              const errorData = await response.json();
-              throw new Error(errorData.erro || 'Falha ao buscar os dados dos pacientes.');
-            }
-            const data = await response.json();
-            setPatients(data);
-          } catch (err: any) {
-            setError(err.message);
-          } finally {
-            setLoading(false);
-          }
-        };
-
-        fetchPatients();
-      } else {
-        setError("Token de autenticação do backend não foi encontrado na sessão.");
-        setLoading(false);
-      }
+      fetchPatientsData();
     } else if (sessionStatus === 'unauthenticated') {
+      // Opcional: Redirecionar ou mostrar erro
       setError("Usuário não autenticado.");
       setLoading(false);
     }
-    // A dependência `sessionStatus` garante que o efeito rode quando o status mudar de 'loading' para 'authenticated'
-  }, [session, sessionStatus]);
+  }, [sessionStatus]);
 
   const getInitials = (name: string) => {
     return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+  };
+
+  const handleDelete = async (patientId: string, patientName: string) => {
+    if (!confirm(`Tem certeza que deseja remover o paciente "${patientName}"?`)) {
+      return;
+    }
+
+    setDeletingId(patientId);
+    startTransition(async () => {
+      const result = await deletePaciente(patientId);
+      if (result.success) {
+        toast({ title: "Sucesso!", description: result.message });
+        setPatients(prev => prev.filter(p => p.id !== patientId));
+      } else {
+        toast({ title: "Erro ao Remover", description: result.message, variant: "destructive" });
+      }
+      setDeletingId(null);
+    });
   };
   
   const filteredPatients = patients.filter(patient =>
@@ -101,14 +113,19 @@ export default function PatientsPage() {
     <div className="space-y-8">
       <Card className="shadow-lg">
         <CardHeader>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              {/* Mantive o (v2 - Real) para nossa verificação final */}
-              <CardTitle className="font-headline text-3xl">Meus Pacientes (v2 - Real)</CardTitle>
+              <CardTitle className="font-headline text-3xl">Meus Pacientes</CardTitle>
               <CardDescription className="text-lg text-muted-foreground">
-                Visualize os perfis de pacientes vinculados a você.
+                Gerencie os pacientes vinculados a você.
               </CardDescription>
             </div>
+            <Button asChild>
+              <Link href="/patients/new">
+                <UserPlus className="mr-2 h-4 w-4" />
+                Novo Paciente
+              </Link>
+            </Button>
           </div>
         </CardHeader>
         <CardContent>
@@ -132,7 +149,7 @@ export default function PatientsPage() {
                       <AvatarImage src={patient.avatar_url || ''} alt={patient.nome} />
                       <AvatarFallback className="bg-secondary text-secondary-foreground font-semibold">{getInitials(patient.nome)}</AvatarFallback>
                     </Avatar>
-                    <div>
+                    <div className="flex-1">
                       <CardTitle className="font-headline text-xl">{patient.nome}</CardTitle>
                       {patient.lastSession && <CardDescription>Última Sessão: {new Date(patient.lastSession).toLocaleDateString('pt-BR')}</CardDescription>}
                     </div>
@@ -140,7 +157,26 @@ export default function PatientsPage() {
                   <CardContent className="flex-grow">
                     <p className="text-sm text-muted-foreground">Clique para ver o perfil detalhado e as notas de sessão.</p>
                   </CardContent>
-                  <CardFooter className="flex justify-end items-center pt-4 border-t">
+                  <CardFooter className="flex justify-between items-center pt-4 border-t">
+                    <div className="flex gap-2">
+                      <Button 
+                        variant="destructive" 
+                        size="sm"
+                        onClick={() => handleDelete(patient.id, patient.nome)}
+                        disabled={deletingId === patient.id}
+                      >
+                        {deletingId === patient.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-4 w-4" />
+                        )}
+                      </Button>
+                      <Button variant="outline" size="sm" asChild>
+                        <Link href={`/patients/${patient.id}/edit`}>
+                          <Edit className="h-4 w-4" />
+                        </Link>
+                      </Button>
+                    </div>
                     <Button variant="default" size="sm" asChild>
                       <Link href={`/patients/${patient.id}`}>
                         Ver Perfil <ArrowRight className="ml-2 h-4 w-4" />
@@ -154,9 +190,15 @@ export default function PatientsPage() {
             <div className="text-center py-10">
               <Leaf className="mx-auto h-16 w-16 text-muted-foreground/50 mb-4" />
               <p className="font-headline text-xl text-muted-foreground">Nenhum paciente encontrado.</p>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-muted-foreground mb-4">
                 Ainda não há pacientes vinculados ao seu perfil.
               </p>
+              <Button asChild>
+                <Link href="/patients/new">
+                  <UserPlus className="mr-2 h-4 w-4" />
+                  Adicionar Primeiro Paciente
+                </Link>
+              </Button>
             </div>
           )}
         </CardContent>

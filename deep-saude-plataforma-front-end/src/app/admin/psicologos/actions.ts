@@ -1,10 +1,13 @@
 "use server";
 
-import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 
 export async function deletePsicologo(psicologoId: string): Promise<{ success: boolean; message: string }> {
-  const token = (await cookies()).get("sessionToken")?.value;
+  const session = await getServerSession(authOptions);
+  const token = (session as any)?.backendToken;
+  
   if (!token) {
     return { success: false, message: "Erro de autenticação." };
   }

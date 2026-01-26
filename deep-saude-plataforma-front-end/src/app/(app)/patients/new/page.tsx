@@ -1,44 +1,56 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useFormState, useFormStatus } from 'react-dom';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { UserPlus, Save, ArrowLeft } from "lucide-react";
+import { UserPlus, Save, ArrowLeft, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import Link from 'next/link';
+import { createPaciente, type FormState } from '../actions';
+
+const initialState: FormState = {
+  message: "",
+  errors: {},
+  success: false,
+};
+
+function SubmitButton() {
+  const { pending } = useFormStatus();
+  return (
+    <Button type="submit" size="lg" disabled={pending}>
+      {pending ? (
+        <>
+          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+          Salvando...
+        </>
+      ) : (
+        <>
+          <Save className="mr-2 h-5 w-5" />
+          Salvar Paciente
+        </>
+      )}
+    </Button>
+  );
+}
 
 export default function NewPatientPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    dob: '',
-    address: '',
-  });
+  const [state, formAction] = useFormState(createPaciente, initialState);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { id, value } = e.target;
-    setFormData(prev => ({ ...prev, [id]: value }));
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    // Mock form submission
-    console.log("New patient data:", formData);
-    toast({
-      title: "Paciente Adicionado (Simulado)",
-      description: `${formData.name} foi adicionado(a) com sucesso ao seu diretório.`,
-      className: "bg-primary text-primary-foreground",
-    });
-    // Redirect to patients list or the new patient's detail page
-    router.push('/patients'); 
-  };
+  useEffect(() => {
+    if (state.success) {
+      toast({ title: "Sucesso!", description: state.message });
+      router.push('/patients');
+    } else if (state.message && !state.success) {
+      toast({ title: "Erro ao Salvar", description: state.message, variant: "destructive" });
+    }
+  }, [state, router, toast]);
 
   return (
     <div className="space-y-8 max-w-2xl mx-auto">
@@ -64,38 +76,38 @@ export default function NewPatientPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form action={formAction} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <Label htmlFor="name">Nome Completo</Label>
-                <Input id="name" value={formData.name} onChange={handleChange} placeholder="Ex: João Ninguém" required />
+                <Label htmlFor="nome">Nome Completo *</Label>
+                <Input id="nome" name="nome" placeholder="Ex: João Ninguém" required />
+                {state.errors?.nome && <p className="text-sm font-medium text-destructive">{state.errors.nome[0]}</p>}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="dob">Data de Nascimento</Label>
-                <Input id="dob" type="date" value={formData.dob} onChange={handleChange} required />
+                <Label htmlFor="data_nascimento">Data de Nascimento</Label>
+                <Input id="data_nascimento" name="data_nascimento" type="date" />
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <Label htmlFor="email">Endereço de E-mail</Label>
-                <Input id="email" type="email" value={formData.email} onChange={handleChange} placeholder="Ex: joao.ninguem@example.com" />
+                <Input id="email" name="email" type="email" placeholder="Ex: joao.ninguem@example.com" />
+                {state.errors?.email && <p className="text-sm font-medium text-destructive">{state.errors.email[0]}</p>}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="phone">Número de Telefone</Label>
-                <Input id="phone" type="tel" value={formData.phone} onChange={handleChange} placeholder="Ex: +55 (XX) XXXXX-XXXX" />
+                <Label htmlFor="telefone">Número de Telefone</Label>
+                <Input id="telefone" name="telefone" type="tel" placeholder="Ex: +55 (XX) XXXXX-XXXX" />
               </div>
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="address">Endereço</Label>
-              <Textarea id="address" value={formData.address} onChange={handleChange} placeholder="Ex: Rua do Bem-Estar, 123, Cidade da Tranquilidade, UF 12345-678" className="min-h-[100px]" />
+              <Label htmlFor="endereco">Endereço</Label>
+              <Textarea id="endereco" name="endereco" placeholder="Ex: Rua do Bem-Estar, 123, Cidade da Tranquilidade, UF 12345-678" className="min-h-[100px]" />
             </div>
 
             <div className="flex justify-end pt-4">
-              <Button type="submit" size="lg">
-                <Save className="mr-2 h-5 w-5" /> Salvar Paciente
-              </Button>
+              <SubmitButton />
             </div>
           </form>
         </CardContent>

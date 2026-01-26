@@ -1,6 +1,7 @@
 import React from 'react';
-import { cookies } from 'next/headers';
-import ClientComponent from './ClientComponent'; // Importaremos o componente cliente definido neste mesmo arquivo
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import ClientComponent from './ClientComponent';
 
 // Definindo o tipo de dados para um psicólogo
 interface Psicologo {
@@ -24,8 +25,8 @@ async function getPsicologos(token: string): Promise<Psicologo[] | { error: stri
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.erro || 'Falha ao buscar os dados dos psicólogos.');
+        const errorData = await response.json();
+        throw new Error(errorData.erro || 'Falha ao buscar os dados dos psicólogos.');
     }
     return response.json();
   } catch (error: any) {
@@ -34,13 +35,9 @@ async function getPsicologos(token: string): Promise<Psicologo[] | { error: stri
   }
 }
 
-// ===================================================================
-// PARTE 1: SERVER COMPONENT (A PÁGINA)
-// Esta parte executa no servidor.
-// ===================================================================
 export default async function AdminPsicologosPage() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get('sessionToken')?.value;
+  const session = await getServerSession(authOptions);
+  const token = (session as any)?.backendToken;
 
   if (!token) {
     return <ClientComponent initialData={[]} error="Token de autenticação não encontrado." />;
@@ -52,6 +49,5 @@ export default async function AdminPsicologosPage() {
     return <ClientComponent initialData={[]} error={psicologosData.error} />;
   }
 
-  // Passa os dados buscados para o Client Component
   return <ClientComponent initialData={psicologosData} />;
 }

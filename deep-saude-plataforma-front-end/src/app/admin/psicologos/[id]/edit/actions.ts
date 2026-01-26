@@ -1,12 +1,21 @@
 "use server";
 
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { z } from "zod";
-import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 
 const psicologoSchema = z.object({
   nome: z.string().min(3, { message: "O nome deve ter pelo menos 3 caracteres." }).optional(),
   email: z.string().email({ message: "Por favor, insira um e-mail válido." }).optional(),
+  cpf: z.string().optional(),
+  telefone: z.string().optional(),
+  data_nascimento: z.string().optional(),
+  endereco: z.string().optional(),
+  crp: z.string().optional(),
+  registro_e_psi: z.string().optional(),
+  abordagem: z.string().optional(),
+  area_de_atuacao: z.string().optional(),
 });
 
 export type FormState = {
@@ -27,6 +36,14 @@ export async function updatePsicologo(
   const validatedFields = psicologoSchema.safeParse({
     nome: formData.get("nome") || undefined,
     email: formData.get("email") || undefined,
+    cpf: formData.get("cpf") || undefined,
+    telefone: formData.get("telefone") || undefined,
+    data_nascimento: formData.get("data_nascimento") || undefined,
+    endereco: formData.get("endereco") || undefined,
+    crp: formData.get("crp") || undefined,
+    registro_e_psi: formData.get("registro_e_psi") || undefined,
+    abordagem: formData.get("abordagem") || undefined,
+    area_de_atuacao: formData.get("area_de_atuacao") || undefined,
   });
 
   if (!validatedFields.success) {
@@ -37,7 +54,9 @@ export async function updatePsicologo(
     };
   }
 
-  const token = (await cookies()).get("sessionToken")?.value;
+  const session = await getServerSession(authOptions);
+  const token = (session as any)?.backendToken;
+  
   if (!token) {
     return { message: "Erro de autenticação.", success: false };
   }

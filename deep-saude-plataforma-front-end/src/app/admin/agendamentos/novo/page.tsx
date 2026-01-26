@@ -1,5 +1,7 @@
 import React from 'react';
-import { cookies } from 'next/headers';
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,10 +23,12 @@ async function getData(token: string) {
 }
 
 export default async function AdminNovoAgendamentoPage() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get('sessionToken')?.value;
+  const session = await getServerSession(authOptions);
+  const token = (session as any)?.backendToken;
 
-  if (!token) return <p>Não autorizado.</p>;
+  if (!token) {
+    redirect("/admin/login");
+  }
 
   const { psicologos, pacientes } = await getData(token);
 

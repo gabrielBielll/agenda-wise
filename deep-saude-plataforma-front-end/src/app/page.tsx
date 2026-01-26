@@ -1,14 +1,14 @@
 // src/app/page.tsx - Versão completa a ser utilizada
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Leaf, Lock } from "lucide-react";
 import { useRouter } from 'next/navigation';
-import { useSession, signIn } from 'next-auth/react';
+import { useSession, signIn, signOut } from 'next-auth/react';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -16,6 +16,13 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+
+  // Redirecionar se já estiver autenticado (efeito colateral deve estar no useEffect)
+  useEffect(() => {
+    if (status === 'authenticated') {
+      router.push('/dashboard');
+    }
+  }, [status, router]);
 
   // Esta função irá acionar o nosso 'CredentialsProvider'
   const handleLogin = async (e: React.FormEvent) => {
@@ -31,16 +38,20 @@ export default function LoginPage() {
     if (result?.error) {
       setError("Credenciais inválidas. Verifique seu e-mail e senha.");
     } else if (result?.ok) {
+      // O redirecionamento será tratado pelo useEffect ou pelo router.push aqui
       router.push('/dashboard');
     }
   };
 
-  if (status === 'authenticated') {
-    router.push('/dashboard');
-    return <p>Redirecionando...</p>;
-  }
-  if (status === 'loading') {
-    return <div className="flex items-center justify-center min-h-screen bg-background p-4"><p>Carregando...</p></div>;
+  if (status === 'loading' || status === 'authenticated') {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-background p-4 gap-4">
+        <p className="text-lg">{status === 'loading' ? 'Verificando sessão...' : 'Login confirmado, redirecionando...'}</p>
+        <Button variant="outline" onClick={() => signOut()}>
+          Sair / Trocar Conta
+        </Button>
+      </div>
+    );
   }
 
   return (

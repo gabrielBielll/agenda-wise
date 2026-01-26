@@ -1,12 +1,11 @@
-
-'use client';
-
 import './globals.css';
-import { Toaster } from "@/components/ui/toaster";
-import { ThemeProvider } from "next-themes"; // Importando o ThemeProvider
+import { Providers } from "@/components/Providers";
+import { Metadata } from 'next';
 
-import { SessionProvider } from 'next-auth/react';
-
+export const metadata: Metadata = {
+  title: "Deep Saúde",
+  description: "Plataforma de Gestão para Clínicas de Psicologia",
+};
 
 export default function RootLayout({
   children,
@@ -22,17 +21,9 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;700&display=swap" rel="stylesheet" />
       </head>
       <body className="font-body antialiased">
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          <SessionProvider>
-            {children}
-            <Toaster />
-          </SessionProvider>
-        </ThemeProvider>
+        <Providers>
+          {children}
+        </Providers>
       </body>
     </html>
   );

@@ -1,9 +1,10 @@
 "use server";
 
 import { z } from "zod";
-import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 
 const pacienteSchema = z.object({
   nome: z.string().min(3, { message: "O nome deve ter pelo menos 3 caracteres." }),
@@ -11,6 +12,7 @@ const pacienteSchema = z.object({
   telefone: z.string().optional(),
   data_nascimento: z.string().optional(),
   endereco: z.string().optional(),
+  psicologo_id: z.string().optional(), // Novo campo
 });
 
 export type FormState = {
@@ -34,16 +36,27 @@ export async function updatePaciente(
     };
   }
 
-  const token = (await cookies()).get("sessionToken")?.value;
+  const session = await getServerSession(authOptions);
+  const token = (session as any)?.backendToken;
+  
   if (!token) return { message: "Erro de autenticação.", success: false };
 
   const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/pacientes/${pacienteId}`;
+  
+  // Tratar o valor "none" ou string vazia para remover o psicologo (enviar null se a API suportar, ou não enviar)
+  // Assumindo que o endpoint de update aceite lidar com psicologo_id. 
+  // Se "none" for selecionado, podemos enviar null ou string vazia, depende do backend.
+  // Vamos enviar null se for "none" ou undefined.
+  const dataToSend = {
+    ...validatedFields.data,
+    psicologo_id: validatedFields.data.psicologo_id === "none" ? null : validatedFields.data.psicologo_id
+  };
 
   try {
     const response = await fetch(apiUrl, {
       method: "PUT",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-      body: JSON.stringify(validatedFields.data),
+      body: JSON.stringify(dataToSend),
     });
 
     if (!response.ok) {
