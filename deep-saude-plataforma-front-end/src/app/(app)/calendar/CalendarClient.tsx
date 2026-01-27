@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, PlusCircle, Pencil, Trash2, Calendar as CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react";
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -88,6 +88,14 @@ function SubmitButton({ isEditing }: { isEditing: boolean }) {
 export default function CalendarClient({ appointments, pacientes, bloqueios = [] }: { appointments: Appointment[], pacientes: Paciente[], bloqueios?: Bloqueio[] }) {
   const [date, setDate] = useState<Date>(new Date());
   const [view, setView] = useState<'month' | 'week' | 'day'>('week'); // Default to week view potentially
+
+  const appointmentDays = useMemo(() => {
+    const days = new Set<string>();
+    appointments.forEach(app => {
+        days.add(new Date(app.data_hora_sessao).toDateString());
+    });
+    return days;
+  }, [appointments]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isBlockDialogOpen, setIsBlockDialogOpen] = useState(false);
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
@@ -603,6 +611,12 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                 selected={date}
                 onSelect={(d) => d && setDate(d)}
                 className="p-0"
+                modifiers={{
+                    hasAppointment: (date) => appointmentDays.has(date.toDateString())
+                }}
+                modifiersClassNames={{
+                    hasAppointment: "after:content-[''] after:absolute after:bottom-1 after:left-1/2 after:-translate-x-1/2 after:w-1 after:h-1 after:bg-primary after:rounded-full relative"
+                }}
                 classNames={{
                 months: "flex flex-col space-y-4",
                 month: "space-y-4",
@@ -617,7 +631,7 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                 head_cell: "text-muted-foreground rounded-md w-8 font-normal text-[0.8rem]",
                 row: "flex w-full mt-2",
                 cell: "relative p-0 text-center text-sm focus-within:relative focus-within:z-20 [&:has([aria-selected])]:bg-accent",
-                day: "h-8 w-8 p-0 font-normal aria-selected:opacity-100 rounded-full hover:bg-accent hover:text-accent-foreground",
+                day: "h-8 w-8 p-0 font-normal aria-selected:opacity-100 rounded-full hover:bg-accent hover:text-accent-foreground flex items-center justify-center", // Added flex centering
                 day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
                 day_today: "bg-accent text-accent-foreground",
                 day_outside: "text-muted-foreground opacity-50",
