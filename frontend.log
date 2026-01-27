@@ -2909,3 +2909,984 @@ DEBUG: CalendarPage fetched: 2 appointments
  GET /api/auth/session 200 in 982ms
  GET /api/auth/session 200 in 388ms
  GET /api/auth/session 200 in 375ms
+ GET /api/auth/session 200 in 1456ms
+ GET /api/auth/session 200 in 282ms
+ GET /api/auth/session 200 in 263ms
+ GET /api/auth/session 200 in 344ms
+ GET /api/auth/session 200 in 477ms
+ ✓ Compiled in 1705ms
+[Middleware] Path: /admin/psicologos | Role: admin_clinica | Token Exists: true
+[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
+ GET /admin/psicologos 200 in 2682ms
+[Middleware] Path: /admin/psicologos | Role: admin_clinica | Token Exists: true
+ GET /admin/psicologos 200 in 2159ms
+[Middleware] Path: /admin/psicologos | Role: admin_clinica | Token Exists: true
+ GET /admin/psicologos 200 in 1275ms
+[Middleware] Path: /admin/psicologos | Role: admin_clinica | Token Exists: true
+[Middleware] Path: /admin/psicologos | Role: admin_clinica | Token Exists: true
+ GET /admin/psicologos 200 in 1030ms
+ GET /admin/psicologos 200 in 577ms
+ ✓ Compiled in 16.5s
+ ✓ Compiled /calendar in 50ms
+DEBUG: CalendarPage fetched: 2 appointments
+ GET /calendar 200 in 10525ms
+[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
+DEBUG: CalendarPage fetched: 2 appointments
+ GET /calendar 200 in 368ms
+[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
+DEBUG: CalendarPage fetched: 2 appointments
+[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
+ GET /calendar 200 in 289ms
+DEBUG: CalendarPage fetched: 2 appointments
+ GET /calendar 200 in 266ms
+[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
+DEBUG: CalendarPage fetched: 2 appointments
+ GET /calendar 200 in 236ms
+ GET /api/auth/session 200 in 855ms
+ GET /api/auth/session 200 in 494ms
+ GET /api/auth/session 200 in 265ms
+ GET /api/auth/csrf 200 in 305ms
+ POST /api/auth/signout 200 in 303ms
+[Middleware] Path: /admin/login | Role: undefined | Token Exists: false
+ GET /admin/login 200 in 1846ms
+ GET /api/auth/session 200 in 1106ms
+ GET /api/auth/session 200 in 409ms
+ GET /api/auth/session 200 in 228ms
+ GET /api/auth/session 200 in 494ms
+ GET /api/auth/session 200 in 436ms
+ GET /api/auth/session 200 in 1142ms
+[Middleware] Path: /calendar | Role: undefined | Token Exists: false
+ GET / 200 in 1249ms
+ GET /api/auth/session 200 in 188ms
+ GET /api/auth/session 200 in 216ms
+ GET /api/auth/session 200 in 652ms
+ GET /api/auth/session 200 in 284ms
+ GET /api/auth/session 200 in 1746ms
+ GET /api/auth/session 200 in 741ms
+ GET /api/auth/session 200 in 263ms
+[Middleware] Path: /admin/agendamentos | Role: admin_clinica | Token Exists: true
+DEBUG: AdminAgendamentosPage fetched: 0 agendamentos
+DEBUG: First agendamento: undefined
+ GET /admin/agendamentos 200 in 781ms
+ GET /api/auth/csrf 200 in 251ms
+ POST /api/auth/signout 200 in 182ms
+[Middleware] Path: /admin/login | Role: undefined | Token Exists: false
+ GET /admin/login 200 in 890ms
+ GET /api/auth/session 200 in 450ms
+ GET /favicon.ico 200 in 826ms
+[Middleware] Path: /admin/login | Role: undefined | Token Exists: false
+ ○ Compiling /admin/login ...
+ GET / 200 in 1311ms
+ GET / 200 in 1011ms
+ GET / 200 in 506ms
+ GET / 200 in 5525ms
+ GET / 200 in 896ms
+ GET / 200 in 944ms
+ GET / 200 in 958ms
+ GET / 200 in 522ms
+ ✓ Compiled /admin/login in 12.4s
+ GET / 200 in 2764ms
+[Middleware] Path: /admin/login | Role: undefined | Token Exists: false
+ GET /admin/login 200 in 14927ms
+[Middleware] Path: /admin/login | Role: undefined | Token Exists: false
+ GET /admin/login 200 in 349ms
+ ✓ Compiled in 29.6s
+ GET / 200 in 981ms
+ GET /admin/login 200 in 629ms
+[Middleware] Path: /admin/login | Role: undefined | Token Exists: false
+ GET / 200 in 790ms
+[Middleware] Path: /admin/login | Role: undefined | Token Exists: false
+ GET /admin/login 200 in 970ms
+ GET / 200 in 840ms
+ GET /admin/login 200 in 770ms
+[Middleware] Path: /admin/login | Role: undefined | Token Exists: false
+ GET /admin/login 200 in 233ms
+[Middleware] Path: /admin/login | Role: undefined | Token Exists: false
+ GET /admin/login 200 in 170ms
+[Middleware] Path: /admin/login | Role: undefined | Token Exists: false
+ GET /admin/login 200 in 192ms
+[Middleware] Path: /admin/login | Role: undefined | Token Exists: false
+ GET /admin/login 200 in 148ms
+[Middleware] Path: /admin/login | Role: undefined | Token Exists: false
+ GET /admin/login 200 in 325ms
+[Middleware] Path: /admin/login | Role: undefined | Token Exists: false
+ GET /admin/login 200 in 155ms
+[Middleware] Path: /admin/login | Role: undefined | Token Exists: false
+ GET /admin/login 200 in 267ms
+ ✓ Compiled in 890ms
+ GET /api/auth/providers 200 in 550ms
+ GET /api/auth/csrf 200 in 512ms
+NextAuth: Login API Response { status: 200, hasToken: true }
+NextAuth: Authorize success, returning user with token.
+FORCE OVERRIDE: Setting role to 'admin_clinica' for admin@deepsaude.com
+NextAuth: JWT Callback - Initial sign in
+NextAuth JWT: Forcing 'admin_clinica' for admin
+ POST /api/auth/callback/credentials 200 in 1879ms
+ GET /api/auth/session 200 in 568ms
+[Middleware] Path: /admin/dashboard | Role: admin_clinica | Token Exists: true
+ GET /admin/dashboard 200 in 2434ms
+ GET /api/auth/session 200 in 272ms
+ GET /api/auth/session 200 in 453ms
+ GET /api/auth/session 200 in 232ms
+ GET /api/auth/session 200 in 354ms
+ GET /api/auth/session 200 in 298ms
+[Middleware] Path: /admin/financeiro | Role: admin_clinica | Token Exists: true
+ ○ Compiling /admin/financeiro ...
+ ✓ Compiled /admin/financeiro in 13.6s
+ GET /admin/financeiro 200 in 14383ms
+[Middleware] Path: /admin/agendamentos | Role: admin_clinica | Token Exists: true
+ ✓ Compiled /admin/agendamentos in 91ms
+DEBUG: AdminAgendamentosPage fetched: 6 agendamentos
+DEBUG: First agendamento: {
+  id: '77448687-1fa1-47f2-946b-85cbd2bde501',
+  clinica_id: '967b3f16-04c2-489c-90d4-306bd967844e',
+  paciente_id: '159ed458-6680-4b18-8b1a-dbb73a17676e',
+  psicologo_id: 'ddf89084-1524-4748-93fd-dad6df68e399',
+  data_hora_sessao: '2026-01-27T00:08:00Z',
+  valor_consulta: 0,
+  nome_paciente: 'segundo paciente teste',
+  nome_psicologo: 'Dr. Psicólogo Teste'
+}
+ GET /admin/agendamentos 200 in 2921ms
+ GET /api/auth/providers 200 in 612ms
+ GET /api/auth/csrf 200 in 352ms
+NextAuth: Login API Response { status: 200, hasToken: true }
+NextAuth: Authorize success, returning user with token.
+NextAuth: JWT Callback - Initial sign in
+ POST /api/auth/callback/credentials 200 in 1862ms
+ GET /api/auth/session 200 in 267ms
+[Middleware] Path: /dashboard | Role: psicologo | Token Exists: true
+ ○ Compiling /dashboard ...
+ ✓ Compiled /dashboard in 1014ms
+[Middleware] Path: /dashboard | Role: psicologo | Token Exists: true
+ GET /dashboard 200 in 3406ms
+ GET /dashboard 200 in 596ms
+[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
+DEBUG: CalendarPage fetched: 2 appointments
+ GET /calendar 200 in 792ms
+ GET /api/auth/session 200 in 1844ms
+[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
+[Middleware] Path: /admin/agendamentos | Role: admin_clinica | Token Exists: true
+ ✓ Compiled in 3.7s
+ ○ Compiling /calendar ...
+ ✓ Compiled /calendar in 702ms
+DEBUG: AdminAgendamentosPage fetched: 6 agendamentos
+DEBUG: First agendamento: {
+  id: '77448687-1fa1-47f2-946b-85cbd2bde501',
+  clinica_id: '967b3f16-04c2-489c-90d4-306bd967844e',
+  paciente_id: '159ed458-6680-4b18-8b1a-dbb73a17676e',
+  psicologo_id: 'ddf89084-1524-4748-93fd-dad6df68e399',
+  data_hora_sessao: '2026-01-27T00:08:00Z',
+  valor_consulta: 0,
+  nome_paciente: 'segundo paciente teste',
+  nome_psicologo: 'Dr. Psicólogo Teste'
+}
+DEBUG: CalendarPage fetched: 2 appointments
+ GET /admin/agendamentos 200 in 2508ms
+ GET /calendar 200 in 2686ms
+[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
+[Middleware] Path: /admin/agendamentos | Role: admin_clinica | Token Exists: true
+ ✓ Compiled in 6.2s
+ ○ Compiling /calendar ...
+ ✓ Compiled /calendar in 770ms
+DEBUG: AdminAgendamentosPage fetched: 6 agendamentos
+DEBUG: First agendamento: {
+  id: '77448687-1fa1-47f2-946b-85cbd2bde501',
+  clinica_id: '967b3f16-04c2-489c-90d4-306bd967844e',
+  paciente_id: '159ed458-6680-4b18-8b1a-dbb73a17676e',
+  psicologo_id: 'ddf89084-1524-4748-93fd-dad6df68e399',
+  data_hora_sessao: '2026-01-27T00:08:00Z',
+  valor_consulta: 0,
+  nome_paciente: 'segundo paciente teste',
+  nome_psicologo: 'Dr. Psicólogo Teste'
+}
+ GET /admin/agendamentos 200 in 1166ms
+DEBUG: CalendarPage fetched: 2 appointments
+ GET /calendar 200 in 4776ms
+ ✓ Compiled in 1325ms
+ GET /api/auth/session 200 in 1903ms
+[Middleware] Path: /admin/agendamentos | Role: admin_clinica | Token Exists: true
+DEBUG: AdminAgendamentosPage fetched: 6 agendamentos
+DEBUG: First agendamento: {
+  id: '77448687-1fa1-47f2-946b-85cbd2bde501',
+  clinica_id: '967b3f16-04c2-489c-90d4-306bd967844e',
+  paciente_id: '159ed458-6680-4b18-8b1a-dbb73a17676e',
+  psicologo_id: 'ddf89084-1524-4748-93fd-dad6df68e399',
+  data_hora_sessao: '2026-01-27T00:08:00Z',
+  valor_consulta: 0,
+  nome_paciente: 'segundo paciente teste',
+  nome_psicologo: 'Dr. Psicólogo Teste'
+}
+ GET /admin/agendamentos 200 in 2279ms
+ GET /api/auth/session 200 in 716ms
+ GET /favicon.ico 200 in 453ms
+ GET /favicon.ico?favicon.56766c03.ico 200 in 454ms
+ GET /api/auth/session 200 in 466ms
+ GET /api/auth/session 200 in 187ms
+ GET /api/auth/session 200 in 921ms
+ GET /api/auth/session 200 in 365ms
+ GET /api/auth/session 200 in 583ms
+ GET /api/auth/session 200 in 210ms
+[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
+DEBUG: CalendarPage fetched: 1 appointments
+ POST /calendar 200 in 1884ms
+ GET /api/auth/session 200 in 411ms
+ ✓ Compiled in 2.2s
+ ✓ Compiled in 1286ms
+ ✓ Compiled in 1079ms
+ GET /api/auth/session 200 in 657ms
+ GET /api/auth/session 200 in 1176ms
+ GET /api/auth/session 200 in 226ms
+[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
+`legacyBehavior` is deprecated and will be removed in a future release. A codemod is available to upgrade your components:
+
+npx @next/codemod@latest new-link .
+
+Learn more: https://nextjs.org/docs/app/building-your-application/upgrading/codemods#remove-a-tags-from-link-components
+DEBUG: CalendarPage fetched: 1 appointments
+DEBUG: CalendarClient render. Date: Mon Jan 26 2026 Total: 1 Filtered: 1
+ GET /calendar 200 in 3447ms
+ GET /api/auth/session 200 in 363ms
+ GET /favicon.ico?favicon.56766c03.ico 200 in 647ms
+ GET /api/auth/session 200 in 1151ms
+ GET /api/auth/session 200 in 658ms
+ GET /api/auth/session 200 in 630ms
+ GET /api/auth/session 200 in 447ms
+ GET /api/auth/session 200 in 389ms
+ GET /api/auth/session 200 in 1735ms
+[Middleware] Path: /admin/agendamentos | Role: admin_clinica | Token Exists: true
+DEBUG: AdminAgendamentosPage fetched: 6 agendamentos
+DEBUG: First agendamento: {
+  id: '77448687-1fa1-47f2-946b-85cbd2bde501',
+  clinica_id: '967b3f16-04c2-489c-90d4-306bd967844e',
+  paciente_id: '159ed458-6680-4b18-8b1a-dbb73a17676e',
+  psicologo_id: 'ddf89084-1524-4748-93fd-dad6df68e399',
+  data_hora_sessao: '2026-01-27T00:08:00Z',
+  valor_consulta: 0,
+  nome_paciente: 'segundo paciente teste',
+  nome_psicologo: 'Dr. Psicólogo Teste'
+}
+[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
+ GET /admin/agendamentos 200 in 1179ms
+ ○ Compiling /calendar ...
+ GET /favicon.ico?favicon.56766c03.ico 200 in 666ms
+ ✓ Compiled in 10.5s
+ ✓ Compiled /calendar in 1916ms
+DEBUG: CalendarPage fetched: 1 appointments
+ GET /calendar 200 in 4661ms
+ GET /favicon.ico?favicon.56766c03.ico 200 in 465ms
+ GET /api/auth/session 200 in 1145ms
+ GET /api/auth/session 200 in 422ms
+ GET /api/auth/session 200 in 219ms
+[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
+`legacyBehavior` is deprecated and will be removed in a future release. A codemod is available to upgrade your components:
+
+npx @next/codemod@latest new-link .
+
+Learn more: https://nextjs.org/docs/app/building-your-application/upgrading/codemods#remove-a-tags-from-link-components
+DEBUG: CalendarPage fetched: 1 appointments
+ GET /calendar 200 in 4017ms
+ GET /favicon.ico?favicon.56766c03.ico 200 in 365ms
+ GET /api/auth/session 200 in 131ms
+ GET /api/auth/session 200 in 244ms
+ GET /api/auth/session 200 in 1905ms
+ GET /api/auth/session 200 in 628ms
+ GET /api/auth/session 200 in 677ms
+ GET /api/auth/session 200 in 228ms
+ GET /api/auth/session 200 in 348ms
+ ✓ Compiled in 2.6s
+ GET /api/auth/session 200 in 1667ms
+ GET /api/auth/session 200 in 893ms
+ GET /api/auth/session 200 in 207ms
+ GET /api/auth/session 200 in 438ms
+ GET /api/auth/session 200 in 459ms
+ GET /api/auth/session 200 in 609ms
+ GET /api/auth/session 200 in 215ms
+ GET /api/auth/session 200 in 461ms
+ ✓ Compiled in 1072ms
+ ✓ Compiled in 576ms
+ GET /api/auth/session 200 in 376ms
+ GET /api/auth/session 200 in 641ms
+ GET /api/auth/session 200 in 483ms
+[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
+`legacyBehavior` is deprecated and will be removed in a future release. A codemod is available to upgrade your components:
+
+npx @next/codemod@latest new-link .
+
+Learn more: https://nextjs.org/docs/app/building-your-application/upgrading/codemods#remove-a-tags-from-link-components
+DEBUG: CalendarPage fetched: 1 appointments
+ GET /calendar 200 in 2566ms
+ GET /favicon.ico?favicon.56766c03.ico 200 in 433ms
+ GET /api/auth/session 200 in 498ms
+ GET /api/auth/session 200 in 218ms
+ GET /api/auth/session 200 in 527ms
+ GET /api/auth/session 200 in 295ms
+ GET /api/auth/session 200 in 193ms
+ GET /api/auth/session 200 in 854ms
+ GET /api/auth/session 200 in 452ms
+ ✓ Compiled in 4s
+ ✓ Compiled in 4.4s
+ GET /api/auth/session 200 in 1077ms
+ GET /api/auth/session 200 in 249ms
+ GET /api/auth/session 200 in 635ms
+ GET /api/auth/session 200 in 261ms
+ GET /api/auth/session 200 in 547ms
+ GET /api/auth/session 200 in 324ms
+ GET /api/auth/session 200 in 382ms
+ GET /api/auth/session 200 in 256ms
+[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
+[Middleware] Path: /admin/agendamentos | Role: admin_clinica | Token Exists: true
+ ○ Compiling /calendar ...
+DEBUG: AdminAgendamentosPage fetched: 6 agendamentos
+DEBUG: First agendamento: {
+  id: '77448687-1fa1-47f2-946b-85cbd2bde501',
+  clinica_id: '967b3f16-04c2-489c-90d4-306bd967844e',
+  paciente_id: '159ed458-6680-4b18-8b1a-dbb73a17676e',
+  psicologo_id: 'ddf89084-1524-4748-93fd-dad6df68e399',
+  data_hora_sessao: '2026-01-27T00:08:00Z',
+  valor_consulta: 0,
+  nome_paciente: 'segundo paciente teste',
+  nome_psicologo: 'Dr. Psicólogo Teste'
+}
+ GET /admin/agendamentos 200 in 1581ms
+[Middleware] Path: /admin/agendamentos | Role: admin_clinica | Token Exists: true
+DEBUG: AdminAgendamentosPage fetched: 6 agendamentos
+DEBUG: First agendamento: {
+  id: '77448687-1fa1-47f2-946b-85cbd2bde501',
+  clinica_id: '967b3f16-04c2-489c-90d4-306bd967844e',
+  paciente_id: '159ed458-6680-4b18-8b1a-dbb73a17676e',
+  psicologo_id: 'ddf89084-1524-4748-93fd-dad6df68e399',
+  data_hora_sessao: '2026-01-27T00:08:00Z',
+  valor_consulta: 0,
+  nome_paciente: 'segundo paciente teste',
+  nome_psicologo: 'Dr. Psicólogo Teste'
+}
+[Middleware] Path: /admin/agendamentos | Role: admin_clinica | Token Exists: true
+ GET /admin/agendamentos 200 in 684ms
+[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
+DEBUG: AdminAgendamentosPage fetched: 6 agendamentos
+DEBUG: First agendamento: {
+  id: '77448687-1fa1-47f2-946b-85cbd2bde501',
+  clinica_id: '967b3f16-04c2-489c-90d4-306bd967844e',
+  paciente_id: '159ed458-6680-4b18-8b1a-dbb73a17676e',
+  psicologo_id: 'ddf89084-1524-4748-93fd-dad6df68e399',
+  data_hora_sessao: '2026-01-27T00:08:00Z',
+  valor_consulta: 0,
+  nome_paciente: 'segundo paciente teste',
+  nome_psicologo: 'Dr. Psicólogo Teste'
+}
+[Middleware] Path: /admin/agendamentos | Role: admin_clinica | Token Exists: true
+ GET /admin/agendamentos 200 in 1465ms
+DEBUG: AdminAgendamentosPage fetched: 6 agendamentos
+DEBUG: First agendamento: {
+  id: '77448687-1fa1-47f2-946b-85cbd2bde501',
+  clinica_id: '967b3f16-04c2-489c-90d4-306bd967844e',
+  paciente_id: '159ed458-6680-4b18-8b1a-dbb73a17676e',
+  psicologo_id: 'ddf89084-1524-4748-93fd-dad6df68e399',
+  data_hora_sessao: '2026-01-27T00:08:00Z',
+  valor_consulta: 0,
+  nome_paciente: 'segundo paciente teste',
+  nome_psicologo: 'Dr. Psicólogo Teste'
+}
+[Middleware] Path: /admin/agendamentos | Role: admin_clinica | Token Exists: true
+ GET /admin/agendamentos 200 in 703ms
+DEBUG: AdminAgendamentosPage fetched: 6 agendamentos
+DEBUG: First agendamento: {
+  id: '77448687-1fa1-47f2-946b-85cbd2bde501',
+  clinica_id: '967b3f16-04c2-489c-90d4-306bd967844e',
+  paciente_id: '159ed458-6680-4b18-8b1a-dbb73a17676e',
+  psicologo_id: 'ddf89084-1524-4748-93fd-dad6df68e399',
+  data_hora_sessao: '2026-01-27T00:08:00Z',
+  valor_consulta: 0,
+  nome_paciente: 'segundo paciente teste',
+  nome_psicologo: 'Dr. Psicólogo Teste'
+}
+ GET /admin/agendamentos 200 in 471ms
+[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
+ ✓ Compiled in 17.3s
+ GET /favicon.ico?favicon.56766c03.ico 200 in 360ms
+ ✓ Compiled /calendar in 5.9s
+ ⨯ ReferenceError: usePathname is not defined
+    at AppShell (src/components/layout/AppShell.tsx:6:19)
+  4 |
+  5 | export function AppShell({ children }: { children: React.ReactNode }) {
+> 6 |   const pathname = usePathname();
+    |                   ^
+  7 |   // ... existing code ...
+  8 |
+  9 |   const isCalendar = pathname.startsWith('/calendar'); {
+  digest: '3532953419'
+}
+ ⨯ ReferenceError: usePathname is not defined
+    at AppShell (src/components/layout/AppShell.tsx:6:19)
+  4 |
+  5 | export function AppShell({ children }: { children: React.ReactNode }) {
+> 6 |   const pathname = usePathname();
+    |                   ^
+  7 |   // ... existing code ...
+  8 |
+  9 |   const isCalendar = pathname.startsWith('/calendar'); {
+  digest: '3532953419'
+}
+DEBUG: CalendarPage fetched: 1 appointments
+ ⨯ ReferenceError: usePathname is not defined
+    at AppShell (src/components/layout/AppShell.tsx:6:19)
+  4 |
+  5 | export function AppShell({ children }: { children: React.ReactNode }) {
+> 6 |   const pathname = usePathname();
+    |                   ^
+  7 |   // ... existing code ...
+  8 |
+  9 |   const isCalendar = pathname.startsWith('/calendar'); {
+  digest: '3532953419'
+}
+ GET /calendar 200 in 11325ms
+DEBUG: CalendarPage fetched: 1 appointments
+ GET /calendar 500 in 6264ms
+DEBUG: CalendarPage fetched: 1 appointments
+[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
+[Middleware] Path: /admin/agendamentos | Role: admin_clinica | Token Exists: true
+[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
+DEBUG: AdminAgendamentosPage fetched: 6 agendamentos
+DEBUG: First agendamento: {
+  id: '77448687-1fa1-47f2-946b-85cbd2bde501',
+  clinica_id: '967b3f16-04c2-489c-90d4-306bd967844e',
+  paciente_id: '159ed458-6680-4b18-8b1a-dbb73a17676e',
+  psicologo_id: 'ddf89084-1524-4748-93fd-dad6df68e399',
+  data_hora_sessao: '2026-01-27T00:08:00Z',
+  valor_consulta: 0,
+  nome_paciente: 'segundo paciente teste',
+  nome_psicologo: 'Dr. Psicólogo Teste'
+}
+[Middleware] Path: /admin/agendamentos | Role: admin_clinica | Token Exists: true
+ GET /admin/agendamentos 200 in 853ms
+DEBUG: AdminAgendamentosPage fetched: 6 agendamentos
+DEBUG: First agendamento: {
+  id: '77448687-1fa1-47f2-946b-85cbd2bde501',
+  clinica_id: '967b3f16-04c2-489c-90d4-306bd967844e',
+  paciente_id: '159ed458-6680-4b18-8b1a-dbb73a17676e',
+  psicologo_id: 'ddf89084-1524-4748-93fd-dad6df68e399',
+  data_hora_sessao: '2026-01-27T00:08:00Z',
+  valor_consulta: 0,
+  nome_paciente: 'segundo paciente teste',
+  nome_psicologo: 'Dr. Psicólogo Teste'
+}
+[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
+[Middleware] Path: /admin/agendamentos | Role: admin_clinica | Token Exists: true
+ GET /admin/agendamentos 200 in 367ms
+DEBUG: AdminAgendamentosPage fetched: 6 agendamentos
+DEBUG: First agendamento: {
+  id: '77448687-1fa1-47f2-946b-85cbd2bde501',
+  clinica_id: '967b3f16-04c2-489c-90d4-306bd967844e',
+  paciente_id: '159ed458-6680-4b18-8b1a-dbb73a17676e',
+  psicologo_id: 'ddf89084-1524-4748-93fd-dad6df68e399',
+  data_hora_sessao: '2026-01-27T00:08:00Z',
+  valor_consulta: 0,
+  nome_paciente: 'segundo paciente teste',
+  nome_psicologo: 'Dr. Psicólogo Teste'
+}
+ GET /admin/agendamentos 200 in 764ms
+[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
+[Middleware] Path: /admin/agendamentos | Role: admin_clinica | Token Exists: true
+DEBUG: AdminAgendamentosPage fetched: 6 agendamentos
+DEBUG: First agendamento: {
+  id: '77448687-1fa1-47f2-946b-85cbd2bde501',
+  clinica_id: '967b3f16-04c2-489c-90d4-306bd967844e',
+  paciente_id: '159ed458-6680-4b18-8b1a-dbb73a17676e',
+  psicologo_id: 'ddf89084-1524-4748-93fd-dad6df68e399',
+  data_hora_sessao: '2026-01-27T00:08:00Z',
+  valor_consulta: 0,
+  nome_paciente: 'segundo paciente teste',
+  nome_psicologo: 'Dr. Psicólogo Teste'
+}
+[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
+[Middleware] Path: /admin/agendamentos | Role: admin_clinica | Token Exists: true
+ GET /admin/agendamentos 200 in 742ms
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
+ ○ Compiling /calendar ...
+ ✓ Compiled in 11.4s
+ ✓ Compiled /calendar in 1441ms
+DEBUG: AdminAgendamentosPage fetched: 5 agendamentos
+DEBUG: First agendamento: {
+  id: '77448687-1fa1-47f2-946b-85cbd2bde501',
+  clinica_id: '967b3f16-04c2-489c-90d4-306bd967844e',
+  paciente_id: '159ed458-6680-4b18-8b1a-dbb73a17676e',
+  psicologo_id: 'ddf89084-1524-4748-93fd-dad6df68e399',
+  data_hora_sessao: '2026-01-27T00:08:00Z',
+  valor_consulta: 0,
+  nome_paciente: 'segundo paciente teste',
+  nome_psicologo: 'Dr. Psicólogo Teste'
+}
+ GET /admin/agendamentos 200 in 1878ms
+`legacyBehavior` is deprecated and will be removed in a future release. A codemod is available to upgrade your components:
+
+npx @next/codemod@latest new-link .
+
+Learn more: https://nextjs.org/docs/app/building-your-application/upgrading/codemods#remove-a-tags-from-link-components
+DEBUG: CalendarPage fetched: 1 appointments
+DEBUG: CalendarPage fetched: 1 appointments
+DEBUG: CalendarPage fetched: 1 appointments
+DEBUG: CalendarPage fetched: 1 appointments
+DEBUG: CalendarPage fetched: 1 appointments
+DEBUG: CalendarPage fetched: 1 appointments
+ GET /calendar 200 in 9616ms
+ GET /favicon.ico?favicon.56766c03.ico 200 in 706ms
+ GET /api/auth/session 200 in 656ms
+ GET /api/auth/session 500 in 739ms
+ POST /api/auth/_log 500 in 629ms
+[Middleware] Path: /admin/agendamentos | Role: admin_clinica | Token Exists: true
+ ✓ Compiled in 549ms
+[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
+ ✓ Compiled /calendar in 203ms
+DEBUG: AdminAgendamentosPage fetched: 6 agendamentos
+DEBUG: First agendamento: {
+  id: '77448687-1fa1-47f2-946b-85cbd2bde501',
+  clinica_id: '967b3f16-04c2-489c-90d4-306bd967844e',
+  paciente_id: '159ed458-6680-4b18-8b1a-dbb73a17676e',
+  psicologo_id: 'ddf89084-1524-4748-93fd-dad6df68e399',
+  data_hora_sessao: '2026-01-27T00:08:00Z',
+  valor_consulta: 0,
+  nome_paciente: 'segundo paciente teste',
+  nome_psicologo: 'Dr. Psicólogo Teste'
+}
+DEBUG: CalendarPage fetched: 1 appointments
+ GET /admin/agendamentos 200 in 1844ms
+ GET /calendar 200 in 1840ms
+ GET /api/auth/session 200 in 575ms
+ GET /api/auth/session 200 in 316ms
+[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
+DEBUG: CalendarPage fetched: 2 appointments
+ POST /calendar 200 in 1108ms
+[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
+DEBUG: CalendarPage fetched: 3 appointments
+ POST /calendar 200 in 1663ms
+ ✓ Compiled in 2.8s
+ ✓ Compiled in 425ms
+ GET /api/auth/session 200 in 4045ms
+ GET /api/auth/session 200 in 432ms
+[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
+DEBUG: CalendarPage fetched: 2 appointments
+ POST /calendar 200 in 2330ms
+[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
+DEBUG: CalendarPage fetched: 3 appointments
+ POST /calendar 200 in 2268ms
+[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
+[Middleware] Path: /admin/agendamentos | Role: admin_clinica | Token Exists: true
+ ✓ Compiled in 3.9s
+ ○ Compiling /calendar ...
+ ✓ Compiled /calendar in 538ms
+DEBUG: AdminAgendamentosPage fetched: 6 agendamentos
+DEBUG: First agendamento: {
+  id: '77448687-1fa1-47f2-946b-85cbd2bde501',
+  clinica_id: '967b3f16-04c2-489c-90d4-306bd967844e',
+  paciente_id: '159ed458-6680-4b18-8b1a-dbb73a17676e',
+  psicologo_id: 'ddf89084-1524-4748-93fd-dad6df68e399',
+  data_hora_sessao: '2026-01-27T00:08:00Z',
+  valor_consulta: 0,
+  nome_paciente: 'segundo paciente teste',
+  nome_psicologo: 'Dr. Psicólogo Teste'
+}
+ GET /admin/agendamentos 200 in 1075ms
+DEBUG: CalendarPage fetched: 3 appointments
+ GET /calendar 200 in 3476ms
+ ✓ Compiled in 1138ms
+[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
+`legacyBehavior` is deprecated and will be removed in a future release. A codemod is available to upgrade your components:
+
+npx @next/codemod@latest new-link .
+
+Learn more: https://nextjs.org/docs/app/building-your-application/upgrading/codemods#remove-a-tags-from-link-components
+DEBUG: CalendarPage fetched: 3 appointments
+ ⨯ ReferenceError: editingAppointment is not defined
+    at [project]/src/app/(app)/calendar/CalendarClient.tsx [app-ssr] (ecmascript) (src/app/(app)/calendar/CalendarClient.tsx:79:70)
+  77 |                 </Label>
+  78 |                 <div className="col-span-3">
+> 79 |                     <Select name="paciente_id" required defaultValue={editingAppointment?.paciente_id || ""}>
+     |                                                                      ^
+  80 |                         <SelectTrigger>
+  81 |                             <SelectValue placeholder="Selecione..." />
+  82 |                         </SelectTrigger> {
+  digest: '1978529310'
+}
+ GET /calendar 500 in 7213ms
+ GET /favicon.ico?favicon.56766c03.ico 200 in 534ms
+ ✓ Compiled in 639ms
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
+`legacyBehavior` is deprecated and will be removed in a future release. A codemod is available to upgrade your components:
+
+npx @next/codemod@latest new-link .
+
+Learn more: https://nextjs.org/docs/app/building-your-application/upgrading/codemods#remove-a-tags-from-link-components
+DEBUG: CalendarPage fetched: 3 appointments
+ ⨯ ReferenceError: hourAppointments is not defined
+    at [project]/src/app/(app)/calendar/DayView.tsx [app-ssr] (ecmascript) (src/app/(app)/calendar/DayView.tsx:17:17)
+    at [project]/src/app/(app)/calendar/CalendarClient.tsx [app-ssr] (ecmascript) (src/app/(app)/calendar/CalendarClient.tsx:35:0)
+  15 |
+  16 | // ... inside render map ...
+> 17 |                 {hourAppointments.map(app => {
+     |                 ^
+  18 |                     const appDate = new Date(app.data_hora_sessao);
+  19 |                     const minutes = appDate.getMinutes();
+  20 |                     const topPos = (minutes / 60) * 100; // Percentage from top {
+  digest: '3420232881'
+}
+ GET /calendar 500 in 4990ms
+ GET /favicon.ico?favicon.56766c03.ico 200 in 544ms
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload when ./src/app/(app)/calendar/DayView.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ✓ Compiled in 963ms
+[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
+`legacyBehavior` is deprecated and will be removed in a future release. A codemod is available to upgrade your components:
+
+npx @next/codemod@latest new-link .
+
+Learn more: https://nextjs.org/docs/app/building-your-application/upgrading/codemods#remove-a-tags-from-link-components
+DEBUG: CalendarPage fetched: 3 appointments
+ ⨯ ReferenceError: editingAppointment is not defined
+    at [project]/src/app/(app)/calendar/CalendarClient.tsx [app-ssr] (ecmascript) (src/app/(app)/calendar/CalendarClient.tsx:79:70)
+  77 |                 </Label>
+  78 |                 <div className="col-span-3">
+> 79 |                     <Select name="paciente_id" required defaultValue={editingAppointment?.paciente_id || ""}>
+     |                                                                      ^
+  80 |                         <SelectTrigger>
+  81 |                             <SelectValue placeholder="Selecione..." />
+  82 |                         </SelectTrigger> {
+  digest: '1978529310'
+}
+ GET /calendar 500 in 4748ms
+ GET /favicon.ico?favicon.56766c03.ico 200 in 357ms
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ✓ Compiled in 646ms
+[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
+`legacyBehavior` is deprecated and will be removed in a future release. A codemod is available to upgrade your components:
+
+npx @next/codemod@latest new-link .
+
+Learn more: https://nextjs.org/docs/app/building-your-application/upgrading/codemods#remove-a-tags-from-link-components
+DEBUG: CalendarPage fetched: 3 appointments
+ ⨯ ReferenceError: editingAppointment is not defined
+    at [project]/src/app/(app)/calendar/CalendarClient.tsx [app-ssr] (ecmascript) (src/app/(app)/calendar/CalendarClient.tsx:79:70)
+  77 |                 </Label>
+  78 |                 <div className="col-span-3">
+> 79 |                     <Select name="paciente_id" required defaultValue={editingAppointment?.paciente_id || ""}>
+     |                                                                      ^
+  80 |                         <SelectTrigger>
+  81 |                             <SelectValue placeholder="Selecione..." />
+  82 |                         </SelectTrigger> {
+  digest: '1978529310'
+}
+ GET /calendar 500 in 3522ms
+ GET /favicon.ico?favicon.56766c03.ico 200 in 419ms
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload when ./src/app/(app)/calendar/CalendarClient.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ✓ Compiled in 1225ms
+[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
+`legacyBehavior` is deprecated and will be removed in a future release. A codemod is available to upgrade your components:
+
+npx @next/codemod@latest new-link .
+
+Learn more: https://nextjs.org/docs/app/building-your-application/upgrading/codemods#remove-a-tags-from-link-components
+DEBUG: CalendarPage fetched: 3 appointments
+ GET /calendar 200 in 5005ms
+ GET /favicon.ico?favicon.56766c03.ico 200 in 629ms
+ GET /api/auth/session 200 in 1451ms
+ GET /api/auth/session 200 in 361ms
+ GET /api/auth/session 200 in 2326ms
+[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
+DEBUG: CalendarPage fetched: 3 appointments
+ GET /calendar 200 in 5444ms
+ GET /favicon.ico?favicon.56766c03.ico 200 in 788ms
+ GET /api/auth/session 200 in 800ms
+ GET /api/auth/session 200 in 854ms
+ GET /api/auth/session 200 in 945ms
+[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
+DEBUG: CalendarPage fetched: 4 appointments
+ POST /calendar 200 in 1049ms
+ GET /favicon.ico?favicon.56766c03.ico 200 in 597ms
+ ✓ Compiled in 1807ms
+ ✓ Compiled in 653ms
+ GET /api/auth/session 200 in 447ms
+ GET /api/auth/session 200 in 621ms
+[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
+`legacyBehavior` is deprecated and will be removed in a future release. A codemod is available to upgrade your components:
+
+npx @next/codemod@latest new-link .
+
+Learn more: https://nextjs.org/docs/app/building-your-application/upgrading/codemods#remove-a-tags-from-link-components
+DEBUG: CalendarPage fetched: 4 appointments
+ GET /calendar 200 in 7597ms
+ GET /favicon.ico?favicon.56766c03.ico 200 in 541ms
+ GET /api/auth/session 200 in 188ms
+ GET /api/auth/session 200 in 496ms
+ ✓ Compiled in 3.7s
+ ✓ Compiled in 542ms
+ ✓ Compiled in 1268ms
+ ✓ Compiled in 486ms
+ GET /api/auth/session 200 in 1304ms
+ GET /api/auth/session 200 in 461ms
+[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
+`legacyBehavior` is deprecated and will be removed in a future release. A codemod is available to upgrade your components:
+
+npx @next/codemod@latest new-link .
+
+Learn more: https://nextjs.org/docs/app/building-your-application/upgrading/codemods#remove-a-tags-from-link-components
+DEBUG: CalendarPage fetched: 4 appointments
+ GET /calendar 200 in 7691ms
+ GET /favicon.ico?favicon.56766c03.ico 200 in 541ms
+ GET /api/auth/session 200 in 180ms
+ GET /api/auth/session 200 in 313ms
+ GET /api/auth/session 200 in 905ms
+ GET /api/auth/session 200 in 264ms
+ GET /api/auth/session 200 in 592ms
+ GET /api/auth/session 200 in 268ms
+[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
+DEBUG: CalendarPage fetched: 5 appointments
+ POST /calendar 200 in 1284ms
+ GET /favicon.ico?favicon.56766c03.ico 200 in 465ms
+ GET /api/auth/session 200 in 1130ms
+ GET /api/auth/session 200 in 258ms
+ ✓ Compiled in 1839ms
+ GET /api/auth/session 200 in 1158ms
+[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
+`legacyBehavior` is deprecated and will be removed in a future release. A codemod is available to upgrade your components:
+
+npx @next/codemod@latest new-link .
+
+Learn more: https://nextjs.org/docs/app/building-your-application/upgrading/codemods#remove-a-tags-from-link-components
+Erro ao buscar agendamentos: 401
+DEBUG: CalendarPage fetched: 0 appointments
+ GET /calendar 200 in 7422ms
+ GET /api/auth/session 200 in 4348ms
+ GET /api/auth/session 200 in 1120ms
+ GET /favicon.ico?favicon.56766c03.ico 200 in 1514ms
+ GET /api/auth/session 200 in 660ms
+ ✓ Compiled in 1275ms
+[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
+ ○ Compiling /calendar ...
+ ✓ Compiled /calendar in 766ms
+DEBUG: CalendarPage fetched: 5 appointments
+DEBUG: CalendarPage fetched: 1 patients [
+  {
+    nome: 'segundo paciente teste',
+    email: 'segundo@gmail.com',
+    psicologo_id: 'ddf89084-1524-4748-93fd-dad6df68e399',
+    endereco: 'dnonyrnwhcn',
+    data_nascimento: '2001-01-01T02:00:00Z',
+    telefone: '24998364520',
+    id: '159ed458-6680-4b18-8b1a-dbb73a17676e',
+    nome_psicologo: 'Dr. Psicólogo Teste',
+    clinica_id: '967b3f16-04c2-489c-90d4-306bd967844e',
+    avatar_url: null
+  }
+]
+ GET /calendar 200 in 3188ms
+ GET /favicon.ico?favicon.56766c03.ico 200 in 508ms
+ ✓ Compiled in 1711ms
+ GET /api/auth/session 200 in 484ms
+ GET /api/auth/session 200 in 904ms
+[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
+ POST /calendar 200 in 1553ms
+ GET /api/auth/session 200 in 530ms
+ GET /api/auth/session 200 in 296ms
+[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
+`legacyBehavior` is deprecated and will be removed in a future release. A codemod is available to upgrade your components:
+
+npx @next/codemod@latest new-link .
+
+Learn more: https://nextjs.org/docs/app/building-your-application/upgrading/codemods#remove-a-tags-from-link-components
+Erro ao buscar agendamentos: 401
+DEBUG: CalendarPage fetched: 0 appointments
+DEBUG: CalendarPage fetched: 0 patients []
+ GET /calendar 200 in 2165ms
+ GET /favicon.ico?favicon.56766c03.ico 200 in 342ms
+ GET /api/auth/session 200 in 165ms
+ GET /api/auth/session 200 in 247ms
+ GET /api/auth/csrf 200 in 311ms
+ POST /api/auth/signout 200 in 325ms
+ GET / 200 in 1189ms
+ GET /api/auth/session 200 in 1161ms
+ GET /api/auth/session 200 in 353ms
+ GET /api/auth/session 200 in 197ms
+ GET /api/auth/providers 200 in 322ms
+ GET /api/auth/csrf 200 in 298ms
+NextAuth: Login API Response { status: 200, hasToken: true }
+NextAuth: Authorize success, returning user with token.
+NextAuth: JWT Callback - Initial sign in
+ POST /api/auth/callback/credentials 200 in 1241ms
+ GET /api/auth/session 200 in 144ms
+[Middleware] Path: /dashboard | Role: psicologo | Token Exists: true
+ ✓ Compiled /dashboard in 66ms
+[Middleware] Path: /dashboard | Role: psicologo | Token Exists: true
+ GET /dashboard 200 in 1049ms
+ GET /dashboard 200 in 948ms
+[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
+DEBUG: CalendarPage fetched: 5 appointments
+DEBUG: CalendarPage fetched: 1 patients [
+  {
+    nome: 'segundo paciente teste',
+    email: 'segundo@gmail.com',
+    psicologo_id: 'ddf89084-1524-4748-93fd-dad6df68e399',
+    endereco: 'dnonyrnwhcn',
+    data_nascimento: '2001-01-01T02:00:00Z',
+    telefone: '24998364520',
+    id: '159ed458-6680-4b18-8b1a-dbb73a17676e',
+    nome_psicologo: 'Dr. Psicólogo Teste',
+    clinica_id: '967b3f16-04c2-489c-90d4-306bd967844e',
+    avatar_url: null
+  }
+]
+ GET /calendar 200 in 585ms
+[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
+DEBUG: CalendarPage fetched: 6 appointments
+DEBUG: CalendarPage fetched: 1 patients [
+  {
+    nome: 'segundo paciente teste',
+    email: 'segundo@gmail.com',
+    psicologo_id: 'ddf89084-1524-4748-93fd-dad6df68e399',
+    endereco: 'dnonyrnwhcn',
+    data_nascimento: '2001-01-01T02:00:00Z',
+    telefone: '24998364520',
+    id: '159ed458-6680-4b18-8b1a-dbb73a17676e',
+    nome_psicologo: 'Dr. Psicólogo Teste',
+    clinica_id: '967b3f16-04c2-489c-90d4-306bd967844e',
+    avatar_url: null
+  }
+]
+ POST /calendar 200 in 762ms
+[Middleware] Path: /patients | Role: psicologo | Token Exists: true
+ ○ Compiling /patients ...
+ ✓ Compiled /patients in 1431ms
+ GET /patients 200 in 1761ms
+[Middleware] Path: /patients | Role: psicologo | Token Exists: true
+getPacientes: Dados retornados: [
+  {
+    "nome": "segundo paciente teste",
+    "email": "segundo@gmail.com",
+    "psicologo_id": "ddf89084-1524-4748-93fd-dad6df68e399",
+    "endereco": "dnonyrnwhcn",
+    "data_nascimento": "2001-01-01T02:00:00Z",
+    "telefone": "24998364520",
+    "id": "159ed458-6680-4b18-8b1a-dbb73a17676e",
+    "nome_psicologo": "Dr. Psicólogo Teste",
+    "clinica_id": "967b3f16-04c2-489c-90d4-306bd967844e",
+    "avatar_url": null
+  }
+]
+ POST /patients 200 in 768ms
+[Middleware] Path: /patients | Role: psicologo | Token Exists: true
+getPacientes: Dados retornados: [
+  {
+    "nome": "segundo paciente teste",
+    "email": "segundo@gmail.com",
+    "psicologo_id": "ddf89084-1524-4748-93fd-dad6df68e399",
+    "endereco": "dnonyrnwhcn",
+    "data_nascimento": "2001-01-01T02:00:00Z",
+    "telefone": "24998364520",
+    "id": "159ed458-6680-4b18-8b1a-dbb73a17676e",
+    "nome_psicologo": "Dr. Psicólogo Teste",
+    "clinica_id": "967b3f16-04c2-489c-90d4-306bd967844e",
+    "avatar_url": null
+  }
+]
+ POST /patients 200 in 351ms
+[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
+DEBUG: CalendarPage fetched: 6 appointments
+DEBUG: CalendarPage fetched: 1 patients [
+  {
+    nome: 'segundo paciente teste',
+    email: 'segundo@gmail.com',
+    psicologo_id: 'ddf89084-1524-4748-93fd-dad6df68e399',
+    endereco: 'dnonyrnwhcn',
+    data_nascimento: '2001-01-01T02:00:00Z',
+    telefone: '24998364520',
+    id: '159ed458-6680-4b18-8b1a-dbb73a17676e',
+    nome_psicologo: 'Dr. Psicólogo Teste',
+    clinica_id: '967b3f16-04c2-489c-90d4-306bd967844e',
+    avatar_url: null
+  }
+]
+ GET /calendar 200 in 723ms
+ GET /api/auth/session 200 in 733ms
+ GET /api/auth/session 200 in 253ms
+ GET /api/auth/session 200 in 769ms
+ GET /api/auth/session 200 in 234ms
+ GET /api/auth/session 200 in 155ms
+ GET /api/auth/session 200 in 184ms
+ GET /api/auth/session 200 in 389ms
+ GET /api/auth/session 200 in 758ms
+ ✓ Compiled middleware in 110ms
+ ✓ Compiled in 2.3s
+ ✓ Compiled in 598ms
+[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
+ ✓ Compiled /calendar in 133ms
+DEBUG: CalendarPage fetched: 6 appointments
+DEBUG: CalendarPage fetched: 1 patients [
+  {
+    nome: 'segundo paciente teste',
+    email: 'segundo@gmail.com',
+    psicologo_id: 'ddf89084-1524-4748-93fd-dad6df68e399',
+    endereco: 'dnonyrnwhcn',
+    data_nascimento: '2001-01-01T02:00:00Z',
+    telefone: '24998364520',
+    id: '159ed458-6680-4b18-8b1a-dbb73a17676e',
+    nome_psicologo: 'Dr. Psicólogo Teste',
+    clinica_id: '967b3f16-04c2-489c-90d4-306bd967844e',
+    avatar_url: null
+  }
+]
+ GET /calendar 200 in 10094ms
+ ✓ Compiled in 1511ms
+[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
+ ✓ Compiled /calendar in 280ms
+ GET /calendar 200 in 3507ms
+ GET /api/auth/session 200 in 673ms
+ GET /api/auth/session 200 in 952ms
+ GET /api/auth/session 200 in 276ms
+ ○ Compiling /settings ...
+ ✓ Compiled /settings in 18.2s
+ GET /settings 200 in 19141ms
+ GET /api/auth/session 200 in 730ms
+ GET /api/auth/session 200 in 285ms
+[Middleware] Path: /patients | Role: psicologo | Token Exists: true
+ GET /patients 200 in 241ms
+[Middleware] Path: /patients | Role: psicologo | Token Exists: true
+getPacientes: Dados retornados: [
+  {
+    "nome": "segundo paciente teste",
+    "email": "segundo@gmail.com",
+    "psicologo_id": "ddf89084-1524-4748-93fd-dad6df68e399",
+    "endereco": "dnonyrnwhcn",
+    "data_nascimento": "2001-01-01T02:00:00Z",
+    "telefone": "24998364520",
+    "id": "159ed458-6680-4b18-8b1a-dbb73a17676e",
+    "nome_psicologo": "Dr. Psicólogo Teste",
+    "clinica_id": "967b3f16-04c2-489c-90d4-306bd967844e",
+    "avatar_url": null
+  }
+]
+ POST /patients 200 in 1426ms
+[Middleware] Path: /patients | Role: psicologo | Token Exists: true
+getPacientes: Dados retornados: [
+  {
+    "nome": "segundo paciente teste",
+    "email": "segundo@gmail.com",
+    "psicologo_id": "ddf89084-1524-4748-93fd-dad6df68e399",
+    "endereco": "dnonyrnwhcn",
+    "data_nascimento": "2001-01-01T02:00:00Z",
+    "telefone": "24998364520",
+    "id": "159ed458-6680-4b18-8b1a-dbb73a17676e",
+    "nome_psicologo": "Dr. Psicólogo Teste",
+    "clinica_id": "967b3f16-04c2-489c-90d4-306bd967844e",
+    "avatar_url": null
+  }
+]
+ POST /patients 200 in 650ms
+ GET /api/auth/session 200 in 1156ms
+ GET /api/auth/session 200 in 179ms
+ GET /api/auth/session 200 in 1216ms
+ GET /api/auth/session 200 in 252ms

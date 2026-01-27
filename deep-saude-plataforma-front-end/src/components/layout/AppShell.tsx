@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { signOut } from 'next-auth/react';
 import {
   SidebarProvider,
   Sidebar,
@@ -27,6 +28,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { LayoutDashboard, CalendarDays, Users, Settings, LogOut, Leaf, Menu } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile'; // Assuming this hook exists
+import { cn } from "@/lib/utils";
 
 interface NavItem {
   href: string;
@@ -48,6 +50,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const isMobile = useIsMobile();
   const [userInitial, setUserInitial] = useState<string>('AW');
 
+  const isCalendar = pathname.startsWith('/calendar');
+
   useEffect(() => {
     // In a real app, fetch user data and set initial
     // For now, mock it
@@ -55,9 +59,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, []);
 
 
-  const handleLogout = () => {
-    // Mock logout
-    router.push('/');
+  const handleLogout = async () => {
+    await signOut({ callbackUrl: '/' }); 
   };
 
   return (
@@ -95,7 +98,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </SidebarFooter>
       </Sidebar>
-      <SidebarInset>
+      <SidebarInset className="h-screen overflow-hidden flex flex-col">
         <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b bg-background/80 backdrop-blur-md px-4 sm:px-6">
           <div className="flex items-center gap-2">
             <SidebarTrigger className="md:hidden" /> {/* Hamburger for mobile */}
@@ -134,7 +137,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </DropdownMenuContent>
           </DropdownMenu>
         </header>
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-auto">
+        <main className={cn("flex-1", isCalendar ? "p-0 overflow-hidden h-[calc(100vh-4rem)]" : "p-4 sm:p-6 lg:p-8 overflow-auto")}>
           {children}
         </main>
       </SidebarInset>

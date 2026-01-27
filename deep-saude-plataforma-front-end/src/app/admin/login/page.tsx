@@ -25,7 +25,6 @@ import { Building, Loader2 } from "lucide-react";
 const loginFormSchema = z.object({
   email: z.string().email("Email inválido"),
   password: z.string().min(1, "Senha obrigatória"),
-  clinicCode: z.string().optional(),
 });
 
 type LoginFormValues = z.infer<typeof loginFormSchema>;
@@ -40,7 +39,6 @@ export default function AdminLoginPage() {
     defaultValues: {
       email: "",
       password: "",
-      clinicCode: "",
     },
   });
 
@@ -115,15 +113,6 @@ export default function AdminLoginPage() {
             {form.formState.errors.password && (
               <p className="text-sm text-red-500">{form.formState.errors.password.message}</p>
             )}
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="clinicCode">Código da Clínica</Label>
-            <Input
-              id="clinicCode"
-              type="text"
-              placeholder="CODIGOCLINICA"
-              {...form.register("clinicCode")}
-            />
           </div>
         </CardContent>
         <CardFooter className="flex flex-col gap-3">

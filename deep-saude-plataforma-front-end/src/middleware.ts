@@ -12,6 +12,23 @@ export async function middleware(request: NextRequest) {
 
   console.log(`[Middleware] Path: ${pathname} | Role: ${role} | Token Exists: ${!!token}`);
 
+  // --- Helper to check backend token expiration ---
+  const isBackendTokenExpired = (backendToken?: string) => {
+      if (!backendToken) return true;
+      try {
+          const [, payload] = backendToken.split('.');
+          if (!payload) return true;
+          const decoded = JSON.parse(atob(payload));
+          // exp is in seconds, Date.now() is in ms
+          return (decoded.exp * 1000) < Date.now();
+      } catch (error) {
+          console.error("Error decoding backend token:", error);
+          return true;
+      }
+  };
+
+  const backendToken = token?.backendToken as string | undefined;
+
   // --- Rotas Públicas ---
   // Login Admin: Se já estiver logado, redireciona
   if (pathname === '/admin/login') {
@@ -44,8 +61,14 @@ export async function middleware(request: NextRequest) {
   // 1. Área Administrativa (/admin/*)
   // Ignora /admin/login pois já foi tratado acima
   if (pathname.startsWith('/admin') && pathname !== '/admin/login') {
-    if (!token) {
-      return NextResponse.redirect(new URL('/admin/login', request.url));
+    if (!token || isBackendTokenExpired(backendToken)) {
+      // Create response to delete session cookie if expired? 
+      // NextAuth handles session separately, but redirecting to login is a start.
+      // Ideally we would trigger signOut, but in middleware we can only redirect.
+      // We can append a query param ?expired=true
+      const loginUrl = new URL('/admin/login', request.url);
+      if (token) loginUrl.searchParams.set('expired', 'true');
+      return NextResponse.redirect(loginUrl);
     }
     
     if (role !== 'admin_clinica') {
@@ -63,8 +86,10 @@ export async function middleware(request: NextRequest) {
   const isAppRoute = appRoutes.some(route => pathname.startsWith(route));
 
   if (isAppRoute) {
-    if (!token) {
-      return NextResponse.redirect(new URL('/', request.url)); // Redireciona para Login Principal
+    if (!token || isBackendTokenExpired(backendToken)) {
+      const loginUrl = new URL('/', request.url);
+      if (token) loginUrl.searchParams.set('expired', 'true');
+      return NextResponse.redirect(loginUrl); // Redireciona para Login Principal
     }
     
     if (role !== 'psicologo' && role !== 'admin_clinica') { 

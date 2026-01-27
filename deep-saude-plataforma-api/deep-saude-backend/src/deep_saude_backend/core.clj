@@ -346,7 +346,7 @@
 (defn criar-agendamento-handler [request]
   (try
     (let [clinica-id (get-in request [:identity :clinica_id])
-          {:keys [paciente_id psicologo_id data_hora_sessao valor_consulta]} (:body request)]
+          {:keys [paciente_id psicologo_id data_hora_sessao valor_consulta duracao]} (:body request)]
       (println "DEBUG: Handler iniciado. Payload:" (:body request))
       (if (or (nil? paciente_id) (nil? psicologo_id) (nil? data_hora_sessao))
         {:status 400, :body {:erro "paciente_id, psicologo_id e data_hora_sessao são obrigatórios."}}
@@ -362,7 +362,8 @@
                                                  :paciente_id      paciente-uuid
                                                  :psicologo_id     psicologo-uuid
                                                  :data_hora_sessao (java.sql.Timestamp/valueOf data_hora_sessao)
-                                                 :valor_consulta   valor_consulta}
+                                                 :valor_consulta   valor_consulta
+                                                 :duracao          (or duracao 50)}
                                                 {:builder-fn rs/as-unqualified-lower-maps :return-keys true})]
               {:status 201, :body novo-agendamento})
             {:status 422, :body {:erro "Paciente ou psicólogo não pertence à clínica do usuário autenticado."}}))))
@@ -383,14 +384,16 @@
   (try
     (let [clinica-id (get-in request [:identity :clinica_id])
           agendamento-id (java.util.UUID/fromString (get-in request [:params :id]))
-          {:keys [paciente_id psicologo_id data_hora_sessao valor_consulta]} (:body request)]
+          {:keys [paciente_id psicologo_id data_hora_sessao valor_consulta duracao]} (:body request)]
       
       (if (execute-one! ["SELECT id FROM agendamentos WHERE id = ? AND clinica_id = ?" agendamento-id clinica-id])
         (let [update-map (cond-> {}
                            (some? paciente_id) (assoc :paciente_id (java.util.UUID/fromString paciente_id))
                            (some? psicologo_id) (assoc :psicologo_id (java.util.UUID/fromString psicologo_id))
                            (some? data_hora_sessao) (assoc :data_hora_sessao (java.sql.Timestamp/valueOf data_hora_sessao))
-                           (some? valor_consulta) (assoc :valor_consulta valor_consulta))
+                           (some? data_hora_sessao) (assoc :data_hora_sessao (java.sql.Timestamp/valueOf data_hora_sessao))
+                           (some? valor_consulta) (assoc :valor_consulta valor_consulta)
+                           (some? duracao) (assoc :duracao duracao))
               resultado (sql/update! @datasource :agendamentos update-map {:id agendamento-id :clinica_id clinica-id})]
           (if (zero? (:next.jdbc/update-count resultado))
             {:status 500 :body {:erro "Erro ao atualizar agendamento."}}
@@ -561,6 +564,11 @@
       (try
         (execute-query! ["SELECT 1"])
         (println "Conexão com o banco de dados estabelecida com sucesso!")
+        (try
+          (execute-query! ["ALTER TABLE agendamentos ADD COLUMN IF NOT EXISTS duracao INTEGER DEFAULT 50"])
+          (println "Coluna 'duracao' verificada/adicionada com sucesso.")
+          (catch Exception e
+            (println "Aviso ao verificar coluna 'duracao':" (.getMessage e))))
         (catch Exception e
           (println "Falha ao conectar ao banco de dados:" (.getMessage e)))))
     (println "AVISO: DATABASE_URL não configurada. As operações de banco de dados irão falhar.")))

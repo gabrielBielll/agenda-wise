@@ -8,6 +8,7 @@ import { revalidatePath } from "next/cache";
 const agendamentoSchema = z.object({
   paciente_id: z.string().uuid({ message: "Selecione um paciente válido." }),
   data_hora_sessao: z.string().min(1, { message: "Data e hora são obrigatórias." }),
+  duracao: z.coerce.number().min(5, { message: "A duração deve ser de no mínimo 5 minutos." }).default(50),
   valor_consulta: z.coerce.number().min(0, { message: "O valor deve ser positivo." }),
 });
 
@@ -48,7 +49,8 @@ export async function createAgendamento(prevState: FormState, formData: FormData
       body: JSON.stringify({
         ...validatedFields.data,
         psicologo_id: userId, // O psicólogo cria para si mesmo
-        data_hora_sessao: validatedFields.data.data_hora_sessao.replace("T", " ") + ":00"
+        data_hora_sessao: validatedFields.data.data_hora_sessao.replace("T", " ") + ":00",
+        duracao: validatedFields.data.duracao
       }),
     });
 
@@ -91,7 +93,8 @@ export async function updateAgendamento(id: string, prevState: FormState, formDa
       body: JSON.stringify({
         ...validatedFields.data,
         psicologo_id: userId, // Garante que continua vinculado ao psicólogo
-        data_hora_sessao: validatedFields.data.data_hora_sessao.replace("T", " ") + ":00"
+        data_hora_sessao: validatedFields.data.data_hora_sessao.replace("T", " ") + ":00",
+        duracao: validatedFields.data.duracao
       }),
     });
 
@@ -105,4 +108,29 @@ export async function updateAgendamento(id: string, prevState: FormState, formDa
 
   revalidatePath("/calendar");
   return { message: "Agendamento atualizado com sucesso!", success: true };
+}
+
+export async function deleteAgendamento(id: string): Promise<{ message: string; success: boolean }> {
+  const session = await getServerSession(authOptions);
+  const token = (session as any)?.backendToken;
+
+  if (!token) return { message: "Erro de autenticação.", success: false };
+
+  const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/agendamentos/${id}`;
+
+  try {
+    const response = await fetch(apiUrl, {
+      method: "DELETE",
+      headers: { "Authorization": `Bearer ${token}` },
+    });
+
+    if (!response.ok) {
+        return { message: "Falha ao excluir agendamento.", success: false };
+    }
+  } catch (error) {
+    return { message: "Erro de conexão com o servidor.", success: false };
+  }
+
+  revalidatePath("/calendar");
+  return { message: "Agendamento excluído com sucesso!", success: true };
 }

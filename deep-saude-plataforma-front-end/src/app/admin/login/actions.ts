@@ -9,7 +9,6 @@ import { redirect } from "next/navigation";
 const loginSchema = z.object({
   email: z.string().email({ message: "E-mail inválido." }),
   password: z.string().min(6, { message: "A senha deve ter pelo menos 6 caracteres." }),
-  clinicCode: z.string().min(3, { message: "Código da clínica inválido." }),
 });
 
 export type LoginFormState = {
@@ -17,7 +16,6 @@ export type LoginFormState = {
   errors?: {
     email?: string[];
     password?: string[];
-    clinicCode?: string[];
     _form?: string[];
   };
   success: boolean;
@@ -83,7 +81,7 @@ export async function handleLogin(
     }
 
     // Definir cookie genérico para sessão
-    cookies().set("sessionToken", apiToken, {
+    (await cookies()).set("sessionToken", apiToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       path: "/",

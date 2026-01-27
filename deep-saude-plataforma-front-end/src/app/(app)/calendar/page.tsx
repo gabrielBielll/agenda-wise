@@ -48,7 +48,5 @@ export default async function CalendarPage() {
     ? await Promise.all([getAppointments(token), getPacientes(token)]) 
     : [[], []];
 
-  console.log("DEBUG: CalendarPage fetched:", appointments.length, "appointments");
-
   return <CalendarClient appointments={appointments} pacientes={pacientes} />;
 }

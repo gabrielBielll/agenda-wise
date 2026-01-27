@@ -5,6 +5,7 @@ import AdminHeader from "@/components/admin/AdminHeader";
 import AdminSidebar from "@/components/admin/AdminSidebar";
 import { cn } from "@/lib/utils";
 import { Loader2, ServerCrash } from "lucide-react"; // Ícones para o estado de loading e erro
+import { usePathname } from "next/navigation";
 
 // Componente para a tela de carregamento e erro
 const BackendWakeUpScreen = ({ status }: { status: 'checking' | 'error' }) => (
@@ -84,9 +85,16 @@ export default function AdminLayout({
     setIsSidebarCollapsed(!isSidebarCollapsed);
   };
 
+  const pathname = usePathname();
+
   // Renderiza a tela de carregamento/erro enquanto o backend não está 'awake'
   if (backendStatus !== 'awake') {
     return <BackendWakeUpScreen status={backendStatus} />;
+  }
+
+  // Se for a página de login, não mostramos o layout do admin (sidebar/header)
+  if (pathname === '/admin/login') {
+    return <>{children}</>;
   }
 
   // Se o backend estiver acordado, renderiza o layout normal da aplicação
