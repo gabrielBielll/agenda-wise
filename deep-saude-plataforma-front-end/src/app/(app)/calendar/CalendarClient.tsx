@@ -31,7 +31,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useFormState, useFormStatus } from "react-dom";
-import { createAgendamento, updateAgendamento, deleteAgendamento, FormState } from "./actions";
+import { createAgendamento, updateAgendamento, deleteAgendamento, cancelAgendamento, createBloqueio, deleteBloqueio, FormState, type Bloqueio } from "./actions";
 import { useToast } from "@/hooks/use-toast";
 import { CalendarHeader } from "./CalendarHeader";
 import { DayView } from "./DayView";
@@ -46,6 +46,7 @@ interface Appointment {
   nome_paciente: string;
   paciente_id?: string; // Needed for pre-filling edit form
   valor_consulta?: number;
+  status?: string; // 'agendado' | 'cancelado' | 'concluido'
 }
 
 // ... existing imports ...
@@ -59,6 +60,12 @@ function addMinutes(date: Date, minutes: number) {
 interface Paciente {
   id: string;
   nome: string;
+}
+
+interface SlotAction {
+  date: Date;
+  x: number;
+  y: number;
 }
 
 const initialState: FormState = {
@@ -76,12 +83,14 @@ function SubmitButton({ isEditing }: { isEditing: boolean }) {
   );
 }
 
-export default function CalendarClient({ appointments, pacientes }: { appointments: Appointment[], pacientes: Paciente[] }) {
+export default function CalendarClient({ appointments, pacientes, bloqueios = [] }: { appointments: Appointment[], pacientes: Paciente[], bloqueios?: Bloqueio[] }) {
   const [date, setDate] = useState<Date>(new Date());
   const [view, setView] = useState<'month' | 'week' | 'day'>('week'); // Default to week view potentially
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isBlockDialogOpen, setIsBlockDialogOpen] = useState(false);
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
   const [newAppointmentDate, setNewAppointmentDate] = useState<Date | null>(null); // To store date clicked in views
+  const [slotAction, setSlotAction] = useState<SlotAction | null>(null); // For context menu
   const { toast } = useToast();
   
   // Wrapper action to handle both create and update
@@ -139,6 +148,7 @@ export default function CalendarClient({ appointments, pacientes }: { appointmen
 
 
   const handleOpenNew = (selectedDate?: Date) => {
+    setSlotAction(null); // Close context menu
     setEditingAppointment(null);
     setNewAppointmentDate(selectedDate || date);
     setIsDialogOpen(true);
@@ -148,6 +158,48 @@ export default function CalendarClient({ appointments, pacientes }: { appointmen
     setEditingAppointment(app);
     setNewAppointmentDate(null);
     setIsDialogOpen(true);
+  };
+
+  const handleSlotClick = (selectedDate: Date, event?: React.MouseEvent) => {
+    // Show context menu with options
+    if (event) {
+      setSlotAction({ date: selectedDate, x: event.clientX, y: event.clientY });
+    } else {
+      handleOpenNew(selectedDate);
+    }
+  };
+
+  const handleOpenBlock = () => {
+    if (slotAction) {
+      setNewAppointmentDate(slotAction.date);
+    }
+    setSlotAction(null);
+    setIsBlockDialogOpen(true);
+  };
+
+  const handleCreateBlock = async (formData: FormData) => {
+    const dataInicio = formData.get('data_inicio') as string;
+    const dataFim = formData.get('data_fim') as string;
+    const motivo = formData.get('motivo') as string;
+    const diaInteiro = formData.get('dia_inteiro') === 'on';
+
+    const result = await createBloqueio(dataInicio, dataFim, motivo, diaInteiro);
+    if (result.success) {
+      toast({ title: "Sucesso", description: result.message, className: "bg-green-500 text-white" });
+      setIsBlockDialogOpen(false);
+      setNewAppointmentDate(null);
+    } else {
+      toast({ title: "Erro", description: result.message, variant: "destructive" });
+    }
+  };
+
+  const handleDeleteBlock = async (id: string) => {
+    const result = await deleteBloqueio(id);
+    if (result.success) {
+      toast({ title: "Sucesso", description: result.message, className: "bg-green-500 text-white" });
+    } else {
+      toast({ title: "Erro", description: result.message, variant: "destructive" });
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -165,6 +217,25 @@ export default function CalendarClient({ appointments, pacientes }: { appointmen
               variant: "destructive",
           });
       }
+  };
+
+  const handleCancel = async (id: string) => {
+    const result = await cancelAgendamento(id);
+    if (result.success) {
+      toast({
+        title: "Sessão Cancelada",
+        description: result.message,
+        className: "bg-orange-500 text-white",
+      });
+      setIsDialogOpen(false);
+      setEditingAppointment(null);
+    } else {
+      toast({
+        title: "Erro",
+        description: result.message,
+        variant: "destructive",
+      });
+    }
   };
 
   // Filter appointments for the selected date (Only for Month View sidebar)
@@ -343,41 +414,165 @@ export default function CalendarClient({ appointments, pacientes }: { appointmen
               </div>
               <DialogFooter className="flex w-full items-center justify-between sm:justify-between">
                 {editingAppointment && (
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="destructive" type="button" size="icon">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Excluir Agendamento?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Você tem certeza que deseja excluir este agendamento? Esta ação não pode ser desfeita.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => {
-                            if (editingAppointment) {
-                                handleDelete(editingAppointment.id);
-                                setIsDialogOpen(false);
-                            }
-                        }} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                          Excluir
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
+                  <>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="destructive" type="button" size="icon">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Excluir Agendamento?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Você tem certeza que deseja excluir este agendamento? Esta ação não pode ser desfeita.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => {
+                              if (editingAppointment) {
+                                  handleDelete(editingAppointment.id);
+                                  setIsDialogOpen(false);
+                              }
+                          }} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                            Excluir
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+
+                    {/* Cancel Session Button */}
+                    {editingAppointment.status !== 'cancelado' && (
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="outline" type="button" className="border-orange-500 text-orange-500 hover:bg-orange-50">
+                            ✕ Cancelar Sessão
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Cancelar Sessão?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              A sessão será marcada como cancelada e o valor financeiro será zerado automaticamente. Os dados da sessão serão mantidos.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Voltar</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => {
+                              if (editingAppointment) {
+                                handleCancel(editingAppointment.id);
+                              }
+                            }} className="bg-orange-500 text-white hover:bg-orange-600">
+                              Confirmar Cancelamento
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    )}
+                    {editingAppointment.status === 'cancelado' && (
+                      <span className="text-orange-500 text-sm font-medium">✕ Sessão Cancelada</span>
+                    )}
+                  </>
                 )}
                 <div className={cn("flex gap-2", !editingAppointment && "w-full justify-end")}>
-                  <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
-                  <SubmitButton isEditing={!!editingAppointment} />
+                  <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>Fechar</Button>
+                  {(!editingAppointment || editingAppointment.status !== 'cancelado') && (
+                    <SubmitButton isEditing={!!editingAppointment} />
+                  )}
                 </div>
               </DialogFooter>
             </form>
           </DialogContent>
         </Dialog>
+
+        {/* Block Dialog */}
+        <Dialog open={isBlockDialogOpen} onOpenChange={setIsBlockDialogOpen}>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>🔒 Bloquear Horário</DialogTitle>
+              <DialogDescription>
+                Marque este horário como indisponível.
+              </DialogDescription>
+            </DialogHeader>
+            <form action={handleCreateBlock} className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="data_inicio" className="text-right">Início</Label>
+                <div className="col-span-3">
+                  <Input
+                    id="data_inicio"
+                    name="data_inicio"
+                    type="datetime-local"
+                    required
+                    defaultValue={newAppointmentDate ? (() => {
+                      const d = newAppointmentDate;
+                      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}T${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+                    })() : ""}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="data_fim" className="text-right">Fim</Label>
+                <div className="col-span-3">
+                  <Input
+                    id="data_fim"
+                    name="data_fim"
+                    type="datetime-local"
+                    required
+                    defaultValue={newAppointmentDate ? (() => {
+                      const d = addMinutes(newAppointmentDate, 60);
+                      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}T${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+                    })() : ""}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="motivo" className="text-right">Motivo</Label>
+                <div className="col-span-3">
+                  <Input
+                    id="motivo"
+                    name="motivo"
+                    placeholder="Ex: Reunião, Compromisso pessoal..."
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setIsBlockDialogOpen(false)}>Cancelar</Button>
+                <Button type="submit">Bloquear</Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+
+        {/* Context Menu for slot actions */}
+        {slotAction && (
+          <div 
+            className="fixed z-50 bg-popover border rounded-md shadow-lg p-1 min-w-[160px]"
+            style={{ left: slotAction.x, top: slotAction.y }}
+            onClick={() => setSlotAction(null)}
+          >
+            <button
+              className="w-full text-left px-3 py-2 text-sm hover:bg-accent rounded-sm flex items-center gap-2"
+              onClick={() => handleOpenNew(slotAction.date)}
+            >
+              <Plus className="h-4 w-4" /> Novo Agendamento
+            </button>
+            <button
+              className="w-full text-left px-3 py-2 text-sm hover:bg-accent rounded-sm flex items-center gap-2 text-orange-600"
+              onClick={handleOpenBlock}
+            >
+              🔒 Bloquear Horário
+            </button>
+          </div>
+        )}
+
+        {/* Click outside to close context menu */}
+        {slotAction && (
+          <div 
+            className="fixed inset-0 z-40" 
+            onClick={() => setSlotAction(null)}
+          />
+        )}
 
         <div className="rounded-md border shadow-sm bg-background p-2">
             <Calendar
@@ -493,9 +688,11 @@ export default function CalendarClient({ appointments, pacientes }: { appointmen
               <div className="animate-in fade-in slide-in-from-right-4 duration-500 h-full">
                   <WeekView 
                     date={date} 
-                    appointments={appointments} 
-                    onAddAppointment={handleOpenNew} 
-                    onEditAppointment={handleOpenEdit} 
+                    appointments={appointments}
+                    bloqueios={bloqueios}
+                    onAddAppointment={handleSlotClick} 
+                    onEditAppointment={handleOpenEdit}
+                    onDeleteBloqueio={handleDeleteBlock}
                   />
               </div>
           )}
@@ -504,9 +701,11 @@ export default function CalendarClient({ appointments, pacientes }: { appointmen
               <div className="animate-in fade-in slide-in-from-right-4 duration-500 h-full">
                   <DayView 
                     date={date} 
-                    appointments={appointments} 
-                    onAddAppointment={handleOpenNew} 
-                    onEditAppointment={handleOpenEdit} 
+                    appointments={appointments}
+                    bloqueios={bloqueios}
+                    onAddAppointment={handleSlotClick} 
+                    onEditAppointment={handleOpenEdit}
+                    onDeleteBloqueio={handleDeleteBlock}
                   />
               </div>
           )}

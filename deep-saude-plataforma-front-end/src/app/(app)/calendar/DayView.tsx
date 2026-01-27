@@ -1,6 +1,5 @@
 
 import React from 'react';
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 interface Appointment {
@@ -12,16 +11,26 @@ interface Appointment {
   valor_consulta?: number;
 }
 
+interface Bloqueio {
+  id: string;
+  data_inicio: string;
+  data_fim: string;
+  motivo?: string;
+  dia_inteiro?: boolean;
+}
+
 interface DayViewProps {
   date: Date;
   appointments: Appointment[];
-  onAddAppointment: (date: Date) => void;
+  bloqueios?: Bloqueio[];
+  onAddAppointment: (date: Date, event?: React.MouseEvent) => void;
   onEditAppointment: (appointment: Appointment) => void;
+  onDeleteBloqueio?: (id: string) => void;
 }
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i); // 00:00 to 23:00
 
-export function DayView({ date, appointments, onAddAppointment, onEditAppointment }: DayViewProps) {
+export function DayView({ date, appointments, bloqueios = [], onAddAppointment, onEditAppointment, onDeleteBloqueio }: DayViewProps) {
   const containerRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
@@ -47,10 +56,27 @@ export function DayView({ date, appointments, onAddAppointment, onEditAppointmen
     });
   };
 
-  const handleSlotClick = (hour: number) => {
+  const getBloqueiosForHour = (hour: number) => {
+    return bloqueios.filter(block => {
+      const inicio = new Date(block.data_inicio);
+      const fim = new Date(block.data_fim);
+      const slotStart = new Date(date);
+      slotStart.setHours(hour, 0, 0, 0);
+      const slotEnd = new Date(date);
+      slotEnd.setHours(hour + 1, 0, 0, 0);
+      
+      // Check if block overlaps with this hour slot
+      return inicio < slotEnd && fim > slotStart &&
+             inicio.getDate() === date.getDate() &&
+             inicio.getMonth() === date.getMonth() &&
+             inicio.getFullYear() === date.getFullYear();
+    });
+  };
+
+  const handleSlotClick = (hour: number, event: React.MouseEvent) => {
     const newDate = new Date(date);
     newDate.setHours(hour, 0, 0, 0);
-    onAddAppointment(newDate);
+    onAddAppointment(newDate, event);
   };
 
   return (
@@ -70,12 +96,52 @@ export function DayView({ date, appointments, onAddAppointment, onEditAppointmen
         <div className="divide-y relative">
           {HOURS.map(hour => {
             const hourAppointments = getAppointmentsForHour(hour);
+            const hourBloqueios = getBloqueiosForHour(hour);
+            const isBlocked = hourBloqueios.length > 0;
+            
             return (
               <div 
                 key={hour} 
-                className="h-20 relative group hover:bg-accent/5 transition-colors cursor-pointer"
-                onClick={() => handleSlotClick(hour)}
+                className={cn(
+                  "h-20 relative group transition-colors cursor-pointer",
+                  isBlocked ? "bg-orange-100/50 dark:bg-orange-900/20" : "hover:bg-accent/5"
+                )}
+                onClick={(e) => handleSlotClick(hour, e)}
               >
+                {/* Render Bloqueios */}
+                {hourBloqueios.map(block => {
+                  const inicio = new Date(block.data_inicio);
+                  const fim = new Date(block.data_fim);
+                  const slotStart = new Date(date);
+                  slotStart.setHours(hour, 0, 0, 0);
+                  
+                  const topMinutes = Math.max(0, (inicio.getTime() - slotStart.getTime()) / 60000);
+                  const topPos = (topMinutes / 60) * 100;
+                  
+                  const durationMinutes = (fim.getTime() - inicio.getTime()) / 60000;
+                  const height = Math.min(100 - topPos, (durationMinutes / 60) * 100);
+                  
+                  return (
+                    <div
+                      key={block.id}
+                      className="absolute left-0 right-0 bg-orange-200/80 dark:bg-orange-800/60 border-l-4 border-orange-500 p-2 text-xs z-10 overflow-hidden flex items-center gap-2"
+                      style={{ top: `${topPos}%`, height: `${height}%`, minHeight: '20px' }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (onDeleteBloqueio && confirm('Remover este bloqueio?')) {
+                          onDeleteBloqueio(block.id);
+                        }
+                      }}
+                      title={block.motivo || 'Horário bloqueado'}
+                    >
+                      <span className="font-semibold">🔒</span>
+                      <span className="truncate text-orange-800 dark:text-orange-200">
+                        {block.motivo || 'Bloqueado'}
+                      </span>
+                    </div>
+                  );
+                })}
+
                 {/* Render Appointments */}
                 {hourAppointments.map(app => {
                     const appDate = new Date(app.data_hora_sessao);

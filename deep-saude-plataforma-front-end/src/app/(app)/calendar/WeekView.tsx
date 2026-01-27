@@ -9,18 +9,29 @@ interface Appointment {
   nome_paciente: string;
   paciente_id?: string;
   valor_consulta?: number;
+  status?: string;
+}
+
+interface Bloqueio {
+  id: string;
+  data_inicio: string;
+  data_fim: string;
+  motivo?: string;
+  dia_inteiro?: boolean;
 }
 
 interface WeekViewProps {
   date: Date;
   appointments: Appointment[];
-  onAddAppointment: (date: Date) => void;
+  bloqueios?: Bloqueio[];
+  onAddAppointment: (date: Date, event?: React.MouseEvent) => void;
   onEditAppointment: (appointment: Appointment) => void;
+  onDeleteBloqueio?: (id: string) => void;
 }
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i); // 00:00 to 23:00
 
-export function WeekView({ date, appointments, onAddAppointment, onEditAppointment }: WeekViewProps) {
+export function WeekView({ date, appointments, bloqueios = [], onAddAppointment, onEditAppointment, onDeleteBloqueio }: WeekViewProps) {
   const scrollContainerRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
@@ -58,10 +69,27 @@ export function WeekView({ date, appointments, onAddAppointment, onEditAppointme
     });
   };
 
-  const handleSlotClick = (day: Date, hour: number) => {
+  const getBloqueiosForDayAndHour = (day: Date, hour: number) => {
+    return bloqueios.filter(block => {
+      const inicio = new Date(block.data_inicio);
+      const fim = new Date(block.data_fim);
+      const slotStart = new Date(day);
+      slotStart.setHours(hour, 0, 0, 0);
+      const slotEnd = new Date(day);
+      slotEnd.setHours(hour + 1, 0, 0, 0);
+      
+      // Check if block overlaps with this hour slot
+      return inicio < slotEnd && fim > slotStart &&
+             inicio.getDate() === day.getDate() &&
+             inicio.getMonth() === day.getMonth() &&
+             inicio.getFullYear() === day.getFullYear();
+    });
+  };
+
+  const handleSlotClick = (day: Date, hour: number, event: React.MouseEvent) => {
     const newDate = new Date(day);
     newDate.setHours(hour, 0, 0, 0);
-    onAddAppointment(newDate);
+    onAddAppointment(newDate, event);
   };
 
   return (
@@ -102,12 +130,52 @@ export function WeekView({ date, appointments, onAddAppointment, onEditAppointme
           <div key={dayIndex} className="divide-y relative min-w-[120px]">
             {HOURS.map(hour => {
               const hourAppointments = getAppointmentsForDayAndHour(day, hour);
+              const hourBloqueios = getBloqueiosForDayAndHour(day, hour);
+              const isBlocked = hourBloqueios.length > 0;
+              
               return (
                 <div 
                   key={hour} 
-                  className="h-20 relative group hover:bg-accent/5 transition-colors cursor-pointer border-b"
-                  onClick={() => handleSlotClick(day, hour)}
+                  className={cn(
+                    "h-20 relative group transition-colors cursor-pointer border-b",
+                    isBlocked ? "bg-orange-100/50 dark:bg-orange-900/20" : "hover:bg-accent/5"
+                  )}
+                  onClick={(e) => handleSlotClick(day, hour, e)}
                 >
+                  {/* Render Bloqueios */}
+                  {hourBloqueios.map(block => {
+                    const inicio = new Date(block.data_inicio);
+                    const fim = new Date(block.data_fim);
+                    const slotStart = new Date(day);
+                    slotStart.setHours(hour, 0, 0, 0);
+                    
+                    const topMinutes = Math.max(0, (inicio.getTime() - slotStart.getTime()) / 60000);
+                    const topPos = (topMinutes / 60) * 100;
+                    
+                    const durationMinutes = (fim.getTime() - inicio.getTime()) / 60000;
+                    const height = Math.min(100 - topPos, (durationMinutes / 60) * 100);
+                    
+                    return (
+                      <div
+                        key={block.id}
+                        className="absolute left-0 right-0 bg-orange-200/80 dark:bg-orange-800/60 border-l-4 border-orange-500 p-1 text-[10px] z-10 overflow-hidden flex items-center gap-1"
+                        style={{ top: `${topPos}%`, height: `${height}%`, minHeight: '20px' }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (onDeleteBloqueio && confirm('Remover este bloqueio?')) {
+                            onDeleteBloqueio(block.id);
+                          }
+                        }}
+                        title={block.motivo || 'Horário bloqueado'}
+                      >
+                        <span className="font-semibold">🔒</span>
+                        <span className="truncate text-orange-800 dark:text-orange-200">
+                          {block.motivo || 'Bloqueado'}
+                        </span>
+                      </div>
+                    );
+                  })}
+
                   {/* Render Appointments */}
                   {hourAppointments.map(app => {
                       const appDate = new Date(app.data_hora_sessao);

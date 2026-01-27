@@ -395,16 +395,18 @@
   (try
     (let [clinica-id (get-in request [:identity :clinica_id])
           agendamento-id (java.util.UUID/fromString (get-in request [:params :id]))
-          {:keys [paciente_id psicologo_id data_hora_sessao valor_consulta duracao]} (:body request)]
+          {:keys [paciente_id psicologo_id data_hora_sessao valor_consulta duracao status]} (:body request)]
       
       (if (execute-one! ["SELECT id FROM agendamentos WHERE id = ? AND clinica_id = ?" agendamento-id clinica-id])
-        (let [update-map (cond-> {}
+        (let [;; Se status for 'cancelado', zera o valor_consulta automaticamente
+              valor-final (if (= status "cancelado") 0 valor_consulta)
+              update-map (cond-> {}
                            (some? paciente_id) (assoc :paciente_id (java.util.UUID/fromString paciente_id))
                            (some? psicologo_id) (assoc :psicologo_id (java.util.UUID/fromString psicologo_id))
                            (some? data_hora_sessao) (assoc :data_hora_sessao (java.sql.Timestamp/valueOf data_hora_sessao))
-                           (some? data_hora_sessao) (assoc :data_hora_sessao (java.sql.Timestamp/valueOf data_hora_sessao))
-                           (some? valor_consulta) (assoc :valor_consulta valor_consulta)
-                           (some? duracao) (assoc :duracao duracao))
+                           (some? valor-final) (assoc :valor_consulta valor-final)
+                           (some? duracao) (assoc :duracao duracao)
+                           (some? status) (assoc :status status))
               resultado (sql/update! @datasource :agendamentos update-map {:id agendamento-id :clinica_id clinica-id})]
           (if (zero? (:next.jdbc/update-count resultado))
             {:status 500 :body {:erro "Erro ao atualizar agendamento."}}
@@ -465,6 +467,55 @@
       
       (let [agendamentos (execute-query! (into [query] params))]
         {:status 200 :body agendamentos}))))
+
+;; --- Handlers de Bloqueios de Agenda ---
+(defn criar-bloqueio-handler [request]
+  (try
+    (let [clinica-id (get-in request [:identity :clinica_id])
+          usuario-id (get-in request [:identity :user_id])
+          {:keys [data_inicio data_fim motivo dia_inteiro]} (:body request)]
+      (println "DEBUG: Criando bloqueio:" (:body request))
+      (if (or (nil? data_inicio) (nil? data_fim))
+        {:status 400 :body {:erro "data_inicio e data_fim são obrigatórios."}}
+        (let [novo-bloqueio (sql/insert! @datasource :bloqueios_agenda
+                                         {:clinica_id    clinica-id
+                                          :psicologo_id  usuario-id
+                                          :data_inicio   (java.sql.Timestamp/valueOf data_inicio)
+                                          :data_fim      (java.sql.Timestamp/valueOf data_fim)
+                                          :motivo        motivo
+                                          :dia_inteiro   (or dia_inteiro false)}
+                                         {:builder-fn rs/as-unqualified-lower-maps :return-keys true})]
+          {:status 201 :body novo-bloqueio})))
+    (catch Exception e
+      (println "ERRO ao criar bloqueio:" (.getMessage e))
+      {:status 500 :body {:erro (str "Erro interno: " (.getMessage e))}})))
+
+(defn listar-bloqueios-handler [request]
+  (let [clinica-id (get-in request [:identity :clinica_id])
+        usuario-id (get-in request [:identity :user_id])
+        data-inicio-param (get-in request [:params :data_inicio])
+        data-fim-param (get-in request [:params :data_fim])]
+    (let [query (str "SELECT * FROM bloqueios_agenda 
+                      WHERE clinica_id = ? AND psicologo_id = ?"
+                     (when data-inicio-param " AND data_fim >= ?::timestamp")
+                     (when data-fim-param " AND data_inicio <= ?::timestamp")
+                     " ORDER BY data_inicio ASC")
+          params (cond-> [clinica-id usuario-id]
+                   data-inicio-param (conj data-inicio-param)
+                   data-fim-param (conj data-fim-param))
+          bloqueios (execute-query! (into [query] params))]
+      {:status 200 :body bloqueios})))
+
+(defn remover-bloqueio-handler [request]
+  (let [clinica-id (get-in request [:identity :clinica_id])
+        usuario-id (get-in request [:identity :user_id])
+        bloqueio-id (java.util.UUID/fromString (get-in request [:params :id]))]
+    (if-let [bloqueio (execute-one! ["SELECT id FROM bloqueios_agenda WHERE id = ? AND clinica_id = ? AND psicologo_id = ?" 
+                                      bloqueio-id clinica-id usuario-id])]
+      (do
+        (sql/delete! @datasource :bloqueios_agenda {:id bloqueio-id})
+        {:status 200 :body {:mensagem "Bloqueio removido com sucesso."}})
+      {:status 404 :body {:erro "Bloqueio não encontrado ou você não tem permissão."}})))
 
 ;; --- Handlers de Prontuários ---
 (defn criar-prontuario-handler [request]
@@ -624,6 +675,12 @@
   (PUT  "/:id" request (wrap-checar-permissao atualizar-agendamento-handler "gerenciar_agendamentos_clinica"))
   (DELETE "/:id" request (wrap-checar-permissao remover-agendamento-handler "gerenciar_agendamentos_clinica")))
 
+;; ROTAS DE BLOQUEIOS DE AGENDA
+(defroutes bloqueios-routes
+  (POST "/" request (wrap-jwt-autenticacao criar-bloqueio-handler))
+  (GET  "/" request (wrap-jwt-autenticacao listar-bloqueios-handler))
+  (DELETE "/:id" request (wrap-jwt-autenticacao remover-bloqueio-handler)))
+
 (defroutes protected-routes
   (POST   "/api/usuarios" request (wrap-checar-permissao criar-usuario-handler "gerenciar_usuarios"))
   (GET    "/api/usuarios/:id" request (wrap-checar-permissao obter-usuario-handler "gerenciar_usuarios"))
@@ -635,7 +692,9 @@
 
   (context "/api/pacientes" [] pacientes-routes)
 
-  (context "/api/agendamentos" [] agendamentos-routes))
+  (context "/api/agendamentos" [] agendamentos-routes)
+  
+  (context "/api/bloqueios" [] bloqueios-routes))
 
 (def app
   (-> (defroutes app-routes
@@ -665,6 +724,10 @@
           (execute-query! ["ALTER TABLE agendamentos ADD COLUMN IF NOT EXISTS duracao INTEGER DEFAULT 50"])
           (println "Coluna 'duracao' verificada/adicionada com sucesso.")
           
+          ;; Status para cancelamento de sessões
+          (execute-query! ["ALTER TABLE agendamentos ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'agendado'"])
+          (println "Coluna 'status' de agendamentos verificada/adicionada com sucesso.")
+          
           ;; Novos campos Prontuário
           (execute-query! ["ALTER TABLE prontuarios ADD COLUMN IF NOT EXISTS queixa_principal TEXT"])
           (execute-query! ["ALTER TABLE prontuarios ADD COLUMN IF NOT EXISTS resumo_tecnico TEXT"])
@@ -680,6 +743,19 @@
           (execute-query! ["ALTER TABLE pacientes ADD COLUMN IF NOT EXISTS diagnostico TEXT"])
           (execute-query! ["ALTER TABLE pacientes ADD COLUMN IF NOT EXISTS contatos_emergencia TEXT"])
           (println "Novas colunas de dados clínicos do paciente verificadas/adicionadas com sucesso.")
+
+          ;; Tabela de Bloqueios de Agenda
+          (execute-query! ["CREATE TABLE IF NOT EXISTS bloqueios_agenda (
+                            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                            clinica_id UUID NOT NULL,
+                            psicologo_id UUID NOT NULL,
+                            data_inicio TIMESTAMP NOT NULL,
+                            data_fim TIMESTAMP NOT NULL,
+                            motivo VARCHAR(255),
+                            dia_inteiro BOOLEAN DEFAULT false,
+                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                           )"])
+          (println "Tabela bloqueios_agenda verificada/criada com sucesso.")
 
           (catch Exception e
             (println "Aviso ao verificar colunas:" (.getMessage e))))

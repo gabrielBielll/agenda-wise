@@ -134,3 +134,134 @@ export async function deleteAgendamento(id: string): Promise<{ message: string; 
   revalidatePath("/calendar");
   return { message: "Agendamento excluído com sucesso!", success: true };
 }
+
+export async function cancelAgendamento(id: string): Promise<{ message: string; success: boolean }> {
+  const session = await getServerSession(authOptions);
+  const token = (session as any)?.backendToken;
+
+  if (!token) return { message: "Erro de autenticação.", success: false };
+
+  const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/agendamentos/${id}`;
+
+  try {
+    const response = await fetch(apiUrl, {
+      method: "PUT",
+      headers: { 
+        "Content-Type": "application/json", 
+        "Authorization": `Bearer ${token}` 
+      },
+      body: JSON.stringify({ status: "cancelado" }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return { message: errorData.erro || "Falha ao cancelar sessão.", success: false };
+    }
+  } catch (error) {
+    return { message: "Erro de conexão com o servidor.", success: false };
+  }
+
+  revalidatePath("/calendar");
+  return { message: "Sessão cancelada com sucesso! O valor foi zerado.", success: true };
+}
+
+// ============ BLOQUEIOS DE AGENDA ============
+
+export interface Bloqueio {
+  id: string;
+  data_inicio: string;
+  data_fim: string;
+  motivo?: string;
+  dia_inteiro?: boolean;
+}
+
+export async function fetchBloqueios(dataInicio?: string, dataFim?: string): Promise<Bloqueio[]> {
+  const session = await getServerSession(authOptions);
+  const token = (session as any)?.backendToken;
+
+  if (!token) return [];
+
+  let apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/bloqueios`;
+  const params = new URLSearchParams();
+  if (dataInicio) params.append("data_inicio", dataInicio);
+  if (dataFim) params.append("data_fim", dataFim);
+  if (params.toString()) apiUrl += `?${params.toString()}`;
+
+  try {
+    const response = await fetch(apiUrl, {
+      headers: { "Authorization": `Bearer ${token}` },
+      cache: "no-store",
+    });
+    if (response.ok) {
+      return await response.json();
+    }
+  } catch (error) {
+    console.error("Erro ao buscar bloqueios:", error);
+  }
+  return [];
+}
+
+export async function createBloqueio(
+  dataInicio: string, 
+  dataFim: string, 
+  motivo?: string,
+  diaInteiro?: boolean
+): Promise<{ message: string; success: boolean }> {
+  const session = await getServerSession(authOptions);
+  const token = (session as any)?.backendToken;
+
+  if (!token) return { message: "Erro de autenticação.", success: false };
+
+  const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/bloqueios`;
+
+  try {
+    const response = await fetch(apiUrl, {
+      method: "POST",
+      headers: { 
+        "Content-Type": "application/json", 
+        "Authorization": `Bearer ${token}` 
+      },
+      body: JSON.stringify({
+        data_inicio: dataInicio.replace("T", " ") + ":00",
+        data_fim: dataFim.replace("T", " ") + ":00",
+        motivo,
+        dia_inteiro: diaInteiro || false
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return { message: errorData.erro || "Falha ao criar bloqueio.", success: false };
+    }
+  } catch (error) {
+    return { message: "Erro de conexão com o servidor.", success: false };
+  }
+
+  revalidatePath("/calendar");
+  return { message: "Horário bloqueado com sucesso!", success: true };
+}
+
+export async function deleteBloqueio(id: string): Promise<{ message: string; success: boolean }> {
+  const session = await getServerSession(authOptions);
+  const token = (session as any)?.backendToken;
+
+  if (!token) return { message: "Erro de autenticação.", success: false };
+
+  const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/bloqueios/${id}`;
+
+  try {
+    const response = await fetch(apiUrl, {
+      method: "DELETE",
+      headers: { "Authorization": `Bearer ${token}` },
+    });
+
+    if (!response.ok) {
+      return { message: "Falha ao remover bloqueio.", success: false };
+    }
+  } catch (error) {
+    return { message: "Erro de conexão com o servidor.", success: false };
+  }
+
+  revalidatePath("/calendar");
+  return { message: "Bloqueio removido com sucesso!", success: true };
+}
