@@ -60,16 +60,31 @@ async function getPsicologos(token: string): Promise<Item[]> {
   }
 }
 
+async function getBloqueios(token: string): Promise<any[]> {
+  try {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/bloqueios`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+      cache: 'no-store',
+    });
+    if (!response.ok) return [];
+    return response.json();
+  } catch (e) {
+    console.error(e);
+    return [];
+  }
+}
+
 export default async function AdminAgendamentosPage() {
   const session = await getServerSession(authOptions);
   const token = (session as any)?.backendToken;
   
   if (!token) return <p>Não autorizado.</p>;
   
-  const [agendamentos, pacientes, psicologos] = await Promise.all([
+  const [agendamentos, pacientes, psicologos, bloqueios] = await Promise.all([
     getAgendamentos(token),
     getPacientes(token),
-    getPsicologos(token)
+    getPsicologos(token),
+    getBloqueios(token)
   ]);
 
   console.log("DEBUG: AdminAgendamentosPage fetched:", agendamentos.length, "agendamentos");
@@ -80,6 +95,7 @@ export default async function AdminAgendamentosPage() {
       agendamentos={agendamentos} 
       pacientes={pacientes} 
       psicologos={psicologos} 
+      bloqueios={bloqueios}
     />
   );
 }

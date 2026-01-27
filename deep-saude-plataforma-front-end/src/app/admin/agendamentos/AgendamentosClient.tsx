@@ -7,7 +7,18 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar, PlusCircle, AlertTriangle, Pencil, Search } from "lucide-react";
+import { Calendar, PlusCircle, AlertTriangle, Pencil, Search, List, CalendarDays } from "lucide-react";
+import { WeekView } from "../../(app)/calendar/WeekView";
+
+// Utility to create a blocked time type compatible with WeekView
+interface Bloqueio {
+  id: string;
+  data_inicio: string;
+  data_fim: string;
+  motivo?: string;
+  dia_inteiro?: boolean;
+  psicologo_id: string; // Critical for filtering
+}
 
 interface Agendamento {
   id: string;
@@ -36,12 +47,15 @@ const formatDate = (dateString: string) => {
 export default function AgendamentosClient({ 
   agendamentos, 
   pacientes, 
-  psicologos 
+  psicologos,
+  bloqueios = []
 }: { 
   agendamentos: Agendamento[], 
   pacientes: Item[], 
-  psicologos: Item[] 
+  psicologos: Item[],
+  bloqueios?: Bloqueio[]
 }) {
+  const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
   const [selectedPaciente, setSelectedPaciente] = useState<string>("all");
   const [selectedPsicologo, setSelectedPsicologo] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState<string>("");
@@ -85,12 +99,32 @@ export default function AgendamentosClient({
             <CardTitle className="flex items-center gap-2"><Calendar className="h-5 w-5"/> Agendamentos</CardTitle>
             <CardDescription>Visualize e gerencie os agendamentos da clínica.</CardDescription>
           </div>
-          <Button asChild>
-            <Link href="/admin/agendamentos/novo">
-              <PlusCircle className="mr-2 h-4 w-4" />
-              Novo Agendamento
-            </Link>
-          </Button>
+          <div className="flex items-center gap-2">
+            <div className="bg-muted p-1 rounded-md flex">
+              <Button 
+                variant={viewMode === "list" ? "secondary" : "ghost"} 
+                size="sm" 
+                onClick={() => setViewMode("list")}
+                title="Lista"
+              >
+                <List className="h-4 w-4" />
+              </Button>
+              <Button 
+                variant={viewMode === "calendar" ? "secondary" : "ghost"} 
+                size="sm" 
+                onClick={() => setViewMode("calendar")}
+                title="Calendário"
+              >
+                <CalendarDays className="h-4 w-4" />
+              </Button>
+            </div>
+            <Button asChild>
+              <Link href="/admin/agendamentos/novo">
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Novo Agendamento
+              </Link>
+            </Button>
+          </div>
         </div>
         
         <div className="flex flex-col md:flex-row gap-4 mt-4">
@@ -141,45 +175,73 @@ export default function AgendamentosClient({
         </div>
       </CardHeader>
       <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Paciente</TableHead>
-              <TableHead>Psicólogo</TableHead>
-              <TableHead>Data/Hora</TableHead>
-              <TableHead>Valor (R$)</TableHead>
-              <TableHead className="w-[50px]"></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredAgendamentos.length > 0 ? (
-              filteredAgendamentos.map((ag) => (
-                <TableRow key={ag.id}>
-                  <TableCell>{ag.nome_paciente || 'N/A'}</TableCell>
-                  <TableCell>{ag.nome_psicologo || 'N/A'}</TableCell>
-                  <TableCell>{formatDate(ag.data_hora_sessao)}</TableCell>
-                  <TableCell>{Number(ag.valor_consulta).toFixed(2)}</TableCell>
-                  <TableCell>
-                    <div className="flex justify-end gap-2">
-                      <Button variant="ghost" size="icon" asChild>
-                        <Link href={`/admin/agendamentos/${ag.id}/edit`}>
-                          <Pencil className="h-4 w-4" />
-                        </Link>
-                      </Button>
-                      <DeleteAgendamentoButton id={ag.id} />
-                    </div>
+        {viewMode === "list" ? (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Paciente</TableHead>
+                <TableHead>Psicólogo</TableHead>
+                <TableHead>Data/Hora</TableHead>
+                <TableHead>Valor (R$)</TableHead>
+                <TableHead className="w-[50px]"></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredAgendamentos.length > 0 ? (
+                filteredAgendamentos.map((ag) => (
+                  <TableRow key={ag.id}>
+                    <TableCell>{ag.nome_paciente || 'N/A'}</TableCell>
+                    <TableCell>{ag.nome_psicologo || 'N/A'}</TableCell>
+                    <TableCell>{formatDate(ag.data_hora_sessao)}</TableCell>
+                    <TableCell>{Number(ag.valor_consulta).toFixed(2)}</TableCell>
+                    <TableCell>
+                      <div className="flex justify-end gap-2">
+                        <Button variant="ghost" size="icon" asChild>
+                          <Link href={`/admin/agendamentos/${ag.id}/edit`}>
+                            <Pencil className="h-4 w-4" />
+                          </Link>
+                        </Button>
+                        <DeleteAgendamentoButton id={ag.id} />
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center h-24 text-muted-foreground">
+                    Nenhum agendamento encontrado com os filtros selecionados.
                   </TableCell>
                 </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell colSpan={5} className="text-center h-24 text-muted-foreground">
-                  Nenhum agendamento encontrado com os filtros selecionados.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
+              )}
+            </TableBody>
+          </Table>
+        ) : (
+          <div className="h-[600px] border rounded-md p-2 overflow-hidden">
+             {selectedPsicologo === "all" ? (
+               <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+                 <AlertTriangle className="h-10 w-10 mb-2 opacity-50" />
+                 <p>Selecione um Psicólogo para visualizar a agenda.</p>
+               </div>
+             ) : (
+               <WeekView 
+                 date={selectedDate ? new Date(selectedDate) : new Date()}
+                 appointments={filteredAgendamentos.map(ag => ({
+                   id: ag.id,
+                   data_hora_sessao: ag.data_hora_sessao,
+                   nome_paciente: ag.nome_paciente || "",
+                   // Add other necessary fields if WeekView requires them, or update WeekView type
+                 } as any))}
+                 bloqueios={bloqueios.filter(b => b.psicologo_id === selectedPsicologo)}
+                 onAddAppointment={() => {}} // Read-only for now or implement later
+                 onEditAppointment={(app) => {
+                    // Redirect to edit page
+                    window.location.href = `/admin/agendamentos/${app.id}/edit`;
+                 }}
+                 onDeleteBloqueio={() => {}} // Read-only
+               />
+             )}
+          </div>
+        )}
       </CardContent>
     </Card>
   );

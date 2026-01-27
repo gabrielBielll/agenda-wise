@@ -527,19 +527,51 @@
       {:status 500 :body {:erro (str "Erro interno: " (.getMessage e))}})))
 
 (defn listar-bloqueios-handler [request]
-  (let [clinica-id (get-in request [:identity :clinica_id])
-        usuario-id (get-in request [:identity :user_id])
+  (let [identity (:identity request)
+        clinica-id (:clinica_id identity)
+        usuario-id (:user_id identity)
+        papel (:role identity)
         data-inicio-param (get-in request [:params :data_inicio])
-        data-fim-param (get-in request [:params :data_fim])]
-    (let [query (str "SELECT * FROM bloqueios_agenda 
-                      WHERE clinica_id = ? AND psicologo_id = ?"
-                     (when data-inicio-param " AND data_fim >= ?::timestamp")
-                     (when data-fim-param " AND data_inicio <= ?::timestamp")
-                     " ORDER BY data_inicio ASC")
-          params (cond-> [clinica-id usuario-id]
-                   data-inicio-param (conj data-inicio-param)
-                   data-fim-param (conj data-fim-param))
+        data-fim-param (get-in request [:params :data_fim])
+        ;; Novo filtro opcional: psicologo_id (apenas para admin/secretário)
+        psicologo-id-param (get-in request [:params :psicologo_id])]
+    
+    (let [;; Definição base da query
+          base-query "SELECT * FROM bloqueios_agenda WHERE clinica_id = ?"
+          base-params [clinica-id]
+
+          ;; Lógica de restrição de acesso e filtro de psicólogo
+          [query params] (cond
+                           ;; Se for admin ou secretario
+                           (or (= papel "admin_clinica") (= papel "secretario"))
+                           (if (not (str/blank? psicologo-id-param))
+                             ;; Se admin especificou um psicólogo, filtra por ele
+                             [(str base-query " AND psicologo_id = ?") (conj base-params (java.util.UUID/fromString psicologo-id-param))]
+                             ;; Se não, traz tudo (ou poderíamos obrigar o filtro, mas trazer tudo é útil para visão geral)
+                             [base-query base-params])
+
+                           ;; Se for psicólogo, FORÇA o filtro pelo próprio ID (ignora parâmetro se tentar passar)
+                           (= papel "psicologo")
+                           [(str base-query " AND psicologo_id = ?") (conj base-params usuario-id)]
+
+                           :else
+                           ;; Papel desconhecido ou sem permissão (tecnicamente o middleware já barra, mas segurança extra)
+                           [base-query (conj base-params nil)]) ;; Vai falhar ou não trazer nada seguro
+          
+          ;; Adiciona filtros de data se presentes
+          [query params] (if data-inicio-param
+                           [(str query " AND data_fim >= ?::timestamp") (conj params data-inicio-param)]
+                           [query params])
+          
+          [query params] (if data-fim-param
+                           [(str query " AND data_inicio <= ?::timestamp") (conj params data-fim-param)]
+                           [query params])
+          
+          ;; Ordenação final
+          query (str query " ORDER BY data_inicio ASC")
+          
           bloqueios (execute-query! (into [query] params))]
+      
       {:status 200 :body bloqueios})))
 
 (defn remover-bloqueio-handler [request]
