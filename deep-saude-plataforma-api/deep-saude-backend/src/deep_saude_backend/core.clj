@@ -242,8 +242,8 @@
 ;; --- Handlers de Pacientes ---
 (defn criar-paciente-handler [request]
   (let [clinica-id (get-in request [:identity :clinica_id])
-        ;; Extrair o novo campo psicologo_id
-        {:keys [nome email telefone data_nascimento endereco avatar_url psicologo_id]} (:body request)]
+        ;; Extrair o novo campo psicologo_id e campos clínicos
+        {:keys [nome email telefone data_nascimento endereco avatar_url psicologo_id historico_familiar uso_medicamentos diagnostico contatos_emergencia]} (:body request)]
     (cond
       ;; ... (validações existentes) ...
       :else
@@ -255,7 +255,11 @@
                                         :data_nascimento (when data_nascimento (Date/valueOf data_nascimento))
                                         :endereco        endereco
                                         :avatar_url      avatar_url
-                                        :psicologo_id    (when psicologo_id (java.util.UUID/fromString psicologo_id))} ; Adicionar o novo campo com cast para UUID
+                                        :psicologo_id    (when psicologo_id (java.util.UUID/fromString psicologo_id))
+                                        :historico_familiar historico_familiar
+                                        :uso_medicamentos   uso_medicamentos
+                                        :diagnostico        diagnostico
+                                        :contatos_emergencia contatos_emergencia} ; Adicionar novos campos
                                        {:builder-fn rs/as-unqualified-lower-maps :return-keys true})]
         {:status 201, :body novo-paciente}))))
 
@@ -295,7 +299,7 @@
         usuario-id (:user_id identity)
         papel (:role identity)
         paciente-id (java.util.UUID/fromString (get-in request [:params :id]))
-        {:keys [nome email telefone data_nascimento endereco avatar_url psicologo_id]} (:body request)]
+        {:keys [nome email telefone data_nascimento endereco avatar_url psicologo_id historico_familiar uso_medicamentos diagnostico contatos_emergencia]} (:body request)]
     
     ;; Verificação de Propriedade para Psicólogos
     (if (and (= papel "psicologo")
@@ -303,7 +307,7 @@
       {:status 403 :body {:erro "Você só pode editar pacientes vinculados a você."}}
       
       (cond
-        (str/blank? nome)
+        (and (some? nome) (str/blank? nome))
         {:status 400 :body {:erro "O campo nome não pode estar em branco."}}
 
         (and email (not (str/blank? email)) 
@@ -311,14 +315,21 @@
         {:status 409 :body {:erro "O email fornecido já está em uso por outro paciente nesta clínica."}}
 
         :else
-        (let [update-map (cond-> {:nome nome
-                                  :email email
-                                  :telefone telefone
-                                  :data_nascimento (when data_nascimento (Date/valueOf data_nascimento))
-                                  :endereco endereco
-                                  :avatar_url avatar_url}
-                           (some? psicologo_id) (assoc :psicologo_id (when (not (str/blank? psicologo_id)) (java.util.UUID/fromString psicologo_id)))) ;; Se psicologo_id for passado, atualiza. Se null/blank, remove (seta pra null).
-              resultado (sql/update! @datasource :pacientes update-map {:id paciente-id :clinica_id clinica-id})]
+        (let [update-map (cond-> {}
+                           (some? nome) (assoc :nome nome)
+                           (some? email) (assoc :email email)
+                           (some? telefone) (assoc :telefone telefone)
+                           (some? data_nascimento) (assoc :data_nascimento (Date/valueOf data_nascimento))
+                           (some? endereco) (assoc :endereco endereco)
+                           (some? avatar_url) (assoc :avatar_url avatar_url)
+                           (some? historico_familiar) (assoc :historico_familiar historico_familiar)
+                           (some? uso_medicamentos) (assoc :uso_medicamentos uso_medicamentos)
+                           (some? diagnostico) (assoc :diagnostico diagnostico)
+                           (some? contatos_emergencia) (assoc :contatos_emergencia contatos_emergencia)
+                           (some? psicologo_id) (assoc :psicologo_id (when (not (str/blank? psicologo_id)) (java.util.UUID/fromString psicologo_id))))
+              resultado (if (empty? update-map)
+                          {:next.jdbc/update-count 0}
+                          (sql/update! @datasource :pacientes update-map {:id paciente-id :clinica_id clinica-id}))]
           (if (zero? (:next.jdbc/update-count resultado))
             {:status 404 :body {:erro "Paciente não encontrado nesta clínica ou nenhum dado foi alterado."}}
             (let [paciente-atualizado (execute-one! ["SELECT * FROM pacientes WHERE id = ?" paciente-id])]
@@ -427,48 +438,78 @@
         clinica-id (:clinica_id identity)
         papel-id (:papel_id identity)
         user-id (:user_id identity)
+        paciente-id-filter (get-in request [:params :paciente_id])
         nome-papel (:nome_papel (execute-one! ["SELECT nome_papel FROM papeis WHERE id = ?" papel-id]))]
-    (println "DEBUG: Listar Agendamentos - User:" user-id "Papel:" nome-papel "Clinica:" clinica-id)
-    (let [agendamentos (if (or (= nome-papel "admin_clinica") (= nome-papel "secretario"))
-                         (execute-query! ["SELECT a.*, p.nome as nome_paciente, u.nome as nome_psicologo
-                                           FROM agendamentos a
-                                           JOIN pacientes p ON a.paciente_id = p.id
-                                           LEFT JOIN usuarios u ON a.psicologo_id = u.id
-                                           WHERE a.clinica_id = ?" clinica-id])
-                         (execute-query! ["SELECT a.*, p.nome as nome_paciente, u.nome as nome_psicologo
-                                           FROM agendamentos a
-                                           JOIN pacientes p ON a.paciente_id = p.id
-                                           LEFT JOIN usuarios u ON a.psicologo_id = u.id
-                                           WHERE a.clinica_id = ? AND a.psicologo_id = ?" clinica-id user-id]))]
-      {:status 200 :body agendamentos})))
+    (println "DEBUG: Listar Agendamentos - User:" user-id "Papel:" nome-papel "Clinica:" clinica-id "Paciente Filter:" paciente-id-filter)
+    
+    (let [base-query "SELECT a.*, p.nome as nome_paciente, u.nome as nome_psicologo
+                      FROM agendamentos a
+                      JOIN pacientes p ON a.paciente_id = p.id
+                      LEFT JOIN usuarios u ON a.psicologo_id = u.id
+                      WHERE a.clinica_id = ?"
+          
+          params [clinica-id]
+          
+          ;; Adicionar filtro de psicólogo se não for admin/secretario
+          [query params] (if (or (= nome-papel "admin_clinica") (= nome-papel "secretario"))
+                           [base-query params]
+                           [(str base-query " AND a.psicologo_id = ?") (conj params user-id)])
+          
+          ;; Adicionar filtro de paciente se fornecido
+          [query params] (if (not (str/blank? paciente-id-filter))
+                           [(str query " AND a.paciente_id = ?") (conj params (java.util.UUID/fromString paciente-id-filter))]
+                           [query params])
+          
+          ;; Adicionar ordenação
+          query (str query " ORDER BY a.data_hora_sessao DESC")]
+      
+      (let [agendamentos (execute-query! (into [query] params))]
+        {:status 200 :body agendamentos}))))
 
 ;; --- Handlers de Prontuários ---
 (defn criar-prontuario-handler [request]
-  (let [identity (:identity request)
+        (let [identity (:identity request)
         clinica-id (:clinica_id identity)
         usuario-id (:user_id identity)
         papel (:role identity)
-        {:keys [paciente_id conteudo tipo]} (:body request)]
+        {:keys [paciente_id conteudo tipo queixa_principal resumo_tecnico observacoes_estado_mental encaminhamentos_tarefas agendamento_id humor]} (:body request)]
     
-    (if (or (str/blank? paciente_id) (str/blank? conteudo))
-      {:status 400 :body {:erro "Paciente e conteúdo são obrigatórios."}}
+    (println "DEBUG: criar-prontuario recebido:" (:body request)) 
+    (println "DEBUG: Humor value:" humor " Type:" (type humor))
+
+    (if (str/blank? conteudo)
+      {:status 400 :body {:erro "Conteúdo da evolução é obrigatório."}}
       
-      (let [paciente (execute-one! ["SELECT id, psicologo_id FROM pacientes WHERE id = ? AND clinica_id = ?" paciente_id clinica-id])]
-        (if-not paciente
-          {:status 404 :body {:erro "Paciente não encontrado."}}
-          
-          ;; Verificação de permissão: Psicólogo só cria para seus pacientes
-          (if (and (= papel "psicologo") (not= (:psicologo_id paciente) usuario-id))
-            {:status 403 :body {:erro "Você só pode registrar prontuários para seus pacientes."}}
+      (try
+        (let [paciente-uuid (java.util.UUID/fromString paciente_id)
+              paciente (execute-one! ["SELECT id, psicologo_id FROM pacientes WHERE id = ? AND clinica_id = ?" paciente-uuid clinica-id])]
+          (if-not paciente
+            {:status 404 :body {:erro "Paciente não encontrado."}}
             
-            (let [novo-prontuario (sql/insert! @datasource :prontuarios
-                                              {:clinica_id clinica-id
-                                               :paciente_id paciente_id
-                                               :psicologo_id usuario-id
-                                               :conteudo conteudo
-                                               :tipo (or tipo "sessao")}
-                                              {:builder-fn rs/as-unqualified-lower-maps :return-keys true})]
-              {:status 201 :body novo-prontuario})))))))
+            ;; Verificação de permissão: Psicólogo só cria para seus pacientes
+            (if (and (= papel "psicologo") (not= (:psicologo_id paciente) usuario-id))
+              {:status 403 :body {:erro "Você só pode registrar prontuários para seus pacientes."}}
+              
+              (let [novo-prontuario (sql/insert! @datasource :prontuarios
+                                                {:clinica_id clinica-id
+                                                 :paciente_id paciente-uuid
+                                                 :psicologo_id usuario-id
+                                                 :conteudo conteudo
+                                                 :tipo (or tipo "sessao")
+                                                 :humor humor  ;; Salvando humor
+                                                 :queixa_principal queixa_principal
+                                                 :resumo_tecnico resumo_tecnico
+                                                 :observacoes_estado_mental observacoes_estado_mental
+                                                 :encaminhamentos_tarefas encaminhamentos_tarefas
+                                                 :agendamento_id (when (not (str/blank? agendamento_id)) 
+                                                                   (println "DEBUG: Salvando agendamento_id:" agendamento_id)
+                                                                   (java.util.UUID/fromString agendamento_id))}
+                                                {:builder-fn rs/as-unqualified-lower-maps :return-keys true})]
+                {:status 201 :body novo-prontuario}))))
+        (catch Exception e
+          (println "ERRO CRIAR PRONTUARIO:" (.getMessage e))
+          (.printStackTrace e)
+          {:status 500 :body {:erro (str "Erro interno: " (.getMessage e))}})))))
 
 (defn listar-prontuarios-handler [request]
   (let [identity (:identity request)
@@ -486,13 +527,67 @@
           {:status 403 :body {:erro "Você não tem permissão para visualizar este prontuário."}}
           
           (let [prontuarios (execute-query! 
-                              ["SELECT p.*, u.nome as nome_psicologo 
+                              ["SELECT p.*, u.nome as nome_psicologo, a.data_hora_sessao as data_sessao
                                 FROM prontuarios p
                                 JOIN usuarios u ON p.psicologo_id = u.id
+                                LEFT JOIN agendamentos a ON p.agendamento_id = a.id
                                 WHERE p.paciente_id = ? AND p.clinica_id = ?
                                 ORDER BY p.data_registro DESC" 
                                paciente-id clinica-id])]
+            (println "DEBUG: Listar Prontuarios - Encontrados:" (count prontuarios))
             {:status 200 :body prontuarios}))))))
+
+(defn remover-prontuario-handler [request]
+  (let [identity (:identity request)
+        clinica-id (:clinica_id identity)
+        usuario-id (:user_id identity)
+        papel (:role identity)
+        prontuario-id (java.util.UUID/fromString (get-in request [:params :id]))]
+    
+    (if-let [prontuario (execute-one! ["SELECT id, psicologo_id FROM prontuarios WHERE id = ? AND clinica_id = ?" prontuario-id clinica-id])]
+      ;; Verificação de permissão: Apenas o autor ou admin pode excluir
+      (if (and (= papel "psicologo") (not= (:psicologo_id prontuario) usuario-id))
+        {:status 403 :body {:erro "Você só pode excluir prontuários criados por você."}}
+        
+        (let [resultado (sql/delete! @datasource :prontuarios {:id prontuario-id :clinica_id clinica-id})]
+          (if (zero? (:next.jdbc/update-count resultado))
+            {:status 500 :body {:erro "Erro ao excluir prontuário."}}
+            {:status 204 :body ""})))
+      {:status 404 :body {:erro "Prontuário não encontrado."}})))
+
+(defn atualizar-prontuario-handler [request]
+  (let [identity (:identity request)
+        clinica-id (:clinica_id identity)
+        usuario-id (:user_id identity)
+        papel (:role identity)
+        prontuario-id (java.util.UUID/fromString (get-in request [:params :id]))
+        {:keys [conteudo tipo queixa_principal resumo_tecnico observacoes_estado_mental encaminhamentos_tarefas agendamento_id humor]} (:body request)]
+    
+    (println "DEBUG: atualizar-prontuario recebido. Humor:" humor)
+    
+    (if (str/blank? conteudo)
+      {:status 400 :body {:erro "Conteúdo é obrigatório."}}
+      
+      (if-let [prontuario (execute-one! ["SELECT id, psicologo_id FROM prontuarios WHERE id = ? AND clinica_id = ?" prontuario-id clinica-id])]
+        ;; Verificação de permissão: Apenas o autor pode editar
+        (if (not= (:psicologo_id prontuario) usuario-id)
+          {:status 403 :body {:erro "Você só pode editar prontuários criados por você."}}
+          
+          (let [update-map (cond-> {:conteudo conteudo
+                                    :tipo (or tipo "sessao")
+                                    :queixa_principal queixa_principal
+                                    :resumo_tecnico resumo_tecnico
+                                    :observacoes_estado_mental observacoes_estado_mental
+                                    :encaminhamentos_tarefas encaminhamentos_tarefas
+                                    :humor humor}
+                             (some? agendamento_id) (assoc :agendamento_id (when (not (str/blank? agendamento_id)) (java.util.UUID/fromString agendamento_id))))
+                resultado (sql/update! @datasource :prontuarios update-map {:id prontuario-id :clinica_id clinica-id})]
+            
+            (if (zero? (:next.jdbc/update-count resultado))
+              {:status 500 :body {:erro "Erro ao atualizar prontuário."}}
+              (let [prontuario-atualizado (execute-one! ["SELECT * FROM prontuarios WHERE id = ?" prontuario-id])]
+                {:status 200 :body prontuario-atualizado}))))
+        {:status 404 :body {:erro "Prontuário não encontrado."}}))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -506,7 +601,9 @@
 ;; ROTAS DE PRONTUÁRIOS
 (defroutes prontuarios-routes
   (POST "/" request (wrap-checar-permissao criar-prontuario-handler "gerenciar_prontuarios"))
-  (GET  "/" request (wrap-checar-permissao listar-prontuarios-handler "visualizar_pacientes")))
+  (GET  "/" request (wrap-checar-permissao listar-prontuarios-handler "visualizar_pacientes"))
+  (PUT  "/:id" request (wrap-checar-permissao atualizar-prontuario-handler "gerenciar_prontuarios"))
+  (DELETE "/:id" request (wrap-checar-permissao remover-prontuario-handler "gerenciar_prontuarios")))
 
 ;; ROTAS ATUALIZADAS PARA PACIENTES
 (defroutes pacientes-routes
@@ -567,8 +664,25 @@
         (try
           (execute-query! ["ALTER TABLE agendamentos ADD COLUMN IF NOT EXISTS duracao INTEGER DEFAULT 50"])
           (println "Coluna 'duracao' verificada/adicionada com sucesso.")
+          
+          ;; Novos campos Prontuário
+          (execute-query! ["ALTER TABLE prontuarios ADD COLUMN IF NOT EXISTS queixa_principal TEXT"])
+          (execute-query! ["ALTER TABLE prontuarios ADD COLUMN IF NOT EXISTS resumo_tecnico TEXT"])
+          (execute-query! ["ALTER TABLE prontuarios ADD COLUMN IF NOT EXISTS observacoes_estado_mental TEXT"])
+          (execute-query! ["ALTER TABLE prontuarios ADD COLUMN IF NOT EXISTS encaminhamentos_tarefas TEXT"])
+          (execute-query! ["ALTER TABLE prontuarios ADD COLUMN IF NOT EXISTS agendamento_id UUID"])
+          (execute-query! ["ALTER TABLE prontuarios ADD COLUMN IF NOT EXISTS humor INTEGER"])
+          (println "Novas colunas de prontuário verificadas/adicionadas com sucesso.")
+
+          ;; Novos campos Clínicos do Paciente
+          (execute-query! ["ALTER TABLE pacientes ADD COLUMN IF NOT EXISTS historico_familiar TEXT"])
+          (execute-query! ["ALTER TABLE pacientes ADD COLUMN IF NOT EXISTS uso_medicamentos TEXT"])
+          (execute-query! ["ALTER TABLE pacientes ADD COLUMN IF NOT EXISTS diagnostico TEXT"])
+          (execute-query! ["ALTER TABLE pacientes ADD COLUMN IF NOT EXISTS contatos_emergencia TEXT"])
+          (println "Novas colunas de dados clínicos do paciente verificadas/adicionadas com sucesso.")
+
           (catch Exception e
-            (println "Aviso ao verificar coluna 'duracao':" (.getMessage e))))
+            (println "Aviso ao verificar colunas:" (.getMessage e))))
         (catch Exception e
           (println "Falha ao conectar ao banco de dados:" (.getMessage e)))))
     (println "AVISO: DATABASE_URL não configurada. As operações de banco de dados irão falhar.")))

@@ -13,6 +13,9 @@ import { Label } from "@/components/ui/label";
 import { User, FileText, UploadCloud, CalendarDays, Mail, Phone, StickyNote } from "lucide-react";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import ProntuarioForm from './ProntuarioForm'; // Importar o formulário
+import ProntuarioItem from './ProntuarioItem'; // Importar o item colapsável
+import ProntuarioList from './ProntuarioList';
+import MoodChart from "./MoodChart";
 
 // --- DEFINIÇÃO DOS TIPOS DE DADOS ---
 interface Patient {
@@ -24,6 +27,10 @@ interface Patient {
   data_nascimento: string | null;
   avatar_url?: string | null;
   data_cadastro: string;
+  historico_familiar?: string | null;
+  uso_medicamentos?: string | null;
+  diagnostico?: string | null;
+  contatos_emergencia?: string | null;
 }
 
 interface Prontuario {
@@ -32,6 +39,12 @@ interface Prontuario {
   conteudo: string;
   tipo: 'sessao' | 'anotacao';
   nome_psicologo?: string;
+  queixa_principal?: string;
+  resumo_tecnico?: string;
+  observacoes_estado_mental?: string;
+  encaminhamentos_tarefas?: string;
+  data_sessao?: string;
+  humor?: number;
 }
 
 interface Document { id: string; name: string; uploadDate: string; url: string; }
@@ -74,6 +87,23 @@ async function getProntuarios(patientId: string, token: string): Promise<Prontua
   }
 }
 
+// --- FUNÇÃO PARA BUSCAR AGENDAMENTOS ---
+async function getAppointments(patientId: string, token: string) {
+  const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/agendamentos?paciente_id=${patientId}`;
+  try {
+    const response = await fetch(apiUrl, {
+      method: 'GET',
+      headers: { 'Authorization': `Bearer ${token}` },
+      cache: 'no-store',
+    });
+    if (!response.ok) return [];
+    return response.json();
+  } catch (error) {
+    console.error("Erro ao buscar agendamentos:", error);
+    return [];
+  }
+}
+
 // --- DADOS MOCKADOS DOCUMENTOS ---
 const mockDocuments: Document[] = [
     { id: 'd1', name: 'Formulário de Admissão.pdf', uploadDate: '2023-01-10', url: '#' },
@@ -92,9 +122,10 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
   }
 
   // Busca dados em paralelo
-  const [patient, prontuarios] = await Promise.all([
+  const [patient, prontuarios, appointments] = await Promise.all([
     getPatientDetails(patientId, token),
-    getProntuarios(patientId, token)
+    getProntuarios(patientId, token),
+    getAppointments(patientId, token)
   ]);
 
   if (!patient) {
@@ -158,41 +189,29 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
         <TabsContent value="notes">
           <div className="grid gap-6">
             {/* Componente de Formulário para Nova Evolução */}
-            <ProntuarioForm patientId={patient.id} />
+            <ProntuarioForm patientId={patient.id} appointments={appointments} patientData={patient} />
 
-            <Card className="shadow-md">
+            <Card className="shadow-md" id="historico-evolucao">
               <CardHeader><CardTitle className="font-headline text-2xl">Histórico de Evolução</CardTitle></CardHeader>
               <CardContent>
-                  <ScrollArea className="h-[500px] pr-4">
                     {prontuarios.length > 0 ? (
-                      <div className="space-y-4">
-                        {prontuarios.map(p => (
-                          <Card key={p.id} className="bg-background/70 border-l-4 border-l-primary">
-                            <CardHeader className="pb-2">
-                              <div className="flex justify-between items-center">
-                                <CardTitle className="text-md font-semibold flex items-center gap-2">
-                                  {p.tipo === 'anotacao' ? <StickyNote className="h-4 w-4 text-yellow-500" /> : <FileText className="h-4 w-4 text-blue-500" />}
-                                  {new Date(p.data_registro).toLocaleString('pt-BR')}
-                                </CardTitle>
-                                <span className="text-xs text-muted-foreground uppercase bg-secondary px-2 py-1 rounded">{p.tipo}</span>
-                              </div>
-                              <CardDescription className="text-xs">Registrado por: {p.nome_psicologo || 'Você'}</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                              <p className="whitespace-pre-wrap text-sm leading-relaxed">{p.conteudo}</p>
-                            </CardContent>
-                          </Card>
-                        ))}
-                      </div>
+                      <ProntuarioList 
+                        initialProntuarios={prontuarios} 
+                        patientId={patient.id} 
+                        appointments={appointments} 
+                      />
                     ) : (
                       <div className="text-center py-10 text-muted-foreground">
                         <FileText className="h-10 w-10 mx-auto mb-2 opacity-20" />
                         <p>Nenhum registro encontrado no prontuário.</p>
                       </div>
                     )}
-                  </ScrollArea>
               </CardContent>
             </Card>
+
+            {/* Gráfico de Evolução do Humor */}
+            <MoodChart data={prontuarios} />
+
           </div>
         </TabsContent>
 
