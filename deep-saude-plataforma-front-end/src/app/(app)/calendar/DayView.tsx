@@ -23,7 +23,7 @@ interface DayViewProps {
   date: Date;
   appointments: Appointment[];
   bloqueios?: Bloqueio[];
-  onAddAppointment: (date: Date, event?: React.MouseEvent) => void;
+  onAddAppointment: (date: Date, event?: React.MouseEvent, isBlocked?: boolean, bloqueioId?: string) => void;
   onEditAppointment: (appointment: Appointment) => void;
   onDeleteBloqueio?: (id: string) => void;
 }
@@ -76,7 +76,13 @@ export function DayView({ date, appointments, bloqueios = [], onAddAppointment, 
   const handleSlotClick = (hour: number, event: React.MouseEvent) => {
     const newDate = new Date(date);
     newDate.setHours(hour, 0, 0, 0);
-    onAddAppointment(newDate, event);
+    
+    // Check if this slot is blocked
+    const hourBloqueios = getBloqueiosForHour(hour);
+    const isBlocked = hourBloqueios.length > 0;
+    const bloqueioId = isBlocked ? hourBloqueios[0].id : undefined;
+    
+    onAddAppointment(newDate, event, isBlocked, bloqueioId);
   };
 
   return (

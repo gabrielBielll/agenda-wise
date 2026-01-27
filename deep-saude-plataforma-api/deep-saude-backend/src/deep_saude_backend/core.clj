@@ -363,21 +363,38 @@
         {:status 400, :body {:erro "paciente_id, psicologo_id e data_hora_sessao são obrigatórios."}}
         (let [paciente-uuid (java.util.UUID/fromString paciente_id)
               psicologo-uuid (java.util.UUID/fromString psicologo_id)
+              sessao-timestamp (java.sql.Timestamp/valueOf data_hora_sessao)
+              duracao-sessao (or duracao 50)
+              ;; Calculate end time of the session
+              sessao-fim (java.sql.Timestamp. (+ (.getTime sessao-timestamp) (* duracao-sessao 60000)))
+              
+              ;; Check if time overlaps with any blocked slot
+              bloqueio-existente (execute-one! ["SELECT id FROM bloqueios_agenda 
+                                                  WHERE clinica_id = ? 
+                                                  AND psicologo_id = ?
+                                                  AND data_inicio < ?::timestamp
+                                                  AND data_fim > ?::timestamp"
+                                                 clinica-id psicologo-uuid sessao-fim sessao-timestamp])
+              
               paciente-valido? (execute-one! ["SELECT id FROM pacientes WHERE id = ? AND clinica_id = ?" 
                                               paciente-uuid clinica-id])
               psicologo-valido? (execute-one! ["SELECT id FROM usuarios WHERE id = ? AND clinica_id = ?" 
                                                psicologo-uuid clinica-id])]
-          (if (and paciente-valido? psicologo-valido?)
-            (let [novo-agendamento (sql/insert! @datasource :agendamentos
-                                                {:clinica_id       clinica-id
-                                                 :paciente_id      paciente-uuid
-                                                 :psicologo_id     psicologo-uuid
-                                                 :data_hora_sessao (java.sql.Timestamp/valueOf data_hora_sessao)
-                                                 :valor_consulta   valor_consulta
-                                                 :duracao          (or duracao 50)}
-                                                {:builder-fn rs/as-unqualified-lower-maps :return-keys true})]
-              {:status 201, :body novo-agendamento})
-            {:status 422, :body {:erro "Paciente ou psicólogo não pertence à clínica do usuário autenticado."}}))))
+          
+          ;; Check for blocking first
+          (if bloqueio-existente
+            {:status 409 :body {:erro "Não é possível agendar neste horário. O período está bloqueado."}}
+            (if (and paciente-valido? psicologo-valido?)
+              (let [novo-agendamento (sql/insert! @datasource :agendamentos
+                                                  {:clinica_id       clinica-id
+                                                   :paciente_id      paciente-uuid
+                                                   :psicologo_id     psicologo-uuid
+                                                   :data_hora_sessao sessao-timestamp
+                                                   :valor_consulta   valor_consulta
+                                                   :duracao          duracao-sessao}
+                                                  {:builder-fn rs/as-unqualified-lower-maps :return-keys true})]
+                {:status 201, :body novo-agendamento})
+              {:status 422, :body {:erro "Paciente ou psicólogo não pertence à clínica do usuário autenticado."}})))))
     (catch Exception e
       (println "ERRO FATAL NO HANDLER:" (.getMessage e))
       (.printStackTrace e)
@@ -397,8 +414,24 @@
           agendamento-id (java.util.UUID/fromString (get-in request [:params :id]))
           {:keys [paciente_id psicologo_id data_hora_sessao valor_consulta duracao status]} (:body request)]
       
-      (if (execute-one! ["SELECT id FROM agendamentos WHERE id = ? AND clinica_id = ?" agendamento-id clinica-id])
-        (let [;; Se status for 'cancelado', zera o valor_consulta automaticamente
+      (if-let [agendamento-atual (execute-one! ["SELECT * FROM agendamentos WHERE id = ? AND clinica_id = ?" agendamento-id clinica-id])]
+        (let [;; Determinar dados finais para validação de bloqueio
+              novo-data (if data_hora_sessao (java.sql.Timestamp/valueOf data_hora_sessao) (:agendamentos/data_hora_sessao agendamento-atual))
+              novo-duracao (or duracao (:agendamentos/duracao agendamento-atual) 50)
+              novo-psicologo-uuid (if psicologo_id (java.util.UUID/fromString psicologo_id) (:agendamentos/psicologo_id agendamento-atual))
+              
+              ;; Calcular fim da sessão
+              novo-fim (java.sql.Timestamp. (+ (.getTime novo-data) (* novo-duracao 60000)))
+              
+              ;; Verificar se há bloqueio conflitante (apenas se houver mudança de horário, duração ou psicólogo, mas por segurança checamos sempre que possível conflito)
+              bloqueio-existente (execute-one! ["SELECT id FROM bloqueios_agenda 
+                                                  WHERE clinica_id = ? 
+                                                  AND psicologo_id = ?
+                                                  AND data_inicio < ?::timestamp
+                                                  AND data_fim > ?::timestamp"
+                                                 clinica-id novo-psicologo-uuid novo-fim novo-data])
+              
+              ;; Se status for 'cancelado', zera o valor_consulta automaticamente
               valor-final (if (= status "cancelado") 0 valor_consulta)
               update-map (cond-> {}
                            (some? paciente_id) (assoc :paciente_id (java.util.UUID/fromString paciente_id))
@@ -406,12 +439,15 @@
                            (some? data_hora_sessao) (assoc :data_hora_sessao (java.sql.Timestamp/valueOf data_hora_sessao))
                            (some? valor-final) (assoc :valor_consulta valor-final)
                            (some? duracao) (assoc :duracao duracao)
-                           (some? status) (assoc :status status))
-              resultado (sql/update! @datasource :agendamentos update-map {:id agendamento-id :clinica_id clinica-id})]
-          (if (zero? (:next.jdbc/update-count resultado))
-            {:status 500 :body {:erro "Erro ao atualizar agendamento."}}
-            (let [agendamento-atualizado (execute-one! ["SELECT * FROM agendamentos WHERE id = ?" agendamento-id])]
-              {:status 200 :body agendamento-atualizado})))
+                           (some? status) (assoc :status status))]
+          
+          (if bloqueio-existente
+            {:status 409 :body {:erro "Não é possível alterar para este horário. O período está bloqueado."}}
+            (let [resultado (sql/update! @datasource :agendamentos update-map {:id agendamento-id :clinica_id clinica-id})]
+              (if (zero? (:next.jdbc/update-count resultado))
+                {:status 500 :body {:erro "Erro ao atualizar agendamento."}}
+                (let [agendamento-atualizado (execute-one! ["SELECT * FROM agendamentos WHERE id = ?" agendamento-id])]
+                  {:status 200 :body agendamento-atualizado})))))
         {:status 404 :body {:erro "Agendamento não encontrado."}}))
     (catch Exception e
       (println "ERRO AO ATUALIZAR AGENDAMENTO:" (.getMessage e))

@@ -66,6 +66,8 @@ interface SlotAction {
   date: Date;
   x: number;
   y: number;
+  isBlocked?: boolean;
+  bloqueioId?: string;
 }
 
 const initialState: FormState = {
@@ -160,11 +162,11 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
     setIsDialogOpen(true);
   };
 
-  const handleSlotClick = (selectedDate: Date, event?: React.MouseEvent) => {
+  const handleSlotClick = (selectedDate: Date, event?: React.MouseEvent, isBlocked?: boolean, bloqueioId?: string) => {
     // Show context menu with options
     if (event) {
-      setSlotAction({ date: selectedDate, x: event.clientX, y: event.clientY });
-    } else {
+      setSlotAction({ date: selectedDate, x: event.clientX, y: event.clientY, isBlocked, bloqueioId });
+    } else if (!isBlocked) {
       handleOpenNew(selectedDate);
     }
   };
@@ -547,22 +549,43 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
         {/* Context Menu for slot actions */}
         {slotAction && (
           <div 
-            className="fixed z-50 bg-popover border rounded-md shadow-lg p-1 min-w-[160px]"
+            className="fixed z-50 bg-popover border rounded-md shadow-lg p-1 min-w-[180px]"
             style={{ left: slotAction.x, top: slotAction.y }}
             onClick={() => setSlotAction(null)}
           >
-            <button
-              className="w-full text-left px-3 py-2 text-sm hover:bg-accent rounded-sm flex items-center gap-2"
-              onClick={() => handleOpenNew(slotAction.date)}
-            >
-              <Plus className="h-4 w-4" /> Novo Agendamento
-            </button>
-            <button
-              className="w-full text-left px-3 py-2 text-sm hover:bg-accent rounded-sm flex items-center gap-2 text-orange-600"
-              onClick={handleOpenBlock}
-            >
-              🔒 Bloquear Horário
-            </button>
+            {slotAction.isBlocked ? (
+              <>
+                <div className="px-3 py-2 text-xs text-muted-foreground border-b mb-1">
+                  🔒 Horário bloqueado
+                </div>
+                <button
+                  className="w-full text-left px-3 py-2 text-sm hover:bg-destructive/10 rounded-sm flex items-center gap-2 text-destructive"
+                  onClick={() => {
+                    if (slotAction.bloqueioId) {
+                      handleDeleteBlock(slotAction.bloqueioId);
+                    }
+                    setSlotAction(null);
+                  }}
+                >
+                  🗑️ Remover Bloqueio
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  className="w-full text-left px-3 py-2 text-sm hover:bg-accent rounded-sm flex items-center gap-2"
+                  onClick={() => handleOpenNew(slotAction.date)}
+                >
+                  <Plus className="h-4 w-4" /> Novo Agendamento
+                </button>
+                <button
+                  className="w-full text-left px-3 py-2 text-sm hover:bg-accent rounded-sm flex items-center gap-2 text-orange-600"
+                  onClick={handleOpenBlock}
+                >
+                  🔒 Bloquear Horário
+                </button>
+              </>
+            )}
           </div>
         )}
 

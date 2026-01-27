@@ -24,7 +24,7 @@ interface WeekViewProps {
   date: Date;
   appointments: Appointment[];
   bloqueios?: Bloqueio[];
-  onAddAppointment: (date: Date, event?: React.MouseEvent) => void;
+  onAddAppointment: (date: Date, event?: React.MouseEvent, isBlocked?: boolean, bloqueioId?: string) => void;
   onEditAppointment: (appointment: Appointment) => void;
   onDeleteBloqueio?: (id: string) => void;
 }
@@ -89,7 +89,13 @@ export function WeekView({ date, appointments, bloqueios = [], onAddAppointment,
   const handleSlotClick = (day: Date, hour: number, event: React.MouseEvent) => {
     const newDate = new Date(day);
     newDate.setHours(hour, 0, 0, 0);
-    onAddAppointment(newDate, event);
+    
+    // Check if this slot is blocked
+    const hourBloqueios = getBloqueiosForDayAndHour(day, hour);
+    const isBlocked = hourBloqueios.length > 0;
+    const bloqueioId = isBlocked ? hourBloqueios[0].id : undefined;
+    
+    onAddAppointment(newDate, event, isBlocked, bloqueioId);
   };
 
   return (
