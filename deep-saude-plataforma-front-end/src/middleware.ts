@@ -32,7 +32,8 @@ export async function middleware(request: NextRequest) {
   // --- Rotas Públicas ---
   // Login Admin: Se já estiver logado, redireciona
   if (pathname === '/admin/login') {
-    if (token) {
+    // Only redirect if token exists AND backend token is valid
+    if (token && !isBackendTokenExpired(backendToken)) {
       if (role === 'admin_clinica') {
         return NextResponse.redirect(new URL('/admin/dashboard', request.url));
       } else if (role === 'psicologo') {

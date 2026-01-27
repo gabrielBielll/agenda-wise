@@ -9,7 +9,8 @@ import { redirect } from "next/navigation";
 const agendamentoSchema = z.object({
   paciente_id: z.string().uuid({ message: "Selecione um paciente válido." }),
   psicologo_id: z.string().uuid({ message: "Selecione um psicólogo válido." }),
-  data_hora_sessao: z.string().min(1, { message: "Data e hora são obrigatórias." }),
+  data_hora_sessao: z.string().min(1, { message: "Data e hora de início são obrigatórias." }),
+  data_hora_sessao_fim: z.string().optional(),
   valor_consulta: z.coerce.number().min(0, { message: "O valor deve ser positivo." }),
 });
 
@@ -19,11 +20,13 @@ export type FormState = {
     paciente_id?: string[];
     psicologo_id?: string[];
     data_hora_sessao?: string[];
+    data_hora_sessao_fim?: string[]; // Add to error types
     valor_consulta?: string[];
   };
   success: boolean;
 };
 
+// ... (createAgendamento remains mostly same, can update if needed but focus is update)
 export async function createAgendamento(prevState: FormState, formData: FormData): Promise<FormState> {
   const rawData = Object.fromEntries(formData.entries());
   const validatedFields = agendamentoSchema.safeParse(rawData);
@@ -41,10 +44,17 @@ export async function createAgendamento(prevState: FormState, formData: FormData
 
   if (!token) return { message: "Erro de autenticação.", success: false };
 
-  console.log("DEBUG: createAgendamento action started");
-  console.log("DEBUG: payload:", validatedFields.data);
+  // Calculate duration if end time is present (optional for create, but good to have)
+  let duracao = 50;
+  if (validatedFields.data.data_hora_sessao && validatedFields.data.data_hora_sessao_fim) {
+      const start = new Date(validatedFields.data.data_hora_sessao);
+      const end = new Date(validatedFields.data.data_hora_sessao_fim);
+      const diffMs = end.getTime() - start.getTime();
+      const diffMins = Math.round(diffMs / 60000);
+      if (diffMins > 0) duracao = diffMins;
+  }
+
   const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/agendamentos`;
-  console.log("DEBUG: Fetching URL:", apiUrl);
 
   try {
     const response = await fetch(apiUrl, {
@@ -52,27 +62,20 @@ export async function createAgendamento(prevState: FormState, formData: FormData
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
       body: JSON.stringify({
         ...validatedFields.data,
+        duracao,
         data_hora_sessao: validatedFields.data.data_hora_sessao.replace("T", " ") + ":00"
       }),
     });
 
     if (!response.ok) {
-        console.log("DEBUG: Response not OK:", response.status);
         const errorData = await response.json();
-        console.log("DEBUG: Error Data:", errorData);
         return { message: errorData.erro || "Falha ao criar agendamento.", success: false };
     }
-    const resJson = await response.json();
-    console.log("DEBUG: Success response:", resJson);
   } catch (error) {
-    console.error("DEBUG: Fetch error:", error);
     return { message: "Erro de conexão com o servidor.", success: false };
   }
 
   revalidatePath("/admin/agendamentos");
-  // Retorna sucesso para que o cliente possa redirecionar ou limpar o formulário se quiser,
-  // mas o redirect do server action também funciona.
-  // No caso, redirecionar no server side após sucesso:
   redirect("/admin/agendamentos");
 }
 
@@ -113,6 +116,20 @@ export async function updateAgendamento(id: string, prevState: FormState, formDa
 
   if (!token) return { message: "Erro de autenticação.", success: false };
 
+  // Calculate duration
+  let duracao = undefined;
+  if (validatedFields.data.data_hora_sessao && validatedFields.data.data_hora_sessao_fim) {
+      const start = new Date(validatedFields.data.data_hora_sessao);
+      const end = new Date(validatedFields.data.data_hora_sessao_fim);
+      const diffMs = end.getTime() - start.getTime();
+      const diffMins = Math.round(diffMs / 60000);
+      
+      if (diffMins <= 0) {
+           return { message: "A data fim deve ser maior que a data de início.", success: false };
+      }
+      duracao = diffMins;
+  }
+
   const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/agendamentos/${id}`;
 
   try {
@@ -121,6 +138,7 @@ export async function updateAgendamento(id: string, prevState: FormState, formDa
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
       body: JSON.stringify({
         ...validatedFields.data,
+        ...(duracao ? { duracao } : {}),
         data_hora_sessao: validatedFields.data.data_hora_sessao.replace("T", " ") + ":00"
       }),
     });
