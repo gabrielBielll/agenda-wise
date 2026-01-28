@@ -11,7 +11,7 @@ const agendamentoSchema = z.object({
   duracao: z.coerce.number().min(5, { message: "A duração deve ser de no mínimo 5 minutos." }).default(50),
   valor_consulta: z.coerce.number().min(0, { message: "O valor deve ser positivo." }),
   recorrencia_tipo: z.string().optional(),
-  quantidade_recorrencia: z.coerce.number().optional().default(1),
+  quantidade_recorrencia: z.coerce.number().optional().default(1).refine((val) => val <= 120, { message: "O limite é de 120 agendamentos por vez." }),
 });
 
 export type FormState = {

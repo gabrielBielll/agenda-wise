@@ -412,30 +412,85 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                     <Label htmlFor="recorrencia_tipo" className="text-right">
                       Repetir
                     </Label>
-                    <div className="col-span-3 flex gap-2">
-                        <Select name="recorrencia_tipo" value={recurrenceType} onValueChange={setRecurrenceType}>
-                            <SelectTrigger className="w-[180px]">
-                                <SelectValue placeholder="Não repetir" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="none">Não repetir</SelectItem>
-                                <SelectItem value="semanal">Semanalmente</SelectItem>
-                                <SelectItem value="quinzenal">Quinzenalmente</SelectItem>
-                            </SelectContent>
-                        </Select>
-                        
+                    <div className="col-span-3 flex flex-col gap-2">
+                        <div className="flex gap-2">
+                            <Select name="recorrencia_tipo" value={recurrenceType} onValueChange={setRecurrenceType}>
+                                <SelectTrigger className="w-[180px]">
+                                    <SelectValue placeholder="Não repetir" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="none">Não repetir</SelectItem>
+                                    <SelectItem value="semanal">Semanalmente</SelectItem>
+                                    <SelectItem value="quinzenal">Quinzenalmente</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            
+                            {recurrenceType !== 'none' && (
+                                <div className="flex items-center gap-2">
+                                    <Label htmlFor="quantidade_recorrencia" className="whitespace-nowrap text-sm text-muted-foreground">x vezes:</Label>
+                                    <Input 
+                                        type="number" 
+                                        name="quantidade_recorrencia" 
+                                        className="w-20" 
+                                        min="2" 
+                                        max="120" 
+                                        defaultValue="4"
+                                        id="quantidade_recorrencia_input"
+                                    />
+                                </div>
+                            )}
+                        </div>
+
                         {recurrenceType !== 'none' && (
-                            <div className="flex items-center gap-2">
-                                <Label htmlFor="quantidade_recorrencia" className="whitespace-nowrap text-sm text-muted-foreground">x vezes:</Label>
-                                <Input 
-                                    type="number" 
-                                    name="quantidade_recorrencia" 
-                                    className="w-20" 
-                                    min="2" 
-                                    max="12" 
-                                    defaultValue="4"
-                                />
-                            </div>
+                             <div className="flex gap-2 text-xs">
+                                <button 
+                                    type="button"
+                                    className="text-primary hover:underline"
+                                    onClick={() => {
+                                        const now = newAppointmentDate || new Date();
+                                        const currentYear = now.getFullYear();
+                                        const endOfYear = new Date(currentYear, 11, 31);
+                                        const diffTime = Math.abs(endOfYear.getTime() - now.getTime());
+                                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                                        
+                                        let count = 0;
+                                        if (recurrenceType === 'semanal') {
+                                            count = Math.floor(diffDays / 7);
+                                        } else if (recurrenceType === 'quinzenal') {
+                                            count = Math.floor(diffDays / 14);
+                                        }
+                                        
+                                        const input = document.getElementById('quantidade_recorrencia_input') as HTMLInputElement;
+                                        if (input) input.value = Math.min(Math.max(count, 1), 120).toString();
+                                    }}
+                                >
+                                    Até o fim de {newAppointmentDate?.getFullYear() || new Date().getFullYear()}
+                                </button>
+                                <span className="text-muted-foreground">|</span>
+                                <button 
+                                    type="button"
+                                    className="text-primary hover:underline"
+                                    onClick={() => {
+                                        const now = newAppointmentDate || new Date();
+                                        const nextYear = now.getFullYear() + 1;
+                                        const endOfNextYear = new Date(nextYear, 11, 31);
+                                        const diffTime = Math.abs(endOfNextYear.getTime() - now.getTime());
+                                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                                        
+                                        let count = 0;
+                                        if (recurrenceType === 'semanal') {
+                                            count = Math.floor(diffDays / 7);
+                                        } else if (recurrenceType === 'quinzenal') {
+                                            count = Math.floor(diffDays / 14);
+                                        }
+                                        
+                                        const input = document.getElementById('quantidade_recorrencia_input') as HTMLInputElement;
+                                        if (input) input.value = Math.min(Math.max(count, 1), 120).toString();
+                                    }}
+                                >
+                                    Até o fim de {(newAppointmentDate?.getFullYear() || new Date().getFullYear()) + 1}
+                                </button>
+                             </div>
                         )}
                     </div>
                   </div>
