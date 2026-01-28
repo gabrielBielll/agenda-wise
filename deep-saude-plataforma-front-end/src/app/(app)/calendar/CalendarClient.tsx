@@ -433,10 +433,14 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                                         name="quantidade_recorrencia" 
                                         className="w-20" 
                                         min="2" 
-                                        max="120" 
-                                        defaultValue="4"
-                                        id="quantidade_recorrencia_input"
-                                    />
+                                    max="120" 
+                                    defaultValue="4"
+                                    id="quantidade_recorrencia_input"
+                                    onInput={(e) => {
+                                        const input = e.currentTarget;
+                                        if (input.value && parseInt(input.value) > 120) input.value = "120";
+                                    }}
+                                />
                                 </div>
                             )}
                         </div>

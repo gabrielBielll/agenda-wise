@@ -1,3 +1,95 @@
 SLF4J: No SLF4J providers were found.
 SLF4J: Defaulting to no-operation (NOP) logger implementation
 SLF4J: See https://www.slf4j.org/codes.html#noProviders for further details.
+SUCCESS: JWT_SECRET encontrada. Início: 'chav...', Fim: '...rios'.
+DATABASE_URL encontrada.
+Tentando conectar ao banco de dados...
+Conexão com o banco de dados estabelecida com sucesso!
+Coluna 'duracao' verificada/adicionada com sucesso.
+Coluna 'status' de agendamentos verificada/adicionada com sucesso.
+Novas colunas de prontuário verificadas/adicionadas com sucesso.
+Coluna 'status' de pacientes verificada/adicionada com sucesso.
+Novas colunas de dados clínicos do paciente verificadas/adicionadas com sucesso.
+Tabela bloqueios_agenda verificada/criada com sucesso.
+Servidor iniciado na porta 3000
+DEBUG: Middleware JWT. Token presente? DEBUG: Middleware JWT. Token presente? truetrue
+
+DEBUG: Middleware JWT. Token presente? true
+DEBUG: Middleware JWT. Token presente? true
+DEBUG: Middleware JWT. Token presente? true
+DEBUG: Middleware Permissao. Requer: visualizar_pacientes
+DEBUG: Papel ID: #uuid "2a3b8aec-2348-4eb1-847a-a82516cfe6b6"
+DEBUG: Listar Agendamentos - User: #uuid "ddf89084-1524-4748-93fd-dad6df68e399" Papel: psicologo Clinica: #uuid "967b3f16-04c2-489c-90d4-306bd967844e" Paciente Filter: nil
+DEBUG: Permissao encontrada? {:permissao_id #uuid "ab77488b-5680-40a6-9614-917dd6e0ba35"}
+DEBUG: Middleware JWT. Token presente? true
+DEBUG: Middleware JWT. Token presente? true
+DEBUG: Middleware JWT. Token presente? true
+DEBUG: Middleware Permissao. Requer: visualizar_pacientes
+DEBUG: Papel ID: #uuid "2a3b8aec-2348-4eb1-847a-a82516cfe6b6"
+DEBUG: Listar Agendamentos - User: #uuid "ddf89084-1524-4748-93fd-dad6df68e399" Papel: psicologo Clinica: #uuid "967b3f16-04c2-489c-90d4-306bd967844e" Paciente Filter: nil
+DEBUG: Permissao encontrada? {:permissao_id #uuid "ab77488b-5680-40a6-9614-917dd6e0ba35"}
+DEBUG: Middleware JWT. Token presente? true
+DEBUG: Middleware JWT. Token presente? true
+DEBUG: Middleware JWT. Token presente? true
+DEBUG: Middleware JWT. Token presente? true
+DEBUG: Middleware JWT. Token presente? true
+DEBUG: Middleware Permissao. Requer: visualizar_pacientes
+DEBUG: Middleware JWT. Token presente? DEBUG: Papel ID: #uuid "2a3b8aec-2348-4eb1-847a-a82516cfe6b6"
+true
+DEBUG: Middleware JWT. Token presente? true
+DEBUG: Listar Agendamentos - User: #uuid "ddf89084-1524-4748-93fd-dad6df68e399" Papel: psicologo Clinica: #uuid "967b3f16-04c2-489c-90d4-306bd967844e" Paciente Filter: nil
+DEBUG: Permissao encontrada? {:permissao_id #uuid "ab77488b-5680-40a6-9614-917dd6e0ba35"}
+DEBUG: Middleware JWT. Token presente?DEBUG: Middleware JWT. Token presente?  truetrue
+
+DEBUG: Middleware JWT. Token presente? true
+DEBUG: Middleware JWT. Token presente? true
+DEBUG: Middleware JWT. Token presente? true
+DEBUG: Middleware Permissao. Requer: visualizar_pacientes
+DEBUG: Papel ID: #uuid "2a3b8aec-2348-4eb1-847a-a82516cfe6b6"
+DEBUG: Permissao encontrada? DEBUG: Listar Agendamentos - User: {#uuid "ddf89084-1524-4748-93fd-dad6df68e399" Papel: psicologo :permissao_idClinica:  #uuid "967b3f16-04c2-489c-90d4-306bd967844e" Paciente Filter: nil
+#uuid "ab77488b-5680-40a6-9614-917dd6e0ba35"}
+DEBUG: Middleware JWT. Token presente? true
+DEBUG: Middleware JWT. Token presente? true
+DEBUG: Middleware JWT. Token presente? true
+DEBUG: Middleware JWT. Token presente? DEBUG: Middleware JWT. Token presente? true
+trueDEBUG: Middleware Permissao. Requer: visualizar_pacientes
+DEBUG: Papel ID: #uuid "2a3b8aec-2348-4eb1-847a-a82516cfe6b6"
+
+DEBUG: Permissao encontrada? {:permissao_id #uuid "ab77488b-5680-40a6-9614-917dd6e0ba35"}
+DEBUG: Listar Agendamentos - User: #uuid "ddf89084-1524-4748-93fd-dad6df68e399" Papel: psicologo Clinica: #uuid "967b3f16-04c2-489c-90d4-306bd967844e" Paciente Filter: nil
+DEBUG: Middleware JWT. Token presente? true
+DEBUG: Middleware JWT. Token presente? true
+DEBUG: Middleware Permissao. Requer: visualizar_pacientes
+DEBUG: Middleware JWT. Token presente? true
+DEBUG: Papel ID: #uuid "2a3b8aec-2348-4eb1-847a-a82516cfe6b6"
+DEBUG: Middleware JWT. Token presente? true
+DEBUG: Middleware JWT. Token presente? true
+DEBUG: Listar Agendamentos - User: #uuid "ddf89084-1524-4748-93fd-dad6df68e399" Papel: psicologo Clinica: #uuid "967b3f16-04c2-489c-90d4-306bd967844e" Paciente Filter: nil
+DEBUG: Permissao encontrada? {:permissao_id #uuid "ab77488b-5680-40a6-9614-917dd6e0ba35"}
+DEBUG: Middleware JWT. Token presente? true
+DEBUG: Middleware JWT. Token presente? true
+DEBUG: Middleware JWT. Token presente? true
+DEBUG: Middleware JWT. Token presente? true
+DEBUG: Middleware Permissao. Requer: visualizar_pacientes
+DEBUG: Papel ID: #uuid "2a3b8aec-2348-4eb1-847a-a82516cfe6b6"
+DEBUG: Middleware JWT. Token presente? true
+DEBUG: Listar Agendamentos - User: #uuid "ddf89084-1524-4748-93fd-dad6df68e399" Papel: psicologo Clinica: #uuid "967b3f16-04c2-489c-90d4-306bd967844e" Paciente Filter: nil
+DEBUG: Permissao encontrada? {:permissao_id #uuid "ab77488b-5680-40a6-9614-917dd6e0ba35"}
+DEBUG: Middleware JWT. Token presente? true
+DEBUG: Middleware JWT. Token presente? true
+DEBUG: Middleware JWT. Token presente? true
+DEBUG: Middleware JWT. Token presente? true
+DEBUG: Middleware Permissao. Requer: visualizar_pacientes
+DEBUG: Papel ID: #uuid "2a3b8aec-2348-4eb1-847a-a82516cfe6b6"
+DEBUG: Middleware JWT. Token presente? true
+DEBUG: Listar Agendamentos - User: #uuid "ddf89084-1524-4748-93fd-dad6df68e399" Papel: psicologo Clinica: #uuid "967b3f16-04c2-489c-90d4-306bd967844e" Paciente Filter: nil
+DEBUG: Permissao encontrada? {:permissao_id #uuid "ab77488b-5680-40a6-9614-917dd6e0ba35"}
+DEBUG: Middleware JWT. Token presente? DEBUG: Middleware JWT. Token presente? trueDEBUG: Middleware JWT. Token presente?
+true 
+true
+DEBUG: Middleware JWT. Token presente? true
+DEBUG: Middleware Permissao. Requer: visualizar_pacientes
+DEBUG: Papel ID: #uuid "2a3b8aec-2348-4eb1-847a-a82516cfe6b6"
+DEBUG: Middleware JWT. Token presente? true
+DEBUG: Listar Agendamentos - User: #uuid "ddf89084-1524-4748-93fd-dad6df68e399" Papel: psicologo Clinica: #uuid "967b3f16-04c2-489c-90d4-306bd967844e" Paciente Filter: nil
+DEBUG: Permissao encontrada? {:permissao_id #uuid "ab77488b-5680-40a6-9614-917dd6e0ba35"}

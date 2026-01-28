@@ -8,3 +8,127 @@
    - Environments: .env.local
 
  ✓ Starting...
+Slow filesystem detected. If /Users/gabriel/Documents/developer/deep-saude-plataform/deep-saude-plataforma-front-end/.next is a network drive, consider moving it to a local folder. If you have an antivirus enabled, consider excluding your project directory.
+ ○ Compiling middleware ...
+ ✓ Compiled middleware in 3.7s
+ ✓ Ready in 9.9s
+ ○ Compiling /api/auth/[...nextauth] ...
+ ✓ Compiled /api/auth/[...nextauth] in 5.2s
+ GET /api/auth/csrf 200 in 3488ms
+ GET /api/auth/session 200 in 6950ms
+ GET /api/auth/session 200 in 5161ms
+ POST /api/auth/signout 200 in 133ms
+ ○ Compiling / ...
+ ✓ Compiled / in 7.2s
+ GET /?expired=true 200 in 8265ms
+ GET /api/auth/session 200 in 141ms
+ GET /api/auth/providers 200 in 538ms
+ GET /api/auth/csrf 200 in 165ms
+NextAuth: Login API Response { status: 200, hasToken: true }
+NextAuth: Authorize success, returning user with token.
+NextAuth: JWT Callback - Initial sign in
+ POST /api/auth/callback/credentials 200 in 2711ms
+ GET /api/auth/session 200 in 450ms
+[Middleware] Path: /dashboard | Role: psicologo | Token Exists: true
+ ○ Compiling /dashboard ...
+ ✓ Compiled /dashboard in 12.2s
+[Middleware] Path: /dashboard | Role: psicologo | Token Exists: true
+ GET /dashboard 200 in 12854ms
+ GET /dashboard 200 in 626ms
+[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
+ ○ Compiling /calendar ...
+ ✓ Compiled /calendar in 9.3s
+ GET /calendar 200 in 10522ms
+ GET /api/auth/session 200 in 375ms
+ GET /api/auth/session 200 in 299ms
+ GET /api/auth/session 200 in 727ms
+ GET /api/auth/session 200 in 359ms
+ GET /api/auth/session 200 in 561ms
+[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
+ GET /calendar 200 in 2625ms
+ ○ Compiling /favicon.ico ...
+ GET /api/auth/session 200 in 335ms
+ ✓ Compiled /favicon.ico in 5s
+ GET /favicon.ico?favicon.56766c03.ico 200 in 5708ms
+[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
+ GET /calendar 200 in 3838ms
+ GET /favicon.ico?favicon.56766c03.ico 200 in 314ms
+ GET /api/auth/session 200 in 178ms
+ GET /api/auth/session 200 in 156ms
+ GET /favicon.ico 200 in 897ms
+ GET /favicon.ico?favicon.56766c03.ico 200 in 531ms
+[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
+ GET /calendar 200 in 1587ms
+ GET /favicon.ico?favicon.56766c03.ico 200 in 349ms
+ GET /api/auth/session 200 in 85ms
+ GET /api/auth/session 200 in 113ms
+ GET /favicon.ico 200 in 781ms
+ GET /favicon.ico?favicon.56766c03.ico 200 in 571ms
+ GET /api/auth/csrf 200 in 229ms
+ POST /api/auth/signout 200 in 138ms
+ GET / 200 in 836ms
+ GET /api/auth/session 200 in 367ms
+ GET /api/auth/providers 200 in 141ms
+ GET /api/auth/csrf 200 in 192ms
+NextAuth: Login API Response { status: 200, hasToken: true }
+NextAuth: Authorize success, returning user with token.
+NextAuth: JWT Callback - Initial sign in
+ POST /api/auth/callback/credentials 200 in 1150ms
+ GET /api/auth/session 200 in 214ms
+[Middleware] Path: /dashboard | Role: psicologo | Token Exists: true
+[Middleware] Path: /dashboard | Role: psicologo | Token Exists: true
+ GET /dashboard 200 in 883ms
+ GET /dashboard 200 in 701ms
+[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
+ GET /calendar 200 in 902ms
+ GET /api/auth/session 200 in 298ms
+ GET /api/auth/session 200 in 166ms
+ GET /api/auth/session 200 in 475ms
+ GET /api/auth/session 200 in 249ms
+ GET /api/auth/session 200 in 353ms
+ GET /api/auth/session 200 in 783ms
+ GET /api/auth/session 200 in 165ms
+ ✓ Compiled in 1862ms
+ GET /api/auth/session 200 in 249ms
+ GET /api/auth/session 200 in 457ms
+ GET /api/auth/session 200 in 303ms
+ GET /api/auth/session 200 in 404ms
+[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
+ GET /calendar 200 in 2510ms
+ GET /favicon.ico?favicon.56766c03.ico 200 in 331ms
+ GET /api/auth/session 200 in 79ms
+ GET /api/auth/session 200 in 132ms
+ GET /favicon.ico 200 in 679ms
+ GET /favicon.ico?favicon.56766c03.ico 200 in 932ms
+[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
+ GET /calendar 200 in 1203ms
+ GET /favicon.ico?favicon.56766c03.ico 200 in 399ms
+ GET /api/auth/session 200 in 221ms
+ GET /api/auth/session 200 in 148ms
+ GET /favicon.ico 200 in 926ms
+ GET /favicon.ico?favicon.56766c03.ico 200 in 589ms
+[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
+ GET /calendar 200 in 1788ms
+ GET /favicon.ico?favicon.56766c03.ico 200 in 329ms
+ GET /api/auth/session 200 in 112ms
+ GET /api/auth/session 200 in 318ms
+ GET /favicon.ico 200 in 420ms
+ GET /favicon.ico?favicon.56766c03.ico 200 in 493ms
+ GET /api/auth/csrf 200 in 210ms
+ POST /api/auth/signout 200 in 117ms
+ GET / 200 in 830ms
+ GET /api/auth/session 200 in 282ms
+ GET /api/auth/providers 200 in 206ms
+ GET /api/auth/csrf 200 in 143ms
+NextAuth: Login API Response { status: 200, hasToken: true }
+NextAuth: Authorize success, returning user with token.
+NextAuth: JWT Callback - Initial sign in
+ POST /api/auth/callback/credentials 200 in 985ms
+ GET /api/auth/session 200 in 247ms
+[Middleware] Path: /dashboard | Role: psicologo | Token Exists: true
+[Middleware] Path: /dashboard | Role: psicologo | Token Exists: true
+ GET /dashboard 200 in 566ms
+ GET /dashboard 200 in 668ms
+[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
+ GET /calendar 200 in 647ms
+ GET /api/auth/session 200 in 223ms
