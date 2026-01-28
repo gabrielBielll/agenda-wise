@@ -9,7 +9,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar, PlusCircle, AlertTriangle, Pencil, Search, List, CalendarDays } from "lucide-react";
 import { WeekView } from "../../(app)/calendar/WeekView";
-
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 // Utility to create a blocked time type compatible with WeekView
 interface Bloqueio {
   id: string;
@@ -61,6 +68,10 @@ export default function AgendamentosClient({
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [selectedDate, setSelectedDate] = useState<string>("");
 
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
   const filteredAgendamentos = agendamentos.filter(ag => {
     const matchPaciente = selectedPaciente === "all" || ag.paciente_id === selectedPaciente;
     const matchPsicologo = selectedPsicologo === "all" || ag.psicologo_id === selectedPsicologo;
@@ -72,12 +83,7 @@ export default function AgendamentosClient({
 
     let matchDate = true;
     if (selectedDate) {
-      // selectedDate comes from input type="date" as YYYY-MM-DD
-      // ag.data_hora_sessao is an ISO string or timestamp from backend
-      // We need to compare them in the local timezone or consistent timezone
-      
       const agDateObj = new Date(ag.data_hora_sessao);
-      // Create a string in YYYY-MM-DD format using local time
       const year = agDateObj.getFullYear();
       const month = String(agDateObj.getMonth() + 1).padStart(2, '0');
       const day = String(agDateObj.getDate()).padStart(2, '0');
@@ -88,6 +94,18 @@ export default function AgendamentosClient({
 
     return matchPaciente && matchPsicologo && matchSearch && matchDate;
   });
+
+  // Calculate pagination
+  const totalItems = filteredAgendamentos.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentAgendamentos = filteredAgendamentos.slice(startIndex, endIndex);
+
+  // Reset to page 1 if filters change
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedPaciente, selectedPsicologo, searchTerm, selectedDate]);
 
   console.log("DEBUG: AgendamentosClient render. Total:", agendamentos.length, "Filtered:", filteredAgendamentos.length);
 
@@ -176,6 +194,7 @@ export default function AgendamentosClient({
       </CardHeader>
       <CardContent>
         {viewMode === "list" ? (
+          <>
           <Table>
             <TableHeader>
               <TableRow>
@@ -187,8 +206,8 @@ export default function AgendamentosClient({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredAgendamentos.length > 0 ? (
-                filteredAgendamentos.map((ag) => (
+              {currentAgendamentos.length > 0 ? (
+                currentAgendamentos.map((ag) => (
                   <TableRow key={ag.id}>
                     <TableCell>{ag.nome_paciente || 'N/A'}</TableCell>
                     <TableCell>{ag.nome_psicologo || 'N/A'}</TableCell>
@@ -215,6 +234,57 @@ export default function AgendamentosClient({
               )}
             </TableBody>
           </Table>
+          
+          {totalPages > 1 && (
+            <div className="mt-4">
+              <Pagination>
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious 
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                    />
+                  </PaginationItem>
+                  
+                  {/* Show partial page numbers if too many, simplified for now: show all or max 5 */}
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      // Logic to show window of pages could be added here
+                      // For now, simple logic: if > 5 pages, this needs more logic. 
+                      // Let's just show up to 5 for safety or implementing simple windowing.
+                      
+                      let pageToShow = i + 1;
+                      if (totalPages > 5) {
+                          if (currentPage > 3) {
+                              pageToShow = currentPage - 2 + i;
+                          }
+                          // Cap at totalPages
+                          if (pageToShow > totalPages) return null;
+                      }
+                      
+                      return (
+                        <PaginationItem key={pageToShow}>
+                          <PaginationLink 
+                            isActive={currentPage === pageToShow}
+                            onClick={() => setCurrentPage(pageToShow)}
+                            className="cursor-pointer"
+                          >
+                            {pageToShow}
+                          </PaginationLink>
+                        </PaginationItem>
+                      );
+                  }).filter(Boolean)}
+
+                  <PaginationItem>
+                    <PaginationNext 
+                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            </div>
+          )}
+          </>
         ) : (
           <div className="h-[600px] border rounded-md p-2 overflow-hidden">
              {selectedPsicologo === "all" ? (

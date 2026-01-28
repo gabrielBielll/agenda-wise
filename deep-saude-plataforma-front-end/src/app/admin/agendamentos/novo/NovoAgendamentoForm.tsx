@@ -6,11 +6,24 @@ import { Button } from "@/components/ui/button";
 import { CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { createAgendamento, type FormState } from "../actions";
-import { CalendarIcon, Clock, DollarSign, User } from "lucide-react";
+import { CalendarIcon, Clock, DollarSign, User, Check, ChevronsUpDown } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { cn } from "@/lib/utils";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 
 interface Psicologo {
   id: string;
@@ -64,6 +77,13 @@ export default function NovoAgendamentoForm({
   // State
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
+  
+  // Combobox States
+  const [openPaciente, setOpenPaciente] = useState(false)
+  const [valuePaciente, setValuePaciente] = useState("")
+
+  const [openPsicologo, setOpenPsicologo] = useState(false)
+  const [valuePsicologo, setValuePsicologo] = useState("")
 
   // Handlers
   const handleStartChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -108,33 +128,123 @@ export default function NovoAgendamentoForm({
     <form action={formAction}>
       <CardContent className="space-y-4 pt-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-2">
+          <div className="space-y-2 flex flex-col">
             <Label htmlFor="paciente_id">Paciente</Label>
-            <Select name="paciente_id" required>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione um paciente" />
-              </SelectTrigger>
-              <SelectContent>
-                {pacientes.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Popover open={openPaciente} onOpenChange={setOpenPaciente}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  type="button"
+                  aria-expanded={openPaciente}
+                  className="w-full justify-between font-normal"
+                >
+                  {valuePaciente
+                    ? pacientes.find((p) => p.id === valuePaciente)?.nome
+                    : "Selecione um paciente..."}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[300px] p-0" align="start">
+                <Command>
+                  <CommandInput placeholder="Pesquisar paciente..." />
+                  <CommandList>
+                    <CommandEmpty>Nenhum paciente encontrado.</CommandEmpty>
+                    <CommandGroup>
+                      {pacientes.map((p) => (
+                        <CommandItem
+                          key={p.id}
+                          value={p.nome}
+                          onSelect={() => {
+                             setValuePaciente(p.id)
+                             setOpenPaciente(false)
+                          }}
+                        >
+                          <div 
+                            className="flex items-center w-full cursor-pointer h-full"
+                            onClick={(e) => {
+                              // Fallback if CommandItem onSelect fails
+                              e.stopPropagation();
+                              setValuePaciente(p.id);
+                              setOpenPaciente(false);
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                valuePaciente === p.id ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            {p.nome}
+                          </div>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+            <input type="hidden" name="paciente_id" value={valuePaciente} />
             {state.errors?.paciente_id && <p className="text-sm font-medium text-destructive">{state.errors.paciente_id[0]}</p>}
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-2 flex flex-col">
             <Label htmlFor="psicologo_id">Psicólogo</Label>
-            <Select name="psicologo_id" required>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione um psicólogo" />
-              </SelectTrigger>
-              <SelectContent>
-                {psicologos.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+             <Popover open={openPsicologo} onOpenChange={setOpenPsicologo}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  type="button"
+                  aria-expanded={openPsicologo}
+                  className="w-full justify-between font-normal"
+                >
+                  {valuePsicologo
+                    ? psicologos.find((p) => p.id === valuePsicologo)?.nome
+                    : "Selecione um psicólogo..."}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[300px] p-0" align="start">
+                <Command>
+                  <CommandInput placeholder="Pesquisar psicólogo..." />
+                  <CommandList>
+                    <CommandEmpty>Nenhum psicólogo encontrado.</CommandEmpty>
+                    <CommandGroup>
+                      {psicologos.map((p) => (
+                        <CommandItem
+                          key={p.id}
+                          value={p.nome}
+                           onSelect={() => {
+                             setValuePsicologo(p.id)
+                             setOpenPsicologo(false)
+                          }}
+                        >
+                         <div 
+                            className="flex items-center w-full cursor-pointer h-full"
+                            onClick={(e) => {
+                              // Fallback if CommandItem onSelect fails
+                              e.stopPropagation();
+                              setValuePsicologo(p.id);
+                              setOpenPsicologo(false);
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                valuePsicologo === p.id ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            {p.nome}
+                          </div>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+            <input type="hidden" name="psicologo_id" value={valuePsicologo} />
             {state.errors?.psicologo_id && <p className="text-sm font-medium text-destructive">{state.errors.psicologo_id[0]}</p>}
           </div>
         </div>

@@ -17,6 +17,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
+
+// ... (existing imports)
 
 interface Paciente {
   id: string;
@@ -38,6 +48,10 @@ export default function ClientComponent({
   const [pacientes, setPacientes] = useState(initialData);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedPsicologo, setSelectedPsicologo] = useState<string>("all");
+  
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   // Extrair lista única de psicólogos
   const psicologos = React.useMemo(() => {
@@ -51,6 +65,18 @@ export default function ClientComponent({
     
     return matchesSearch && matchesPsicologo;
   });
+
+  // Calculate pagination
+  const totalItems = filteredPacientes.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentPacientes = filteredPacientes.slice(startIndex, endIndex);
+
+  // Reset to page 1 if filters change
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, selectedPsicologo]);
 
   const handleDelete = (pacienteId: string) => {
     startTransition(async () => {
@@ -134,8 +160,8 @@ export default function ClientComponent({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredPacientes.length > 0 ? (
-              filteredPacientes.map((paciente) => (
+            {currentPacientes.length > 0 ? (
+              currentPacientes.map((paciente) => (
                 <TableRow key={paciente.id}>
                   <TableCell className="font-medium">{paciente.nome}</TableCell>
                   <TableCell>{paciente.email || 'N/A'}</TableCell>
@@ -189,6 +215,50 @@ export default function ClientComponent({
             )}
           </TableBody>
         </Table>
+
+        {totalPages > 1 && (
+            <div className="mt-4">
+              <Pagination>
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious 
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                    />
+                  </PaginationItem>
+                  
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      let pageToShow = i + 1;
+                      if (totalPages > 5) {
+                          if (currentPage > 3) {
+                              pageToShow = currentPage - 2 + i;
+                          }
+                          if (pageToShow > totalPages) return null;
+                      }
+                      
+                      return (
+                        <PaginationItem key={pageToShow}>
+                          <PaginationLink 
+                            isActive={currentPage === pageToShow}
+                            onClick={() => setCurrentPage(pageToShow)}
+                            className="cursor-pointer"
+                          >
+                            {pageToShow}
+                          </PaginationLink>
+                        </PaginationItem>
+                      );
+                  }).filter(Boolean)}
+
+                  <PaginationItem>
+                    <PaginationNext 
+                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            </div>
+          )}
       </CardContent>
     </Card>
   );
