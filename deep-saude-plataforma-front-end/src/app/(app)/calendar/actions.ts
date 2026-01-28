@@ -10,6 +10,8 @@ const agendamentoSchema = z.object({
   data_hora_sessao: z.string().min(1, { message: "Data e hora são obrigatórias." }),
   duracao: z.coerce.number().min(5, { message: "A duração deve ser de no mínimo 5 minutos." }).default(50),
   valor_consulta: z.coerce.number().min(0, { message: "O valor deve ser positivo." }),
+  recorrencia_tipo: z.string().optional(),
+  quantidade_recorrencia: z.coerce.number().optional().default(1),
 });
 
 export type FormState = {

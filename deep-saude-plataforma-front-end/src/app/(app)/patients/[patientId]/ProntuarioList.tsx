@@ -11,20 +11,32 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils";
 import { format, isWithinInterval, startOfDay, endOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { DateRange } from "react-day-picker";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 
-interface ProntuarioListProps {
-  initialProntuarios: Prontuario[];
-  patientId: string;
-  appointments: any[];
-}
+// ... existing code
 
 export default function ProntuarioList({ initialProntuarios, patientId, appointments }: ProntuarioListProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [date, setDate] = useState<DateRange | undefined>();
+  
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
   const filteredProntuarios = useMemo(() => {
+    // Reset pagination when filters change
+    setCurrentPage(1);
+
     return initialProntuarios.filter((p) => {
+      // ... existing filter logic
       // Determine the date string displayed to the user and the actual date object for comparison
       const rawDate = p.data_sessao ? new Date(p.data_sessao) : new Date(p.data_registro);
       const displayDate = rawDate.toLocaleString('pt-BR');
@@ -49,8 +61,20 @@ export default function ProntuarioList({ initialProntuarios, patientId, appointm
     });
   }, [initialProntuarios, searchTerm, date]);
 
+  // Calculate Pagination
+  const totalPages = Math.ceil(filteredProntuarios.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentProntuarios = filteredProntuarios.slice(startIndex, endIndex);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   return (
     <div className="space-y-4">
+      {/* ... Filter UI (keep existing) ... */}
       <div className="flex flex-col sm:flex-row gap-2">
         <div className="relative flex-1">
           <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -102,10 +126,10 @@ export default function ProntuarioList({ initialProntuarios, patientId, appointm
         </div>
       </div>
 
-      <ScrollArea className="h-[500px] pr-4">
-        {filteredProntuarios.length > 0 ? (
+      <div className="min-h-[500px]">
+        {currentProntuarios.length > 0 ? (
           <div className="space-y-4">
-            {filteredProntuarios.map((p) => (
+            {currentProntuarios.map((p) => (
               <ProntuarioItem 
                 key={p.id} 
                 data={p} 
@@ -124,7 +148,41 @@ export default function ProntuarioList({ initialProntuarios, patientId, appointm
             </p>
           </div>
         )}
-      </ScrollArea>
+      </div>
+
+      {totalPages > 1 && (
+        <Pagination>
+          <PaginationContent>
+            <PaginationItem>
+              <PaginationPrevious 
+                href="#" 
+                onClick={(e) => { e.preventDefault(); if (currentPage > 1) handlePageChange(currentPage - 1); }}
+                className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+              />
+            </PaginationItem>
+            
+            {Array.from({ length: totalPages }).map((_, i) => (
+              <PaginationItem key={i}>
+                <PaginationLink 
+                  href="#" 
+                  isActive={currentPage === i + 1}
+                  onClick={(e) => { e.preventDefault(); handlePageChange(i + 1); }}
+                >
+                  {i + 1}
+                </PaginationLink>
+              </PaginationItem>
+            ))}
+
+            <PaginationItem>
+              <PaginationNext 
+                href="#" 
+                onClick={(e) => { e.preventDefault(); if (currentPage < totalPages) handlePageChange(currentPage + 1); }}
+                className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+              />
+            </PaginationItem>
+          </PaginationContent>
+        </Pagination>
+      )}
     </div>
   );
 }

@@ -102,6 +102,7 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
   const [newAppointmentDate, setNewAppointmentDate] = useState<Date | null>(null); // To store date clicked in views
   const [slotAction, setSlotAction] = useState<SlotAction | null>(null); // For context menu
   const { toast } = useToast();
+  const [recurrenceType, setRecurrenceType] = useState<string>("none");
   
   // Wrapper action to handle both create and update
   const action = async (prevState: FormState, formData: FormData) => {
@@ -161,12 +162,14 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
     setSlotAction(null); // Close context menu
     setEditingAppointment(null);
     setNewAppointmentDate(selectedDate || date);
+    setRecurrenceType("none");
     setIsDialogOpen(true);
   };
 
   const handleOpenEdit = (app: Appointment) => {
     setEditingAppointment(app);
     setNewAppointmentDate(null);
+    setRecurrenceType("none");
     setIsDialogOpen(true);
   };
 
@@ -403,6 +406,40 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
               </div>
               
               <input type="hidden" name="duracao" defaultValue="50" />
+
+              {!editingAppointment && (
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="recorrencia_tipo" className="text-right">
+                      Repetir
+                    </Label>
+                    <div className="col-span-3 flex gap-2">
+                        <Select name="recorrencia_tipo" value={recurrenceType} onValueChange={setRecurrenceType}>
+                            <SelectTrigger className="w-[180px]">
+                                <SelectValue placeholder="Não repetir" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="none">Não repetir</SelectItem>
+                                <SelectItem value="semanal">Semanalmente</SelectItem>
+                                <SelectItem value="quinzenal">Quinzenalmente</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        
+                        {recurrenceType !== 'none' && (
+                            <div className="flex items-center gap-2">
+                                <Label htmlFor="quantidade_recorrencia" className="whitespace-nowrap text-sm text-muted-foreground">x vezes:</Label>
+                                <Input 
+                                    type="number" 
+                                    name="quantidade_recorrencia" 
+                                    className="w-20" 
+                                    min="2" 
+                                    max="12" 
+                                    defaultValue="4"
+                                />
+                            </div>
+                        )}
+                    </div>
+                  </div>
+              )}
 
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="valor_consulta" className="text-right">

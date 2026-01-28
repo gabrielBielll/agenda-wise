@@ -359,43 +359,56 @@
 (defn criar-agendamento-handler [request]
   (try
     (let [clinica-id (get-in request [:identity :clinica_id])
-          {:keys [paciente_id psicologo_id data_hora_sessao valor_consulta duracao]} (:body request)]
+          {:keys [paciente_id psicologo_id data_hora_sessao valor_consulta duracao recorrencia_tipo quantidade_recorrencia]} (:body request)]
       (println "DEBUG: Handler iniciado. Payload:" (:body request))
       (if (or (nil? paciente_id) (nil? psicologo_id) (nil? data_hora_sessao))
         {:status 400, :body {:erro "paciente_id, psicologo_id e data_hora_sessao são obrigatórios."}}
         (let [paciente-uuid (java.util.UUID/fromString paciente_id)
               psicologo-uuid (java.util.UUID/fromString psicologo_id)
-              sessao-timestamp (java.sql.Timestamp/valueOf data_hora_sessao)
+              sessao-timestamp-inicial (java.sql.Timestamp/valueOf data_hora_sessao)
               duracao-sessao (or duracao 50)
-              ;; Calculate end time of the session
-              sessao-fim (java.sql.Timestamp. (+ (.getTime sessao-timestamp) (* duracao-sessao 60000)))
               
-              ;; Check if time overlaps with any blocked slot
-              bloqueio-existente (execute-one! ["SELECT id FROM bloqueios_agenda 
-                                                  WHERE clinica_id = ? 
-                                                  AND psicologo_id = ?
-                                                  AND data_inicio < ?::timestamp
-                                                  AND data_fim > ?::timestamp"
-                                                 clinica-id psicologo-uuid sessao-fim sessao-timestamp])
+              qtd-sessoes (if (and recorrencia_tipo (pos? (or quantidade_recorrencia 0))) (or quantidade_recorrencia 1) 1)
+              intervalo-dias (case recorrencia_tipo
+                               "semanal" 7
+                               "quinzenal" 14
+                               0)
+              
+              sessoes-para-criar (for [i (range qtd-sessoes)]
+                                   (let [base-time (.getTime sessao-timestamp-inicial)
+                                         offset-millis (* i intervalo-dias 24 60 60 1000)
+                                         start-time (java.sql.Timestamp. (+ base-time offset-millis))
+                                         end-time (java.sql.Timestamp. (+ (.getTime start-time) (* duracao-sessao 60000)))]
+                                     {:start start-time :end end-time}))
+
+              bloqueio-existente (some (fn [{:keys [start end]}]
+                                         (execute-one! ["SELECT id FROM bloqueios_agenda 
+                                                         WHERE clinica_id = ? 
+                                                         AND psicologo_id = ?
+                                                         AND data_inicio < ?::timestamp
+                                                         AND data_fim > ?::timestamp"
+                                                        clinica-id psicologo-uuid end start]))
+                                       sessoes-para-criar)
               
               paciente-valido? (execute-one! ["SELECT id FROM pacientes WHERE id = ? AND clinica_id = ?" 
                                               paciente-uuid clinica-id])
               psicologo-valido? (execute-one! ["SELECT id FROM usuarios WHERE id = ? AND clinica_id = ?" 
                                                psicologo-uuid clinica-id])]
           
-          ;; Check for blocking first
           (if bloqueio-existente
-            {:status 409 :body {:erro "Não é possível agendar neste horário. O período está bloqueado."}}
+            {:status 409 :body {:erro "Não é possível agendar. Um ou mais horários da sequência conflitam com bloqueios."}}
             (if (and paciente-valido? psicologo-valido?)
-              (let [novo-agendamento (sql/insert! @datasource :agendamentos
-                                                  {:clinica_id       clinica-id
-                                                   :paciente_id      paciente-uuid
-                                                   :psicologo_id     psicologo-uuid
-                                                   :data_hora_sessao sessao-timestamp
-                                                   :valor_consulta   valor_consulta
-                                                   :duracao          duracao-sessao}
-                                                  {:builder-fn rs/as-unqualified-lower-maps :return-keys true})]
-                {:status 201, :body novo-agendamento})
+              (let [novos-agendamentos (doall (map (fn [{:keys [start end]}]
+                                                     (sql/insert! @datasource :agendamentos
+                                                                  {:clinica_id       clinica-id
+                                                                   :paciente_id      paciente-uuid
+                                                                   :psicologo_id     psicologo-uuid
+                                                                   :data_hora_sessao start
+                                                                   :valor_consulta   valor_consulta
+                                                                   :duracao          duracao-sessao}
+                                                                  {:builder-fn rs/as-unqualified-lower-maps :return-keys true}))
+                                                   sessoes-para-criar))]
+                {:status 201, :body (first novos-agendamentos)})
               {:status 422, :body {:erro "Paciente ou psicólogo não pertence à clínica do usuário autenticado."}})))))
     (catch Exception e
       (println "ERRO FATAL NO HANDLER:" (.getMessage e))
