@@ -13,6 +13,15 @@ import { useToast } from "@/hooks/use-toast";
 import { deletePaciente, getPacientes } from "./actions";
 import { Badge } from "@/components/ui/badge";
 import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -20,15 +29,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-// Interface do Paciente que esperamos da API
-interface Patient {
-  id: string;
-  nome: string;
-  email: string | null;
-  lastSession?: string; // Futuramente virá dos agendamentos
-  avatar_url?: string | null;
-  status?: string;
-}
+// ... existing code
 
 export default function PatientsPage() {
   const { data: session, status: sessionStatus } = useSession();
@@ -41,6 +42,10 @@ export default function PatientsPage() {
   const [isPending, startTransition] = useTransition();
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("ativo");
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 9;
 
   const fetchPatientsData = async () => {
     setLoading(true);
@@ -71,9 +76,10 @@ export default function PatientsPage() {
     }
   }, [sessionStatus]);
 
-  const getInitials = (name: string) => {
-    return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
-  };
+  // Reset pagination when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter]);
 
   const handleDelete = async (patientId: string, patientName: string) => {
     if (!confirm(`Tem certeza que deseja remover o paciente "${patientName}"?`)) {
@@ -92,6 +98,10 @@ export default function PatientsPage() {
       setDeletingId(null);
     });
   };
+
+  const getInitials = (name: string) => {
+    return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+  };
   
   const filteredPatients = patients.filter(patient => {
     const matchesSearch = patient.nome.toLowerCase().includes(searchTerm.toLowerCase());
@@ -103,7 +113,20 @@ export default function PatientsPage() {
     return matchesSearch && matchesStatus;
   });
 
+  // Calculate Pagination
+  const totalPages = Math.ceil(filteredPatients.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentPatients = filteredPatients.slice(startIndex, endIndex);
+
+  // Helper to handle page changes
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   if (loading) {
+    // ... existing loading state
     return (
       <div className="flex justify-center items-center h-64">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -112,6 +135,7 @@ export default function PatientsPage() {
     );
   }
 
+  // ... existing error state
   if (error) {
     return (
       <Card className="border-destructive">
@@ -127,7 +151,9 @@ export default function PatientsPage() {
 
   return (
     <div className="space-y-8">
+      {/* ... Header and Search/Filter Section ... */}
       <Card className="shadow-lg">
+        {/* ... CardHeader ... */}
         <CardHeader>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
@@ -144,9 +170,11 @@ export default function PatientsPage() {
             </Button>
           </div>
         </CardHeader>
+
         <CardContent>
           <div className="mb-6 flex flex-col md:flex-row gap-4">
-            <div className="relative flex-grow">
+             {/* ... Search and Filter UI ... */}
+             <div className="relative flex-grow">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
               <Input
                 type="search"
@@ -168,11 +196,13 @@ export default function PatientsPage() {
             </Select>
           </div>
 
-          {filteredPatients.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredPatients.map((patient) => (
-                <Card key={patient.id} className="shadow-md hover:shadow-lg transition-shadow flex flex-col">
-                  <CardHeader className="flex flex-row items-start space-x-4">
+          {currentPatients.length > 0 ? (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                {currentPatients.map((patient) => (
+                  <Card key={patient.id} className="shadow-md hover:shadow-lg transition-shadow flex flex-col">
+                    {/* ... Existing Patient Card Logic ... */}
+                    <CardHeader className="flex flex-row items-start space-x-4">
                     <Avatar className="h-12 w-12 mt-1">
                       <AvatarImage src={patient.avatar_url || ''} alt={patient.nome} />
                       <AvatarFallback className="bg-secondary text-secondary-foreground font-semibold">{getInitials(patient.nome)}</AvatarFallback>
@@ -216,11 +246,47 @@ export default function PatientsPage() {
                       </Link>
                     </Button>
                   </CardFooter>
-                </Card>
-              ))}
-            </div>
+                  </Card>
+                ))}
+              </div>
+
+              {totalPages > 1 && (
+                <Pagination>
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious 
+                        href="#" 
+                        onClick={(e) => { e.preventDefault(); if (currentPage > 1) handlePageChange(currentPage - 1); }}
+                        className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                      />
+                    </PaginationItem>
+                    
+                    {Array.from({ length: totalPages }).map((_, i) => (
+                      <PaginationItem key={i}>
+                        <PaginationLink 
+                          href="#" 
+                          isActive={currentPage === i + 1}
+                          onClick={(e) => { e.preventDefault(); handlePageChange(i + 1); }}
+                        >
+                          {i + 1}
+                        </PaginationLink>
+                      </PaginationItem>
+                    ))}
+
+                    <PaginationItem>
+                      <PaginationNext 
+                        href="#" 
+                        onClick={(e) => { e.preventDefault(); if (currentPage < totalPages) handlePageChange(currentPage + 1); }}
+                        className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+              )}
+            </>
           ) : (
             <div className="text-center py-10">
+              {/* ... Empty State ... */}
               <Leaf className="mx-auto h-16 w-16 text-muted-foreground/50 mb-4" />
               <p className="font-headline text-xl text-muted-foreground">Nenhum paciente encontrado com esses filtros.</p>
               <p className="text-sm text-muted-foreground mb-4">
