@@ -11,6 +11,14 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Search, ArrowRight, Leaf, Loader2, AlertTriangle, UserPlus, Trash2, Edit } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { deletePaciente, getPacientes } from "./actions";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 // Interface do Paciente que esperamos da API
 interface Patient {
@@ -19,6 +27,7 @@ interface Patient {
   email: string | null;
   lastSession?: string; // Futuramente virá dos agendamentos
   avatar_url?: string | null;
+  status?: string;
 }
 
 export default function PatientsPage() {
@@ -31,6 +40,7 @@ export default function PatientsPage() {
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string>("ativo");
 
   const fetchPatientsData = async () => {
     setLoading(true);
@@ -83,9 +93,15 @@ export default function PatientsPage() {
     });
   };
   
-  const filteredPatients = patients.filter(patient =>
-    patient.nome.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredPatients = patients.filter(patient => {
+    const matchesSearch = patient.nome.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    // Tratamento de status: se não tiver status, assume 'ativo'
+    const patientStatus = patient.status || 'ativo';
+    const matchesStatus = statusFilter === "todos" || patientStatus === statusFilter;
+
+    return matchesSearch && matchesStatus;
+  });
 
   if (loading) {
     return (
@@ -129,28 +145,45 @@ export default function PatientsPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="mb-6 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Pesquisar pacientes por nome..."
-              className="pl-10 w-full md:w-1/2"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
+          <div className="mb-6 flex flex-col md:flex-row gap-4">
+            <div className="relative flex-grow">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+              <Input
+                type="search"
+                placeholder="Pesquisar pacientes por nome..."
+                className="pl-10 w-full"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-full md:w-[200px]">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ativo">Ativos</SelectItem>
+                <SelectItem value="inativo">Inativos</SelectItem>
+                <SelectItem value="todos">Todos</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {filteredPatients.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredPatients.map((patient) => (
                 <Card key={patient.id} className="shadow-md hover:shadow-lg transition-shadow flex flex-col">
-                  <CardHeader className="flex flex-row items-center space-x-4">
-                    <Avatar className="h-12 w-12">
+                  <CardHeader className="flex flex-row items-start space-x-4">
+                    <Avatar className="h-12 w-12 mt-1">
                       <AvatarImage src={patient.avatar_url || ''} alt={patient.nome} />
                       <AvatarFallback className="bg-secondary text-secondary-foreground font-semibold">{getInitials(patient.nome)}</AvatarFallback>
                     </Avatar>
-                    <div className="flex-1">
-                      <CardTitle className="font-headline text-xl">{patient.nome}</CardTitle>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-1">
+                        <CardTitle className="font-headline text-xl truncate pr-2">{patient.nome}</CardTitle>
+                        <Badge variant={patient.status === 'inativo' ? 'secondary' : 'default'} className="shrink-0">
+                          {patient.status === 'inativo' ? 'Inativo' : 'Ativo'}
+                        </Badge>
+                      </div>
                       {patient.lastSession && <CardDescription>Última Sessão: {new Date(patient.lastSession).toLocaleDateString('pt-BR')}</CardDescription>}
                     </div>
                   </CardHeader>
@@ -189,9 +222,9 @@ export default function PatientsPage() {
           ) : (
             <div className="text-center py-10">
               <Leaf className="mx-auto h-16 w-16 text-muted-foreground/50 mb-4" />
-              <p className="font-headline text-xl text-muted-foreground">Nenhum paciente encontrado.</p>
+              <p className="font-headline text-xl text-muted-foreground">Nenhum paciente encontrado com esses filtros.</p>
               <p className="text-sm text-muted-foreground mb-4">
-                Ainda não há pacientes vinculados ao seu perfil.
+               {statusFilter === 'ativo' ? "Você não tem pacientes ativos no momento." : "Tente ajustar os filtros de pesquisa."}
               </p>
               <Button asChild>
                 <Link href="/patients/new">

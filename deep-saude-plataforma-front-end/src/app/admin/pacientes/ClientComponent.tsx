@@ -1,5 +1,4 @@
 "use client";
-
 import React, { useState, useTransition } from 'react';
 import Link from 'next/link';
 import { PlusCircle, Edit, Trash2, AlertTriangle, Eye } from 'lucide-react';
@@ -10,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { deletePaciente } from './actions';
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -34,6 +34,7 @@ interface Paciente {
   email: string | null;
   telefone: string | null;
   nome_psicologo: string | null;
+  status?: string;
 }
 
 export default function ClientComponent({
@@ -48,6 +49,7 @@ export default function ClientComponent({
   const [pacientes, setPacientes] = useState(initialData);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedPsicologo, setSelectedPsicologo] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("ativo");
   
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -63,7 +65,14 @@ export default function ClientComponent({
     const matchesSearch = searchTerm.length < 3 || paciente.nome.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesPsicologo = selectedPsicologo === "all" || paciente.nome_psicologo === selectedPsicologo || (selectedPsicologo === "none" && !paciente.nome_psicologo);
     
-    return matchesSearch && matchesPsicologo;
+    // Tratamento de status: se não tiver status, assume 'ativo'
+    const pacienteStatus = paciente.status || 'ativo';
+    const matchesStatus = statusFilter === "todos" || pacienteStatus === statusFilter;
+
+    // Se o filtro de status for "inativo", mostra apenas inativos.
+    // Se for "ativo", mostra apenas ativos.
+    
+    return matchesSearch && matchesPsicologo && matchesStatus;
   });
 
   // Calculate pagination
@@ -76,7 +85,7 @@ export default function ClientComponent({
   // Reset to page 1 if filters change
   React.useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, selectedPsicologo]);
+  }, [searchTerm, selectedPsicologo, statusFilter]);
 
   const handleDelete = (pacienteId: string) => {
     startTransition(async () => {
@@ -134,17 +143,28 @@ export default function ClientComponent({
             className="md:max-w-sm w-full"
           />
           <Select value={selectedPsicologo} onValueChange={setSelectedPsicologo}>
-            <SelectTrigger className="w-full md:w-[280px]">
-              <SelectValue placeholder="Filtrar por Psicólogo" />
+            <SelectTrigger className="w-full md:w-[200px]">
+              <SelectValue placeholder="Psicólogo" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos os Psicólogos</SelectItem>
-              <SelectItem value="none">Sem Psicólogo (A designar)</SelectItem>
+              <SelectItem value="none">Sem Psicólogo</SelectItem>
               {psicologos.map((psi) => (
                 <SelectItem key={psi as string} value={psi as string}>
                   {psi}
                 </SelectItem>
               ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-full md:w-[150px]">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ativo">Ativos</SelectItem>
+              <SelectItem value="inativo">Inativos</SelectItem>
+              <SelectItem value="todos">Todos</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -155,7 +175,8 @@ export default function ClientComponent({
             <TableRow>
               <TableHead>Nome</TableHead>
               <TableHead>Email</TableHead>
-              <TableHead>Psicólogo Responsável</TableHead>
+              <TableHead>Psicólogo</TableHead>
+              <TableHead>Status</TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
@@ -166,6 +187,11 @@ export default function ClientComponent({
                   <TableCell className="font-medium">{paciente.nome}</TableCell>
                   <TableCell>{paciente.email || 'N/A'}</TableCell>
                   <TableCell>{paciente.nome_psicologo || 'A designar'}</TableCell>
+                  <TableCell>
+                    <Badge variant={paciente.status === 'inativo' ? 'secondary' : 'default'}>
+                      {paciente.status === 'inativo' ? 'Inativo' : 'Ativo'}
+                    </Badge>
+                  </TableCell>
                   <TableCell className="text-right space-x-2">
                     <Button variant="outline" size="icon" className="h-8 w-8" asChild>
                       <Link href={`/admin/pacientes/${paciente.id}/view`}>
@@ -206,7 +232,7 @@ export default function ClientComponent({
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={4} className="text-center h-24">
+                <TableCell colSpan={5} className="text-center h-24">
                   {searchTerm.length >= 3 || selectedPsicologo !== "all" 
                     ? "Nenhum paciente encontrado com esses filtros." 
                     : "Nenhum paciente encontrado."}

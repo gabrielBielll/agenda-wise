@@ -243,7 +243,7 @@
 (defn criar-paciente-handler [request]
   (let [clinica-id (get-in request [:identity :clinica_id])
         ;; Extrair o novo campo psicologo_id e campos clínicos
-        {:keys [nome email telefone data_nascimento endereco avatar_url psicologo_id historico_familiar uso_medicamentos diagnostico contatos_emergencia]} (:body request)]
+        {:keys [nome email telefone data_nascimento endereco avatar_url psicologo_id historico_familiar uso_medicamentos diagnostico contatos_emergencia status]} (:body request)]
     (cond
       ;; ... (validações existentes) ...
       :else
@@ -259,7 +259,8 @@
                                         :historico_familiar historico_familiar
                                         :uso_medicamentos   uso_medicamentos
                                         :diagnostico        diagnostico
-                                        :contatos_emergencia contatos_emergencia} ; Adicionar novos campos
+                                        :contatos_emergencia contatos_emergencia
+                                        :status             (or status "ativo")} ; Adicionar novos campos
                                        {:builder-fn rs/as-unqualified-lower-maps :return-keys true})]
         {:status 201, :body novo-paciente}))))
 
@@ -299,7 +300,7 @@
         usuario-id (:user_id identity)
         papel (:role identity)
         paciente-id (java.util.UUID/fromString (get-in request [:params :id]))
-        {:keys [nome email telefone data_nascimento endereco avatar_url psicologo_id historico_familiar uso_medicamentos diagnostico contatos_emergencia]} (:body request)]
+        {:keys [nome email telefone data_nascimento endereco avatar_url psicologo_id historico_familiar uso_medicamentos diagnostico contatos_emergencia status]} (:body request)]
     
     ;; Verificação de Propriedade para Psicólogos
     (if (and (= papel "psicologo")
@@ -326,6 +327,7 @@
                            (some? uso_medicamentos) (assoc :uso_medicamentos uso_medicamentos)
                            (some? diagnostico) (assoc :diagnostico diagnostico)
                            (some? contatos_emergencia) (assoc :contatos_emergencia contatos_emergencia)
+                           (some? status) (assoc :status status)
                            (some? psicologo_id) (assoc :psicologo_id (when (not (str/blank? psicologo_id)) (java.util.UUID/fromString psicologo_id))))
               resultado (if (empty? update-map)
                           {:next.jdbc/update-count 0}
@@ -804,6 +806,10 @@
           (execute-query! ["ALTER TABLE prontuarios ADD COLUMN IF NOT EXISTS agendamento_id UUID"])
           (execute-query! ["ALTER TABLE prontuarios ADD COLUMN IF NOT EXISTS humor INTEGER"])
           (println "Novas colunas de prontuário verificadas/adicionadas com sucesso.")
+
+          ;; Novo campo de status para pacientes
+          (execute-query! ["ALTER TABLE pacientes ADD COLUMN IF NOT EXISTS status VARCHAR(10) DEFAULT 'ativo'"])
+          (println "Coluna 'status' de pacientes verificada/adicionada com sucesso.")
 
           ;; Novos campos Clínicos do Paciente
           (execute-query! ["ALTER TABLE pacientes ADD COLUMN IF NOT EXISTS historico_familiar TEXT"])

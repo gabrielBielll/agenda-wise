@@ -11,6 +11,14 @@ import { Save, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { type FormState } from '../../actions';
 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
 const initialState: FormState = {
   message: "",
   errors: {},
@@ -71,9 +79,23 @@ export default function EditForm({ patient, updateAction }: { patient: any, upda
             <Input id="email" name="email" type="email" defaultValue={patient.email || ''} />
             {state.errors?.email && <p className="text-sm font-medium text-destructive">{state.errors.email[0]}</p>}
           </div>
+
+
           <div className="space-y-2">
             <Label htmlFor="telefone">Número de Telefone</Label>
             <Input id="telefone" name="telefone" type="tel" defaultValue={patient.telefone || ''} />
+          </div>
+          <div className="space-y-2">
+             <Label htmlFor="status">Status</Label>
+             <Select name="status" defaultValue={patient.status || "ativo"}>
+               <SelectTrigger>
+                 <SelectValue placeholder="Selecione o status" />
+               </SelectTrigger>
+               <SelectContent>
+                 <SelectItem value="ativo">Ativo</SelectItem>
+                 <SelectItem value="inativo">Inativo</SelectItem>
+               </SelectContent>
+             </Select>
           </div>
         </div>
         

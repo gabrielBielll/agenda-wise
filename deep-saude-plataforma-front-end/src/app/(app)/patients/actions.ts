@@ -11,6 +11,7 @@ const pacienteSchema = z.object({
   telefone: z.string().optional(),
   data_nascimento: z.string().optional(),
   endereco: z.string().optional(),
+  status: z.string().optional(),
 });
 
 export type FormState = {

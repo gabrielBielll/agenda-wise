@@ -27,6 +27,7 @@ interface Paciente {
   data_nascimento: string | null;
   endereco: string | null;
   psicologo_id?: string | null;
+  status?: string | null;
 }
 
 interface Psicologo {
@@ -99,20 +100,33 @@ export default function EditPacienteForm({
               {state.errors?.nome && <p className="text-sm font-medium text-destructive">{state.errors.nome[0]}</p>}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="data_nascimento">Data de Nascimento</Label>
-              <Input id="data_nascimento" name="data_nascimento" type="date" defaultValue={paciente.data_nascimento || ''} disabled={readOnly} />
+              <Label htmlFor="status">Status</Label>
+               <Select name="status" defaultValue={paciente.status || "ativo"} disabled={readOnly}>
+                 <SelectTrigger>
+                   <SelectValue placeholder="Selecione o status" />
+                 </SelectTrigger>
+                 <SelectContent>
+                   <SelectItem value="ativo">Ativo</SelectItem>
+                   <SelectItem value="inativo">Inativo</SelectItem>
+                 </SelectContent>
+               </Select>
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input id="email" name="email" type="email" defaultValue={paciente.email || ''} disabled={readOnly} />
-              {state.errors?.email && <p className="text-sm font-medium text-destructive">{state.errors.email[0]}</p>}
+              <Label htmlFor="data_nascimento">Data de Nascimento</Label>
+              <Input id="data_nascimento" name="data_nascimento" type="date" defaultValue={paciente.data_nascimento || ''} disabled={readOnly} />
             </div>
-            <div className="space-y-2">
+             <div className="space-y-2">
               <Label htmlFor="telefone">Telefone</Label>
               <Input id="telefone" name="telefone" defaultValue={paciente.telefone || ''} disabled={readOnly} />
             </div>
+          </div>
+          
+          <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input id="email" name="email" type="email" defaultValue={paciente.email || ''} disabled={readOnly} />
+              {state.errors?.email && <p className="text-sm font-medium text-destructive">{state.errors.email[0]}</p>}
           </div>
 
           <div className="space-y-2">
