@@ -30,7 +30,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useFormState, useFormStatus } from "react-dom";
+import { useFormStatus } from "react-dom";
+import { useActionState } from "react";
 import { createAgendamento, updateAgendamento, deleteAgendamento, cancelAgendamento, createBloqueio, deleteBloqueio, FormState, type Bloqueio } from "./actions";
 import { useToast } from "@/hooks/use-toast";
 import { CalendarHeader } from "./CalendarHeader";
@@ -98,6 +99,10 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
   }, [appointments]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isBlockDialogOpen, setIsBlockDialogOpen] = useState(false);
+  const [isConfirmDeleteBlockOpen, setIsConfirmDeleteBlockOpen] = useState(false);
+  const [blockToDelete, setBlockToDelete] = useState<{ id: string, recorrencia_id?: string } | null>(null);
+  const [blockRecurrenceType, setBlockRecurrenceType] = useState<string>("none");
+  const [blockRecurrenceCount, setBlockRecurrenceCount] = useState<number>(1);
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
   const [newAppointmentDate, setNewAppointmentDate] = useState<Date | null>(null); // To store date clicked in views
   const [slotAction, setSlotAction] = useState<SlotAction | null>(null); // For context menu
@@ -113,7 +118,7 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
     }
   };
 
-  const [state, formAction] = useFormState(action, initialState);
+  const [state, formAction] = useActionState(action, initialState);
 
 
 
@@ -186,6 +191,8 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
     if (slotAction) {
       setNewAppointmentDate(slotAction.date);
     }
+    setBlockRecurrenceType("none");
+    setBlockRecurrenceCount(1);
     setSlotAction(null);
     setIsBlockDialogOpen(true);
   };
@@ -196,23 +203,32 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
     const motivo = formData.get('motivo') as string;
     const diaInteiro = formData.get('dia_inteiro') === 'on';
 
-    const result = await createBloqueio(dataInicio, dataFim, motivo, diaInteiro);
-    if (result.success) {
+    const result = await createBloqueio(dataInicio, dataFim, motivo, diaInteiro, blockRecurrenceType, blockRecurrenceCount);
+    if (result && result.success) {
       toast({ title: "Sucesso", description: result.message, className: "bg-green-500 text-white" });
       setIsBlockDialogOpen(false);
       setNewAppointmentDate(null);
+    } else {
+      toast({ title: "Erro", description: result?.message || "Erro desconhecido ao criar bloqueio.", variant: "destructive" });
+    }
+  };
+
+  const handleDeleteBlock = async (id: string, mode?: 'single' | 'all_future') => {
+    const result = await deleteBloqueio(id, mode);
+    if (result.success) {
+      toast({ title: "Sucesso", description: result.message, className: "bg-green-500 text-white" });
+      setIsConfirmDeleteBlockOpen(false);
+      // setBlockToDelete(null); // Keep state to avoid layout shift/error during close animation
     } else {
       toast({ title: "Erro", description: result.message, variant: "destructive" });
     }
   };
 
-  const handleDeleteBlock = async (id: string) => {
-    const result = await deleteBloqueio(id);
-    if (result.success) {
-      toast({ title: "Sucesso", description: result.message, className: "bg-green-500 text-white" });
-    } else {
-      toast({ title: "Erro", description: result.message, variant: "destructive" });
-    }
+  const initDeleteBlock = (id: string, recorrencia_id?: string) => {
+      console.log('initDeleteBlock called with:', { id, recorrencia_id });
+      setBlockToDelete({ id, recorrencia_id });
+      setSlotAction(null);
+      setIsConfirmDeleteBlockOpen(true);
   };
 
   const handleDelete = async (id: string) => {
@@ -636,12 +652,100 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                 <Label htmlFor="motivo" className="text-right">Motivo</Label>
                 <div className="col-span-3">
                   <Input
-                    id="motivo"
-                    name="motivo"
                     placeholder="Ex: Reunião, Compromisso pessoal..."
                   />
                 </div>
               </div>
+
+               {/* Recurrence Options for Block */}
+               <div className="grid grid-cols-4 items-center gap-4">
+                 <Label htmlFor="block_recurrence_type" className="text-right">
+                   Repetir
+                 </Label>
+                 <div className="col-span-3 flex flex-col gap-2">
+                     <div className="flex gap-2">
+                         <Select value={blockRecurrenceType} onValueChange={setBlockRecurrenceType}>
+                             <SelectTrigger className="w-[180px]">
+                                 <SelectValue placeholder="Não repetir" />
+                             </SelectTrigger>
+                             <SelectContent>
+                                 <SelectItem value="none">Não repetir</SelectItem>
+                                 <SelectItem value="semanal">Semanalmente</SelectItem>
+                                 <SelectItem value="quinzenal">Quinzenalmente</SelectItem>
+                             </SelectContent>
+                         </Select>
+                         
+                         {blockRecurrenceType !== 'none' && (
+                             <div className="flex items-center gap-2">
+                                 <Label htmlFor="block_recurrence_count" className="whitespace-nowrap text-sm text-muted-foreground">x vezes:</Label>
+                                 <Input 
+                                     type="number" 
+                                     className="w-20" 
+                                     min="2" 
+                                     max="120" 
+                                     value={blockRecurrenceCount}
+                                     onChange={(e) => {
+                                         let val = parseInt(e.target.value);
+                                         if (isNaN(val)) val = 1;
+                                         if (val > 120) val = 120;
+                                         setBlockRecurrenceCount(val);
+                                     }}
+                                 />
+                             </div>
+                         )}
+                     </div>
+
+                     {blockRecurrenceType !== 'none' && (
+                          <div className="flex gap-2 text-xs">
+                             <button 
+                                 type="button"
+                                 className="text-primary hover:underline"
+                                 onClick={() => {
+                                     const now = newAppointmentDate || new Date();
+                                     const currentYear = now.getFullYear();
+                                     const endOfYear = new Date(currentYear, 11, 31);
+                                     const diffTime = Math.abs(endOfYear.getTime() - now.getTime());
+                                     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                                     
+                                     let count = 0;
+                                     if (blockRecurrenceType === 'semanal') {
+                                         count = Math.floor(diffDays / 7);
+                                     } else if (blockRecurrenceType === 'quinzenal') {
+                                         count = Math.floor(diffDays / 14);
+                                     }
+                                     
+                                     setBlockRecurrenceCount(Math.min(Math.max(count, 1), 120));
+                                 }}
+                             >
+                                 Até o fim de {newAppointmentDate?.getFullYear() || new Date().getFullYear()}
+                             </button>
+                             <span className="text-muted-foreground">|</span>
+                             <button 
+                                 type="button"
+                                 className="text-primary hover:underline"
+                                 onClick={() => {
+                                     const now = newAppointmentDate || new Date();
+                                     const nextYear = now.getFullYear() + 1;
+                                     const endOfNextYear = new Date(nextYear, 11, 31);
+                                     const diffTime = Math.abs(endOfNextYear.getTime() - now.getTime());
+                                     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                                     
+                                     let count = 0;
+                                     if (blockRecurrenceType === 'semanal') {
+                                         count = Math.floor(diffDays / 7);
+                                     } else if (blockRecurrenceType === 'quinzenal') {
+                                         count = Math.floor(diffDays / 14);
+                                     }
+                                     
+                                     setBlockRecurrenceCount(Math.min(Math.max(count, 1), 120));
+                                 }}
+                             >
+                                 Até o fim de {(newAppointmentDate?.getFullYear() || new Date().getFullYear()) + 1}
+                             </button>
+                          </div>
+                     )}
+                 </div>
+               </div>
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setIsBlockDialogOpen(false)}>Cancelar</Button>
                 <Button type="submit">Bloquear</Button>
@@ -649,6 +753,37 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
             </form>
           </DialogContent>
         </Dialog>
+
+        {/* Delete Block Confirmation Dialog */}
+        <AlertDialog open={isConfirmDeleteBlockOpen} onOpenChange={setIsConfirmDeleteBlockOpen}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Remover Bloqueio</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        {blockToDelete?.recorrencia_id 
+                            ? "Este é um bloqueio recorrente. O que você deseja fazer?" 
+                            : "Tem certeza que deseja remover este bloqueio?"}
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter className="flex-col sm:justify-start gap-2">
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    {blockToDelete?.recorrencia_id ? (
+                        <>
+                            <AlertDialogAction onClick={() => blockToDelete && handleDeleteBlock(blockToDelete.id, 'single')}>
+                                Apenas este
+                            </AlertDialogAction>
+                            <AlertDialogAction onClick={() => blockToDelete && handleDeleteBlock(blockToDelete.id, 'all_future')} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                                Este e os seguintes
+                            </AlertDialogAction>
+                        </>
+                    ) : (
+                         <AlertDialogAction onClick={() => blockToDelete && handleDeleteBlock(blockToDelete.id, 'single')} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                            Remover
+                        </AlertDialogAction>
+                    )}
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
 
         {/* Context Menu for slot actions */}
         {slotAction && (
@@ -666,7 +801,9 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                   className="w-full text-left px-3 py-2 text-sm hover:bg-destructive/10 rounded-sm flex items-center gap-2 text-destructive"
                   onClick={() => {
                     if (slotAction.bloqueioId) {
-                      handleDeleteBlock(slotAction.bloqueioId);
+                       // Find the block to check for recurrence
+                       const block = bloqueios.find(b => b.id === slotAction.bloqueioId);
+                       initDeleteBlock(slotAction.bloqueioId, block?.recorrencia_id);
                     }
                     setSlotAction(null);
                   }}
@@ -825,7 +962,7 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                     bloqueios={bloqueios}
                     onAddAppointment={handleSlotClick} 
                     onEditAppointment={handleOpenEdit}
-                    onDeleteBloqueio={handleDeleteBlock}
+                    onDeleteBloqueio={initDeleteBlock}
                   />
               </div>
           )}
@@ -838,7 +975,7 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                     bloqueios={bloqueios}
                     onAddAppointment={handleSlotClick} 
                     onEditAppointment={handleOpenEdit}
-                    onDeleteBloqueio={handleDeleteBlock}
+                    onDeleteBloqueio={initDeleteBlock}
                   />
               </div>
           )}

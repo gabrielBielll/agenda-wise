@@ -4,131 +4,136 @@
 
    ▲ Next.js 15.3.3 (Turbopack)
    - Local:        http://localhost:9002
-   - Network:      http://192.168.100.10:9002
+   - Network:      http://192.168.100.13:9002
    - Environments: .env.local
 
  ✓ Starting...
-Slow filesystem detected. If /Users/gabriel/Documents/developer/deep-saude-plataform/deep-saude-plataforma-front-end/.next is a network drive, consider moving it to a local folder. If you have an antivirus enabled, consider excluding your project directory.
  ○ Compiling middleware ...
- ✓ Compiled middleware in 3.7s
- ✓ Ready in 9.9s
+ ✓ Compiled middleware in 1668ms
+ ✓ Ready in 4s
  ○ Compiling /api/auth/[...nextauth] ...
- ✓ Compiled /api/auth/[...nextauth] in 5.2s
- GET /api/auth/csrf 200 in 3488ms
- GET /api/auth/session 200 in 6950ms
- GET /api/auth/session 200 in 5161ms
- POST /api/auth/signout 200 in 133ms
- ○ Compiling / ...
- ✓ Compiled / in 7.2s
- GET /?expired=true 200 in 8265ms
- GET /api/auth/session 200 in 141ms
- GET /api/auth/providers 200 in 538ms
- GET /api/auth/csrf 200 in 165ms
-NextAuth: Login API Response { status: 200, hasToken: true }
-NextAuth: Authorize success, returning user with token.
-NextAuth: JWT Callback - Initial sign in
- POST /api/auth/callback/credentials 200 in 2711ms
- GET /api/auth/session 200 in 450ms
-[Middleware] Path: /dashboard | Role: psicologo | Token Exists: true
- ○ Compiling /dashboard ...
- ✓ Compiled /dashboard in 12.2s
-[Middleware] Path: /dashboard | Role: psicologo | Token Exists: true
- GET /dashboard 200 in 12854ms
- GET /dashboard 200 in 626ms
 [Middleware] Path: /calendar | Role: psicologo | Token Exists: true
- ○ Compiling /calendar ...
- ✓ Compiled /calendar in 9.3s
- GET /calendar 200 in 10522ms
- GET /api/auth/session 200 in 375ms
- GET /api/auth/session 200 in 299ms
- GET /api/auth/session 200 in 727ms
- GET /api/auth/session 200 in 359ms
- GET /api/auth/session 200 in 561ms
-[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
- GET /calendar 200 in 2625ms
- ○ Compiling /favicon.ico ...
- GET /api/auth/session 200 in 335ms
- ✓ Compiled /favicon.ico in 5s
- GET /favicon.ico?favicon.56766c03.ico 200 in 5708ms
-[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
- GET /calendar 200 in 3838ms
- GET /favicon.ico?favicon.56766c03.ico 200 in 314ms
- GET /api/auth/session 200 in 178ms
- GET /api/auth/session 200 in 156ms
- GET /favicon.ico 200 in 897ms
- GET /favicon.ico?favicon.56766c03.ico 200 in 531ms
-[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
- GET /calendar 200 in 1587ms
- GET /favicon.ico?favicon.56766c03.ico 200 in 349ms
- GET /api/auth/session 200 in 85ms
- GET /api/auth/session 200 in 113ms
- GET /favicon.ico 200 in 781ms
- GET /favicon.ico?favicon.56766c03.ico 200 in 571ms
- GET /api/auth/csrf 200 in 229ms
- POST /api/auth/signout 200 in 138ms
- GET / 200 in 836ms
- GET /api/auth/session 200 in 367ms
- GET /api/auth/providers 200 in 141ms
- GET /api/auth/csrf 200 in 192ms
-NextAuth: Login API Response { status: 200, hasToken: true }
-NextAuth: Authorize success, returning user with token.
-NextAuth: JWT Callback - Initial sign in
- POST /api/auth/callback/credentials 200 in 1150ms
- GET /api/auth/session 200 in 214ms
-[Middleware] Path: /dashboard | Role: psicologo | Token Exists: true
-[Middleware] Path: /dashboard | Role: psicologo | Token Exists: true
- GET /dashboard 200 in 883ms
- GET /dashboard 200 in 701ms
-[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
- GET /calendar 200 in 902ms
- GET /api/auth/session 200 in 298ms
- GET /api/auth/session 200 in 166ms
- GET /api/auth/session 200 in 475ms
- GET /api/auth/session 200 in 249ms
- GET /api/auth/session 200 in 353ms
- GET /api/auth/session 200 in 783ms
- GET /api/auth/session 200 in 165ms
- ✓ Compiled in 1862ms
- GET /api/auth/session 200 in 249ms
- GET /api/auth/session 200 in 457ms
- GET /api/auth/session 200 in 303ms
- GET /api/auth/session 200 in 404ms
-[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
- GET /calendar 200 in 2510ms
- GET /favicon.ico?favicon.56766c03.ico 200 in 331ms
+ GET /api/auth/session 200 in 9998ms
+ ✓ Compiled /api/auth/[...nextauth] in 16s
+ GET /calendar 200 in 15075ms
  GET /api/auth/session 200 in 79ms
- GET /api/auth/session 200 in 132ms
- GET /favicon.ico 200 in 679ms
- GET /favicon.ico?favicon.56766c03.ico 200 in 932ms
+ ○ Compiling /favicon.ico ...
+ ✓ Compiled /favicon.ico in 2s
+ GET /favicon.ico?favicon.56766c03.ico 200 in 2292ms
+ GET /api/auth/session 200 in 503ms
+ ✓ Compiled in 984ms
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
 [Middleware] Path: /calendar | Role: psicologo | Token Exists: true
- GET /calendar 200 in 1203ms
- GET /favicon.ico?favicon.56766c03.ico 200 in 399ms
- GET /api/auth/session 200 in 221ms
- GET /api/auth/session 200 in 148ms
- GET /favicon.ico 200 in 926ms
- GET /favicon.ico?favicon.56766c03.ico 200 in 589ms
+ GET /calendar 200 in 2163ms
+ GET /favicon.ico?favicon.56766c03.ico 200 in 279ms
+ GET /api/auth/session 200 in 84ms
+ GET /api/auth/session 200 in 580ms
 [Middleware] Path: /calendar | Role: psicologo | Token Exists: true
- GET /calendar 200 in 1788ms
- GET /favicon.ico?favicon.56766c03.ico 200 in 329ms
- GET /api/auth/session 200 in 112ms
- GET /api/auth/session 200 in 318ms
- GET /favicon.ico 200 in 420ms
- GET /favicon.ico?favicon.56766c03.ico 200 in 493ms
- GET /api/auth/csrf 200 in 210ms
- POST /api/auth/signout 200 in 117ms
- GET / 200 in 830ms
- GET /api/auth/session 200 in 282ms
- GET /api/auth/providers 200 in 206ms
- GET /api/auth/csrf 200 in 143ms
-NextAuth: Login API Response { status: 200, hasToken: true }
-NextAuth: Authorize success, returning user with token.
-NextAuth: JWT Callback - Initial sign in
- POST /api/auth/callback/credentials 200 in 985ms
- GET /api/auth/session 200 in 247ms
-[Middleware] Path: /dashboard | Role: psicologo | Token Exists: true
-[Middleware] Path: /dashboard | Role: psicologo | Token Exists: true
- GET /dashboard 200 in 566ms
- GET /dashboard 200 in 668ms
+ POST /calendar 200 in 1062ms
+ GET /favicon.ico?favicon.56766c03.ico 200 in 351ms
 [Middleware] Path: /calendar | Role: psicologo | Token Exists: true
- GET /calendar 200 in 647ms
- GET /api/auth/session 200 in 223ms
+[DEBUG-ACTION] deleteBloqueio called: {
+  id: '3c98e862-2664-47ba-8f09-19daeed90f1f',
+  mode: 'all_future',
+  apiUrl: 'http://localhost:3000/api/bloqueios/3c98e862-2664-47ba-8f09-19daeed90f1f?mode=all_future'
+}
+ POST /calendar 200 in 742ms
+ GET /favicon.ico?favicon.56766c03.ico 200 in 291ms
+[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
+[DEBUG-ACTION] deleteBloqueio called: {
+  id: '5f3d7c8e-0361-47ec-8f5e-c999f815cb1e',
+  mode: 'all_future',
+  apiUrl: 'http://localhost:3000/api/bloqueios/5f3d7c8e-0361-47ec-8f5e-c999f815cb1e?mode=all_future'
+}
+ POST /calendar 200 in 634ms
+[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
+[DEBUG-ACTION] deleteBloqueio called: {
+  id: 'b64aaf81-e4aa-4289-b794-ca8bf3132255',
+  mode: 'single',
+  apiUrl: 'http://localhost:3000/api/bloqueios/b64aaf81-e4aa-4289-b794-ca8bf3132255?mode=single'
+}
+ POST /calendar 200 in 748ms
+[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
+[DEBUG-ACTION] deleteBloqueio called: {
+  id: '17bcc54c-5576-4ee4-a9ce-5e28f1623d80',
+  mode: 'all_future',
+  apiUrl: 'http://localhost:3000/api/bloqueios/17bcc54c-5576-4ee4-a9ce-5e28f1623d80?mode=all_future'
+}
+ POST /calendar 200 in 748ms
+[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
+[DEBUG-ACTION] deleteBloqueio called: {
+  id: 'e75ebda0-05e5-41a6-b59e-23d29e0223ac',
+  mode: 'single',
+  apiUrl: 'http://localhost:3000/api/bloqueios/e75ebda0-05e5-41a6-b59e-23d29e0223ac?mode=single'
+}
+ POST /calendar 200 in 763ms
+[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
+[DEBUG-ACTION] deleteBloqueio called: {
+  id: 'ee1dea67-8c2b-4677-924f-ffc1faf68cea',
+  mode: 'all_future',
+  apiUrl: 'http://localhost:3000/api/bloqueios/ee1dea67-8c2b-4677-924f-ffc1faf68cea?mode=all_future'
+}
+ POST /calendar 200 in 621ms
+[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
+[DEBUG-ACTION] deleteBloqueio called: {
+  id: 'f1c49a25-f694-43e6-9d64-267bddbdb9fa',
+  mode: 'single',
+  apiUrl: 'http://localhost:3000/api/bloqueios/f1c49a25-f694-43e6-9d64-267bddbdb9fa?mode=single'
+}
+ POST /calendar 200 in 853ms
+[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
+[DEBUG-ACTION] deleteBloqueio called: {
+  id: '809d753b-3eb0-4ee3-9d43-9401253fadd3',
+  mode: 'all_future',
+  apiUrl: 'http://localhost:3000/api/bloqueios/809d753b-3eb0-4ee3-9d43-9401253fadd3?mode=all_future'
+}
+ POST /calendar 200 in 865ms
+[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
+[DEBUG-ACTION] deleteBloqueio called: {
+  id: '3ef34b0f-c3ec-4a77-ac9b-bf74c389b329',
+  mode: 'all_future',
+  apiUrl: 'http://localhost:3000/api/bloqueios/3ef34b0f-c3ec-4a77-ac9b-bf74c389b329?mode=all_future'
+}
+ POST /calendar 200 in 631ms
+[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
+[DEBUG-ACTION] deleteBloqueio called: {
+  id: 'ed79513e-5ebe-4c9e-a03d-996aa8353ee1',
+  mode: 'all_future',
+  apiUrl: 'http://localhost:3000/api/bloqueios/ed79513e-5ebe-4c9e-a03d-996aa8353ee1?mode=all_future'
+}
+ POST /calendar 200 in 1254ms
+[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
+[DEBUG-ACTION] deleteBloqueio called: {
+  id: '2c696520-3856-4924-bdac-2ee49b053333',
+  mode: 'all_future',
+  apiUrl: 'http://localhost:3000/api/bloqueios/2c696520-3856-4924-bdac-2ee49b053333?mode=all_future'
+}
+ POST /calendar 200 in 660ms
+[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
+[DEBUG-ACTION] deleteBloqueio called: {
+  id: '72a18c28-5182-4582-a71e-3aeeeb07397d',
+  mode: 'single',
+  apiUrl: 'http://localhost:3000/api/bloqueios/72a18c28-5182-4582-a71e-3aeeeb07397d?mode=single'
+}
+ POST /calendar 200 in 702ms
+[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
+[DEBUG-ACTION] deleteBloqueio called: {
+  id: '1e8e2900-4bde-4e65-b796-4c5895c840b7',
+  mode: 'single',
+  apiUrl: 'http://localhost:3000/api/bloqueios/1e8e2900-4bde-4e65-b796-4c5895c840b7?mode=single'
+}
+ POST /calendar 200 in 726ms
+[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
+ POST /calendar 200 in 897ms
+[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
+[DEBUG-ACTION] deleteBloqueio called: {
+  id: '927baf84-28a9-45ef-b4b0-450dc06adc30',
+  mode: 'all_future',
+  apiUrl: 'http://localhost:3000/api/bloqueios/927baf84-28a9-45ef-b4b0-450dc06adc30?mode=all_future'
+}
+ POST /calendar 200 in 682ms
+ GET /api/auth/session 200 in 430ms
+ ✓ Compiled in 817ms
+[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
+ ✓ Compiled /calendar in 121ms
+ GET /calendar 200 in 925ms

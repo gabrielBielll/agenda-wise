@@ -10,7 +10,8 @@
             [clojure.string :as str]
             [buddy.sign.jwt :as jwt]
             [buddy.hashers :as hashers]
-            [ring.middleware.cors :refer [wrap-cors]])
+            [ring.middleware.cors :refer [wrap-cors]]
+            [ring.middleware.params :refer [wrap-params]])
   (:gen-class)
   (:import (java.sql Date))) ; Importar java.sql.Date para conversão
 
@@ -526,19 +527,43 @@
   (try
     (let [clinica-id (get-in request [:identity :clinica_id])
           usuario-id (get-in request [:identity :user_id])
-          {:keys [data_inicio data_fim motivo dia_inteiro]} (:body request)]
-      (println "DEBUG: Criando bloqueio:" (:body request))
+          {:keys [data_inicio data_fim motivo dia_inteiro recorrencia_tipo quantidade_recorrencia]} (:body request)]
       (if (or (nil? data_inicio) (nil? data_fim))
         {:status 400 :body {:erro "data_inicio e data_fim são obrigatórios."}}
-        (let [novo-bloqueio (sql/insert! @datasource :bloqueios_agenda
-                                         {:clinica_id    clinica-id
-                                          :psicologo_id  usuario-id
-                                          :data_inicio   (java.sql.Timestamp/valueOf data_inicio)
-                                          :data_fim      (java.sql.Timestamp/valueOf data_fim)
-                                          :motivo        motivo
-                                          :dia_inteiro   (or dia_inteiro false)}
-                                         {:builder-fn rs/as-unqualified-lower-maps :return-keys true})]
-          {:status 201 :body novo-bloqueio})))
+        (let [start-ts (java.sql.Timestamp/valueOf data_inicio)
+              end-ts   (java.sql.Timestamp/valueOf data_fim)
+              duracao-millis (- (.getTime end-ts) (.getTime start-ts))
+              
+              qtd-bloqueios (if (and recorrencia_tipo (pos? (or quantidade_recorrencia 0))) 
+                                (min (or quantidade_recorrencia 1) 120) 
+                                1)
+              intervalo-dias (case recorrencia_tipo
+                               "semanal" 7
+                               "quinzenal" 14
+                               0)
+              
+              recorrencia-uuid (when (and recorrencia_tipo (not= recorrencia_tipo "none")) 
+                                 (java.util.UUID/randomUUID))
+
+              bloqueios-para-criar (for [i (range qtd-bloqueios)]
+                                     (let [base-time (.getTime start-ts)
+                                           offset-millis (* i intervalo-dias 24 60 60 1000)
+                                           s-time (java.sql.Timestamp. (+ base-time offset-millis))
+                                           e-time (java.sql.Timestamp. (+ (.getTime s-time) duracao-millis))]
+                                       {:start s-time :end e-time}))]
+                                       
+             (let [novos-bloqueios (doall (map (fn [{:keys [start end]}]
+                                                 (sql/insert! @datasource :bloqueios_agenda
+                                                              {:clinica_id    clinica-id
+                                                               :psicologo_id  usuario-id
+                                                               :data_inicio   start
+                                                               :data_fim      end
+                                                               :motivo        motivo
+                                                               :dia_inteiro   (or dia_inteiro false)
+                                                               :recorrencia_id recorrencia-uuid}
+                                                              {:builder-fn rs/as-unqualified-lower-maps :return-keys true}))
+                                               bloqueios-para-criar))]
+               {:status 201 :body (first novos-bloqueios)}))))
     (catch Exception e
       (println "ERRO ao criar bloqueio:" (.getMessage e))
       {:status 500 :body {:erro (str "Erro interno: " (.getMessage e))}})))
@@ -594,11 +619,21 @@
 (defn remover-bloqueio-handler [request]
   (let [clinica-id (get-in request [:identity :clinica_id])
         usuario-id (get-in request [:identity :user_id])
-        bloqueio-id (java.util.UUID/fromString (get-in request [:params :id]))]
-    (if-let [bloqueio (execute-one! ["SELECT id FROM bloqueios_agenda WHERE id = ? AND clinica_id = ? AND psicologo_id = ?" 
+        bloqueio-id (java.util.UUID/fromString (get-in request [:params :id]))
+        mode (or (get-in request [:params :mode]) (get-in request [:query-params "mode"]))] ;; "single" ou "all_future"
+
+    (if-let [bloqueio (execute-one! ["SELECT id, recorrencia_id, data_inicio FROM bloqueios_agenda WHERE id = ? AND clinica_id = ? AND psicologo_id = ?" 
                                       bloqueio-id clinica-id usuario-id])]
       (do
-        (sql/delete! @datasource :bloqueios_agenda {:id bloqueio-id})
+        (cond
+          (and (= mode "all_future") (:recorrencia_id bloqueio))
+          (sql/delete! @datasource :bloqueios_agenda ["recorrencia_id = ? AND data_inicio >= ?" 
+                                                       (:recorrencia_id bloqueio)
+                                                       (:data_inicio bloqueio)])
+
+          :else
+          (sql/delete! @datasource :bloqueios_agenda {:id bloqueio-id}))
+        
         {:status 200 :body {:mensagem "Bloqueio removido com sucesso."}})
       {:status 404 :body {:erro "Bloqueio não encontrado ou você não tem permissão."}})))
 
@@ -790,6 +825,7 @@
       (wrap-cors :access-control-allow-origin [#"http://localhost:3000" #"http://localhost:9002" #"https://deep-ngrv.onrender.com"] ; Adicionada porta 9002
                  :access-control-allow-methods [:get :post :put :delete :options]
                  :access-control-allow-headers #{"Authorization" "Content-Type"})
+      (wrap-params)
       (middleware-json/wrap-json-body {:keywords? true})
       (middleware-json/wrap-json-response)))
 
@@ -844,6 +880,7 @@
                             dia_inteiro BOOLEAN DEFAULT false,
                             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                            )"])
+          (execute-query! ["ALTER TABLE bloqueios_agenda ADD COLUMN IF NOT EXISTS recorrencia_id UUID"])
           (println "Tabela bloqueios_agenda verificada/criada com sucesso.")
 
           (catch Exception e

@@ -4,6 +4,9 @@ import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+
 interface CalendarHeaderProps {
   date: Date;
   setDate: (date: Date) => void;
@@ -39,11 +42,10 @@ export function CalendarHeader({ date, setDate, view, setView, onToday }: Calend
   };
 
   const formatDateRange = () => {
-    const options: Intl.DateTimeFormatOptions = { month: 'long', year: 'numeric' };
     if (view === 'month') {
-      return date.toLocaleDateString('pt-BR', options);
+      return format(date, "MMMM 'de' yyyy", { locale: ptBR });
     } else if (view === 'day') {
-      return date.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
+      return format(date, "EEEE, d 'de' MMMM", { locale: ptBR });
     } else {
       // Week view logic
       const startOfWeek = new Date(date);
@@ -51,8 +53,8 @@ export function CalendarHeader({ date, setDate, view, setView, onToday }: Calend
       const endOfWeek = new Date(startOfWeek);
       endOfWeek.setDate(startOfWeek.getDate() + 6); // Saturday
       
-      const startStr = startOfWeek.toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' });
-      const endStr = endOfWeek.toLocaleDateString('pt-BR', { day: 'numeric', month: 'short', year: 'numeric' });
+      const startStr = format(startOfWeek, "d 'de' MMM", { locale: ptBR });
+      const endStr = format(endOfWeek, "d 'de' MMM 'de' yyyy", { locale: ptBR });
       return `${startStr} - ${endStr}`;
     }
   };

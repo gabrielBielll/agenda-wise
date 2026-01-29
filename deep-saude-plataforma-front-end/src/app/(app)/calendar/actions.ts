@@ -175,6 +175,7 @@ export interface Bloqueio {
   data_fim: string;
   motivo?: string;
   dia_inteiro?: boolean;
+  recorrencia_id?: string;
 }
 
 export async function fetchBloqueios(dataInicio?: string, dataFim?: string): Promise<Bloqueio[]> {
@@ -207,7 +208,9 @@ export async function createBloqueio(
   dataInicio: string, 
   dataFim: string, 
   motivo?: string,
-  diaInteiro?: boolean
+  diaInteiro?: boolean,
+  recorrenciaTipo?: string,
+  quantidadeRecorrencia?: number
 ): Promise<{ message: string; success: boolean }> {
   const session = await getServerSession(authOptions);
   const token = (session as any)?.backendToken;
@@ -227,7 +230,9 @@ export async function createBloqueio(
         data_inicio: dataInicio.replace("T", " ") + ":00",
         data_fim: dataFim.replace("T", " ") + ":00",
         motivo,
-        dia_inteiro: diaInteiro || false
+        dia_inteiro: diaInteiro || false,
+        recorrencia_tipo: recorrenciaTipo,
+        quantidade_recorrencia: quantidadeRecorrencia
       }),
     });
 
@@ -243,13 +248,14 @@ export async function createBloqueio(
   return { message: "Horário bloqueado com sucesso!", success: true };
 }
 
-export async function deleteBloqueio(id: string): Promise<{ message: string; success: boolean }> {
+export async function deleteBloqueio(id: string, mode?: 'single' | 'all_future'): Promise<{ message: string; success: boolean }> {
   const session = await getServerSession(authOptions);
   const token = (session as any)?.backendToken;
 
   if (!token) return { message: "Erro de autenticação.", success: false };
 
-  const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/bloqueios/${id}`;
+  let apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/bloqueios/${id}`;
+  if (mode) apiUrl += `?mode=${mode}`;
 
   try {
     const response = await fetch(apiUrl, {

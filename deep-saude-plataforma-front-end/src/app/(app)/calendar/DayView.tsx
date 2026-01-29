@@ -17,6 +17,7 @@ interface Bloqueio {
   data_fim: string;
   motivo?: string;
   dia_inteiro?: boolean;
+  recorrencia_id?: string;
 }
 
 interface DayViewProps {
@@ -25,7 +26,7 @@ interface DayViewProps {
   bloqueios?: Bloqueio[];
   onAddAppointment: (date: Date, event?: React.MouseEvent, isBlocked?: boolean, bloqueioId?: string) => void;
   onEditAppointment: (appointment: Appointment) => void;
-  onDeleteBloqueio?: (id: string) => void;
+  onDeleteBloqueio?: (id: string, recorrencia_id?: string) => void;
 }
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i); // 00:00 to 23:00
@@ -134,8 +135,8 @@ export function DayView({ date, appointments, bloqueios = [], onAddAppointment, 
                       style={{ top: `${topPos}%`, height: `${height}%`, minHeight: '20px' }}
                       onClick={(e) => {
                         e.stopPropagation();
-                        if (onDeleteBloqueio && confirm('Remover este bloqueio?')) {
-                          onDeleteBloqueio(block.id);
+                        if (onDeleteBloqueio) {
+                          onDeleteBloqueio(block.id, block.recorrencia_id);
                         }
                       }}
                       title={block.motivo || 'Horário bloqueado'}

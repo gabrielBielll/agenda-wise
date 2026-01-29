@@ -92,9 +92,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </SidebarMenu>
         </SidebarContent>
         <SidebarFooter className="p-4 mt-auto">
-           <div className="group-data-[collapsible=icon]:hidden flex flex-col items-center text-xs text-sidebar-foreground/70">
-            <p>&copy; {new Date().getFullYear()} AgendaWise</p>
-            <p>Todos os direitos reservados.</p>
+           <div className="group-data-[collapsible=icon]:hidden flex flex-col items-center text-xs text-sidebar-foreground/70" suppressHydrationWarning>
+            <span suppressHydrationWarning>&copy; {new Date().getFullYear()} AgendaWise</span>
+            <span>Todos os direitos reservados.</span>
           </div>
         </SidebarFooter>
       </Sidebar>
