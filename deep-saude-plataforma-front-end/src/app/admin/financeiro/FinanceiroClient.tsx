@@ -55,16 +55,33 @@ interface FinanceiroClientProps {
 
 export default function FinanceiroClient({ initialAgendamentos }: FinanceiroClientProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [selectedPsicologo, setSelectedPsicologo] = useState<string>("all");
+  const [selectedPaciente, setSelectedPaciente] = useState<string>("all");
   
-  // Filter appointments for the selected month
+  // Extract unique options for filters
+  const psicologos = useMemo(() => {
+    const unique = new Set(initialAgendamentos.map(ag => ag.nome_psicologo).filter(Boolean));
+    return Array.from(unique).sort();
+  }, [initialAgendamentos]);
+
+  const pacientes = useMemo(() => {
+    const unique = new Set(initialAgendamentos.map(ag => ag.nome_paciente).filter(Boolean));
+    return Array.from(unique).sort();
+  }, [initialAgendamentos]);
+
+  // Filter appointments
   const filteredData = useMemo(() => {
     return initialAgendamentos
       .filter(ag => {
         const agDate = parseISO(ag.data_hora_sessao);
-        return isSameMonth(agDate, currentDate);
+        const matchesDate = isSameMonth(agDate, currentDate);
+        const matchesPsicologo = selectedPsicologo === "all" || ag.nome_psicologo === selectedPsicologo;
+        const matchesPaciente = selectedPaciente === "all" || ag.nome_paciente === selectedPaciente;
+        
+        return matchesDate && matchesPsicologo && matchesPaciente;
       })
       .sort((a, b) => new Date(b.data_hora_sessao).getTime() - new Date(a.data_hora_sessao).getTime());
-  }, [initialAgendamentos, currentDate]);
+  }, [initialAgendamentos, currentDate, selectedPsicologo, selectedPaciente]);
 
   // Calculate stats
   const totalReceita = filteredData.reduce((acc, curr) => acc + (Number(curr.valor_consulta) || 0), 0);
@@ -74,9 +91,6 @@ export default function FinanceiroClient({ initialAgendamentos }: FinanceiroClie
   const chartData = useMemo(() => {
     const dailyData: Record<string, number> = {};
     
-    // Initialize all days of month with 0 (optional, but looks better)
-    // For simplicity, let's just show days that have data or maybe just list them in order
-    
     filteredData.forEach(ag => {
       const day = format(parseISO(ag.data_hora_sessao), "dd/MM");
       dailyData[day] = (dailyData[day] || 0) + (Number(ag.valor_consulta) || 0);
@@ -85,7 +99,6 @@ export default function FinanceiroClient({ initialAgendamentos }: FinanceiroClie
     return Object.entries(dailyData)
       .map(([name, value]) => ({ name, value }))
       .sort((a, b) => {
-        // Simple sort by day string "dd/MM" works if within same month
         const dayA = parseInt(a.name.split('/')[0]);
         const dayB = parseInt(b.name.split('/')[0]);
         return dayA - dayB;
@@ -100,29 +113,77 @@ export default function FinanceiroClient({ initialAgendamentos }: FinanceiroClie
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Financeiro</h1>
-          <p className="text-muted-foreground">Gestão financeira e visão geral de receitas.</p>
-        </div>
-        
-        <div className="flex items-center gap-2 bg-card p-1 rounded-lg border shadow-sm">
-            <Button variant="ghost" size="icon" onClick={handlePrevMonth}>
-                <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <div className="w-40 text-center font-medium">
-                {format(currentDate, "MMMM yyyy", { locale: ptBR }).toUpperCase()}
+      <div className="flex flex-col gap-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div>
+            <h1 className="text-3xl font-bold tracking-tight">Financeiro</h1>
+            <p className="text-muted-foreground">Gestão financeira e visão geral de receitas.</p>
             </div>
-            <Button variant="ghost" size="icon" onClick={handleNextMonth}>
-                <ChevronRight className="h-4 w-4" />
-            </Button>
+            
+            <div className="flex items-center gap-2 bg-card p-1 rounded-lg border shadow-sm">
+                <Button variant="ghost" size="icon" onClick={handlePrevMonth}>
+                    <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <div className="w-40 text-center font-medium">
+                    {format(currentDate, "MMMM yyyy", { locale: ptBR }).toUpperCase()}
+                </div>
+                <Button variant="ghost" size="icon" onClick={handleNextMonth}>
+                    <ChevronRight className="h-4 w-4" />
+                </Button>
+            </div>
+        </div>
+
+        {/* Filters */}
+        <div className="flex flex-wrap gap-4 items-center">
+            <div className="flex items-center gap-2">
+                <Filter className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium">Filtrar por:</span>
+            </div>
+            
+            <Select value={selectedPsicologo} onValueChange={setSelectedPsicologo}>
+                <SelectTrigger className="w-[200px]">
+                    <SelectValue placeholder="Todos os Psicólogos" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="all">Todos os Psicólogos</SelectItem>
+                    {psicologos.map((name) => (
+                        <SelectItem key={name} value={name as string}>{name}</SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
+
+            <Select value={selectedPaciente} onValueChange={setSelectedPaciente}>
+                <SelectTrigger className="w-[200px]">
+                    <SelectValue placeholder="Todos os Pacientes" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="all">Todos os Pacientes</SelectItem>
+                    {pacientes.map((name) => (
+                        <SelectItem key={name} value={name as string}>{name}</SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
+
+            {(selectedPsicologo !== "all" || selectedPaciente !== "all") && (
+                <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => {
+                        setSelectedPsicologo("all");
+                        setSelectedPaciente("all");
+                    }}
+                    className="text-muted-foreground"
+                >
+                    Limpar Filtros
+                </Button>
+            )}
         </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Receita Mensal</CardTitle>
+            <CardTitle className="text-sm font-medium">Receita Filtrada</CardTitle>
             <DollarSign className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
@@ -130,7 +191,7 @@ export default function FinanceiroClient({ initialAgendamentos }: FinanceiroClie
               {formatCurrency(totalReceita)}
             </div>
             <p className="text-xs text-muted-foreground">
-              Total no período selecionado
+              Total baseados nos filtros
             </p>
           </CardContent>
         </Card>
@@ -158,7 +219,7 @@ export default function FinanceiroClient({ initialAgendamentos }: FinanceiroClie
                 {formatCurrency(totalAtendimentos > 0 ? totalReceita / totalAtendimentos : 0)}
             </div>
             <p className="text-xs text-muted-foreground">
-              Média por atendimento
+              Média por atendimento filtrado
             </p>
           </CardContent>
         </Card>
