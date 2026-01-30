@@ -120,12 +120,41 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
   const formRef = useRef<HTMLFormElement>(null);
 
   
+  const [isConfirmEditRecurrenceOpen, setIsConfirmEditRecurrenceOpen] = useState(false);
+  const [pendingEditData, setPendingEditData] = useState<FormData | null>(null);
+
   // Wrapper action to handle both create and update
   const action = async (prevState: FormState, formData: FormData) => {
     let result: FormState | undefined;
     try {
         if (editingAppointment) {
-            result = await updateAgendamento(editingAppointment.id, prevState, formData);
+            // Check if it is a recurring appointment
+            // We need to know if the user WANTS to edit all future or just one.
+            // But this action is called by the form. 
+            // If we are here, we need to check if we already made a choice?
+            // Actually, best way is: 
+            // 1. If recurring and no mode selected yet -> prevent default submit? 
+            //    BUT this is a server action called by React. We can't easily "pause" it here to show a dialog.
+            //    Instead, we should probably handle the "Save" button click?
+            //    Or, we can check a hidden field "edit_mode"?
+            
+            // BETTER APPROACH:
+            // Intercept the form submission in the onFormAction or onSubmit?
+            // But we are using useActionState.
+            
+            // Alternative: Check editingAppointment.recorrencia_id
+            if (editingAppointment.recorrencia_id && !formData.get('mode')) {
+                // If it's recurring and NO mode is set, we stop here and open the dialog?
+                // But we need the FormData using the CURRENT values of the form.
+                // We can save formData to state, open dialog, then call action again with mode appended.
+                setPendingEditData(formData);
+                setIsConfirmEditRecurrenceOpen(true);
+                return { message: "", success: false }; // Return dummy state to stop immediate submit logic? 
+                // Or better: don't call updateAgendamento yet.
+            } else {
+                 const mode = formData.get('mode') as 'single' | 'all_future' | undefined;
+                 result = await updateAgendamento(editingAppointment.id, prevState, formData, mode);
+            }
         } else {
             result = await createAgendamento(prevState, formData);
         }
@@ -134,6 +163,32 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
         return { message: "Erro interno no servidor.", success: false };
     }
     return result || { message: "Erro desconhecido.", success: false };
+  };
+
+  const handleConfirmEditRecurrence = (mode: 'single' | 'all_future') => {
+      if (!pendingEditData || !formRef.current) return;
+      
+      // We need to Trigger the action again WITH the mode.
+      // Since we can't easily modify the FormData object passed to startTransition if we call formAction directly with it...
+      // wait, we can just append to pendingEditData if it's mutable? FormData is.
+      pendingEditData.append('mode', mode);
+      
+      // Now we need to submit this data.
+      // calling startTransition(() => formAction(pendingEditData)) works?
+      // usage string: const [state, formAction] = useActionState(action, initialState);
+      
+      // Let's use a hidden input "mode" in the form and programmatic submit?
+      // No, because we already have the data in pendingEditData.
+      
+      // We can manually call the action wrapper?
+      // But useActionState wraps it. 
+      // We can call formAction(pendingEditData).
+      React.startTransition(() => {
+          formAction(pendingEditData);
+      });
+      
+      setIsConfirmEditRecurrenceOpen(false);
+      setPendingEditData(null);
   };
 
   const [state, formAction] = useActionState(action, initialState);
@@ -150,11 +205,16 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
             description: state.message,
             className: "bg-green-500 text-white",
         });
-        setIsDialogOpen(false);
-        setIsConflictOpen(false); // Close conflict dialog on success
-        setEditingAppointment(null);
-        setNewAppointmentDate(null);
-        setForceSubmission(false); // Reset force
+        
+        // Add delay to prevent 'removeChild' errors with Radix UI primitives (Select/Dialog race)
+        setTimeout(() => {
+            setIsDialogOpen(false);
+            setIsConflictOpen(false); // Close conflict dialog on success
+            setIsConfirmEditRecurrenceOpen(false); // Close edit recurrence dialog
+            setEditingAppointment(null);
+            setNewAppointmentDate(null);
+            setForceSubmission(false); // Reset force
+        }, 100);
       } else if (state.conflict) {
         setIsConflictOpen(true);
       } else {
@@ -740,6 +800,27 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                     }
                 }} className="bg-orange-500 text-white hover:bg-orange-600">
                     Confirmar Cancelamento
+                </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+
+        {/* EXCLUDED FROM NESTING: Confirm Edit Recurrence Dialog */}
+        <AlertDialog open={isConfirmEditRecurrenceOpen} onOpenChange={setIsConfirmEditRecurrenceOpen}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                <AlertDialogTitle>Editar Agendamento Recorrente</AlertDialogTitle>
+                <AlertDialogDescription>
+                    Este agendamento é parte de uma série. Você deseja aplicar as alterações apenas neste agendamento ou em todos os agendamentos seguintes?
+                </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter className="flex-col sm:justify-start gap-2">
+                <AlertDialogCancel onClick={() => setIsConfirmEditRecurrenceOpen(false)}>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={() => handleConfirmEditRecurrence('single')}>
+                    Apenas este
+                </AlertDialogAction>
+                <AlertDialogAction onClick={() => handleConfirmEditRecurrence('all_future')} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                    Este e os seguintes
                 </AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>

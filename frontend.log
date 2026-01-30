@@ -9,52 +9,63 @@
 
  ✓ Starting...
  ○ Compiling middleware ...
- ✓ Compiled middleware in 885ms
- ✓ Ready in 3s
+ ✓ Compiled middleware in 1440ms
+ ✓ Ready in 3.7s
  ○ Compiling /api/auth/[...nextauth] ...
- ✓ Compiled /api/auth/[...nextauth] in 6.6s
- GET /api/auth/session 200 in 8256ms
- GET /api/auth/session 200 in 113ms
- GET /api/auth/session 200 in 106ms
 [Middleware] Path: /calendar | Role: psicologo | Token Exists: true
- ○ Compiling /calendar ...
- ✓ Compiled /calendar in 9.9s
-[Error: Failed to find Server Action "6071a06f7b6f2432ebec8312e83afea980e4a1e6f5". This request might be from an older or newer deployment.
-Read more: https://nextjs.org/docs/messages/failed-to-find-server-action]
- POST /calendar 200 in 11978ms
-[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
- GET /calendar 200 in 1727ms
+ GET /api/auth/session 200 in 15132ms
+ ✓ Compiled /api/auth/[...nextauth] in 20.6s
+ GET /calendar 200 in 20940ms
+ POST /api/auth/_log 200 in 1094ms
  ○ Compiling /favicon.ico ...
- GET /api/auth/session 200 in 113ms
- ✓ Compiled /favicon.ico in 4.2s
- GET /favicon.ico?favicon.56766c03.ico 200 in 4513ms
-[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
- POST /calendar 200 in 765ms
- GET /favicon.ico?favicon.56766c03.ico 200 in 320ms
- ✓ Compiled in 727ms
+ GET /api/auth/session 200 in 70ms
+ ✓ Compiled /favicon.ico in 3.6s
+ GET /favicon.ico?favicon.56766c03.ico 200 in 3906ms
+ ✓ Compiled in 751ms
  ⚠ Fast Refresh had to perform a full reload due to a runtime error.
 [Middleware] Path: /calendar | Role: psicologo | Token Exists: true
- GET /calendar 200 in 2687ms
- GET /favicon.ico?favicon.56766c03.ico 200 in 400ms
- GET /api/auth/session 200 in 79ms
- GET /api/auth/session 200 in 769ms
+ GET /calendar 200 in 2147ms
+ GET /favicon.ico?favicon.56766c03.ico 200 in 334ms
+ GET /api/auth/session 200 in 100ms
+ GET /api/auth/session 200 in 851ms
 [Middleware] Path: /calendar | Role: psicologo | Token Exists: true
- POST /calendar 200 in 836ms
- GET /favicon.ico?favicon.56766c03.ico 200 in 371ms
+ POST /calendar 200 in 1372ms
+ GET /favicon.ico?favicon.56766c03.ico 200 in 340ms
 [Middleware] Path: /calendar | Role: psicologo | Token Exists: true
- POST /calendar 200 in 769ms
- GET /favicon.ico?favicon.56766c03.ico 200 in 309ms
+ POST /calendar 200 in 949ms
+ GET /favicon.ico?favicon.56766c03.ico 200 in 312ms
 [Middleware] Path: /calendar | Role: psicologo | Token Exists: true
- ✓ Compiled in 1524ms
- ✓ Compiled /calendar in 176ms
- GET /calendar 200 in 1224ms
- GET /api/auth/session 200 in 1265ms
+ POST /calendar 200 in 974ms
+ GET /api/auth/session 200 in 375ms
+ ✓ Compiled in 1210ms
+ GET /api/auth/session 200 in 561ms
 [Middleware] Path: /calendar | Role: psicologo | Token Exists: true
- POST /calendar 200 in 1211ms
+ ○ Compiling / ...
+ ✓ Compiled / in 8.7s
+ GET /?expired=true 200 in 9043ms
+ GET /api/auth/session 200 in 148ms
+[Middleware] Path: /dashboard | Role: psicologo | Token Exists: true
+ GET /favicon.ico?favicon.56766c03.ico 200 in 348ms
+ GET /?expired=true 200 in 186ms
+ GET /favicon.ico?favicon.56766c03.ico 200 in 329ms
+ GET /api/auth/csrf 200 in 154ms
+ POST /api/auth/signout 200 in 353ms
+ GET /?expired=true 200 in 816ms
+ GET /api/auth/session 200 in 168ms
+ GET /api/auth/providers 200 in 84ms
+ GET /api/auth/csrf 200 in 142ms
+NextAuth: Login API Response { status: 200, hasToken: true }
+NextAuth: Authorize success, returning user with token.
+NextAuth: JWT Callback - Initial sign in
+ POST /api/auth/callback/credentials 200 in 1034ms
+ GET /api/auth/session 200 in 188ms
+[Middleware] Path: /dashboard | Role: psicologo | Token Exists: true
+ ○ Compiling /dashboard ...
+ ✓ Compiled /dashboard in 4.4s
+[Middleware] Path: /dashboard | Role: psicologo | Token Exists: true
+ GET /dashboard 200 in 4764ms
+ GET /dashboard 200 in 349ms
 [Middleware] Path: /calendar | Role: psicologo | Token Exists: true
- POST /calendar 200 in 495ms
-[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
- POST /calendar 200 in 435ms
- GET /api/auth/session 200 in 651ms
- GET /api/auth/session 200 in 197ms
- GET /api/auth/session 200 in 573ms
+ GET /calendar 200 in 981ms
+ GET /api/auth/session 200 in 620ms
+ GET /api/auth/session 200 in 181ms

@@ -76,7 +76,7 @@ export async function createAgendamento(prevState: FormState, formData: FormData
   return { message: "Agendamento criado com sucesso!", success: true };
 }
 
-export async function updateAgendamento(id: string, prevState: FormState, formData: FormData): Promise<FormState> {
+export async function updateAgendamento(id: string, prevState: FormState, formData: FormData, mode?: 'single' | 'all_future'): Promise<FormState> {
   const rawData = Object.fromEntries(formData.entries());
   const validatedFields = agendamentoSchema.safeParse(rawData);
 
@@ -104,7 +104,8 @@ export async function updateAgendamento(id: string, prevState: FormState, formDa
         ...validatedFields.data,
         psicologo_id: userId, // Garante que continua vinculado ao psicólogo
         data_hora_sessao: validatedFields.data.data_hora_sessao.replace("T", " ") + ":00",
-        duracao: validatedFields.data.duracao
+        duracao: validatedFields.data.duracao,
+        mode: mode // Add mode to request body
       }),
     });
 

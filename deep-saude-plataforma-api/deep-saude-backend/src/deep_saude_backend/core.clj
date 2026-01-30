@@ -457,9 +457,53 @@
   (try
     (let [clinica-id (get-in request [:identity :clinica_id])
           agendamento-id (java.util.UUID/fromString (get-in request [:params :id]))
-          {:keys [paciente_id psicologo_id data_hora_sessao valor_consulta duracao status]} (:body request)]
+          {:keys [paciente_id psicologo_id data_hora_sessao valor_consulta duracao status mode]} (:body request)]
       
       (if-let [agendamento-atual (execute-one! ["SELECT * FROM agendamentos WHERE id = ? AND clinica_id = ?" agendamento-id clinica-id])]
+        (cond
+          (= mode "all_future")
+          (if-let [recorrencia-id (:recorrencia_id agendamento-atual)]
+             (let [novo-duracao (or duracao (:duracao agendamento-atual) 50)
+                   novo-valor (if (= status "cancelado") 0 (or valor_consulta (:valor_consulta agendamento-atual)))
+                   
+                   ;; Find all future appointments in this series (including this one)
+                   agendamentos-futuros (execute-query! ["SELECT id, data_hora_sessao FROM agendamentos 
+                                                    WHERE recorrencia_id = ? 
+                                                    AND data_hora_sessao >= ? 
+                                                    AND clinica_id = ?"
+                                                   recorrencia-id (:data_hora_sessao agendamento-atual) clinica-id])]
+               
+               (doall (map (fn [appt]
+                             (let [original-date (:data_hora_sessao appt)
+                                   ;; If user sent a new data_hora_sessao, we extract the TIME and apply it to the original date of each appointment
+                                   new-timestamp (if data_hora_sessao
+                                                   (let [input-timestamp (java.sql.Timestamp/valueOf data_hora_sessao)
+                                                         cal-input (java.util.Calendar/getInstance)
+                                                         cal-original (java.util.Calendar/getInstance)]
+                                                     (.setTime cal-input input-timestamp)
+                                                     (.setTime cal-original original-date)
+                                                     (.set cal-original java.util.Calendar/HOUR_OF_DAY (.get cal-input java.util.Calendar/HOUR_OF_DAY))
+                                                     (.set cal-original java.util.Calendar/MINUTE (.get cal-input java.util.Calendar/MINUTE))
+                                                     (.set cal-original java.util.Calendar/SECOND 0)
+                                                     (java.sql.Timestamp. (.getTimeInMillis cal-original)))
+                                                   original-date)
+                                   
+                                   update-map (cond-> {}
+                                                (some? paciente_id) (assoc :paciente_id (java.util.UUID/fromString paciente_id))
+                                                (some? psicologo_id) (assoc :psicologo_id (java.util.UUID/fromString psicologo_id))
+                                                (some? data_hora_sessao) (assoc :data_hora_sessao new-timestamp) ;; Use calculated timestamp
+                                                (some? novo-valor) (assoc :valor_consulta novo-valor)
+                                                (some? novo-duracao) (assoc :duracao novo-duracao)
+                                                (some? status) (assoc :status status))]
+                               
+                               (sql/update! @datasource :agendamentos update-map {:id (:id appt)})))
+                           agendamentos-futuros))
+               
+               {:status 200 :body {:message (str (count agendamentos-futuros) " agendamentos atualizados com sucesso.")}})
+             
+             {:status 400 :body {:erro "Agendamento não é recorrente."}})
+
+          :else ;; Default: Single update (existing logic)
         (let [;; Determinar dados finais para validação de bloqueio
               novo-data (if data_hora_sessao (java.sql.Timestamp/valueOf data_hora_sessao) (:data_hora_sessao agendamento-atual))
               novo-duracao (or duracao (:duracao agendamento-atual) 50)
@@ -492,7 +536,7 @@
               (if (zero? (:next.jdbc/update-count resultado))
                 {:status 500 :body {:erro "Erro ao atualizar agendamento."}}
                 (let [agendamento-atualizado (execute-one! ["SELECT * FROM agendamentos WHERE id = ?" agendamento-id])]
-                  {:status 200 :body agendamento-atualizado})))))
+                  {:status 200 :body agendamento-atualizado}))))))
         {:status 404 :body {:erro "Agendamento não encontrado."}}))
     (catch Exception e
       (println "ERRO AO ATUALIZAR AGENDAMENTO:" (.getMessage e))
