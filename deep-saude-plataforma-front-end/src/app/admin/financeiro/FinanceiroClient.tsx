@@ -214,6 +214,53 @@ export default function FinanceiroClient({ initialAgendamentos }: FinanceiroClie
         </Card>
       )}
 
+      {/* Breakdown by Psychologist */}
+      <Card>
+        <CardHeader>
+            <CardTitle>Faturamento por Psicólogo</CardTitle>
+            <CardDescription>Receita total gerada por cada profissional neste mês.</CardDescription>
+        </CardHeader>
+        <CardContent>
+            <Table>
+                <TableHeader>
+                    <TableRow>
+                        <TableHead>Psicólogo</TableHead>
+                        <TableHead className="text-right">Sessões</TableHead>
+                        <TableHead className="text-right">Total Gerado</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {Object.entries(
+                        filteredData.reduce((acc, curr) => {
+                            const name = curr.nome_psicologo || "Desconhecido";
+                            if (!acc[name]) acc[name] = { total: 0, count: 0 };
+                            acc[name].total += Number(curr.valor_consulta) || 0;
+                            acc[name].count += 1;
+                            return acc;
+                        }, {} as Record<string, { total: number; count: number }>)
+                    )
+                    .sort(([, a], [, b]) => b.total - a.total)
+                    .map(([name, stats]) => (
+                        <TableRow key={name}>
+                            <TableCell className="font-medium">{name}</TableCell>
+                            <TableCell className="text-right">{stats.count}</TableCell>
+                            <TableCell className="text-right font-bold text-green-700">
+                                {formatCurrency(stats.total)}
+                            </TableCell>
+                        </TableRow>
+                    ))}
+                    {filteredData.length === 0 && (
+                        <TableRow>
+                            <TableCell colSpan={3} className="text-center h-24 text-muted-foreground">
+                                Sem dados para exibir.
+                            </TableCell>
+                        </TableRow>
+                    )}
+                </TableBody>
+            </Table>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle>Histórico de Transações</CardTitle>
