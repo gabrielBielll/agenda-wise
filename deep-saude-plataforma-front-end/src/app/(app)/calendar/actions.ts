@@ -167,6 +167,36 @@ export async function cancelAgendamento(id: string): Promise<{ message: string; 
   return { message: "Sessão cancelada com sucesso! O valor foi zerado.", success: true };
 }
 
+export async function reactivateAgendamento(id: string): Promise<{ message: string; success: boolean }> {
+  const session = await getServerSession(authOptions);
+  const token = (session as any)?.backendToken;
+
+  if (!token) return { message: "Erro de autenticação.", success: false };
+
+  const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/agendamentos/${id}`;
+
+  try {
+    const response = await fetch(apiUrl, {
+      method: "PUT",
+      headers: { 
+        "Content-Type": "application/json", 
+        "Authorization": `Bearer ${token}` 
+      },
+      body: JSON.stringify({ status: "agendado" }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return { message: errorData.erro || "Falha ao reativar sessão.", success: false };
+    }
+  } catch (error) {
+    return { message: "Erro de conexão com o servidor.", success: false };
+  }
+
+  revalidatePath("/calendar");
+  return { message: "Sessão reativada com sucesso!", success: true };
+}
+
 // ============ BLOQUEIOS DE AGENDA ============
 
 export interface Bloqueio {

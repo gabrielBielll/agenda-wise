@@ -70,6 +70,12 @@ function Calendar({
           const year = format(date, "yyyy", { locale: options?.locale });
           return `${month.charAt(0).toUpperCase() + month.slice(1)} de ${year}`;
         },
+        formatWeekdayName: (date, options) => {
+          return format(date, "EEEEE", { locale: options?.locale }); // EEEEE returns narrow (S, T, Q...) or short? verify. 
+          // Better: manual map to ensure 3 chars or strict control.
+          const str = format(date, "EEE", { locale: options?.locale });
+          return str.charAt(0).toUpperCase() + str.slice(1);
+        }
       }}
       {...props}
     />

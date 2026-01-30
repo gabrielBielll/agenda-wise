@@ -32,7 +32,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useFormStatus } from "react-dom";
 import { useActionState } from "react";
-import { createAgendamento, updateAgendamento, deleteAgendamento, cancelAgendamento, createBloqueio, deleteBloqueio, checkBlockConflicts, FormState, type Bloqueio } from "./actions";
+import { createAgendamento, updateAgendamento, deleteAgendamento, cancelAgendamento, reactivateAgendamento, createBloqueio, deleteBloqueio, checkBlockConflicts, FormState, type Bloqueio } from "./actions";
 import { useToast } from "@/hooks/use-toast";
 import { CalendarHeader } from "./CalendarHeader";
 import { DayView } from "./DayView";
@@ -292,6 +292,25 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
         title: "Sessão Cancelada",
         description: result.message,
         className: "bg-orange-500 text-white",
+      });
+      setIsDialogOpen(false);
+      setEditingAppointment(null);
+    } else {
+      toast({
+        title: "Erro",
+        description: result.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleReactivate = async (id: string) => {
+    const result = await reactivateAgendamento(id);
+    if (result.success) {
+      toast({
+        title: "Sessão Reativada",
+        description: result.message,
+        className: "bg-green-500 text-white",
       });
       setIsDialogOpen(false);
       setEditingAppointment(null);
@@ -630,7 +649,18 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                       </AlertDialog>
                     )}
                     {editingAppointment.status === 'cancelado' && (
-                      <span className="text-orange-500 text-sm font-medium">✕ Sessão Cancelada</span>
+                        <div className="flex items-center gap-2">
+                             <span className="text-orange-500 text-sm font-medium">✕ Sessão Cancelada</span>
+                             <Button 
+                                type="button" 
+                                variant="outline" 
+                                size="sm" 
+                                className="h-8 border-green-600 text-green-600 hover:bg-green-50"
+                                onClick={() => handleReactivate(editingAppointment.id)}
+                            >
+                                ⟳ Reativar
+                             </Button>
+                        </div>
                     )}
                   </>
                 )}
