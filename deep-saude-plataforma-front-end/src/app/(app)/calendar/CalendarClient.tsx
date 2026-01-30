@@ -32,7 +32,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useFormStatus } from "react-dom";
 import { useActionState } from "react";
-import { createAgendamento, updateAgendamento, deleteAgendamento, cancelAgendamento, createBloqueio, deleteBloqueio, FormState, type Bloqueio } from "./actions";
+import { createAgendamento, updateAgendamento, deleteAgendamento, cancelAgendamento, createBloqueio, deleteBloqueio, checkBlockConflicts, FormState, type Bloqueio } from "./actions";
 import { useToast } from "@/hooks/use-toast";
 import { CalendarHeader } from "./CalendarHeader";
 import { DayView } from "./DayView";
@@ -100,6 +100,8 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isBlockDialogOpen, setIsBlockDialogOpen] = useState(false);
   const [isConfirmDeleteBlockOpen, setIsConfirmDeleteBlockOpen] = useState(false);
+  const [isConflictDialogOpen, setIsConflictDialogOpen] = useState(false);
+  const [conflictData, setConflictData] = useState<{ count: number, start: string, end: string, motivo: string, diaInteiro: boolean } | null>(null);
   const [blockToDelete, setBlockToDelete] = useState<{ id: string, recorrencia_id?: string } | null>(null);
   const [blockRecurrenceType, setBlockRecurrenceType] = useState<string>("none");
   const [blockRecurrenceCount, setBlockRecurrenceCount] = useState<number>(1);
@@ -203,6 +205,18 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
     const motivo = formData.get('motivo') as string;
     const diaInteiro = formData.get('dia_inteiro') === 'on';
 
+    // 1. Check for conflicts first
+    const conflictResult = await checkBlockConflicts(dataInicio, dataFim, blockRecurrenceType, blockRecurrenceCount);
+
+    if (conflictResult.total > 0) {
+      // Conflicts found, open decision dialog
+      setConflictData({ count: conflictResult.total, start: dataInicio, end: dataFim, motivo, diaInteiro });
+      setIsBlockDialogOpen(false); // Close the input dialog
+      setIsConflictDialogOpen(true);
+      return;
+    }
+
+    // No conflicts, proceed normally
     const result = await createBloqueio(dataInicio, dataFim, motivo, diaInteiro, blockRecurrenceType, blockRecurrenceCount);
     if (result && result.success) {
       toast({ title: "Sucesso", description: result.message, className: "bg-green-500 text-white" });
@@ -210,6 +224,29 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
       setNewAppointmentDate(null);
     } else {
       toast({ title: "Erro", description: result?.message || "Erro desconhecido ao criar bloqueio.", variant: "destructive" });
+    }
+  };
+
+  const confirmBlockCreation = async (cancelConflicts: boolean) => {
+    if (!conflictData) return;
+
+    const result = await createBloqueio(
+      conflictData.start, 
+      conflictData.end, 
+      conflictData.motivo, 
+      conflictData.diaInteiro, 
+      blockRecurrenceType, 
+      blockRecurrenceCount,
+      cancelConflicts
+    );
+
+    if (result && result.success) {
+      toast({ title: "Sucesso", description: result.message, className: "bg-green-500 text-white" });
+      setIsConflictDialogOpen(false);
+      setConflictData(null);
+      setNewAppointmentDate(null);
+    } else {
+      toast({ title: "Erro", description: result?.message || "Erro ao criar bloqueio com resolução de conflitos.", variant: "destructive" });
     }
   };
 
@@ -753,6 +790,37 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
             </form>
           </DialogContent>
         </Dialog>
+
+        {/* Conflict Resolution Dialog */}
+        <AlertDialog open={isConflictDialogOpen} onOpenChange={setIsConflictDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>⚠️ Conflito de Agendamento</AlertDialogTitle>
+              <AlertDialogDescription>
+                Existem <b>{conflictData?.count}</b> agendamento(s) no período que você está tentando bloquear.
+                <br /><br />
+                O que deseja fazer com os agendamentos existentes?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="flex-col sm:justify-end gap-2 sm:flex-row">
+              <AlertDialogCancel onClick={() => {
+                setIsConflictDialogOpen(false);
+                setConflictData(null);
+                setIsBlockDialogOpen(true); // Re-open block dialog to adjust if needed
+              }}>
+                Cancelar Operação
+              </AlertDialogCancel>
+              
+              <Button variant="outline" onClick={() => confirmBlockCreation(false)}>
+                Manter Agendamentos
+              </Button>
+              
+              <Button variant="destructive" onClick={() => confirmBlockCreation(true)}>
+                Cancelar Agendamentos
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         {/* Delete Block Confirmation Dialog */}
         <AlertDialog open={isConfirmDeleteBlockOpen} onOpenChange={setIsConfirmDeleteBlockOpen}>

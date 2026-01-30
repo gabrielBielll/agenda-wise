@@ -4,6 +4,7 @@ import * as React from "react"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { DayPicker } from "react-day-picker"
 import { ptBR } from "date-fns/locale"
+import { format } from "date-fns"
 
 import { cn } from "@/lib/utils"
 import { buttonVariants } from "@/components/ui/button"
@@ -63,6 +64,13 @@ function Calendar({
         ),
       }}
       locale={ptBR}
+      formatters={{
+        formatCaption: (date, options) => {
+          const month = format(date, "MMMM", { locale: options?.locale });
+          const year = format(date, "yyyy", { locale: options?.locale });
+          return `${month.charAt(0).toUpperCase() + month.slice(1)} de ${year}`;
+        },
+      }}
       {...props}
     />
   )

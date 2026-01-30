@@ -523,47 +523,86 @@
         {:status 200 :body agendamentos}))))
 
 ;; --- Handlers de Bloqueios de Agenda ---
+
+(defn gerar-intervalos-bloqueio [data_inicio data_fim recorrencia_tipo quantidade_recorrencia]
+  (let [start-ts (java.sql.Timestamp/valueOf data_inicio)
+        end-ts   (java.sql.Timestamp/valueOf data_fim)
+        duracao-millis (- (.getTime end-ts) (.getTime start-ts))
+        
+        qtd-bloqueios (if (and recorrencia_tipo (pos? (or quantidade_recorrencia 0))) 
+                          (min (or quantidade_recorrencia 1) 120) 
+                          1)
+        intervalo-dias (case recorrencia_tipo
+                         "semanal" 7
+                         "quinzenal" 14
+                         0)]
+    (for [i (range qtd-bloqueios)]
+      (let [base-time (.getTime start-ts)
+            offset-millis (* i intervalo-dias 24 60 60 1000)
+            s-time (java.sql.Timestamp. (+ base-time offset-millis))
+            e-time (java.sql.Timestamp. (+ (.getTime s-time) duracao-millis))]
+        {:start s-time :end e-time}))))
+
+(defn verificar-conflitos-handler [request]
+  (try
+    (let [clinica-id (get-in request [:identity :clinica_id])
+          usuario-id (get-in request [:identity :user_id])
+          {:keys [data_inicio data_fim recorrencia_tipo quantidade_recorrencia]} (:body request)]
+      
+      (if (or (nil? data_inicio) (nil? data_fim))
+        {:status 400 :body {:erro "data_inicio e data_fim são obrigatórios."}}
+        
+        (let [intervalos (gerar-intervalos-bloqueio data_inicio data_fim recorrencia_tipo quantidade_recorrencia)
+              
+              conflitos (reduce (fn [acc {:keys [start end]}]
+                                  (let [agendamentos (execute-query! ["SELECT id, data_hora_sessao, duracao, status FROM agendamentos 
+                                                                       WHERE clinica_id = ? 
+                                                                       AND psicologo_id = ?
+                                                                       AND status != 'cancelado'
+                                                                       AND data_hora_sessao < ?::timestamp
+                                                                       AND (data_hora_sessao + (duracao || ' minutes')::interval) > ?::timestamp"
+                                                                      clinica-id usuario-id end start])]
+                                    (into acc agendamentos)))
+                                []
+                                intervalos)]
+          {:status 200 :body {:conflitos conflitos :total (count conflitos)}})))
+    (catch Exception e
+      (println "ERRO VERIFICAR CONFLITOS:" (.getMessage e))
+      {:status 500 :body {:erro "Erro interno ao verificar conflitos."}})))
+
 (defn criar-bloqueio-handler [request]
   (try
     (let [clinica-id (get-in request [:identity :clinica_id])
           usuario-id (get-in request [:identity :user_id])
-          {:keys [data_inicio data_fim motivo dia_inteiro recorrencia_tipo quantidade_recorrencia]} (:body request)]
+          {:keys [data_inicio data_fim motivo dia_inteiro recorrencia_tipo quantidade_recorrencia cancelar_conflitos]} (:body request)]
       (if (or (nil? data_inicio) (nil? data_fim))
         {:status 400 :body {:erro "data_inicio e data_fim são obrigatórios."}}
-        (let [start-ts (java.sql.Timestamp/valueOf data_inicio)
-              end-ts   (java.sql.Timestamp/valueOf data_fim)
-              duracao-millis (- (.getTime end-ts) (.getTime start-ts))
-              
-              qtd-bloqueios (if (and recorrencia_tipo (pos? (or quantidade_recorrencia 0))) 
-                                (min (or quantidade_recorrencia 1) 120) 
-                                1)
-              intervalo-dias (case recorrencia_tipo
-                               "semanal" 7
-                               "quinzenal" 14
-                               0)
-              
+        (let [intervalos (gerar-intervalos-bloqueio data_inicio data_fim recorrencia_tipo quantidade_recorrencia)
               recorrencia-uuid (when (and recorrencia_tipo (not= recorrencia_tipo "none")) 
-                                 (java.util.UUID/randomUUID))
+                                 (java.util.UUID/randomUUID))]
 
-              bloqueios-para-criar (for [i (range qtd-bloqueios)]
-                                     (let [base-time (.getTime start-ts)
-                                           offset-millis (* i intervalo-dias 24 60 60 1000)
-                                           s-time (java.sql.Timestamp. (+ base-time offset-millis))
-                                           e-time (java.sql.Timestamp. (+ (.getTime s-time) duracao-millis))]
-                                       {:start s-time :end e-time}))]
-                                       
-             (let [novos-bloqueios (doall (map (fn [{:keys [start end]}]
-                                                 (sql/insert! @datasource :bloqueios_agenda
-                                                              {:clinica_id    clinica-id
-                                                               :psicologo_id  usuario-id
-                                                               :data_inicio   start
-                                                               :data_fim      end
-                                                               :motivo        motivo
-                                                               :dia_inteiro   (or dia_inteiro false)
-                                                               :recorrencia_id recorrencia-uuid}
-                                                              {:builder-fn rs/as-unqualified-lower-maps :return-keys true}))
-                                               bloqueios-para-criar))]
-               {:status 201 :body (first novos-bloqueios)}))))
+          ;; Se solicitado, cancelar agendamentos conflitantes
+          (when cancelar_conflitos
+            (doseq [{:keys [start end]} intervalos]
+              (sql/update! @datasource :agendamentos 
+                           {:status "cancelado" :valor_consulta 0} 
+                           ["clinica_id = ? AND psicologo_id = ? AND status != 'cancelado' 
+                             AND data_hora_sessao < ?::timestamp 
+                             AND (data_hora_sessao + (duracao || ' minutes')::interval) > ?::timestamp"
+                            clinica-id usuario-id end start])))
+
+          (let [novos-bloqueios (doall (map (fn [{:keys [start end]}]
+                                              (sql/insert! @datasource :bloqueios_agenda
+                                                           {:clinica_id    clinica-id
+                                                            :psicologo_id  usuario-id
+                                                            :data_inicio   start
+                                                            :data_fim      end
+                                                            :motivo        motivo
+                                                            :dia_inteiro   (or dia_inteiro false)
+                                                            :recorrencia_id recorrencia-uuid}
+                                                           {:builder-fn rs/as-unqualified-lower-maps :return-keys true}))
+                                            intervalos))]
+            {:status 201 :body (first novos-bloqueios)}))))
     (catch Exception e
       (println "ERRO ao criar bloqueio:" (.getMessage e))
       {:status 500 :body {:erro (str "Erro interno: " (.getMessage e))}})))
@@ -797,6 +836,7 @@
 
 ;; ROTAS DE BLOQUEIOS DE AGENDA
 (defroutes bloqueios-routes
+  (POST "/verificar-conflitos" request (wrap-jwt-autenticacao verificar-conflitos-handler))
   (POST "/" request (wrap-jwt-autenticacao criar-bloqueio-handler))
   (GET  "/" request (wrap-jwt-autenticacao listar-bloqueios-handler))
   (DELETE "/:id" request (wrap-jwt-autenticacao remover-bloqueio-handler)))
