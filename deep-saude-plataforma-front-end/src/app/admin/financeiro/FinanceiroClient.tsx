@@ -1,8 +1,10 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { format, parseISO, isSameMonth, subMonths, addMonths } from "date-fns";
+import { format, parseISO, isSameMonth, subMonths, addMonths, startOfMonth, endOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { DateRange } from "react-day-picker";
+import { DatePickerWithRange } from "@/components/ui/date-range-picker";
 import { 
   CartesianGrid, 
   XAxis, 
@@ -54,7 +56,12 @@ interface FinanceiroClientProps {
 }
 
 export default function FinanceiroClient({ initialAgendamentos }: FinanceiroClientProps) {
-  const [currentDate, setCurrentDate] = useState(new Date());
+  // Configuração inicial: dataRage cobrindo o mês atual
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({
+      from: startOfMonth(new Date()),
+      to: endOfMonth(new Date()),
+  });
+  
   const [selectedPsicologo, setSelectedPsicologo] = useState<string>("all");
   const [selectedPaciente, setSelectedPaciente] = useState<string>("all");
   
@@ -71,17 +78,28 @@ export default function FinanceiroClient({ initialAgendamentos }: FinanceiroClie
 
   // Filter appointments
   const filteredData = useMemo(() => {
+    if (!dateRange?.from) return [];
+
     return initialAgendamentos
       .filter(ag => {
         const agDate = parseISO(ag.data_hora_sessao);
-        const matchesDate = isSameMonth(agDate, currentDate);
+        
+        // Filter by Date Range (inclusive)
+        // Set 'from' to start of day and 'to' to end of day to be inclusive
+        const start = new Date(dateRange.from!);
+        start.setHours(0, 0, 0, 0);
+        
+        let end = new Date(dateRange.to || dateRange.from!); // If no 'to', assume single day
+        end.setHours(23, 59, 59, 999);
+        
+        const matchesDate = agDate >= start && agDate <= end;
         const matchesPsicologo = selectedPsicologo === "all" || ag.nome_psicologo === selectedPsicologo;
         const matchesPaciente = selectedPaciente === "all" || ag.nome_paciente === selectedPaciente;
         
         return matchesDate && matchesPsicologo && matchesPaciente;
       })
       .sort((a, b) => new Date(b.data_hora_sessao).getTime() - new Date(a.data_hora_sessao).getTime());
-  }, [initialAgendamentos, currentDate, selectedPsicologo, selectedPaciente]);
+  }, [initialAgendamentos, dateRange, selectedPsicologo, selectedPaciente]);
 
   // Calculate stats
   const totalReceita = filteredData.reduce((acc, curr) => acc + (Number(curr.valor_consulta) || 0), 0);
@@ -105,9 +123,6 @@ export default function FinanceiroClient({ initialAgendamentos }: FinanceiroClie
       });
   }, [filteredData]);
 
-  const handlePrevMonth = () => setCurrentDate(prev => subMonths(prev, 1));
-  const handleNextMonth = () => setCurrentDate(prev => addMonths(prev, 1));
-
   const formatCurrency = (value: number) => 
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 
@@ -120,26 +135,17 @@ export default function FinanceiroClient({ initialAgendamentos }: FinanceiroClie
             <p className="text-muted-foreground">Gestão financeira e visão geral de receitas.</p>
             </div>
             
-            <div className="flex items-center gap-2 bg-card p-1 rounded-lg border shadow-sm">
-                <Button variant="ghost" size="icon" onClick={handlePrevMonth}>
-                    <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <div className="w-40 text-center font-medium">
-                    {format(currentDate, "MMMM yyyy", { locale: ptBR }).toUpperCase()}
-                </div>
-                <Button variant="ghost" size="icon" onClick={handleNextMonth}>
-                    <ChevronRight className="h-4 w-4" />
-                </Button>
-            </div>
         </div>
 
         {/* Filters */}
-        <div className="flex flex-wrap gap-4 items-center">
-            <div className="flex items-center gap-2">
+        <div className="flex flex-wrap gap-4 items-center bg-card p-4 rounded-lg border">
+            <div className="flex items-center gap-2 mr-2">
                 <Filter className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium">Filtrar por:</span>
+                <span className="text-sm font-medium">Filtros:</span>
             </div>
             
+            <DatePickerWithRange date={dateRange} setDate={setDateRange} />
+
             <Select value={selectedPsicologo} onValueChange={setSelectedPsicologo}>
                 <SelectTrigger className="w-[200px]">
                     <SelectValue placeholder="Todos os Psicólogos" />
@@ -164,17 +170,21 @@ export default function FinanceiroClient({ initialAgendamentos }: FinanceiroClie
                 </SelectContent>
             </Select>
 
-            {(selectedPsicologo !== "all" || selectedPaciente !== "all") && (
+            {(selectedPsicologo !== "all" || selectedPaciente !== "all" || (dateRange?.from && !isSameMonth(dateRange.from, new Date()))) && (
                 <Button 
                     variant="ghost" 
                     size="sm"
                     onClick={() => {
                         setSelectedPsicologo("all");
                         setSelectedPaciente("all");
+                        setDateRange({
+                            from: startOfMonth(new Date()),
+                            to: endOfMonth(new Date()),
+                        });
                     }}
                     className="text-muted-foreground"
                 >
-                    Limpar Filtros
+                    Redefinir Filtros
                 </Button>
             )}
         </div>
@@ -191,7 +201,7 @@ export default function FinanceiroClient({ initialAgendamentos }: FinanceiroClie
               {formatCurrency(totalReceita)}
             </div>
             <p className="text-xs text-muted-foreground">
-              Total baseados nos filtros
+              {dateRange?.from ? `${format(dateRange.from, "dd/MM")} - ${format(dateRange.to || dateRange.from, "dd/MM")}` : "Período selecionado"}
             </p>
           </CardContent>
         </Card>
