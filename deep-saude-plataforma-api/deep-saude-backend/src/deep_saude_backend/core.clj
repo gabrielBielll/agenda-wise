@@ -360,7 +360,7 @@
 (defn criar-agendamento-handler [request]
   (try
     (let [clinica-id (get-in request [:identity :clinica_id])
-          {:keys [paciente_id psicologo_id data_hora_sessao valor_consulta duracao recorrencia_tipo quantidade_recorrencia force]} (:body request)]
+          {:keys [paciente_id psicologo_id data_hora_sessao valor_consulta duracao recorrencia_tipo quantidade_recorrencia force observacoes]} (:body request)]
       (println "DEBUG: Handler iniciado. Payload:" (:body request))
       (if (or (nil? paciente_id) (nil? psicologo_id) (nil? data_hora_sessao))
         {:status 400, :body {:erro "paciente_id, psicologo_id e data_hora_sessao são obrigatórios."}}
@@ -435,7 +435,8 @@
                                                                      :psicologo_id     psicologo-uuid
                                                                      :data_hora_sessao start
                                                                      :valor_consulta   valor_consulta
-                                                                     :duracao          duracao-sessao}
+                                                                     :duracao          duracao-sessao
+                                                                     :observacoes      observacoes}
                                                                     (when recorrencia-uuid {:recorrencia_id recorrencia-uuid}))
                                                                   {:builder-fn rs/as-unqualified-lower-maps :return-keys true}))
                                                    sessoes-para-criar))]
@@ -457,7 +458,7 @@
   (try
     (let [clinica-id (get-in request [:identity :clinica_id])
           agendamento-id (java.util.UUID/fromString (get-in request [:params :id]))
-          {:keys [paciente_id psicologo_id data_hora_sessao valor_consulta duracao status mode]} (:body request)]
+          {:keys [paciente_id psicologo_id data_hora_sessao valor_consulta duracao status mode observacoes]} (:body request)]
       
       (if-let [agendamento-atual (execute-one! ["SELECT * FROM agendamentos WHERE id = ? AND clinica_id = ?" agendamento-id clinica-id])]
         (cond
@@ -494,7 +495,8 @@
                                                 (some? data_hora_sessao) (assoc :data_hora_sessao new-timestamp) ;; Use calculated timestamp
                                                 (some? novo-valor) (assoc :valor_consulta novo-valor)
                                                 (some? novo-duracao) (assoc :duracao novo-duracao)
-                                                (some? status) (assoc :status status))]
+                                                (some? status) (assoc :status status)
+                                                (some? observacoes) (assoc :observacoes observacoes))]
                                
                                (sql/update! @datasource :agendamentos update-map {:id (:id appt)})))
                            agendamentos-futuros))
@@ -528,7 +530,8 @@
                            (some? data_hora_sessao) (assoc :data_hora_sessao (java.sql.Timestamp/valueOf data_hora_sessao))
                            (some? valor-final) (assoc :valor_consulta valor-final)
                            (some? duracao) (assoc :duracao duracao)
-                           (some? status) (assoc :status status))]
+                           (some? status) (assoc :status status)
+                           (some? observacoes) (assoc :observacoes observacoes))]
           
           (if bloqueio-existente
             {:status 409 :body {:erro "Não é possível alterar para este horário. O período está bloqueado."}}

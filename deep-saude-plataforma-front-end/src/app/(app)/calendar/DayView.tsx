@@ -9,6 +9,7 @@ interface Appointment {
   nome_paciente: string;
   paciente_id?: string;
   valor_consulta?: number;
+  status?: string;
 }
 
 interface Bloqueio {
@@ -166,7 +167,12 @@ export function DayView({ date, appointments, bloqueios = [], onAddAppointment, 
                     return (
                         <div
                             key={app.id}
-                            className="absolute left-2 right-2 rounded-md bg-primary/10 border-l-4 border-primary p-1 text-xs hover:bg-primary/20 transition-colors cursor-pointer z-10"
+                            className={cn(
+                              "absolute left-2 right-2 rounded-md p-1 text-xs transition-colors cursor-pointer z-10 border-l-4",
+                               app.status === 'cancelado' 
+                                  ? "bg-red-100 dark:bg-red-900/20 border-red-500 text-red-700 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-900/30 opacity-80"
+                                  : "bg-primary/10 border-primary hover:bg-primary/20"
+                            )}
                             style={{ top: `${topPos}%`, height: `${height}%`, minHeight: '20px' }}
                             onClick={(e) => {
                                 e.stopPropagation();
@@ -181,7 +187,7 @@ export function DayView({ date, appointments, bloqueios = [], onAddAppointment, 
                                   })()
                                 }
                             </span>
-                            <span className="truncate block font-medium text-foreground/90">
+                            <span className={cn("truncate block font-medium", app.status === 'cancelado' ? "line-through opacity-70" : "text-foreground/90")}>
                                 {app.nome_paciente}
                             </span>
                         </div>

@@ -5,7 +5,8 @@ import { signOut } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, PlusCircle, Pencil, Trash2, Calendar as CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, PlusCircle, Pencil, Trash2, Calendar as CalendarIcon, ChevronLeft, ChevronRight, FileText, ExternalLink } from "lucide-react";
+import Link from "next/link";
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Dialog,
@@ -28,6 +29,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useFormStatus } from "react-dom";
@@ -49,6 +51,7 @@ interface Appointment {
   valor_consulta?: number;
   status?: string; // 'agendado' | 'cancelado' | 'concluido'
   recorrencia_id?: string;
+  observacoes?: string;
 }
 
 
@@ -110,7 +113,19 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
   const [isCancelOpen, setIsCancelOpen] = useState(false); // For single appt cancel
   const [blockRecurrenceType, setBlockRecurrenceType] = useState<string>("none");
   const [blockRecurrenceCount, setBlockRecurrenceCount] = useState<number>(1);
+  const [selectedPatientId, setSelectedPatientId] = useState<string | undefined>(undefined);
+
+
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
+
+  // Update selected patient when editing
+  useEffect(() => {
+    if (editingAppointment) {
+        setSelectedPatientId(editingAppointment.paciente_id);
+    } else {
+        setSelectedPatientId(undefined);
+    }
+  }, [editingAppointment]);
   const [newAppointmentDate, setNewAppointmentDate] = useState<Date | null>(null); // To store date clicked in views
   const [slotAction, setSlotAction] = useState<SlotAction | null>(null); // For context menu
   const { toast } = useToast();
@@ -483,7 +498,12 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                   Paciente
                 </Label>
                 <div className="col-span-3">
-                    <Select name="paciente_id" required defaultValue={editingAppointment?.paciente_id || ""}>
+                    <Select 
+                        name="paciente_id" 
+                        required 
+                        defaultValue={editingAppointment?.paciente_id || ""}
+                        onValueChange={setSelectedPatientId}
+                    >
                         <SelectTrigger>
                             <SelectValue placeholder="Selecione..." />
                         </SelectTrigger>
@@ -702,6 +722,35 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                     {state.errors?.valor_consulta && <p className="text-xs text-destructive mt-1">{state.errors.valor_consulta[0]}</p>}
                 </div>
               </div>
+
+              <div className="grid grid-cols-4 items-start gap-4">
+                <Label htmlFor="observacoes" className="text-right mt-2">
+                  Notas
+                </Label>
+                <div className="col-span-3">
+                    <Textarea 
+                        id="observacoes" 
+                        name="observacoes" 
+                        placeholder="Adicione observações sobre a sessão..."
+                        className="min-h-[80px]"
+                        defaultValue={editingAppointment?.observacoes || ""}
+                    />
+                </div>
+              </div>
+
+              {selectedPatientId && (
+                  <div className="flex justify-end">
+                      <Link 
+                        href={`/patients/${selectedPatientId}`} 
+                        target="_blank"
+                        className="text-sm text-primary flex items-center gap-1 hover:underline"
+                      >
+                          <FileText className="h-4 w-4" />
+                          Ir para Prontuário
+                          <ExternalLink className="h-3 w-3" />
+                      </Link>
+                  </div>
+              )}
                 <DialogFooter className="flex w-full items-center justify-between sm:justify-between">
                 {editingAppointment && (
                   <>

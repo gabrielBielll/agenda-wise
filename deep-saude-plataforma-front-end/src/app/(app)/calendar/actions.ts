@@ -13,6 +13,7 @@ const agendamentoSchema = z.object({
   recorrencia_tipo: z.string().optional(),
   quantidade_recorrencia: z.coerce.number().optional().default(1).refine((val) => val <= 120, { message: "O limite é de 120 agendamentos por vez." }),
   force: z.string().optional().transform((val) => val === "true"),
+  observacoes: z.string().optional(),
 });
 
 export type FormState = {
