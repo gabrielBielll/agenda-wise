@@ -153,7 +153,11 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
               })
           });
           
-          if (!res.ok) throw new Error('Failed to update');
+          if (!res.ok) {
+            const errText = await res.text();
+            console.error("Failed to update repasse:", res.status, errText);
+            throw new Error(`Failed to update: ${res.status} ${errText}`);
+          }
           
           toast({
               title: "Status atualizado",
@@ -161,11 +165,14 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
               className: "bg-green-500 text-white"
           });
 
-      } catch (error) {
+      } catch (error: any) {
           console.error("Error updating repasse:", error);
+          // Extract message from error object if possible
+          const cleanMsg = error.message?.replace("Failed to update: ", "") || "Erro desconhecido";
+          
            toast({
-              title: "Erro",
-              description: "Não foi possível atualizar o status.",
+              title: "Erro ao atualizar",
+              description: cleanMsg.substring(0, 100), // Limit length
               variant: "destructive"
           });
           // Revert
