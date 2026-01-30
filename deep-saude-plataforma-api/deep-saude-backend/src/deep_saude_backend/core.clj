@@ -44,6 +44,30 @@
 (defn execute-one! [query-vector]
   (jdbc/execute-one! @datasource query-vector {:builder-fn rs/as-unqualified-lower-maps}))
 
+;; --- MIGRATION SAFEGUARD ---
+;; Ensure tables have necessary columns for finance module
+(defn ensure-finance-columns! []
+  (try
+    (println "MIGRATION: Verificando colunas financeiras na tabela agendamentos...")
+    ;; Check/Add valor_repasse
+    (try 
+       (jdbc/execute! @datasource ["ALTER TABLE agendamentos ADD COLUMN valor_repasse DECIMAL(10, 2)"])
+       (println "MIGRATION: Coluna 'valor_repasse' adicionada.")
+       (catch Exception _ (println "MIGRATION: Coluna 'valor_repasse' ja existe.")))
+    
+    ;; Check/Add status_repasse
+    (try 
+       (jdbc/execute! @datasource ["ALTER TABLE agendamentos ADD COLUMN status_repasse VARCHAR(20) DEFAULT 'pendente'"])
+       (println "MIGRATION: Coluna 'status_repasse' adicionada.")
+       (catch Exception _ (println "MIGRATION: Coluna 'status_repasse' ja existe.")))
+    
+    (println "MIGRATION: Verificação concluída.")
+    (catch Exception e
+      (println "MIGRATION ERROR:" (.getMessage e)))))
+
+;; Run migration on startup (in a delay or future to avoid blocking, but here simple call is fine as it's quick)
+(future (ensure-finance-columns!))
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Middlewares de Segurança
@@ -531,7 +555,9 @@
                            (some? valor-final) (assoc :valor_consulta valor-final)
                            (some? duracao) (assoc :duracao duracao)
                            (some? status) (assoc :status status)
-                           (some? observacoes) (assoc :observacoes observacoes))]
+                           (some? observacoes) (assoc :observacoes observacoes)
+                           (some? (:valor_repasse (:body request))) (assoc :valor_repasse (:valor_repasse (:body request)))
+                           (some? (:status_repasse (:body request))) (assoc :status_repasse (:status_repasse (:body request))))]
           
           (if bloqueio-existente
             {:status 409 :body {:erro "Não é possível alterar para este horário. O período está bloqueado."}}
