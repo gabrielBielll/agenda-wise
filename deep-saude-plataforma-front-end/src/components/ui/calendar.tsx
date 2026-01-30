@@ -71,8 +71,7 @@ function Calendar({
           return `${month.charAt(0).toUpperCase() + month.slice(1)} de ${year}`;
         },
         formatWeekdayName: (date, options) => {
-          return format(date, "EEEEE", { locale: options?.locale }); // EEEEE returns narrow (S, T, Q...) or short? verify. 
-          // Better: manual map to ensure 3 chars or strict control.
+          // EEE returns short day (Seg, Ter, Qua...)
           const str = format(date, "EEE", { locale: options?.locale });
           return str.charAt(0).toUpperCase() + str.slice(1);
         }

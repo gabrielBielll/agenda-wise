@@ -396,19 +396,25 @@
               paciente-valido? (execute-one! ["SELECT id FROM pacientes WHERE id = ? AND clinica_id = ?" 
                                               paciente-uuid clinica-id])
               psicologo-valido? (execute-one! ["SELECT id FROM usuarios WHERE id = ? AND clinica_id = ?" 
-                                               psicologo-uuid clinica-id])]
+                                               psicologo-uuid clinica-id])
+
+              ;; Generate recurrence ID if valid recurrence
+              recorrencia-uuid (when (and recorrencia_tipo (pos? (or quantidade_recorrencia 0)) (> qtd-sessoes 1))
+                                 (java.util.UUID/randomUUID))]
           
           (if bloqueio-existente
             {:status 409 :body {:erro "Não é possível agendar. Um ou mais horários da sequência conflitam com bloqueios."}}
             (if (and paciente-valido? psicologo-valido?)
               (let [novos-agendamentos (doall (map (fn [{:keys [start end]}]
                                                      (sql/insert! @datasource :agendamentos
-                                                                  {:clinica_id       clinica-id
-                                                                   :paciente_id      paciente-uuid
-                                                                   :psicologo_id     psicologo-uuid
-                                                                   :data_hora_sessao start
-                                                                   :valor_consulta   valor_consulta
-                                                                   :duracao          duracao-sessao}
+                                                                  (merge 
+                                                                    {:clinica_id       clinica-id
+                                                                     :paciente_id      paciente-uuid
+                                                                     :psicologo_id     psicologo-uuid
+                                                                     :data_hora_sessao start
+                                                                     :valor_consulta   valor_consulta
+                                                                     :duracao          duracao-sessao}
+                                                                    (when recorrencia-uuid {:recorrencia_id recorrencia-uuid}))
                                                                   {:builder-fn rs/as-unqualified-lower-maps :return-keys true}))
                                                    sessoes-para-criar))]
                 {:status 201, :body (first novos-agendamentos)})
@@ -476,13 +482,28 @@
 (defn remover-agendamento-handler [request]
   (try
     (let [clinica-id (get-in request [:identity :clinica_id])
-          agendamento-id (java.util.UUID/fromString (get-in request [:params :id]))]
+          agendamento-id (java.util.UUID/fromString (get-in request [:params :id]))
+          mode (get-in request [:query-params "mode"])]
       
-      (if (execute-one! ["SELECT id FROM agendamentos WHERE id = ? AND clinica_id = ?" agendamento-id clinica-id])
-        (let [resultado (sql/delete! @datasource :agendamentos {:id agendamento-id :clinica_id clinica-id})]
-          (if (zero? (:next.jdbc/update-count resultado))
-            {:status 500 :body {:erro "Erro ao remover agendamento."}}
-            {:status 204 :body ""}))
+      (if-let [agendamento (execute-one! ["SELECT * FROM agendamentos WHERE id = ? AND clinica_id = ?" agendamento-id clinica-id])]
+        (let [recorrencia-id (:recorrencia_id agendamento)
+              data-sessao (:data_hora_sessao agendamento)]
+          
+          (if (and (= mode "all_future") recorrencia-id)
+            ;; Remover este e os futuros da mesma recorrência
+            (let [resultado (jdbc/execute! @datasource 
+                                           ["DELETE FROM agendamentos 
+                                             WHERE clinica_id = ? 
+                                             AND recorrencia_id = ? 
+                                             AND data_hora_sessao >= ?"
+                                            clinica-id recorrencia-id data-sessao])]
+               {:status 204 :body ""})
+            
+            ;; Remover apenas este
+            (let [resultado (sql/delete! @datasource :agendamentos {:id agendamento-id :clinica_id clinica-id})]
+              (if (zero? (:next.jdbc/update-count resultado))
+                {:status 500 :body {:erro "Erro ao remover agendamento."}}
+                {:status 204 :body ""}))))
         {:status 404 :body {:erro "Agendamento não encontrado."}}))
     (catch Exception e
       (println "ERRO AO REMOVER AGENDAMENTO:" (.getMessage e))

@@ -53,9 +53,12 @@ export function CalendarHeader({ date, setDate, view, setView, onToday }: Calend
       const endOfWeek = new Date(startOfWeek);
       endOfWeek.setDate(startOfWeek.getDate() + 6); // Saturday
       
-      const startStr = format(startOfWeek, "d 'de' MMM", { locale: ptBR });
-      const endStr = format(endOfWeek, "d 'de' MMM 'de' yyyy", { locale: ptBR });
-      return `${startStr} - ${endStr}`;
+      // Check if same month
+      if (startOfWeek.getMonth() === endOfWeek.getMonth()) {
+          return `${format(startOfWeek, 'd', { locale: ptBR })} a ${format(endOfWeek, "d 'de' MMMM 'de' yyyy", { locale: ptBR })}`;
+      } else {
+          return `${format(startOfWeek, "d 'de' MMM", { locale: ptBR })} a ${format(endOfWeek, "d 'de' MMM 'de' yyyy", { locale: ptBR })}`;
+      }
     }
   };
 

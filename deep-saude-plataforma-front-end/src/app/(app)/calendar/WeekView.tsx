@@ -1,6 +1,8 @@
 
 import React from 'react';
 import { cn } from "@/lib/utils";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 interface Appointment {
   id: string;
@@ -108,7 +110,7 @@ export function WeekView({ date, appointments, bloqueios = [], onAddAppointment,
             return (
                 <div key={index} className={cn("p-2 text-center text-sm font-medium", isToday && "bg-accent/20")}>
                     <div className={cn("text-xs uppercase text-muted-foreground", isToday && "text-primary font-bold")}>
-                        {day.toLocaleDateString('pt-BR', { weekday: 'short' })}
+                        {format(day, 'EEE', { locale: ptBR })}
                     </div>
                     <div className={cn("text-lg", isToday && "text-primary font-bold")}>
                         {day.getDate()}

@@ -48,9 +48,10 @@ interface Appointment {
   paciente_id?: string; // Needed for pre-filling edit form
   valor_consulta?: number;
   status?: string; // 'agendado' | 'cancelado' | 'concluido'
+  recorrencia_id?: string;
 }
 
-// ... existing imports ...
+
 
 // Helper function to add minutes to a date
 function addMinutes(date: Date, minutes: number) {
@@ -103,6 +104,10 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
   const [isConflictDialogOpen, setIsConflictDialogOpen] = useState(false);
   const [conflictData, setConflictData] = useState<{ count: number, start: string, end: string, motivo: string, diaInteiro: boolean } | null>(null);
   const [blockToDelete, setBlockToDelete] = useState<{ id: string, recorrencia_id?: string } | null>(null);
+  const [isConfirmDeleteApptOpen, setIsConfirmDeleteApptOpen] = useState(false);
+  const [apptToDelete, setApptToDelete] = useState<{ id: string, recorrencia_id?: string } | null>(null);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false); // For single appt delete (non-recurrent or recurrence choice made)
+  const [isCancelOpen, setIsCancelOpen] = useState(false); // For single appt cancel
   const [blockRecurrenceType, setBlockRecurrenceType] = useState<string>("none");
   const [blockRecurrenceCount, setBlockRecurrenceCount] = useState<number>(1);
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
@@ -268,14 +273,40 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
       setIsConfirmDeleteBlockOpen(true);
   };
 
-  const handleDelete = async (id: string) => {
-      const result = await deleteAgendamento(id);
+  const handleDelete = (id: string) => {
+      // Find appointment to check recurrence
+      const app = appointments.find(a => a.id === id);
+      const recorrenciaId = app?.recorrencia_id;
+
+      if (recorrenciaId) {
+          setApptToDelete({ id, recorrencia_id: recorrenciaId });
+          setIsConfirmDeleteApptOpen(true);
+      } else {
+          // Open single delete confirmation
+          // We don't need to setApptToDelete for single, as we rely on editingAppointment, 
+          // BUT executeDelete uses the ID passed.
+          // Wait, 'isDeleteOpen' dialog uses 'editingAppointment.id'.
+          setIsDeleteOpen(true);
+      }
+  };
+
+  const executeDelete = async (id: string, mode: 'single' | 'all_future') => {
+      // Close confirmation dialogs FIRST to avoid conflict with parent dialog closure
+      setIsConfirmDeleteApptOpen(false);
+      setIsDeleteOpen(false);
+      
+      const result = await deleteAgendamento(id, mode);
+      
       if (result.success) {
           toast({
               title: "Sucesso",
               description: result.message,
               className: "bg-green-500 text-white",
           });
+          
+          setApptToDelete(null);
+          setIsDialogOpen(false); // Close edit dialog finally
+          setEditingAppointment(null);
       } else {
           toast({
               title: "Erro",
@@ -350,7 +381,9 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                 {editingAppointment ? "Atualize os dados da sessão." : "Agende uma sessão para um de seus pacientes."}
               </DialogDescription>
             </DialogHeader>
-            <form action={(formData) => {
+            <form 
+              key={editingAppointment ? editingAppointment.id : "new-appointment"}
+              action={(formData) => {
                 // Determine duration before submitting
                 const startStr = formData.get("data_hora_sessao") as string;
                 const endStr = formData.get("data_hora_fim") as string;
@@ -590,63 +623,18 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                     {state.errors?.valor_consulta && <p className="text-xs text-destructive mt-1">{state.errors.valor_consulta[0]}</p>}
                 </div>
               </div>
-              <DialogFooter className="flex w-full items-center justify-between sm:justify-between">
+                <DialogFooter className="flex w-full items-center justify-between sm:justify-between">
                 {editingAppointment && (
                   <>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="destructive" type="button" size="icon">
+                     <Button variant="destructive" type="button" size="icon" onClick={() => handleDelete(editingAppointment.id)}>
                           <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Excluir Agendamento?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Você tem certeza que deseja excluir este agendamento? Esta ação não pode ser desfeita.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => {
-                              if (editingAppointment) {
-                                  handleDelete(editingAppointment.id);
-                                  setIsDialogOpen(false);
-                              }
-                          }} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                            Excluir
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+                     </Button>
 
                     {/* Cancel Session Button */}
                     {editingAppointment.status !== 'cancelado' && (
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="outline" type="button" className="border-orange-500 text-orange-500 hover:bg-orange-50">
+                          <Button variant="outline" type="button" className="border-orange-500 text-orange-500 hover:bg-orange-50" onClick={() => setIsCancelOpen(true)}>
                             ✕ Cancelar Sessão
                           </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Cancelar Sessão?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              A sessão será marcada como cancelada e o valor financeiro será zerado automaticamente. Os dados da sessão serão mantidos.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Voltar</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => {
-                              if (editingAppointment) {
-                                handleCancel(editingAppointment.id);
-                              }
-                            }} className="bg-orange-500 text-white hover:bg-orange-600">
-                              Confirmar Cancelamento
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
                     )}
                     {editingAppointment.status === 'cancelado' && (
                         <div className="flex items-center gap-2">
@@ -674,6 +662,51 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
             </form>
           </DialogContent>
         </Dialog>
+
+         {/* EXCLUDED FROM NESTING: Confirm Delete Dialog */}
+        <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+            <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Excluir Agendamento?</AlertDialogTitle>
+                <AlertDialogDescription>
+                Você tem certeza que deseja excluir este agendamento? Esta ação não pode ser desfeita.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={() => {
+                    if (editingAppointment) {
+                        executeDelete(editingAppointment.id, 'single');
+                    }
+                }} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                Excluir
+                </AlertDialogAction>
+            </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+
+        {/* EXCLUDED FROM NESTING: Confirm Cancel Dialog */}
+        <AlertDialog open={isCancelOpen} onOpenChange={setIsCancelOpen}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                <AlertDialogTitle>Cancelar Sessão?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    A sessão será marcada como cancelada e o valor financeiro será zerado automaticamente. Os dados da sessão serão mantidos.
+                </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                <AlertDialogCancel>Voltar</AlertDialogCancel>
+                <AlertDialogAction onClick={() => {
+                    if (editingAppointment) {
+                    handleCancel(editingAppointment.id);
+                    setIsCancelOpen(false);
+                    }
+                }} className="bg-orange-500 text-white hover:bg-orange-600">
+                    Confirmar Cancelamento
+                </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
 
         {/* Block Dialog */}
         <Dialog open={isBlockDialogOpen} onOpenChange={setIsBlockDialogOpen}>
@@ -879,6 +912,27 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                             Remover
                         </AlertDialogAction>
                     )}
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Delete Appointment Confirmation Dialog */}
+        <AlertDialog open={isConfirmDeleteApptOpen} onOpenChange={setIsConfirmDeleteApptOpen}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Excluir Agendamento</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Este agendamento faz parte de uma série recorrente. O que você deseja fazer?
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter className="flex-col sm:justify-start gap-2">
+                    <AlertDialogCancel onClick={() => setApptToDelete(null)}>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => apptToDelete && executeDelete(apptToDelete.id, 'single')}>
+                        Apenas este
+                    </AlertDialogAction>
+                    <AlertDialogAction onClick={() => apptToDelete && executeDelete(apptToDelete.id, 'all_future')} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                        Este e os seguintes
+                    </AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
