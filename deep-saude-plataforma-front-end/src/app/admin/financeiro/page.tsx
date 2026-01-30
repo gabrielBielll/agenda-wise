@@ -37,5 +37,5 @@ export default async function AdminFinanceiroPage() {
 
   const agendamentos = await getAgendamentos(token);
 
-  return <FinanceiroClient initialAgendamentos={agendamentos} />;
+  return <FinanceiroClient initialAgendamentos={agendamentos} token={token} />;
 }

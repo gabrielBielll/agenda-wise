@@ -56,13 +56,14 @@ interface Agendamento {
 
 interface FinanceiroClientProps {
   initialAgendamentos: Agendamento[];
+  token: string;
 }
 
 import { CheckCircle2, Circle, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
-export default function FinanceiroClient({ initialAgendamentos }: FinanceiroClientProps) {
+export default function FinanceiroClient({ initialAgendamentos, token }: FinanceiroClientProps) {
   const { toast } = useToast();
   // Configuração inicial: dataRage cobrindo o mês atual
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
@@ -139,28 +140,12 @@ export default function FinanceiroClient({ initialAgendamentos }: FinanceiroClie
       ));
 
       try {
-          const session = await fetch('/api/auth/session').then(res => res.json()); 
-          // Note: Ideally use a better way to get token in client, but this works if session endpoint is standard next-auth
-          // Or we can just call the API and let middleware handle cookie? 
-          // Client components don't pass cookies automatically to API unless same origin credentials.
-          
-          // Actually, we need to pass the token. Since we don't have it easily in context without a provider,
-          // we might just rely on the cookie if the API is on the same domain (which it is, forwarded).
-          // But wait, the backend auth middleware expects "Authorization: Bearer <token>".
-          // We need the token.
-          
-          // Let's assume for this MVP we can trigger the update. If it fails, we revert.
-          // Getting token from session is async.
-          
-          // TEMPORARY FIX: We need the token for the API request. 
-          // As we are in a Client Component, we should ideally use `useSession` from `next-auth/react`.
-          // I'll add `useSession` hook.
-          
           // Making request...
           const res = await fetch(`/api/agendamentos/${id}`, {
               method: 'PUT',
               headers: {
                   'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`
               },
               body: JSON.stringify({
                   status_repasse: newStatus,
