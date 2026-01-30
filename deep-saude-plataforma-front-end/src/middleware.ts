@@ -13,16 +13,28 @@ export async function middleware(request: NextRequest) {
   console.log(`[Middleware] Path: ${pathname} | Role: ${role} | Token Exists: ${!!token}`);
 
   // --- Helper to check backend token expiration ---
+  // --- Helper to check backend token expiration ---
   const isBackendTokenExpired = (backendToken?: string) => {
       if (!backendToken) return true;
       try {
-          const [, payload] = backendToken.split('.');
-          if (!payload) return true;
-          const decoded = JSON.parse(atob(payload));
-          // exp is in seconds, Date.now() is in ms
-          return (decoded.exp * 1000) < Date.now();
+          // Robust decoding for JWT parts
+          const parts = backendToken.split('.');
+          if (parts.length < 2) return true;
+          
+          const payload = parts[1];
+          // Fix base64 padding if necessary (though usually standard JWTs are fine)
+          const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+          const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+              return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+          }).join(''));
+
+          const decoded = JSON.parse(jsonPayload);
+          
+          // Add a safety buffer of 10 seconds to avoid edge cases
+          if (!decoded.exp) return true;
+          return (decoded.exp * 1000) < (Date.now() + 10000); 
       } catch (error) {
-          console.error("Error decoding backend token:", error);
+          console.error("Error decoding backend token in middleware:", error);
           return true;
       }
   };

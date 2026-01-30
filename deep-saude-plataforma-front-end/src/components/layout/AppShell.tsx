@@ -60,7 +60,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
 
   const handleLogout = async () => {
-    await signOut({ callbackUrl: '/' }); 
+    // redirect: true forces the hard redirect to callbackUrl, skipping the "Start/Swap" intermediate page
+    await signOut({ callbackUrl: '/', redirect: true }); 
   };
 
   return (
