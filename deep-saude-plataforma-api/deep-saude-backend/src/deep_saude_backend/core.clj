@@ -360,7 +360,7 @@
 (defn criar-agendamento-handler [request]
   (try
     (let [clinica-id (get-in request [:identity :clinica_id])
-          {:keys [paciente_id psicologo_id data_hora_sessao valor_consulta duracao recorrencia_tipo quantidade_recorrencia]} (:body request)]
+          {:keys [paciente_id psicologo_id data_hora_sessao valor_consulta duracao recorrencia_tipo quantidade_recorrencia force]} (:body request)]
       (println "DEBUG: Handler iniciado. Payload:" (:body request))
       (if (or (nil? paciente_id) (nil? psicologo_id) (nil? data_hora_sessao))
         {:status 400, :body {:erro "paciente_id, psicologo_id e data_hora_sessao são obrigatórios."}}
@@ -392,6 +392,20 @@
                                                          AND data_fim > ?::timestamp"
                                                         clinica-id psicologo-uuid end start]))
                                        sessoes-para-criar)
+
+              agendamento-conflitante (when (not force)
+                                        (let [conflicts (doall (map (fn [{:keys [start end]}]
+                                                (let [found (execute-one! ["SELECT id FROM agendamentos 
+                                                                WHERE clinica_id = ? 
+                                                                AND psicologo_id = ?
+                                                                AND status != 'cancelado'
+                                                                AND data_hora_sessao < ?::timestamp
+                                                                AND (data_hora_sessao + (COALESCE(duracao, 50) || ' minutes')::interval) > ?::timestamp"
+                                                               clinica-id psicologo-uuid end start])]
+                                                  (when found (println "DEBUG: Conflito encontrado para" start "com agendamento" (:id found)))
+                                                  found))
+                                              sessoes-para-criar))]
+                                          (some identity conflicts)))
               
               paciente-valido? (execute-one! ["SELECT id FROM pacientes WHERE id = ? AND clinica_id = ?" 
                                               paciente-uuid clinica-id])
@@ -402,10 +416,18 @@
               recorrencia-uuid (when (and recorrencia_tipo (pos? (or quantidade_recorrencia 0)) (> qtd-sessoes 1))
                                  (java.util.UUID/randomUUID))]
           
-          (if bloqueio-existente
-            {:status 409 :body {:erro "Não é possível agendar. Um ou mais horários da sequência conflitam com bloqueios."}}
-            (if (and paciente-valido? psicologo-valido?)
-              (let [novos-agendamentos (doall (map (fn [{:keys [start end]}]
+          (cond
+            bloqueio-existente
+            {:status 409 :body {:erro "Não é possível agendar. Um ou mais horários da sequência conflitam com bloqueios." :code "block_conflict"}}
+            
+            agendamento-conflitante
+            {:status 409 :body {:erro "Já existe um agendamento neste horário." :code "appointment_conflict"}}
+            
+            (not (and paciente-valido? psicologo-valido?))
+            {:status 422, :body {:erro "Paciente ou psicólogo não pertence à clínica do usuário autenticado."}}
+
+            :else
+            (let [novos-agendamentos (doall (map (fn [{:keys [start end]}]
                                                      (sql/insert! @datasource :agendamentos
                                                                   (merge 
                                                                     {:clinica_id       clinica-id
@@ -417,8 +439,7 @@
                                                                     (when recorrencia-uuid {:recorrencia_id recorrencia-uuid}))
                                                                   {:builder-fn rs/as-unqualified-lower-maps :return-keys true}))
                                                    sessoes-para-criar))]
-                {:status 201, :body (first novos-agendamentos)})
-              {:status 422, :body {:erro "Paciente ou psicólogo não pertence à clínica do usuário autenticado."}})))))
+                {:status 201, :body (first novos-agendamentos)})))))
     (catch Exception e
       (println "ERRO FATAL NO HANDLER:" (.getMessage e))
       (.printStackTrace e)

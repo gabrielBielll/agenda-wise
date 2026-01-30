@@ -12,6 +12,7 @@ const agendamentoSchema = z.object({
   valor_consulta: z.coerce.number().min(0, { message: "O valor deve ser positivo." }),
   recorrencia_tipo: z.string().optional(),
   quantidade_recorrencia: z.coerce.number().optional().default(1).refine((val) => val <= 120, { message: "O limite é de 120 agendamentos por vez." }),
+  force: z.string().optional().transform((val) => val === "true"),
 });
 
 export type FormState = {
@@ -22,6 +23,7 @@ export type FormState = {
     valor_consulta?: string[];
   };
   success: boolean;
+  conflict?: boolean;
 };
 
 export async function createAgendamento(prevState: FormState, formData: FormData): Promise<FormState> {
@@ -52,12 +54,18 @@ export async function createAgendamento(prevState: FormState, formData: FormData
         ...validatedFields.data,
         psicologo_id: userId, // O psicólogo cria para si mesmo
         data_hora_sessao: validatedFields.data.data_hora_sessao.replace("T", " ") + ":00",
-        duracao: validatedFields.data.duracao
+        duracao: validatedFields.data.duracao,
+        force: validatedFields.data.force
       }),
     });
 
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
+        
+        if (response.status === 409 && errorData.code === 'appointment_conflict') {
+            return { message: errorData.erro, success: false, conflict: true };
+        }
+
         return { message: errorData.erro || "Falha ao criar agendamento.", success: false };
     }
   } catch (error) {

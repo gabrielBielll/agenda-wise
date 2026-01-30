@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, PlusCircle, Pencil, Trash2, Calendar as CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react";
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -115,14 +115,25 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
   const [slotAction, setSlotAction] = useState<SlotAction | null>(null); // For context menu
   const { toast } = useToast();
   const [recurrenceType, setRecurrenceType] = useState<string>("none");
+  const [isConflictOpen, setIsConflictOpen] = useState(false);
+  const [forceSubmission, setForceSubmission] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
+
   
   // Wrapper action to handle both create and update
   const action = async (prevState: FormState, formData: FormData) => {
-    if (editingAppointment) {
-      return updateAgendamento(editingAppointment.id, prevState, formData);
-    } else {
-      return createAgendamento(prevState, formData);
+    let result: FormState | undefined;
+    try {
+        if (editingAppointment) {
+            result = await updateAgendamento(editingAppointment.id, prevState, formData);
+        } else {
+            result = await createAgendamento(prevState, formData);
+        }
+    } catch (error) {
+        console.error("Erro na server action:", error);
+        return { message: "Erro interno no servidor.", success: false };
     }
+    return result || { message: "Erro desconhecido.", success: false };
   };
 
   const [state, formAction] = useActionState(action, initialState);
@@ -140,35 +151,39 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
             className: "bg-green-500 text-white",
         });
         setIsDialogOpen(false);
+        setIsConflictOpen(false); // Close conflict dialog on success
         setEditingAppointment(null);
         setNewAppointmentDate(null);
+        setForceSubmission(false); // Reset force
+      } else if (state.conflict) {
+        setIsConflictOpen(true);
       } else {
         // Check for session expiration
         if (state.message.toLowerCase().includes("token") || 
             state.message.toLowerCase().includes("expirado") ||
             state.message.toLowerCase().includes("autenticação")) {
             
-            toast({
+             toast({
                 title: "Sessão Expirada",
-                description: "Sua sessão expirou. Redirecionando...",
+                description: "Por favor, faça login novamente.",
                 variant: "destructive",
             });
-            
-            setTimeout(() => {
-                signOut({ callbackUrl: "/" });
-            }, 1500);
-            return;
+            // Redirect?
+        } else {
+             toast({ title: "Erro", description: state.message, variant: "destructive" });
         }
-
-        toast({
-            title: "Erro",
-            description: state.message,
-            variant: "destructive",
-        });
       }
     }
   }, [state, toast]);
 
+  const handleForceSubmit = () => {
+      setForceSubmission(true);
+      // setIsConflictOpen(false); // Removed: Keep open until success to prevent removeChild race condition
+      // Wait for state to update then submit
+      setTimeout(() => {
+          formRef.current?.requestSubmit();
+      }, 0);
+  };
 
   const handleOpenNew = (selectedDate?: Date) => {
     setSlotAction(null); // Close context menu
@@ -335,6 +350,8 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
     }
   };
 
+ 
+  
   const handleReactivate = async (id: string) => {
     const result = await reactivateAgendamento(id);
     if (result.success) {
@@ -382,6 +399,7 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
               </DialogDescription>
             </DialogHeader>
             <form 
+              ref={formRef}
               key={editingAppointment ? editingAppointment.id : "new-appointment"}
               action={(formData) => {
                 // Determine duration before submitting
@@ -399,6 +417,7 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                 }
                 formAction(formData);
             }} className="grid gap-4 py-4">
+              <input type="hidden" name="force" value={forceSubmission.toString()} />
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="paciente" className="text-right">
                   Paciente
@@ -682,6 +701,24 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                 Excluir
                 </AlertDialogAction>
             </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+
+        {/* EXCLUDED FROM NESTING: Confirm Conflict Dialog */}
+        <AlertDialog open={isConflictOpen} onOpenChange={setIsConflictOpen}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                <AlertDialogTitle>Conflito de Horário</AlertDialogTitle>
+                <AlertDialogDescription>
+                    Já existe um agendamento neste horário. Deseja agendar mesmo assim?
+                </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setForceSubmission(false)}>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={handleForceSubmit} className="bg-orange-500 text-white hover:bg-orange-600">
+                    Sim, agendar
+                </AlertDialogAction>
+                </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
 
