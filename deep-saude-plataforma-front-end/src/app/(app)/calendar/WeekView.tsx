@@ -80,10 +80,7 @@ export function WeekView({ date, appointments, bloqueios = [], onAddAppointment,
       slotEnd.setHours(hour + 1, 0, 0, 0);
       
       // Check if block overlaps with this hour slot
-      return inicio < slotEnd && fim > slotStart &&
-             inicio.getDate() === day.getDate() &&
-             inicio.getMonth() === day.getMonth() &&
-             inicio.getFullYear() === day.getFullYear();
+      return inicio < slotEnd && fim > slotStart;
     });
   };
 
@@ -155,18 +152,27 @@ export function WeekView({ date, appointments, bloqueios = [], onAddAppointment,
                     const fim = new Date(block.data_fim);
                     const slotStart = new Date(day);
                     slotStart.setHours(hour, 0, 0, 0);
+                    const slotEnd = new Date(day);
+                    slotEnd.setHours(hour + 1, 0, 0, 0);
                     
-                    const topMinutes = Math.max(0, (inicio.getTime() - slotStart.getTime()) / 60000);
+                    // Clamping logic to render correctly in this hour slot
+                    const effectiveStart = Math.max(inicio.getTime(), slotStart.getTime());
+                    const effectiveEnd = Math.min(fim.getTime(), slotEnd.getTime());
+                    
+                    const topMinutes = (effectiveStart - slotStart.getTime()) / 60000;
                     const topPos = (topMinutes / 60) * 100;
                     
-                    const durationMinutes = (fim.getTime() - inicio.getTime()) / 60000;
-                    const height = Math.min(100 - topPos, (durationMinutes / 60) * 100);
+                    const durationMinutes = (effectiveEnd - effectiveStart) / 60000;
+                    const height = (durationMinutes / 60) * 100;
+
+                    // Only render if there is actual overlap duration (avoid 0 height or negative)
+                    if (durationMinutes <= 0) return null;
                     
                     return (
                       <div
                         key={block.id}
                         className="absolute left-0 right-0 bg-orange-200/80 dark:bg-orange-800/60 border-l-4 border-orange-500 p-1 text-[10px] z-10 overflow-hidden flex items-center gap-1"
-                        style={{ top: `${topPos}%`, height: `${height}%`, minHeight: '20px' }}
+                        style={{ top: `${topPos}%`, height: `${height}%`, minHeight: '0px' }}
                         onClick={(e) => {
                           e.stopPropagation();
                           if (onDeleteBloqueio) {
