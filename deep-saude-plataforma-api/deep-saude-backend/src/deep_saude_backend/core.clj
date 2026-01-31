@@ -612,6 +612,44 @@
       (.printStackTrace e)
       {:status 500 :body {:erro (str "Erro interno: " (.getMessage e))}})))
 
+;; Handler para sincronizar status de agendamentos passados
+;; Atualiza no banco: status='realizado' e status_pagamento='pago' para sessões passadas não canceladas
+(defn sincronizar-status-agendamentos-handler [request]
+  (try
+    (let [clinica-id (get-in request [:identity :clinica_id])
+          agora (java.sql.Timestamp. (System/currentTimeMillis))]
+      (println "SYNC: Sincronizando status de agendamentos passados para clínica" clinica-id)
+      
+      ;; Atualiza status para 'realizado' em sessões passadas que ainda estão como 'agendado'
+      (let [status-result (jdbc/execute! @datasource 
+                            ["UPDATE agendamentos 
+                              SET status = 'realizado' 
+                              WHERE clinica_id = ? 
+                              AND data_hora_sessao < ? 
+                              AND (status IS NULL OR status = 'agendado')"
+                             clinica-id agora])
+            status-count (:next.jdbc/update-count (first status-result) 0)
+            
+            ;; Atualiza status_pagamento para 'pago' em sessões passadas realizadas (não canceladas)
+            pagamento-result (jdbc/execute! @datasource 
+                               ["UPDATE agendamentos 
+                                 SET status_pagamento = 'pago' 
+                                 WHERE clinica_id = ? 
+                                 AND data_hora_sessao < ? 
+                                 AND status != 'cancelado'
+                                 AND (status_pagamento IS NULL OR status_pagamento = 'pendente')"
+                                clinica-id agora])
+            pagamento-count (:next.jdbc/update-count (first pagamento-result) 0)]
+        
+        (println "SYNC: Atualizados" status-count "status e" pagamento-count "pagamentos")
+        {:status 200 :body {:message "Sincronização concluída"
+                            :status_atualizados status-count
+                            :pagamentos_atualizados pagamento-count}}))
+    (catch Exception e
+      (println "ERRO AO SINCRONIZAR STATUS:" (.getMessage e))
+      (.printStackTrace e)
+      {:status 500 :body {:erro (str "Erro ao sincronizar: " (.getMessage e))}})))
+
 (defn listar-agendamentos-handler [request]
   (let [identity (:identity request)
         clinica-id (:clinica_id identity)
@@ -951,6 +989,7 @@
   (DELETE "/:id" request (wrap-checar-permissao remover-paciente-handler "gerenciar_pacientes")))
 
 (defroutes agendamentos-routes
+  (POST "/sincronizar" request (wrap-jwt-autenticacao sincronizar-status-agendamentos-handler))
   (POST "/" request (wrap-checar-permissao criar-agendamento-handler "gerenciar_agendamentos_clinica"))
   (GET  "/" request (wrap-jwt-autenticacao listar-agendamentos-handler))
   (GET  "/:id" request (wrap-jwt-autenticacao obter-agendamento-handler))

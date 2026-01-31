@@ -14,6 +14,19 @@ interface Agendamento {
   status?: string;
 }
 
+// Sincroniza status de agendamentos passados no banco de dados
+async function syncAgendamentosStatus(token: string): Promise<void> {
+  const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/agendamentos/sincronizar`;
+  try {
+    await fetch(apiUrl, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+  } catch (error) {
+    console.error("Erro ao sincronizar status:", error);
+  }
+}
+
 async function getAgendamentos(token: string): Promise<Agendamento[]> {
   const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/agendamentos`;
   try {
@@ -35,6 +48,8 @@ export default async function AdminFinanceiroPage() {
 
   if (!token) return <p>Não autorizado.</p>;
 
+  // Primeiro sincroniza os status no DB, depois busca os dados atualizados
+  await syncAgendamentosStatus(token);
   const agendamentos = await getAgendamentos(token);
 
   return <FinanceiroClient initialAgendamentos={agendamentos} token={token} />;
