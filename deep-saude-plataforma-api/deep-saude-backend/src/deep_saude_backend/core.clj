@@ -688,7 +688,7 @@
         nome-papel (:nome_papel (execute-one! ["SELECT nome_papel FROM papeis WHERE id = ?" papel-id]))]
     (println "DEBUG: Listar Agendamentos - User:" user-id "Papel:" nome-papel "Clinica:" clinica-id "Paciente Filter:" paciente-id-filter)
     
-    (let [base-query "SELECT a.*, p.nome as nome_paciente, u.nome as nome_psicologo
+    (let [base-query "SELECT a.*, p.nome as nome_paciente, p.nota_fiscal, p.origem, p.vencimento_pagamento, p.tipo_pagamento, u.nome as nome_psicologo
                       FROM agendamentos a
                       JOIN pacientes p ON a.paciente_id = p.id
                       LEFT JOIN usuarios u ON a.psicologo_id = u.id
@@ -1099,6 +1099,13 @@
           (execute-query! ["ALTER TABLE pacientes ADD COLUMN IF NOT EXISTS diagnostico TEXT"])
           (execute-query! ["ALTER TABLE pacientes ADD COLUMN IF NOT EXISTS contatos_emergencia TEXT"])
           (println "Novas colunas de dados clínicos do paciente verificadas/adicionadas com sucesso.")
+
+          ;; Novos campos Financeiros do Paciente
+          (execute-query! ["ALTER TABLE pacientes ADD COLUMN IF NOT EXISTS nota_fiscal BOOLEAN DEFAULT false"])
+          (execute-query! ["ALTER TABLE pacientes ADD COLUMN IF NOT EXISTS origem VARCHAR(50)"])
+          (execute-query! ["ALTER TABLE pacientes ADD COLUMN IF NOT EXISTS vencimento_pagamento VARCHAR(100)"])
+          (execute-query! ["ALTER TABLE pacientes ADD COLUMN IF NOT EXISTS tipo_pagamento VARCHAR(20) DEFAULT 'avulso'"])
+          (println "Novas colunas financeiras do paciente verificadas/adicionadas com sucesso.")
 
           ;; Tabela de Bloqueios de Agenda
           (execute-query! ["CREATE TABLE IF NOT EXISTS bloqueios_agenda (

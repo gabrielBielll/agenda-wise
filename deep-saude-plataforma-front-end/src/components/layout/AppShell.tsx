@@ -65,8 +65,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <SidebarProvider defaultOpen={!isMobile} open={!isMobile}>
-      <Sidebar>
+    <SidebarProvider defaultOpen={!isMobile}>
+      <Sidebar collapsible="icon">
         <SidebarHeader className="p-4 flex flex-col items-center">
           <Link href="/dashboard" className="flex items-center gap-2 mb-4">
             <Leaf className="w-8 h-8 text-sidebar-primary" />
@@ -102,7 +102,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <SidebarInset className="h-screen overflow-hidden flex flex-col">
         <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b bg-background/80 backdrop-blur-md px-4 sm:px-6">
           <div className="flex items-center gap-2">
-            <SidebarTrigger className="md:hidden" /> {/* Hamburger for mobile */}
+            <SidebarTrigger /> {/* Now visible on desktop too */}
              <h2 className="font-headline text-xl font-semibold text-foreground hidden sm:block">
               {navItems.find(item => pathname.startsWith(item.href))?.label || 'AgendaWise'}
             </h2>

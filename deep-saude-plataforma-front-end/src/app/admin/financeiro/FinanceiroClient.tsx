@@ -59,6 +59,11 @@ interface Agendamento {
   valor_repasse?: number;
   status_repasse?: 'bloqueado' | 'disponivel' | 'transferido'; // Repasse (Psi)
   status_pagamento?: 'pendente' | 'pago'; // Pagamento (Paciente)
+  // New patient financial fields
+  nota_fiscal?: boolean;
+  origem?: string;
+  vencimento_pagamento?: string;
+  tipo_pagamento?: string;
 }
 
 interface FinanceiroClientProps {
@@ -939,6 +944,10 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </TableHead>
+                <TableHead className="text-center">Nota</TableHead>
+                <TableHead className="text-center">Tipo</TableHead>
+                <TableHead>Vencimento</TableHead>
+                <TableHead>Origem</TableHead>
                 <TableHead className="text-right">Valor</TableHead>
               </TableRow>
             </TableHeader>
@@ -949,7 +958,9 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
                     <TableCell className="font-medium">
                         <div className="flex flex-col">
                             <span>{format(parseISO(ag.data_hora_sessao), "dd/MM/yyyy")}</span>
-                            <span className="text-xs text-muted-foreground">{format(parseISO(ag.data_hora_sessao), "HH:mm")}</span>
+                            <span className="text-xs text-muted-foreground">
+                              {format(parseISO(ag.data_hora_sessao), "EEEE", { locale: ptBR })} • {format(parseISO(ag.data_hora_sessao), "HH:mm")}
+                            </span>
                         </div>
                     </TableCell>
                     <TableCell>{ag.nome_paciente || "Não informado"}</TableCell>
@@ -1002,6 +1013,25 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
                             </Button>
                         )}
                     </TableCell>
+                    {/* New columns */}
+                    <TableCell className="text-center">
+                      <Badge variant={ag.nota_fiscal ? "default" : "secondary"} className={ag.nota_fiscal ? "bg-green-600" : ""}>
+                        {ag.nota_fiscal ? 'SIM' : 'NÃO'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Badge variant="outline">
+                        {ag.tipo_pagamento === 'mensal' ? 'Mensal' : 'Avulso'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {ag.vencimento_pagamento || '-'}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="secondary">
+                        {ag.origem || '-'}
+                      </Badge>
+                    </TableCell>
                     <TableCell className="text-right">
                         {editingValorId === ag.id ? (
                             <Input 
@@ -1035,7 +1065,7 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center h-24 text-muted-foreground">
+                  <TableCell colSpan={11} className="text-center h-24 text-muted-foreground">
                     Nenhum registro encontrado para este mês.
                   </TableCell>
                 </TableRow>
