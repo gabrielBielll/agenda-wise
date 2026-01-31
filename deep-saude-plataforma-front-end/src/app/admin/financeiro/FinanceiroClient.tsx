@@ -446,6 +446,73 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
     });
   };
 
+  // Bulk Transfer: Marcar todos os repasses visíveis como "transferido"
+  const handleTransferAll = async () => {
+    // Filtrar apenas os que estão disponíveis para transferência (pago + não transferido)
+    const eligibleItems = filteredData.filter(ag => 
+      getEffectivePagamento(ag) === 'pago' && ag.status_repasse !== 'transferido'
+    );
+
+    if (eligibleItems.length === 0) {
+      toast({
+        title: "Nenhum repasse disponível",
+        description: "Não há repasses elegíveis para transferência com os filtros atuais.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Calcular valor total
+    const totalValue = eligibleItems.reduce((sum, ag) => sum + (Number(ag.valor_consulta) || 0), 0);
+
+    // Confirmação
+    const confirmed = window.confirm(
+      `Deseja marcar ${eligibleItems.length} repasse(s) como TRANSFERIDO?\n\nValor total: ${formatCurrency(totalValue)}\n\nEsta ação não pode ser desfeita.`
+    );
+
+    if (!confirmed) return;
+
+    // Atualização em lote
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const ag of eligibleItems) {
+      try {
+        const res = await fetch(`/api/agendamentos/${ag.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ status_repasse: 'transferido' })
+        });
+        
+        if (res.ok) {
+          successCount++;
+          // Optimistic update
+          setAgendamentos(prev => prev.map(item => 
+            item.id === ag.id ? { ...item, status_repasse: 'transferido' } : item
+          ));
+        } else {
+          errorCount++;
+        }
+      } catch (error) {
+        errorCount++;
+      }
+    }
+
+    toast({
+      title: "Transferência em lote concluída",
+      description: `${successCount} repasse(s) transferido(s)${errorCount > 0 ? `, ${errorCount} erro(s)` : ''}.`,
+      className: successCount > 0 ? "bg-green-500 text-white" : "bg-red-500 text-white"
+    });
+  };
+
+  // Contar repasses elegíveis para transferência
+  const eligibleTransferCount = filteredData.filter(ag => 
+    getEffectivePagamento(ag) === 'pago' && ag.status_repasse !== 'transferido'
+  ).length;
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-6">
@@ -454,10 +521,17 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
             <h1 className="text-3xl font-bold tracking-tight">Financeiro</h1>
             <p className="text-muted-foreground">Gestão de repasses e lucro líquido.</p>
             </div>
-            <Button onClick={exportToCSV} variant="outline" className="gap-2">
-              <Download className="h-4 w-4" />
-              Exportar CSV
-            </Button>
+            <div className="flex gap-2">
+              {eligibleTransferCount > 0 && (
+                <Button onClick={handleTransferAll} variant="default" className="gap-2 bg-green-600 hover:bg-green-700">
+                  🔄 Transferir Todos ({eligibleTransferCount})
+                </Button>
+              )}
+              <Button onClick={exportToCSV} variant="outline" className="gap-2">
+                <Download className="h-4 w-4" />
+                Exportar CSV
+              </Button>
+            </div>
         </div>
 
         {/* Global Controls */}
