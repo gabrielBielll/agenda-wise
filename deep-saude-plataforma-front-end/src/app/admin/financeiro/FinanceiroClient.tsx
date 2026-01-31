@@ -73,6 +73,7 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
   
   const [selectedPsicologo, setSelectedPsicologo] = useState<string>("all");
   const [selectedPaciente, setSelectedPaciente] = useState<string>("all");
+  const [selectedRepasse, setSelectedRepasse] = useState<string>("all");
   
   // State to track local updates to agendamentos (optimistic UI)
   const [agendamentos, setAgendamentos] = useState<Agendamento[]>(initialAgendamentos);
@@ -109,11 +110,14 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
         const matchesDate = agDate >= start && agDate <= end;
         const matchesPsicologo = selectedPsicologo === "all" || ag.nome_psicologo === selectedPsicologo;
         const matchesPaciente = selectedPaciente === "all" || ag.nome_paciente === selectedPaciente;
+        const matchesRepasse = selectedRepasse === "all" || 
+          (selectedRepasse === "pago" && ag.status_repasse === "pago") ||
+          (selectedRepasse === "pendente" && (ag.status_repasse === "pendente" || !ag.status_repasse));
         
-        return matchesDate && matchesPsicologo && matchesPaciente;
+        return matchesDate && matchesPsicologo && matchesPaciente && matchesRepasse;
       })
       .sort((a, b) => new Date(b.data_hora_sessao).getTime() - new Date(a.data_hora_sessao).getTime());
-  }, [agendamentos, dateRange, selectedPsicologo, selectedPaciente]);
+  }, [agendamentos, dateRange, selectedPsicologo, selectedPaciente, selectedRepasse]);
 
   // Calculate stats
   const totalReceita = filteredData.reduce((acc, curr) => acc + (Number(curr.valor_consulta) || 0), 0);
@@ -262,13 +266,25 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
                 </SelectContent>
             </Select>
 
-            {(selectedPsicologo !== "all" || selectedPaciente !== "all" || (dateRange?.from && !isSameMonth(dateRange.from, new Date()))) && (
+            <Select value={selectedRepasse} onValueChange={setSelectedRepasse}>
+                <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Status Repasse" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="all">Todos os Status</SelectItem>
+                    <SelectItem value="pago">✅ Pagos</SelectItem>
+                    <SelectItem value="pendente">⏳ Pendentes</SelectItem>
+                </SelectContent>
+            </Select>
+
+            {(selectedPsicologo !== "all" || selectedPaciente !== "all" || selectedRepasse !== "all" || (dateRange?.from && !isSameMonth(dateRange.from, new Date()))) && (
                 <Button 
                     variant="ghost" 
                     size="sm"
                     onClick={() => {
                         setSelectedPsicologo("all");
                         setSelectedPaciente("all");
+                        setSelectedRepasse("all");
                         setDateRange({
                             from: startOfMonth(new Date()),
                             to: endOfMonth(new Date()),
