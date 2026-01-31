@@ -530,7 +530,8 @@
              {:status 400 :body {:erro "Agendamento não é recorrente."}})
 
           :else ;; Default: Single update (existing logic)
-        (let [;; Determinar dados finais para validação de bloqueio
+        (let [_ (println "DEBUG: Atualizando agendamento. Body:" (:body request)) 
+              ;; Determinar dados finais para validação de bloqueio
               novo-data (if data_hora_sessao (java.sql.Timestamp/valueOf data_hora_sessao) (:data_hora_sessao agendamento-atual))
               novo-duracao (or duracao (:duracao agendamento-atual) 50)
               novo-psicologo-uuid (if psicologo_id (java.util.UUID/fromString psicologo_id) (:psicologo_id agendamento-atual))
