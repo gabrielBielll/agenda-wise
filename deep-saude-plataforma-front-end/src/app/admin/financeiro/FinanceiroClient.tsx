@@ -81,6 +81,10 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
   
   // Commission Percentage State (default 50%)
   const [commissionRate, setCommissionRate] = useState<number>(50);
+  
+  // State for editing valor
+  const [editingValorId, setEditingValorId] = useState<string | null>(null);
+  const [editingValorValue, setEditingValorValue] = useState<string>("");
 
   // Extract unique options for filters
   const psicologos = useMemo(() => {
@@ -310,6 +314,53 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
           setAgendamentos(prev => prev.map(ag => 
             ag.id === id ? { ...ag, status_repasse: currentStatus as any } : ag
           ));
+      }
+  };
+
+  // Function to update Valor (valor_consulta)
+  const handleUpdateValor = async (id: string, newValor: number) => {
+      // Optimistic update
+      setAgendamentos(prev => prev.map(ag => 
+          ag.id === id ? { ...ag, valor_consulta: newValor } : ag
+      ));
+
+      try {
+          const res = await fetch(`/api/agendamentos/${id}`, {
+              method: 'PUT',
+              headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify({ valor_consulta: newValor })
+          });
+          
+          if (!res.ok) throw new Error('Failed to update');
+          
+          toast({
+              title: "Valor atualizado",
+              description: `Novo valor: ${formatCurrency(newValor)}`,
+              className: "bg-green-500 text-white"
+          });
+
+      } catch (error: any) {
+          console.error("Error updating valor:", error);
+          toast({
+              title: "Erro",
+              description: "Não foi possível atualizar o valor.",
+              variant: "destructive"
+          });
+      }
+  };
+
+  const handleValorKeyPress = (e: React.KeyboardEvent, id: string) => {
+      if (e.key === 'Enter') {
+          const valor = parseFloat(editingValorValue.replace(',', '.'));
+          if (!isNaN(valor) && valor >= 0) {
+              handleUpdateValor(id, valor);
+              setEditingValorId(null);
+          }
+      } else if (e.key === 'Escape') {
+          setEditingValorId(null);
       }
   };
 
@@ -740,8 +791,34 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
                             </Button>
                         )}
                     </TableCell>
-                    <TableCell className="text-right font-bold text-green-700">
-                      {formatCurrency(Number(ag.valor_consulta))}
+                    <TableCell className="text-right">
+                        {editingValorId === ag.id ? (
+                            <Input 
+                                type="text"
+                                value={editingValorValue}
+                                onChange={(e) => setEditingValorValue(e.target.value)}
+                                onBlur={() => {
+                                    const valor = parseFloat(editingValorValue.replace(',', '.'));
+                                    if (!isNaN(valor) && valor >= 0) {
+                                        handleUpdateValor(ag.id, valor);
+                                    }
+                                    setEditingValorId(null);
+                                }}
+                                onKeyDown={(e) => handleValorKeyPress(e, ag.id)}
+                                className="w-24 h-8 text-right font-bold text-green-700"
+                                autoFocus
+                            />
+                        ) : (
+                            <span 
+                                className="font-bold text-green-700 cursor-pointer hover:bg-gray-100 px-2 py-1 rounded"
+                                onClick={() => {
+                                    setEditingValorId(ag.id);
+                                    setEditingValorValue(String(Number(ag.valor_consulta)));
+                                }}
+                            >
+                                {formatCurrency(Number(ag.valor_consulta))}
+                            </span>
+                        )}
                     </TableCell>
                   </TableRow>
                 ))
