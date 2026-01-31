@@ -334,20 +334,50 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
   const formatCurrency = (value: number) => 
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 
+  // Helper: Get effective status (past sessions without cancelado = realizada)
+  const getEffectiveStatus = (ag: Agendamento): string => {
+    // If already marked as cancelado or realizado, use that
+    if (ag.status === 'cancelado' || ag.status === 'realizado') {
+      return ag.status;
+    }
+    // If session date/time has passed, consider it "realizada" automatically
+    const sessionDate = parseISO(ag.data_hora_sessao);
+    if (sessionDate < new Date()) {
+      return 'realizado';
+    }
+    // Otherwise, it's still "agendado"
+    return 'agendado';
+  };
+
+  // Helper: Check if payment should be considered "pago" (past sessions = auto pago)
+  const getEffectivePagamento = (ag: Agendamento): string => {
+    if (ag.status_pagamento === 'pago') return 'pago';
+    // Past sessions (not cancelled) are auto-considered as paid
+    const effectiveStatus = getEffectiveStatus(ag);
+    if (effectiveStatus === 'realizado') {
+      return 'pago';
+    }
+    return ag.status_pagamento || 'pendente';
+  };
+
   // CSV Export Function
   const exportToCSV = () => {
     const headers = ['Data', 'Horário', 'Paciente', 'Psicólogo', 'Sessão', 'Pagamento', 'Repasse', 'Valor'];
     
-    const rows = filteredData.map(ag => [
-      format(parseISO(ag.data_hora_sessao), 'dd/MM/yyyy'),
-      format(parseISO(ag.data_hora_sessao), 'HH:mm'),
-      ag.nome_paciente || 'Não informado',
-      ag.nome_psicologo || 'Não informado',
-      ag.status === 'realizado' ? 'Realizada' : ag.status === 'cancelado' ? 'Cancelada' : 'Agendada',
-      ag.status_pagamento === 'pago' ? 'Pago' : 'Pendente',
-      ag.status_pagamento !== 'pago' ? 'Bloqueado' : ag.status_repasse === 'transferido' ? 'Transferido' : 'Disponível',
-      (Number(ag.valor_consulta) || 0).toFixed(2).replace('.', ',')
-    ]);
+    const rows = filteredData.map(ag => {
+      const effectiveStatus = getEffectiveStatus(ag);
+      const effectivePagamento = getEffectivePagamento(ag);
+      return [
+        format(parseISO(ag.data_hora_sessao), 'dd/MM/yyyy'),
+        format(parseISO(ag.data_hora_sessao), 'HH:mm'),
+        ag.nome_paciente || 'Não informado',
+        ag.nome_psicologo || 'Não informado',
+        effectiveStatus === 'realizado' ? 'Realizada' : effectiveStatus === 'cancelado' ? 'Cancelada' : 'Agendada',
+        effectivePagamento === 'pago' ? 'Pago' : 'Pendente',
+        effectivePagamento !== 'pago' ? 'Bloqueado' : ag.status_repasse === 'transferido' ? 'Transferido' : 'Disponível',
+        (Number(ag.valor_consulta) || 0).toFixed(2).replace('.', ',')
+      ];
+    });
     
     const csvContent = [
       headers.join(';'),
@@ -665,7 +695,7 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
                     {/* Coluna Sessão - Dropdown editável */}
                     <TableCell>
                         <Select 
-                            value={ag.status || 'agendado'} 
+                            value={getEffectiveStatus(ag)} 
                             onValueChange={(value) => handleUpdateStatus(ag.id, value)}
                         >
                             <SelectTrigger className="w-[120px] h-8 text-xs">
@@ -685,16 +715,16 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
                             size="sm"
                             className={cn(
                                 "h-8 px-2 text-xs font-medium",
-                                ag.status_pagamento === 'pago' ? "text-green-600 hover:text-green-700" : "text-red-500 hover:text-red-600"
+                                getEffectivePagamento(ag) === 'pago' ? "text-green-600 hover:text-green-700" : "text-red-500 hover:text-red-600"
                             )}
                             onClick={() => handleUpdatePagamento(ag.id, ag.status_pagamento)}
                         >
-                            {ag.status_pagamento === 'pago' ? '✅ Pago' : '⏳ Pendente'}
+                            {getEffectivePagamento(ag) === 'pago' ? '✅ Pago' : '⏳ Pendente'}
                         </Button>
                     </TableCell>
                     {/* Coluna Repasse (Psi) - Clickável se pagamento OK */}
                     <TableCell>
-                        {ag.status_pagamento !== 'pago' ? (
+                        {getEffectivePagamento(ag) !== 'pago' ? (
                             <span className="text-sm text-gray-400">🔒 Bloqueado</span>
                         ) : (
                             <Button 

@@ -17,3 +17,67 @@
  GET /api/auth/session 200 in 63ms
 (node:32085) [DEP0060] DeprecationWarning: The `util._extend` API is deprecated. Please use Object.assign() instead.
 (Use `node --trace-deprecation ...` to show where the warning was created)
+ GET /api/auth/session 200 in 409ms
+ GET /api/auth/session 200 in 78ms
+[Middleware] Path: /admin/financeiro | Role: admin_clinica | Token Exists: true
+ ○ Compiling /admin/financeiro ...
+ ✓ Compiled /admin/financeiro in 16.1s
+ GET /admin/financeiro 200 in 18270ms
+ GET /api/auth/session 200 in 732ms
+ ○ Compiling /favicon.ico ...
+ GET /api/auth/session 200 in 59ms
+ ✓ Compiled /favicon.ico in 3.8s
+ GET /favicon.ico?favicon.56766c03.ico 200 in 2342ms
+ GET /favicon.ico 200 in 4186ms
+ GET /api/auth/session 200 in 272ms
+ GET /api/auth/session 200 in 250ms
+ GET /api/auth/session 200 in 880ms
+ GET /api/auth/session 200 in 71ms
+ GET /api/auth/session 200 in 555ms
+ GET /api/auth/session 200 in 124ms
+[Middleware] Path: /admin/financeiro | Role: admin_clinica | Token Exists: true
+[Middleware] Path: /admin/login | Role: admin_clinica | Token Exists: true
+ ○ Compiling /admin/login ...
+ ✓ Compiled /admin/login in 3s
+ GET /admin/login?expired=true 200 in 3459ms
+ GET /api/auth/session 200 in 102ms
+ GET /favicon.ico 200 in 313ms
+ GET /api/auth/session 200 in 83ms
+ GET /favicon.ico?favicon.56766c03.ico 200 in 416ms
+ GET /api/auth/providers 200 in 179ms
+ GET /api/auth/csrf 200 in 145ms
+NextAuth: Login API Response { status: 200, hasToken: true }
+NextAuth: Authorize success, returning user with token.
+FORCE OVERRIDE: Setting role to 'admin_clinica' for admin@deepsaude.com
+NextAuth: JWT Callback - Initial sign in
+NextAuth JWT: Forcing 'admin_clinica' for admin
+ POST /api/auth/callback/credentials 200 in 1103ms
+ GET /api/auth/session 200 in 86ms
+[Middleware] Path: /admin/dashboard | Role: admin_clinica | Token Exists: true
+ ○ Compiling /admin/dashboard ...
+ ✓ Compiled /admin/dashboard in 3.2s
+ GET /admin/dashboard 200 in 4002ms
+ GET /api/auth/session 200 in 75ms
+ GET /api/auth/session 200 in 144ms
+[Middleware] Path: /admin/financeiro | Role: admin_clinica | Token Exists: true
+ GET /admin/financeiro 200 in 343ms
+ ✓ Compiled in 2.1s
+ ✓ Compiled in 678ms
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+[Middleware] Path: /admin/financeiro | Role: admin_clinica | Token Exists: true
+ GET /api/auth/session 200 in 2471ms
+ GET /admin/financeiro 200 in 3302ms
+ POST /api/auth/_log 200 in 803ms
+ GET /api/auth/session 200 in 327ms
+ GET /favicon.ico 200 in 281ms
+ GET /api/auth/session 200 in 53ms
+ GET /api/auth/session 200 in 63ms
+ ✓ Compiled in 631ms
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+[Middleware] Path: /admin/financeiro | Role: admin_clinica | Token Exists: true
+ GET /admin/financeiro 200 in 1886ms
+ GET /api/auth/session 200 in 134ms
+ GET /favicon.ico 200 in 283ms
+ GET /api/auth/session 200 in 76ms
+ GET /favicon.ico?favicon.56766c03.ico 200 in 345ms
+ ✓ Compiled in 679ms

@@ -52,3 +52,37 @@ DEBUG: Middleware Permissao. Requer: gerenciar_agendamentos_clinica
 DEBUG: Papel ID: #uuid "1f512630-1e2f-43b0-97fb-5df3dfffc8fe"
 DEBUG: Permissao encontrada? {:permissao_id #uuid "fc95b709-4764-4ab5-8939-3e0009093941"}
 DEBUG: Atualizando agendamento. Body: {:status agendado}
+DEBUG: Middleware JWT. Token presente? true
+DEBUG: Middleware JWT. Token presente? true
+DEBUG: Listar Agendamentos - User: #uuid "912e8b25-845d-45d0-bcd9-a6a300d78aff" Papel: admin_clinica Clinica: #uuid "967b3f16-04c2-489c-90d4-306bd967844e" Paciente Filter: nil
+DEBUG: Middleware JWT. Token presente? true
+ERRO DE VALIDAÇÃO JWT: Token is expired (1769825463)
+DEBUG: Middleware JWT. Token presente? true
+ERRO DE VALIDAÇÃO JWT: Token is expired (1769825463)
+DEBUG: Middleware JWT. Token presente? true
+ERRO DE VALIDAÇÃO JWT: Token is expired (1769825463)
+DEBUG: Middleware JWT. Token presente? true
+ERRO DE VALIDAÇÃO JWT: Token is expired (1769825463)
+DEBUG: Middleware JWT. Token presente? true
+ERRO DE VALIDAÇÃO JWT: Token is expired (1769825463)
+DEBUG: Middleware JWT. Token presente? true
+ERRO DE VALIDAÇÃO JWT: Token is expired (1769825463)
+DEBUG: Middleware JWT. Token presente? true
+DEBUG: Middleware JWT. Token presente? true
+DEBUG: Listar Agendamentos - User: #uuid "912e8b25-845d-45d0-bcd9-a6a300d78aff" Papel: admin_clinica Clinica: #uuid "967b3f16-04c2-489c-90d4-306bd967844e" Paciente Filter: nil
+DEBUG: Middleware JWT. Token presente? true
+DEBUG: Middleware Permissao. Requer: gerenciar_agendamentos_clinica
+DEBUG: Papel ID: #uuid "1f512630-1e2f-43b0-97fb-5df3dfffc8fe"
+DEBUG: Permissao encontrada? {:permissao_id #uuid "fc95b709-4764-4ab5-8939-3e0009093941"}
+DEBUG: Atualizando agendamento. Body: {:status_pagamento pendente}
+DEBUG: Middleware JWT. Token presente? true
+DEBUG: Middleware Permissao. Requer: gerenciar_agendamentos_clinica
+DEBUG: Papel ID: #uuid "1f512630-1e2f-43b0-97fb-5df3dfffc8fe"
+DEBUG: Permissao encontrada? {:permissao_id #uuid "fc95b709-4764-4ab5-8939-3e0009093941"}
+DEBUG: Atualizando agendamento. Body: {:status realizado}
+DEBUG: Middleware JWT. Token presente? true
+DEBUG: Middleware JWT. Token presente? true
+DEBUG: Listar Agendamentos - User: #uuid "912e8b25-845d-45d0-bcd9-a6a300d78aff" Papel: admin_clinica Clinica: #uuid "967b3f16-04c2-489c-90d4-306bd967844e" Paciente Filter: nil
+DEBUG: Middleware JWT. Token presente? true
+DEBUG: Middleware JWT. Token presente? true
+DEBUG: Listar Agendamentos - User: #uuid "912e8b25-845d-45d0-bcd9-a6a300d78aff" Papel: admin_clinica Clinica: #uuid "967b3f16-04c2-489c-90d4-306bd967844e" Paciente Filter: nil
