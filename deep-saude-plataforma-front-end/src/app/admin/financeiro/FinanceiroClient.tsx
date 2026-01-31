@@ -39,7 +39,13 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ChevronLeft, ChevronRight, DollarSign, Calendar as CalendarIcon, Filter, Download } from "lucide-react";
+import { ChevronLeft, ChevronRight, DollarSign, Calendar as CalendarIcon, Filter, Download, ChevronDown } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface Agendamento {
   id: string;
@@ -508,6 +514,100 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
     });
   };
 
+  // Helper genérico para bulk updates
+  const handleBulkUpdate = async (
+    field: string, 
+    value: string, 
+    filter: (ag: Agendamento) => boolean,
+    actionName: string
+  ) => {
+    const eligibleItems = filteredData.filter(filter);
+    
+    if (eligibleItems.length === 0) {
+      toast({
+        title: "Nenhum item elegível",
+        description: `Não há itens para ${actionName} com os filtros atuais.`,
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Deseja ${actionName} ${eligibleItems.length} item(s)?\n\nEsta ação não pode ser desfeita.`
+    );
+
+    if (!confirmed) return;
+
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const ag of eligibleItems) {
+      try {
+        const res = await fetch(`/api/agendamentos/${ag.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ [field]: value })
+        });
+        
+        if (res.ok) {
+          successCount++;
+          setAgendamentos(prev => prev.map(item => 
+            item.id === ag.id ? { ...item, [field]: value } : item
+          ));
+        } else {
+          errorCount++;
+        }
+      } catch (error) {
+        errorCount++;
+      }
+    }
+
+    toast({
+      title: "Atualização em lote concluída",
+      description: `${successCount} item(s) atualizado(s)${errorCount > 0 ? `, ${errorCount} erro(s)` : ''}.`,
+      className: successCount > 0 ? "bg-green-500 text-white" : "bg-red-500 text-white"
+    });
+  };
+
+  // Bulk Actions - Sessão
+  const handleBulkSessaoRealizada = () => handleBulkUpdate(
+    'status', 'realizado',
+    (ag) => ag.status !== 'realizado' && ag.status !== 'cancelado',
+    'marcar como Realizada'
+  );
+  const handleBulkSessaoCancelada = () => handleBulkUpdate(
+    'status', 'cancelado',
+    (ag) => ag.status !== 'cancelado',
+    'marcar como Cancelada'
+  );
+
+  // Bulk Actions - Pagamento
+  const handleBulkPagamentoPago = () => handleBulkUpdate(
+    'status_pagamento', 'pago',
+    (ag) => getEffectivePagamento(ag) !== 'pago',
+    'marcar como Pago'
+  );
+  const handleBulkPagamentoPendente = () => handleBulkUpdate(
+    'status_pagamento', 'pendente',
+    (ag) => ag.status_pagamento !== 'pendente',
+    'marcar como Pendente'
+  );
+
+  // Bulk Actions - Repasse
+  const handleBulkRepasseTransferido = () => handleBulkUpdate(
+    'status_repasse', 'transferido',
+    (ag) => getEffectivePagamento(ag) === 'pago' && ag.status_repasse !== 'transferido',
+    'marcar como Transferido'
+  );
+  const handleBulkRepasseDisponivel = () => handleBulkUpdate(
+    'status_repasse', 'disponivel',
+    (ag) => ag.status_repasse !== 'disponivel',
+    'zerar (marcar como Disponível)'
+  );
+
   // Contar repasses elegíveis para transferência
   const eligibleTransferCount = filteredData.filter(ag => 
     getEffectivePagamento(ag) === 'pago' && ag.status_repasse !== 'transferido'
@@ -522,11 +622,6 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
             <p className="text-muted-foreground">Gestão de repasses e lucro líquido.</p>
             </div>
             <div className="flex gap-2">
-              {eligibleTransferCount > 0 && (
-                <Button onClick={handleTransferAll} variant="default" className="gap-2 bg-green-600 hover:bg-green-700">
-                  🔄 Transferir Todos ({eligibleTransferCount})
-                </Button>
-              )}
               <Button onClick={exportToCSV} variant="outline" className="gap-2">
                 <Download className="h-4 w-4" />
                 Exportar CSV
@@ -793,9 +888,57 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
                 <TableHead>Data</TableHead>
                 <TableHead>Paciente</TableHead>
                 <TableHead>Psicólogo</TableHead>
-                <TableHead>Sessão</TableHead>
-                <TableHead>Pagamento (Paciente)</TableHead>
-                <TableHead>Repasse (Psi)</TableHead>
+                <TableHead>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="sm" className="h-8 gap-1 -ml-3 font-medium">
+                        Sessão <ChevronDown className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start">
+                      <DropdownMenuItem onClick={handleBulkSessaoRealizada}>
+                        ✅ Marcar todos como Realizada
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={handleBulkSessaoCancelada}>
+                        ❌ Marcar todos como Cancelada
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </TableHead>
+                <TableHead>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="sm" className="h-8 gap-1 -ml-3 font-medium">
+                        Pagamento <ChevronDown className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start">
+                      <DropdownMenuItem onClick={handleBulkPagamentoPago}>
+                        ✅ Marcar todos como Pago
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={handleBulkPagamentoPendente}>
+                        ⏳ Marcar todos como Pendente
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </TableHead>
+                <TableHead>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="sm" className="h-8 gap-1 -ml-3 font-medium">
+                        Repasse <ChevronDown className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start">
+                      <DropdownMenuItem onClick={handleBulkRepasseTransferido}>
+                        💸 Marcar todos como Transferido
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={handleBulkRepasseDisponivel}>
+                        🔄 Zerar todos (Disponível)
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </TableHead>
                 <TableHead className="text-right">Valor</TableHead>
               </TableRow>
             </TableHeader>
