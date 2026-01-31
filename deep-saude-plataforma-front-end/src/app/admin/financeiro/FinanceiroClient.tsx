@@ -402,13 +402,15 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
 
   // Helper: Check if payment should be considered "pago" (past sessions = auto pago)
   const getEffectivePagamento = (ag: Agendamento): string => {
-    if (ag.status_pagamento === 'pago') return 'pago';
-    // Past sessions (not cancelled) are auto-considered as paid
+    // If explicitly set (either pago or pendente), respect that
+    if (ag.status_pagamento) return ag.status_pagamento;
+    
+    // Only auto-mark as "pago" if no explicit value AND session is in the past (not cancelled)
     const effectiveStatus = getEffectiveStatus(ag);
     if (effectiveStatus === 'realizado') {
       return 'pago';
     }
-    return ag.status_pagamento || 'pendente';
+    return 'pendente';
   };
 
   // CSV Export Function
