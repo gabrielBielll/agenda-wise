@@ -9,41 +9,11 @@
 
  ✓ Starting...
  ○ Compiling middleware ...
- ✓ Compiled middleware in 2.6s
- ✓ Ready in 4.8s
-[Middleware] Path: /admin/login | Role: admin_clinica | Token Exists: true
- ○ Compiling /admin/login ...
-[Middleware] Path: /admin/login | Role: admin_clinica | Token Exists: true
- ✓ Compiled /admin/login in 15.3s
- GET /admin/login 200 in 4791ms
+ ✓ Compiled middleware in 1332ms
+ ✓ Ready in 3.8s
  ○ Compiling /api/auth/[...nextauth] ...
- ✓ Compiled /api/auth/[...nextauth] in 2.2s
- GET /api/auth/providers 200 in 314ms
- GET /api/auth/session 200 in 3711ms
- GET /api/auth/csrf 200 in 239ms
- GET /api/auth/session 200 in 259ms
-NextAuth: Login API Response { status: 200, hasToken: true }
-NextAuth: Authorize success, returning user with token.
-FORCE OVERRIDE: Setting role to 'admin_clinica' for admin@deepsaude.com
-NextAuth: JWT Callback - Initial sign in
-NextAuth JWT: Forcing 'admin_clinica' for admin
- POST /api/auth/callback/credentials 200 in 1120ms
- GET /api/auth/session 200 in 289ms
-[Middleware] Path: /admin/dashboard | Role: admin_clinica | Token Exists: true
- ○ Compiling /admin/dashboard ...
- ✓ Compiled /admin/dashboard in 6.1s
- GET /admin/dashboard 200 in 7045ms
- GET /api/auth/session 200 in 191ms
- GET /api/auth/session 200 in 365ms
-[Middleware] Path: /admin/financeiro | Role: admin_clinica | Token Exists: true
- ○ Compiling /admin/financeiro ...
- ✓ Compiled /admin/financeiro in 8.8s
- GET /admin/financeiro 200 in 9433ms
- GET /api/auth/session 200 in 650ms
- GET /api/auth/session 200 in 199ms
- GET /api/auth/session 200 in 168ms
- GET /api/auth/session 200 in 197ms
- GET /api/auth/session 200 in 167ms
- GET /api/auth/session 200 in 191ms
- ✓ Compiled in 1856ms
- ✓ Compiled in 2.3s
+ ✓ Compiled /api/auth/[...nextauth] in 4.8s
+ GET /api/auth/session 200 in 6161ms
+ GET /api/auth/session 200 in 63ms
+(node:32085) [DEP0060] DeprecationWarning: The `util._extend` API is deprecated. Please use Object.assign() instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)

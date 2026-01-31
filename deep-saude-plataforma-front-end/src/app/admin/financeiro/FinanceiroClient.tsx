@@ -39,7 +39,7 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ChevronLeft, ChevronRight, DollarSign, Calendar as CalendarIcon, Filter } from "lucide-react";
+import { ChevronLeft, ChevronRight, DollarSign, Calendar as CalendarIcon, Filter, Download } from "lucide-react";
 
 interface Agendamento {
   id: string;
@@ -334,6 +334,43 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
   const formatCurrency = (value: number) => 
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 
+  // CSV Export Function
+  const exportToCSV = () => {
+    const headers = ['Data', 'Horário', 'Paciente', 'Psicólogo', 'Sessão', 'Pagamento', 'Repasse', 'Valor'];
+    
+    const rows = filteredData.map(ag => [
+      format(parseISO(ag.data_hora_sessao), 'dd/MM/yyyy'),
+      format(parseISO(ag.data_hora_sessao), 'HH:mm'),
+      ag.nome_paciente || 'Não informado',
+      ag.nome_psicologo || 'Não informado',
+      ag.status === 'realizado' ? 'Realizada' : ag.status === 'cancelado' ? 'Cancelada' : 'Agendada',
+      ag.status_pagamento === 'pago' ? 'Pago' : 'Pendente',
+      ag.status_pagamento !== 'pago' ? 'Bloqueado' : ag.status_repasse === 'transferido' ? 'Transferido' : 'Disponível',
+      (Number(ag.valor_consulta) || 0).toFixed(2).replace('.', ',')
+    ]);
+    
+    const csvContent = [
+      headers.join(';'),
+      ...rows.map(row => row.join(';'))
+    ].join('\n');
+    
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `financeiro_${format(new Date(), 'yyyy-MM-dd')}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    toast({
+      title: "Exportado!",
+      description: `${filteredData.length} registros exportados para CSV.`,
+      className: "bg-green-500 text-white"
+    });
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-6">
@@ -342,6 +379,10 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
             <h1 className="text-3xl font-bold tracking-tight">Financeiro</h1>
             <p className="text-muted-foreground">Gestão de repasses e lucro líquido.</p>
             </div>
+            <Button onClick={exportToCSV} variant="outline" className="gap-2">
+              <Download className="h-4 w-4" />
+              Exportar CSV
+            </Button>
         </div>
 
         {/* Global Controls */}
