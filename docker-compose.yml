@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   postgres:
@@ -7,7 +7,7 @@ services:
     environment:
       POSTGRES_USER: erp_user
       POSTGRES_PASSWORD: advocacia123 # Mantendo compatível com o que vi nos docs antigos por enquanto
-      POSTGRES_DB: erp_advocacia
+      POSTGRES_DB: deep_saude_db
     ports:
       - "5432:5432"
     volumes:

@@ -65,7 +65,7 @@ echo "⚙️  [4/5] Iniciando Backend (Clojure) na porta 3000..."
 cd "$SCRIPT_DIR/deep-saude-plataforma-api/deep-saude-backend"
 
 # Set environment variables
-export DATABASE_URL='postgresql://erp_user:advocacia123@localhost:5432/erp_advocacia?sslmode=disable'
+export DATABASE_URL='postgresql://erp_user:advocacia123@localhost:5432/deep_saude_db?sslmode=disable'
 export JWT_SECRET='chave-super-secreta-desenvolvimento-local-minimo-32-caracteres-aleatorios'
 export APP_ENV='development'
 export PORT='3000'
