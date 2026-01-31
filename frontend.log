@@ -8,7 +8,6 @@
    - Environments: .env.local
 
  ✓ Starting...
-Slow filesystem detected. If /Users/gabriel/Documents/developer/deep-saude-plataform/deep-saude-plataforma-front-end/.next is a network drive, consider moving it to a local folder. If you have an antivirus enabled, consider excluding your project directory.
  ○ Compiling middleware ...
- ✓ Compiled middleware in 3.5s
- ✓ Ready in 8.1s
+ ✓ Compiled middleware in 2.4s
+ ✓ Ready in 5s

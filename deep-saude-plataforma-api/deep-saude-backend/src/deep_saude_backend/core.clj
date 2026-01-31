@@ -611,8 +611,37 @@
       (println "ERRO AO REMOVER AGENDAMENTO:" (.getMessage e))
       (.printStackTrace e)
       {:status 500 :body {:erro (str "Erro interno: " (.getMessage e))}})))
+;; Função global de sincronização (sem contexto de request)
+;; Usada na inicialização do backend para TODAS as clínicas
+(defn sincronizar-status-global! []
+  (try
+    (let [agora (java.sql.Timestamp. (System/currentTimeMillis))]
+      (println "SYNC GLOBAL: Sincronizando status de todos os agendamentos passados...")
+      
+      ;; Atualiza status para 'realizado' em sessões passadas que ainda estão como 'agendado'
+      (let [status-result (jdbc/execute! @datasource 
+                            ["UPDATE agendamentos 
+                              SET status = 'realizado' 
+                              WHERE data_hora_sessao < ? 
+                              AND (status IS NULL OR status = 'agendado')"
+                             agora])
+            status-count (get (first status-result) :next.jdbc/update-count 0)
+            
+            ;; Atualiza status_pagamento para 'pago' em sessões passadas realizadas (não canceladas)
+            pagamento-result (jdbc/execute! @datasource 
+                               ["UPDATE agendamentos 
+                                 SET status_pagamento = 'pago' 
+                                 WHERE data_hora_sessao < ? 
+                                 AND status != 'cancelado'
+                                 AND (status_pagamento IS NULL OR status_pagamento = 'pendente')"
+                                agora])
+            pagamento-count (get (first pagamento-result) :next.jdbc/update-count 0)]
+        
+        (println "SYNC GLOBAL: Atualizados" status-count "status e" pagamento-count "pagamentos")))
+    (catch Exception e
+      (println "ERRO SYNC GLOBAL:" (.getMessage e)))))
 
-;; Handler para sincronizar status de agendamentos passados
+;; Handler para sincronizar status de agendamentos passados (por clínica)
 ;; Atualiza no banco: status='realizado' e status_pagamento='pago' para sessões passadas não canceladas
 (defn sincronizar-status-agendamentos-handler [request]
   (try
@@ -628,7 +657,7 @@
                               AND data_hora_sessao < ? 
                               AND (status IS NULL OR status = 'agendado')"
                              clinica-id agora])
-            status-count (:next.jdbc/update-count (first status-result) 0)
+            status-count (get (first status-result) :next.jdbc/update-count 0)
             
             ;; Atualiza status_pagamento para 'pago' em sessões passadas realizadas (não canceladas)
             pagamento-result (jdbc/execute! @datasource 
@@ -639,7 +668,7 @@
                                  AND status != 'cancelado'
                                  AND (status_pagamento IS NULL OR status_pagamento = 'pendente')"
                                 clinica-id agora])
-            pagamento-count (:next.jdbc/update-count (first pagamento-result) 0)]
+            pagamento-count (get (first pagamento-result) :next.jdbc/update-count 0)]
         
         (println "SYNC: Atualizados" status-count "status e" pagamento-count "pagamentos")
         {:status 200 :body {:message "Sincronização concluída"
@@ -1084,6 +1113,9 @@
                            )"])
           (execute-query! ["ALTER TABLE bloqueios_agenda ADD COLUMN IF NOT EXISTS recorrencia_id UUID"])
           (println "Tabela bloqueios_agenda verificada/criada com sucesso.")
+
+          ;; Sincronização de status de agendamentos passados na inicialização
+          (sincronizar-status-global!)
 
           (catch Exception e
             (println "Aviso ao verificar colunas:" (.getMessage e))))

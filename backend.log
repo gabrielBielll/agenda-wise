@@ -5,3 +5,17 @@ SUCCESS: JWT_SECRET encontrada. Início: 'chav...', Fim: '...rios'.
 MIGRATION: Verificando colunas financeiras na tabela agendamentos...
 DATABASE_URL encontrada.
 Tentando conectar ao banco de dados...
+MIGRATION: Coluna 'valor_repasse' ja existe.
+Conexão com o banco de dados estabelecida com sucesso!
+MIGRATION: Coluna 'status_repasse' ja existe.
+MIGRATION: Coluna 'status_pagamento' ja existe.
+MIGRATION: Verificação concluída.
+Coluna 'duracao' verificada/adicionada com sucesso.
+Coluna 'status' de agendamentos verificada/adicionada com sucesso.
+Novas colunas de prontuário verificadas/adicionadas com sucesso.
+Coluna 'status' de pacientes verificada/adicionada com sucesso.
+Novas colunas de dados clínicos do paciente verificadas/adicionadas com sucesso.
+Tabela bloqueios_agenda verificada/criada com sucesso.
+SYNC GLOBAL: Sincronizando status de todos os agendamentos passados...
+SYNC GLOBAL: Atualizados 0 status e 0 pagamentos
+Servidor iniciado na porta 3000
