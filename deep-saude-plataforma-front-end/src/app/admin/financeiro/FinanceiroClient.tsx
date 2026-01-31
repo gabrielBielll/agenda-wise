@@ -227,6 +227,92 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
       }
   };
 
+  // Function to toggle Payment Status (Pendente/Pago)
+  const handleUpdatePagamento = async (id: string, currentStatus: string | undefined) => {
+      const newStatus = currentStatus === 'pago' ? 'pendente' : 'pago';
+      
+      // Optimistic update
+      setAgendamentos(prev => prev.map(ag => 
+          ag.id === id ? { ...ag, status_pagamento: newStatus } : ag
+      ));
+
+      try {
+          const res = await fetch(`/api/agendamentos/${id}`, {
+              method: 'PUT',
+              headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify({ status_pagamento: newStatus })
+          });
+          
+          if (!res.ok) throw new Error('Failed to update');
+          
+          toast({
+              title: "Pagamento atualizado",
+              description: newStatus === 'pago' ? 'Marcado como Pago.' : 'Marcado como Pendente.',
+              className: "bg-green-500 text-white"
+          });
+
+      } catch (error: any) {
+          console.error("Error updating pagamento:", error);
+          toast({
+              title: "Erro",
+              description: "Não foi possível atualizar o pagamento.",
+              variant: "destructive"
+          });
+          // Revert
+          setAgendamentos(prev => prev.map(ag => 
+            ag.id === id ? { ...ag, status_pagamento: currentStatus as any } : ag
+          ));
+      }
+  };
+
+  // Function to toggle Repasse Status (Disponivel/Transferido)
+  const handleUpdateRepasseStatus = async (id: string, currentStatus: string | undefined, valorConsulta: number) => {
+      const newStatus = currentStatus === 'transferido' ? 'disponivel' : 'transferido';
+      const repasseValue = valorConsulta * (commissionRate / 100);
+      
+      // Optimistic update
+      setAgendamentos(prev => prev.map(ag => 
+          ag.id === id ? { ...ag, status_repasse: newStatus, valor_repasse: ag.valor_repasse ?? repasseValue } : ag
+      ));
+
+      try {
+          const res = await fetch(`/api/agendamentos/${id}`, {
+              method: 'PUT',
+              headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify({ 
+                  status_repasse: newStatus,
+                  valor_repasse: repasseValue 
+              })
+          });
+          
+          if (!res.ok) throw new Error('Failed to update');
+          
+          toast({
+              title: "Repasse atualizado",
+              description: newStatus === 'transferido' ? 'Marcado como Transferido.' : 'Marcado como Disponível.',
+              className: "bg-green-500 text-white"
+          });
+
+      } catch (error: any) {
+          console.error("Error updating repasse:", error);
+          toast({
+              title: "Erro",
+              description: "Não foi possível atualizar o repasse.",
+              variant: "destructive"
+          });
+          // Revert
+          setAgendamentos(prev => prev.map(ag => 
+            ag.id === id ? { ...ag, status_repasse: currentStatus as any } : ag
+          ));
+      }
+  };
+
   // Prepare data for chart (group by day)
   const chartData = useMemo(() => {
     const dailyData: Record<string, number> = {};
@@ -551,23 +637,36 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
                             </SelectContent>
                         </Select>
                     </TableCell>
-                    {/* Coluna Pagamento (Paciente) - Vermelho/Verde */}
+                    {/* Coluna Pagamento (Paciente) - Clickável */}
                     <TableCell>
-                        <span className={cn(
-                            "text-sm font-medium",
-                            ag.status_pagamento === 'pago' ? "text-green-600" : "text-red-500"
-                        )}>
-                            {ag.status_pagamento === 'pago' ? 'Pago' : 'Pendente'}
-                        </span>
+                        <Button 
+                            variant="ghost" 
+                            size="sm"
+                            className={cn(
+                                "h-8 px-2 text-xs font-medium",
+                                ag.status_pagamento === 'pago' ? "text-green-600 hover:text-green-700" : "text-red-500 hover:text-red-600"
+                            )}
+                            onClick={() => handleUpdatePagamento(ag.id, ag.status_pagamento)}
+                        >
+                            {ag.status_pagamento === 'pago' ? '✅ Pago' : '⏳ Pendente'}
+                        </Button>
                     </TableCell>
-                    {/* Coluna Repasse (Psi) - Bloqueado se paciente não pagou */}
+                    {/* Coluna Repasse (Psi) - Clickável se pagamento OK */}
                     <TableCell>
                         {ag.status_pagamento !== 'pago' ? (
-                            <span className="text-sm text-gray-400">Bloqueado</span>
-                        ) : ag.status_repasse === 'transferido' ? (
-                            <span className="text-sm text-green-600 font-medium">Transferido</span>
+                            <span className="text-sm text-gray-400">🔒 Bloqueado</span>
                         ) : (
-                            <span className="text-sm text-blue-600">Disponível</span>
+                            <Button 
+                                variant="ghost" 
+                                size="sm"
+                                className={cn(
+                                    "h-8 px-2 text-xs font-medium",
+                                    ag.status_repasse === 'transferido' ? "text-green-600 hover:text-green-700" : "text-blue-600 hover:text-blue-700"
+                                )}
+                                onClick={() => handleUpdateRepasseStatus(ag.id, ag.status_repasse, Number(ag.valor_consulta))}
+                            >
+                                {ag.status_repasse === 'transferido' ? '✅ Transferido' : '💵 Disponível'}
+                            </Button>
                         )}
                     </TableCell>
                     <TableCell className="text-right font-bold text-green-700">

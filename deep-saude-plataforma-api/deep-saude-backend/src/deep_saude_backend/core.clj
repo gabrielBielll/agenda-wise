@@ -61,6 +61,12 @@
        (println "MIGRATION: Coluna 'status_repasse' adicionada.")
        (catch Exception _ (println "MIGRATION: Coluna 'status_repasse' ja existe.")))
     
+    ;; Check/Add status_pagamento
+    (try 
+       (jdbc/execute! @datasource ["ALTER TABLE agendamentos ADD COLUMN status_pagamento VARCHAR(20) DEFAULT 'pendente'"])
+       (println "MIGRATION: Coluna 'status_pagamento' adicionada.")
+       (catch Exception _ (println "MIGRATION: Coluna 'status_pagamento' ja existe.")))
+    
     (println "MIGRATION: Verificação concluída.")
     (catch Exception e
       (println "MIGRATION ERROR:" (.getMessage e)))))
@@ -558,7 +564,8 @@
                            (some? status) (assoc :status status)
                            (some? observacoes) (assoc :observacoes observacoes)
                            (some? (:valor_repasse (:body request))) (assoc :valor_repasse (:valor_repasse (:body request)))
-                           (some? (:status_repasse (:body request))) (assoc :status_repasse (:status_repasse (:body request))))]
+                           (some? (:status_repasse (:body request))) (assoc :status_repasse (:status_repasse (:body request)))
+                           (some? (:status_pagamento (:body request))) (assoc :status_pagamento (:status_pagamento (:body request))))]
           
           (if bloqueio-existente
             {:status 409 :body {:erro "Não é possível alterar para este horário. O período está bloqueado."}}
