@@ -618,6 +618,45 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
     getEffectivePagamento(ag) === 'pago' && ag.status_repasse !== 'transferido'
   ).length;
 
+  // Update patient financial fields
+  const handleUpdatePatientField = async (pacienteId: string, field: string, value: any) => {
+    try {
+      const res = await fetch(`/api/pacientes/${pacienteId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ [field]: value })
+      });
+      
+      if (res.ok) {
+        // Update all agendamentos for this patient
+        setAgendamentos(prev => prev.map(ag => 
+          ag.paciente_id === pacienteId ? { ...ag, [field]: value } : ag
+        ));
+        toast({
+          title: "Atualizado!",
+          description: `Campo ${field === 'nota_fiscal' ? 'Nota Fiscal' : field === 'tipo_pagamento' ? 'Tipo' : field === 'origem' ? 'Origem' : 'Vencimento'} atualizado com sucesso.`,
+          className: "bg-green-500 text-white"
+        });
+      } else {
+        toast({
+          title: "Erro",
+          description: "Não foi possível atualizar o campo.",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Error updating patient field:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao conectar com o servidor.",
+        variant: "destructive"
+      });
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-6">
@@ -1013,24 +1052,68 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
                             </Button>
                         )}
                     </TableCell>
-                    {/* New columns */}
+                    {/* New columns - Editable */}
                     <TableCell className="text-center">
-                      <Badge variant={ag.nota_fiscal ? "default" : "secondary"} className={ag.nota_fiscal ? "bg-green-600" : ""}>
-                        {ag.nota_fiscal ? 'SIM' : 'NÃO'}
-                      </Badge>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className={cn(
+                          "h-7 px-2 text-xs font-medium",
+                          ag.nota_fiscal ? "text-green-600 hover:text-green-700" : "text-gray-500 hover:text-gray-600"
+                        )}
+                        onClick={() => handleUpdatePatientField(ag.paciente_id, 'nota_fiscal', !ag.nota_fiscal)}
+                      >
+                        {ag.nota_fiscal ? '✅ SIM' : '❌ NÃO'}
+                      </Button>
                     </TableCell>
                     <TableCell className="text-center">
-                      <Badge variant="outline">
-                        {ag.tipo_pagamento === 'mensal' ? 'Mensal' : 'Avulso'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {ag.vencimento_pagamento || '-'}
+                      <Select
+                        value={ag.tipo_pagamento || 'avulso'}
+                        onValueChange={(value) => handleUpdatePatientField(ag.paciente_id, 'tipo_pagamento', value)}
+                      >
+                        <SelectTrigger className="w-[90px] h-7 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="mensal">Mensal</SelectItem>
+                          <SelectItem value="avulso">Avulso</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="secondary">
-                        {ag.origem || '-'}
-                      </Badge>
+                      <Input
+                        type="text"
+                        className="h-7 text-xs w-[100px]"
+                        placeholder="Ex: dia 5"
+                        defaultValue={ag.vencimento_pagamento || ''}
+                        onBlur={(e) => {
+                          if (e.target.value !== (ag.vencimento_pagamento || '')) {
+                            handleUpdatePatientField(ag.paciente_id, 'vencimento_pagamento', e.target.value);
+                          }
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            (e.target as HTMLInputElement).blur();
+                          }
+                        }}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Select
+                        value={ag.origem || ''}
+                        onValueChange={(value) => handleUpdatePatientField(ag.paciente_id, 'origem', value)}
+                      >
+                        <SelectTrigger className="w-[110px] h-7 text-xs">
+                          <SelectValue placeholder="Selecione" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="indicacao">Indicação</SelectItem>
+                          <SelectItem value="google">Google</SelectItem>
+                          <SelectItem value="instagram">Instagram</SelectItem>
+                          <SelectItem value="facebook">Facebook</SelectItem>
+                          <SelectItem value="outro">Outro</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </TableCell>
                     <TableCell className="text-right">
                         {editingValorId === ag.id ? (

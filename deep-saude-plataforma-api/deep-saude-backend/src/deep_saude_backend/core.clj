@@ -331,7 +331,7 @@
         usuario-id (:user_id identity)
         papel (:role identity)
         paciente-id (java.util.UUID/fromString (get-in request [:params :id]))
-        {:keys [nome email telefone data_nascimento endereco avatar_url psicologo_id historico_familiar uso_medicamentos diagnostico contatos_emergencia status]} (:body request)]
+        {:keys [nome email telefone data_nascimento endereco avatar_url psicologo_id historico_familiar uso_medicamentos diagnostico contatos_emergencia status nota_fiscal origem vencimento_pagamento tipo_pagamento]} (:body request)]
     
     ;; Verificação de Propriedade para Psicólogos
     (if (and (= papel "psicologo")
@@ -359,6 +359,10 @@
                            (some? diagnostico) (assoc :diagnostico diagnostico)
                            (some? contatos_emergencia) (assoc :contatos_emergencia contatos_emergencia)
                            (some? status) (assoc :status status)
+                           (some? nota_fiscal) (assoc :nota_fiscal nota_fiscal)
+                           (some? origem) (assoc :origem origem)
+                           (some? vencimento_pagamento) (assoc :vencimento_pagamento vencimento_pagamento)
+                           (some? tipo_pagamento) (assoc :tipo_pagamento tipo_pagamento)
                            (some? psicologo_id) (assoc :psicologo_id (when (not (str/blank? psicologo_id)) (java.util.UUID/fromString psicologo_id))))
               resultado (if (empty? update-map)
                           {:next.jdbc/update-count 0}

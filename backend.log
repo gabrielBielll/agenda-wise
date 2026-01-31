@@ -20,3 +20,17 @@ Tabela bloqueios_agenda verificada/criada com sucesso.
 SYNC GLOBAL: Sincronizando status de todos os agendamentos passados...
 SYNC GLOBAL: Atualizados 0 status e 0 pagamentos
 Servidor iniciado na porta 3000
+DEBUG: Middleware JWT. Token presente? true
+DEBUG: Middleware JWT. Token presente? true
+SYNC: Sincronizando status de agendamentos passados para clínica #uuid "967b3f16-04c2-489c-90d4-306bd967844e"
+SYNC: Atualizados 0 status e 0 pagamentos
+DEBUG: Middleware JWT. Token presente? true
+DEBUG: Middleware JWT. Token presente? true
+DEBUG: Listar Agendamentos - User: #uuid "912e8b25-845d-45d0-bcd9-a6a300d78aff" Papel: admin_clinica Clinica: #uuid "967b3f16-04c2-489c-90d4-306bd967844e" Paciente Filter: nil
+DEBUG: Middleware JWT. Token presente? true
+DEBUG: Middleware JWT. Token presente? true
+SYNC: Sincronizando status de agendamentos passados para clínica #uuid "967b3f16-04c2-489c-90d4-306bd967844e"
+SYNC: Atualizados 0 status e 0 pagamentos
+DEBUG: Middleware JWT. Token presente? true
+DEBUG: Middleware JWT. Token presente? true
+DEBUG: Listar Agendamentos - User: #uuid "912e8b25-845d-45d0-bcd9-a6a300d78aff" Papel: admin_clinica Clinica: #uuid "967b3f16-04c2-489c-90d4-306bd967844e" Paciente Filter: nil

@@ -11,3 +11,44 @@
  ○ Compiling middleware ...
  ✓ Compiled middleware in 3s
  ✓ Ready in 6.5s
+ ○ Compiling /api/auth/[...nextauth] ...
+ ✓ Compiled /api/auth/[...nextauth] in 7.4s
+ GET /api/auth/session 200 in 9267ms
+[Middleware] Path: /admin/financeiro | Role: admin_clinica | Token Exists: true
+[Middleware] Path: /admin/login | Role: admin_clinica | Token Exists: true
+ ○ Compiling /admin/login ...
+ ✓ Compiled /admin/login in 7.2s
+ GET /admin/login?expired=true 200 in 8014ms
+ GET /api/auth/session 200 in 125ms
+ ○ Compiling /favicon.ico ...
+ ✓ Compiled /favicon.ico in 1825ms
+ GET /favicon.ico?favicon.56766c03.ico 200 in 1850ms
+ GET /favicon.ico 200 in 2260ms
+ GET /api/auth/providers 200 in 155ms
+ GET /api/auth/csrf 200 in 144ms
+NextAuth: Login API Response { status: 200, hasToken: true }
+NextAuth: Authorize success, returning user with token.
+FORCE OVERRIDE: Setting role to 'admin_clinica' for admin@deepsaude.com
+NextAuth: JWT Callback - Initial sign in
+NextAuth JWT: Forcing 'admin_clinica' for admin
+ POST /api/auth/callback/credentials 200 in 1032ms
+ GET /api/auth/session 200 in 111ms
+[Middleware] Path: /admin/dashboard | Role: admin_clinica | Token Exists: true
+ ○ Compiling /admin/dashboard ...
+ ✓ Compiled /admin/dashboard in 6.3s
+ GET /admin/dashboard 200 in 7798ms
+ GET /api/auth/session 200 in 92ms
+[Middleware] Path: /admin/financeiro | Role: admin_clinica | Token Exists: true
+ ○ Compiling /admin/financeiro ...
+ ✓ Compiled /admin/financeiro in 9.8s
+ GET /admin/financeiro 200 in 11058ms
+ GET /api/auth/session 200 in 1533ms
+[Middleware] Path: /admin/financeiro | Role: admin_clinica | Token Exists: true
+ GET /api/auth/session 200 in 157ms
+ GET /admin/financeiro 200 in 2079ms
+ GET /favicon.ico?favicon.56766c03.ico 200 in 350ms
+ GET /api/auth/session 200 in 280ms
+ GET /api/auth/session 200 in 544ms
+ ✓ Compiled in 1306ms
+ GET /api/auth/session 200 in 584ms
+ ✓ Compiled in 3.5s
