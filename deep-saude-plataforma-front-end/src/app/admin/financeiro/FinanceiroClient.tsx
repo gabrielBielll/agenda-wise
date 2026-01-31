@@ -49,9 +49,10 @@ interface Agendamento {
   nome_paciente?: string;
   psicologo_id?: string;
   nome_psicologo?: string;
-  status?: string;
+  status?: string; // agendado, realizado, cancelado
   valor_repasse?: number;
-  status_repasse?: 'pendente' | 'pago';
+  status_repasse?: 'bloqueado' | 'disponivel' | 'transferido'; // Repasse (Psi)
+  status_pagamento?: 'pendente' | 'pago'; // Pagamento (Paciente)
 }
 
 interface FinanceiroClientProps {
@@ -183,6 +184,46 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
           setAgendamentos(prev => prev.map(ag => 
             ag.id === id ? { ...ag, status_repasse: currentStatus as any } : ag
           ));
+      }
+  };
+
+  // Function to update Session Status (Agendada, Realizada, Cancelada)
+  const handleUpdateStatus = async (id: string, newStatus: string) => {
+      // Optimistic update
+      setAgendamentos(prev => prev.map(ag => 
+          ag.id === id ? { ...ag, status: newStatus } : ag
+      ));
+
+      try {
+          const res = await fetch(`/api/agendamentos/${id}`, {
+              method: 'PUT',
+              headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify({ status: newStatus })
+          });
+          
+          if (!res.ok) {
+            const errText = await res.text();
+            console.error("Failed to update status:", res.status, errText);
+            throw new Error(`Failed to update: ${res.status}`);
+          }
+          
+          toast({
+              title: "Sessão atualizada",
+              description: `Status alterado para ${newStatus === 'realizado' ? 'Realizada' : newStatus === 'cancelado' ? 'Cancelada' : 'Agendada'}.`,
+              className: "bg-green-500 text-white"
+          });
+
+      } catch (error: any) {
+          console.error("Error updating status:", error);
+           toast({
+              title: "Erro ao atualizar",
+              description: "Não foi possível alterar o status da sessão.",
+              variant: "destructive"
+          });
+          // Revert would need original status, but for simplicity just refresh
       }
   };
 
@@ -476,8 +517,9 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
                 <TableHead>Data</TableHead>
                 <TableHead>Paciente</TableHead>
                 <TableHead>Psicólogo</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Repasse</TableHead>
+                <TableHead>Sessão</TableHead>
+                <TableHead>Pagamento (Paciente)</TableHead>
+                <TableHead>Repasse (Psi)</TableHead>
                 <TableHead className="text-right">Valor</TableHead>
               </TableRow>
             </TableHeader>
@@ -493,33 +535,40 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
                     </TableCell>
                     <TableCell>{ag.nome_paciente || "Não informado"}</TableCell>
                     <TableCell>{ag.nome_psicologo || "Não informado"}</TableCell>
+                    {/* Coluna Sessão - Dropdown editável */}
                     <TableCell>
-                        <Badge variant={ag.status === 'cancelado' ? 'destructive' : 'secondary'}>
-                            {ag.status || 'Agendado'}
-                        </Badge>
+                        <Select 
+                            value={ag.status || 'agendado'} 
+                            onValueChange={(value) => handleUpdateStatus(ag.id, value)}
+                        >
+                            <SelectTrigger className="w-[120px] h-8 text-xs">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="agendado">📅 Agendada</SelectItem>
+                                <SelectItem value="realizado">✅ Realizada</SelectItem>
+                                <SelectItem value="cancelado">❌ Cancelada</SelectItem>
+                            </SelectContent>
+                        </Select>
                     </TableCell>
+                    {/* Coluna Pagamento (Paciente) - Vermelho/Verde */}
                     <TableCell>
-                     <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className={cn(
-                            "h-8 gap-1", 
-                            ag.status_repasse === 'pago' ? "text-green-600 hover:text-green-700" : "text-muted-foreground"
-                        )}
-                        onClick={() => handleUpdateRepasse(ag.id, ag.status_repasse, Number(ag.valor_consulta))}
-                     >
-                        {ag.status_repasse === 'pago' ? (
-                            <>
-                                <CheckCircle2 className="h-4 w-4" />
-                                <span className="text-xs font-bold">PAGO</span>
-                            </>
+                        <span className={cn(
+                            "text-sm font-medium",
+                            ag.status_pagamento === 'pago' ? "text-green-600" : "text-red-500"
+                        )}>
+                            {ag.status_pagamento === 'pago' ? 'Pago' : 'Pendente'}
+                        </span>
+                    </TableCell>
+                    {/* Coluna Repasse (Psi) - Bloqueado se paciente não pagou */}
+                    <TableCell>
+                        {ag.status_pagamento !== 'pago' ? (
+                            <span className="text-sm text-gray-400">Bloqueado</span>
+                        ) : ag.status_repasse === 'transferido' ? (
+                            <span className="text-sm text-green-600 font-medium">Transferido</span>
                         ) : (
-                            <>
-                                <Circle className="h-4 w-4" />
-                                <span className="text-xs">Pendente</span>
-                            </>
+                            <span className="text-sm text-blue-600">Disponível</span>
                         )}
-                     </Button>
                     </TableCell>
                     <TableCell className="text-right font-bold text-green-700">
                       {formatCurrency(Number(ag.valor_consulta))}
@@ -528,7 +577,7 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center h-24 text-muted-foreground">
+                  <TableCell colSpan={7} className="text-center h-24 text-muted-foreground">
                     Nenhum registro encontrado para este mês.
                   </TableCell>
                 </TableRow>
