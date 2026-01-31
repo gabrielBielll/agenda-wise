@@ -39,13 +39,22 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ChevronLeft, ChevronRight, DollarSign, Calendar as CalendarIcon, Filter, Download, ChevronDown } from "lucide-react";
+import { ChevronLeft, ChevronRight, DollarSign, Calendar as CalendarIcon, Filter, Download, ChevronDown, ArrowUpDown } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 
 interface Agendamento {
   id: string;
@@ -86,6 +95,7 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
   const [selectedPsicologo, setSelectedPsicologo] = useState<string>("all");
   const [selectedPaciente, setSelectedPaciente] = useState<string>("all");
   const [selectedRepasse, setSelectedRepasse] = useState<string>("all");
+  const [sortBy, setSortBy] = useState<"date" | "patient">("date");
   
   // State to track local updates to agendamentos (optimistic UI)
   const [agendamentos, setAgendamentos] = useState<Agendamento[]>(initialAgendamentos);
@@ -96,6 +106,10 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
   // State for editing valor
   const [editingValorId, setEditingValorId] = useState<string | null>(null);
   const [editingValorValue, setEditingValorValue] = useState<string>("");
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 20;
 
   // Extract unique options for filters
   const psicologos = useMemo(() => {
@@ -109,6 +123,25 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
   }, [agendamentos]);
 
   // Filter appointments
+  // Helpers declared before useMemo to avoid hoisting issues
+  const getEffectiveStatus = (ag: Agendamento): string => {
+    // If already marked as cancelado or realizado, use that
+    if (ag.status === 'cancelado' || ag.status === 'realizado') {
+      return ag.status;
+    }
+    // If session date/time has passed, consider it "realizada" automatically
+    const sessionDate = parseISO(ag.data_hora_sessao);
+    if (sessionDate < new Date()) {
+      return 'realizado';
+    }
+    // Otherwise, it's still "agendado"
+    return 'agendado';
+  };
+
+  const getEffectivePagamento = (ag: Agendamento): string => {
+    return ag.status_pagamento || 'pendente';
+  };
+
   const filteredData = useMemo(() => {
     if (!dateRange?.from) return [];
 
@@ -127,18 +160,52 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
         const matchesPsicologo = selectedPsicologo === "all" || ag.nome_psicologo === selectedPsicologo;
         const matchesPaciente = selectedPaciente === "all" || ag.nome_paciente === selectedPaciente;
         const matchesRepasse = selectedRepasse === "all" || 
-          (selectedRepasse === "pago" && ag.status_repasse === "pago") ||
-          (selectedRepasse === "pendente" && (ag.status_repasse === "pendente" || !ag.status_repasse));
+          (selectedRepasse === "pago" && getEffectivePagamento(ag) === 'pago') ||
+          (selectedRepasse === "pendente" && getEffectivePagamento(ag) !== 'pago');
         
         return matchesDate && matchesPsicologo && matchesPaciente && matchesRepasse;
       })
-      .sort((a, b) => new Date(b.data_hora_sessao).getTime() - new Date(a.data_hora_sessao).getTime());
-  }, [agendamentos, dateRange, selectedPsicologo, selectedPaciente, selectedRepasse]);
+      .sort((a, b) => {
+        if (sortBy === "patient") {
+          const nameA = (a.nome_paciente || "").toLowerCase();
+          const nameB = (b.nome_paciente || "").toLowerCase();
+          if (nameA < nameB) return -1;
+          if (nameA > nameB) return 1;
+          // Se o nome for igual, ordena por data
+          return new Date(b.data_hora_sessao).getTime() - new Date(a.data_hora_sessao).getTime();
+        }
+        // Padrão: Ordenar por data (mais recente primeiro)
+        return new Date(b.data_hora_sessao).getTime() - new Date(a.data_hora_sessao).getTime();
+      });
+  }, [agendamentos, dateRange, selectedPsicologo, selectedPaciente, selectedRepasse, sortBy]);
 
+  // Calculate totals per patient for the "Valor Total" column
+  const totalsByPatient = useMemo(() => {
+    if (sortBy !== "patient") return {};
+    const totals: Record<string, number> = {};
+    filteredData.forEach(ag => {
+      const name = ag.nome_paciente || "Não informado";
+      totals[name] = (totals[name] || 0) + (Number(ag.valor_consulta) || 0);
+    });
+    return totals;
+  }, [filteredData, sortBy]);
+  
   // Calculate stats
   const totalReceita = filteredData.reduce((acc, curr) => acc + (Number(curr.valor_consulta) || 0), 0);
   const totalAtendimentos = filteredData.length;
   
+  // Pagination Logic
+  const totalPages = Math.ceil(totalAtendimentos / ITEMS_PER_PAGE);
+  const paginatedData = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredData.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [filteredData, currentPage]);
+
+  // Reset pagination when filters change
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [dateRange, selectedPsicologo, selectedPaciente, selectedRepasse, sortBy]);
+
   // Calculate Repasse Stats
   // If valor_repasse is set in DB, use it. Otherwise, calculate based on simulation rate.
   const totalRepasse = filteredData.reduce((acc, curr) => {
@@ -396,43 +463,37 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
   const formatCurrency = (value: number) => 
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 
-  // Helper: Get effective status (past sessions without cancelado = realizada)
-  const getEffectiveStatus = (ag: Agendamento): string => {
-    // If already marked as cancelado or realizado, use that
-    if (ag.status === 'cancelado' || ag.status === 'realizado') {
-      return ag.status;
-    }
-    // If session date/time has passed, consider it "realizada" automatically
-    const sessionDate = parseISO(ag.data_hora_sessao);
-    if (sessionDate < new Date()) {
-      return 'realizado';
-    }
-    // Otherwise, it's still "agendado"
-    return 'agendado';
-  };
 
-  // Helper: Get payment status from DB (sync endpoint already updates past sessions)
-  const getEffectivePagamento = (ag: Agendamento): string => {
-    return ag.status_pagamento || 'pendente';
-  };
 
   // CSV Export Function
   const exportToCSV = () => {
-    const headers = ['Data', 'Horário', 'Paciente', 'Psicólogo', 'Sessão', 'Pagamento', 'Repasse', 'Valor'];
+    const headers = ['Data', 'Dia da Semana', 'Horário', 'Paciente', 'Psicólogo', 'Sessão', 'Pagamento', 'Repasse', 'Nota Fiscal', 'Tipo Pagto', 'Vencimento', 'Origem', 'Valor'];
+    if (sortBy === 'patient') headers.push('Valor Total');
     
     const rows = filteredData.map(ag => {
       const effectiveStatus = getEffectiveStatus(ag);
       const effectivePagamento = getEffectivePagamento(ag);
-      return [
-        format(parseISO(ag.data_hora_sessao), 'dd/MM/yyyy'),
-        format(parseISO(ag.data_hora_sessao), 'HH:mm'),
+      const sessionDate = parseISO(ag.data_hora_sessao);
+      const row = [
+        format(sessionDate, 'dd/MM/yyyy'),
+        format(sessionDate, 'EEEE', { locale: ptBR }),
+        format(sessionDate, 'HH:mm'),
         ag.nome_paciente || 'Não informado',
         ag.nome_psicologo || 'Não informado',
         effectiveStatus === 'realizado' ? 'Realizada' : effectiveStatus === 'cancelado' ? 'Cancelada' : 'Agendada',
         effectivePagamento === 'pago' ? 'Pago' : 'Pendente',
         effectivePagamento !== 'pago' ? 'Bloqueado' : ag.status_repasse === 'transferido' ? 'Transferido' : 'Disponível',
+        ag.nota_fiscal ? 'SIM' : 'NÃO',
+        ag.tipo_pagamento || 'Avulso',
+        ag.vencimento_pagamento || '-',
+        ag.origem || '-',
         (Number(ag.valor_consulta) || 0).toFixed(2).replace('.', ',')
       ];
+      if (sortBy === 'patient') {
+        const total = totalsByPatient[ag.nome_paciente || "Não informado"] || 0;
+        row.push(total.toFixed(2).replace('.', ','));
+      }
+      return row;
     });
     
     const csvContent = [
@@ -724,7 +785,7 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
 
             <Select value={selectedRepasse} onValueChange={setSelectedRepasse}>
                 <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Status Repasse" />
+                    <SelectValue placeholder="Status Pagamento" />
                 </SelectTrigger>
                 <SelectContent>
                     <SelectItem value="all">Todos os Status</SelectItem>
@@ -733,7 +794,25 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
                 </SelectContent>
             </Select>
 
-            {(selectedPsicologo !== "all" || selectedPaciente !== "all" || selectedRepasse !== "all" || (dateRange?.from && !isSameMonth(dateRange.from, new Date()))) && (
+
+
+            <div className="flex items-center gap-2 border-l pl-4 ml-2">
+                <span className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+                    <ArrowUpDown className="h-4 w-4" />
+                    Ordenar:
+                </span>
+                <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
+                    <SelectTrigger className="w-[140px]">
+                        <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="date">📅 Por Data</SelectItem>
+                        <SelectItem value="patient">👤 Por Paciente</SelectItem>
+                    </SelectContent>
+                </Select>
+            </div>
+
+            {(selectedPsicologo !== "all" || selectedPaciente !== "all" || selectedRepasse !== "all" || sortBy !== "date" || (dateRange?.from && !isSameMonth(dateRange.from, new Date()))) && (
                 <Button 
                     variant="ghost" 
                     size="sm"
@@ -741,14 +820,15 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
                         setSelectedPsicologo("all");
                         setSelectedPaciente("all");
                         setSelectedRepasse("all");
+                        setSortBy("date");
                         setDateRange({
                             from: startOfMonth(new Date()),
                             to: endOfMonth(new Date()),
                         });
                     }}
-                    className="text-muted-foreground"
+                    className="h-8 text-xs text-muted-foreground hover:text-foreground"
                 >
-                    Redefinir Filtros
+                    Limpar Filtros
                 </Button>
             )}
         </div>
@@ -988,11 +1068,14 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
                 <TableHead>Vencimento</TableHead>
                 <TableHead>Origem</TableHead>
                 <TableHead className="text-right">Valor</TableHead>
+                {sortBy === "patient" && (
+                  <TableHead className="text-right font-bold text-primary">Valor Total</TableHead>
+                )}
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredData.length > 0 ? (
-                filteredData.map((ag) => (
+              {paginatedData.length > 0 ? (
+                paginatedData.map((ag, index) => (
                   <TableRow key={ag.id}>
                     <TableCell className="font-medium">
                         <div className="flex flex-col">
@@ -1144,11 +1227,20 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
                             </span>
                         )}
                     </TableCell>
+                    {sortBy === "patient" && (
+                      <TableCell className="text-right font-bold text-primary bg-primary/5">
+                        {(index === 0 || filteredData[index - 1].nome_paciente !== ag.nome_paciente) ? (
+                          formatCurrency(totalsByPatient[ag.nome_paciente || "Não informado"] || 0)
+                        ) : (
+                          <span className="text-muted-foreground/30 opacity-0">-</span>
+                        )}
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={11} className="text-center h-24 text-muted-foreground">
+                  <TableCell colSpan={sortBy === "patient" ? 12 : 11} className="text-center h-24 text-muted-foreground">
                     Nenhum registro encontrado para este mês.
                   </TableCell>
                 </TableRow>
@@ -1157,6 +1249,70 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
           </Table>
         </CardContent>
       </Card>
+
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <Pagination>
+          <PaginationContent>
+            <PaginationItem>
+              <PaginationPrevious 
+                href="#"
+                onClick={(e) => {
+                  e.preventDefault();
+                  if (currentPage > 1) setCurrentPage(p => p - 1);
+                }}
+                className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+              />
+            </PaginationItem>
+            
+            {Array.from({ length: totalPages }).map((_, i) => {
+              const page = i + 1;
+              // Simple pagination logic: show first, last, current, and neighbors
+              if (
+                page === 1 ||
+                page === totalPages ||
+                (page >= currentPage - 1 && page <= currentPage + 1)
+              ) {
+                return (
+                  <PaginationItem key={page}>
+                    <PaginationLink
+                      href="#"
+                      isActive={page === currentPage}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setCurrentPage(page);
+                      }}
+                    >
+                      {page}
+                    </PaginationLink>
+                  </PaginationItem>
+                );
+              } else if (
+                page === currentPage - 2 ||
+                page === currentPage + 2
+              ) {
+                return (
+                  <PaginationItem key={page}>
+                    <PaginationEllipsis />
+                  </PaginationItem>
+                );
+              }
+              return null;
+            })}
+
+            <PaginationItem>
+              <PaginationNext 
+                href="#" 
+                onClick={(e) => {
+                  e.preventDefault();
+                  if (currentPage < totalPages) setCurrentPage(p => p + 1);
+                }}
+                className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+              />
+            </PaginationItem>
+          </PaginationContent>
+        </Pagination>
+      )}
     </div>
   );
 }
