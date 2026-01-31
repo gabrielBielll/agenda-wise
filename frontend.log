@@ -115,3 +115,40 @@ NextAuth JWT: Forcing 'admin_clinica' for admin
  GET /api/auth/session 200 in 168ms
  GET /api/auth/session 200 in 383ms
  ✓ Compiled in 604ms
+ GET /api/auth/session 200 in 1303ms
+ GET /?expired=true 200 in 1062ms
+[Middleware] Path: /dashboard | Role: psicologo | Token Exists: true
+[Middleware] Path: /dashboard | Role: psicologo | Token Exists: true
+ GET /dashboard 200 in 1210ms
+ GET /dashboard 200 in 734ms
+ GET /api/auth/session 200 in 271ms
+ GET /api/auth/session 200 in 611ms
+[Middleware] Path: /admin/financeiro | Role: admin_clinica | Token Exists: true
+ GET /admin/financeiro 200 in 2059ms
+ GET /api/auth/session 200 in 261ms
+ GET /favicon.ico?favicon.56766c03.ico 200 in 291ms
+ GET /api/auth/session 200 in 246ms
+[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
+ GET /calendar 200 in 755ms
+[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
+ GET /calendar 200 in 1345ms
+ GET /favicon.ico?favicon.56766c03.ico 200 in 313ms
+ GET /api/auth/session 200 in 124ms
+ GET /api/auth/session 200 in 551ms
+ GET /api/auth/session 200 in 288ms
+[Middleware] Path: /calendar | Role: psicologo | Token Exists: true
+ POST /calendar 200 in 745ms
+ GET /favicon.ico?favicon.56766c03.ico 200 in 295ms
+ GET /api/auth/session 200 in 419ms
+[Middleware] Path: /admin/financeiro | Role: admin_clinica | Token Exists: true
+ GET /admin/financeiro 200 in 1029ms
+ GET /api/auth/session 200 in 127ms
+ GET /favicon.ico 200 in 318ms
+ GET /favicon.ico?favicon.56766c03.ico 200 in 280ms
+ GET /api/auth/session 200 in 634ms
+ GET /api/auth/session 200 in 618ms
+[Middleware] Path: /admin/financeiro | Role: admin_clinica | Token Exists: true
+ GET /admin/financeiro 200 in 1128ms
+ GET /api/auth/session 200 in 102ms
+ GET /favicon.ico?favicon.56766c03.ico 200 in 350ms
+ ✓ Compiled in 1139ms
