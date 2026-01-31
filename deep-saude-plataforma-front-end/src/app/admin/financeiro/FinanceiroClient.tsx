@@ -575,7 +575,7 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
   // Bulk Actions - Sessão
   const handleBulkSessaoRealizada = () => handleBulkUpdate(
     'status', 'realizado',
-    (ag) => ag.status !== 'realizado' && ag.status !== 'cancelado',
+    (ag) => ag.status !== 'realizado',
     'marcar como Realizada'
   );
   const handleBulkSessaoCancelada = () => handleBulkUpdate(

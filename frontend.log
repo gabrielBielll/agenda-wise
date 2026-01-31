@@ -67,3 +67,12 @@ NextAuth JWT: Forcing 'admin_clinica' for admin
  ✓ Compiled /admin/financeiro in 379ms
  GET /admin/financeiro 200 in 1232ms
  GET /favicon.ico?favicon.56766c03.ico 200 in 377ms
+ GET /api/auth/session 200 in 918ms
+[Middleware] Path: /admin/financeiro | Role: admin_clinica | Token Exists: true
+ GET /api/auth/session 200 in 453ms
+ GET /admin/financeiro 200 in 2796ms
+ GET /favicon.ico 200 in 365ms
+ GET /favicon.ico?favicon.56766c03.ico 200 in 438ms
+ GET /api/auth/session 200 in 780ms
+ GET /api/auth/session 200 in 236ms
+ ✓ Compiled in 1235ms
