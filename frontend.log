@@ -52,3 +52,18 @@ NextAuth JWT: Forcing 'admin_clinica' for admin
  ✓ Compiled in 1306ms
  GET /api/auth/session 200 in 584ms
  ✓ Compiled in 3.5s
+ GET /api/auth/session 200 in 1409ms
+(node:7724) [DEP0060] DeprecationWarning: The `util._extend` API is deprecated. Please use Object.assign() instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+[Middleware] Path: /admin/financeiro | Role: admin_clinica | Token Exists: true
+ GET /admin/financeiro 200 in 1671ms
+ GET /api/auth/session 200 in 197ms
+ GET /favicon.ico 200 in 288ms
+ GET /favicon.ico?favicon.56766c03.ico 200 in 383ms
+ GET /api/auth/session 200 in 213ms
+[Middleware] Path: /admin/financeiro | Role: admin_clinica | Token Exists: true
+ ✓ Compiled middleware in 21ms
+[Middleware] Path: /admin/financeiro | Role: admin_clinica | Token Exists: true
+ GET /admin/financeiro 200 in 1037ms
+ GET /admin/financeiro 200 in 240ms
+ GET /favicon.ico?favicon.56766c03.ico 200 in 398ms
