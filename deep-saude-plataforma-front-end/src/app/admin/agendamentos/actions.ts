@@ -164,13 +164,14 @@ export async function updateAgendamento(id: string, prevState: FormState, formDa
   redirect("/admin/agendamentos");
 }
 
-export async function deleteAgendamento(id: string): Promise<{ message: string; success: boolean }> {
+export async function deleteAgendamento(id: string, mode?: 'single' | 'all_future' | 'all'): Promise<{ message: string; success: boolean }> {
   const session = await getServerSession(authOptions);
   const token = (session as any)?.backendToken;
 
   if (!token) return { message: "Erro de autenticação.", success: false };
 
-  const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/agendamentos/${id}`;
+  let apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/agendamentos/${id}`;
+  if (mode) apiUrl += `?mode=${mode}`;
 
   try {
     const response = await fetch(apiUrl, {

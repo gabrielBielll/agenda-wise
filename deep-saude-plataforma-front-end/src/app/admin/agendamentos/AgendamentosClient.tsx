@@ -30,8 +30,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { createBloqueioAdmin, checkBlockConflictsAdmin, deleteBloqueioAdmin } from "./actions";
-import { Check, ChevronsUpDown, Lock } from "lucide-react";
+import { createBloqueioAdmin, checkBlockConflictsAdmin, deleteBloqueioAdmin, deleteAgendamento } from "./actions";
+import { Check, ChevronsUpDown, Lock, Trash2 } from "lucide-react";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
@@ -55,6 +55,7 @@ interface Agendamento {
   valor_consulta: number;
   nome_paciente?: string;
   nome_psicologo?: string;
+  recorrencia_id?: string;
 }
 
 interface Item {
@@ -104,9 +105,13 @@ export default function AgendamentosClient({
   const [conflictData, setConflictData] = useState<{ count: number, start: string, end: string, motivo: string, diaInteiro: boolean, psicologoId: string } | null>(null);
   const [isConflictDialogOpen, setIsConflictDialogOpen] = useState(false);
 
-  // Delete Dialog State
+  // Delete Block Dialog State
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [deleteData, setDeleteData] = useState<{ id: string, recorrencia_id?: string } | null>(null);
+
+  // Delete Appointment Dialog State
+  const [isDeleteAgendamentoOpen, setIsDeleteAgendamentoOpen] = useState(false);
+  const [agendamentoToDelete, setAgendamentoToDelete] = useState<{ id: string, recorrencia_id?: string } | null>(null);
 
   const handleCreateBlock = async (formData: FormData) => {
     // We can use state instead of formData since we might not wrap everything in a form element perfectly with shadcn
@@ -186,6 +191,34 @@ export default function AgendamentosClient({
           setDeleteData(null);
       } else {
           toast({ title: "Erro", description: result.message, variant: "destructive" });
+      }
+  };
+
+  // Appointment Deletion Handlers
+  const handleDeleteAgendamento = (id: string, recorrencia_id?: string) => {
+       setAgendamentoToDelete({ id, recorrencia_id });
+       setIsDeleteAgendamentoOpen(true);
+  };
+
+  const confirmDeleteAgendamento = async (mode?: 'single' | 'all_future' | 'all') => {
+      if (!agendamentoToDelete) return;
+
+      const result = await deleteAgendamento(agendamentoToDelete.id, mode);
+      
+      if (result.success) {
+          toast({
+              title: "Sucesso",
+              description: result.message,
+              className: "bg-green-500 text-white",
+          });
+          setIsDeleteAgendamentoOpen(false);
+          setAgendamentoToDelete(null);
+      } else {
+          toast({
+              title: "Erro",
+              description: result.message,
+              variant: "destructive",
+          });
       }
   };
 
@@ -455,6 +488,36 @@ export default function AgendamentosClient({
                 </DialogContent>
              </Dialog>
 
+             {/* Delete Appointment Dialog */}
+             <Dialog open={isDeleteAgendamentoOpen} onOpenChange={setIsDeleteAgendamentoOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Remover Agendamento</DialogTitle>
+                        <DialogDescription>
+                            Tem certeza que deseja remover este agendamento? Esta ação é irreversível se não for apenas cancelamento.
+                            {/* Ajuste: na verdade, deleteAgendamento exclui permanentemente (DELETE SQL), enquanto cancelar é (UPDATE status). 
+                                Aqui estamos deletando. A mensagem deve refletir isso. */}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="flex flex-col sm:flex-row gap-2">
+                         <Button variant="ghost" onClick={() => setIsDeleteAgendamentoOpen(false)}>Voltar</Button>
+                         <Button variant="destructive" onClick={() => confirmDeleteAgendamento('single')}>
+                            Remover Apenas Este
+                         </Button>
+                         {agendamentoToDelete?.recorrencia_id && (
+                            <>
+                                <Button variant="destructive" onClick={() => confirmDeleteAgendamento('all_future')}>
+                                    Este e Futuros
+                                </Button>
+                                <Button variant="destructive" onClick={() => confirmDeleteAgendamento('all')}>
+                                    Todos da Série
+                                </Button>
+                            </>
+                         )}
+                    </DialogFooter>
+                </DialogContent>
+             </Dialog>
+
           </div>
         </div>
         
@@ -549,7 +612,14 @@ export default function AgendamentosClient({
                             <Pencil className="h-4 w-4" />
                           </Link>
                         </Button>
-                        <DeleteAgendamentoButton id={ag.id} />
+                        <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                            onClick={() => handleDeleteAgendamento(ag.id, ag.recorrencia_id)}
+                        >
+                            <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>

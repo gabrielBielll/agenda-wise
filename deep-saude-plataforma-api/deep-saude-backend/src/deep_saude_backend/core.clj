@@ -665,11 +665,20 @@
                                             clinica-id recorrencia-id data-sessao])]
                {:status 204 :body ""})
             
-            ;; Remover apenas este
-            (let [resultado (sql/delete! @datasource :agendamentos {:id agendamento-id :clinica_id clinica-id})]
-              (if (zero? (:next.jdbc/update-count resultado))
-                {:status 500 :body {:erro "Erro ao remover agendamento."}}
-                {:status 204 :body ""}))))
+            (if (and (= mode "all") recorrencia-id)
+                ;; Remover TODOS da mesma recorrência (passados e futuros)
+                (let [resultado (jdbc/execute! @datasource 
+                                               ["DELETE FROM agendamentos 
+                                                 WHERE clinica_id = ? 
+                                                 AND recorrencia_id = ?"
+                                                clinica-id recorrencia-id])]
+                  {:status 204 :body ""})
+
+                ;; Remover apenas este
+                (let [resultado (sql/delete! @datasource :agendamentos {:id agendamento-id :clinica_id clinica-id})]
+                  (if (zero? (:next.jdbc/update-count resultado))
+                    {:status 500 :body {:erro "Erro ao remover agendamento."}}
+                    {:status 204 :body ""})))))
         {:status 404 :body {:erro "Agendamento não encontrado."}}))
     (catch Exception e
       (println "ERRO AO REMOVER AGENDAMENTO:" (.getMessage e))
