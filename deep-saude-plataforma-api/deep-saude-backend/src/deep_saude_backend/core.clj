@@ -430,14 +430,15 @@
 
               agendamento-conflitante (when (not force)
                                         (let [conflicts (doall (map (fn [{:keys [start end]}]
-                                                (let [found (execute-one! ["SELECT id FROM agendamentos 
+                                                (println "DEBUG: Verificando conflito para" start "até" end "Psico:" psicologo-uuid)
+                                                (let [found (execute-one! ["SELECT id, data_hora_sessao, duracao FROM agendamentos 
                                                                 WHERE clinica_id = ? 
                                                                 AND psicologo_id = ?
                                                                 AND status != 'cancelado'
                                                                 AND data_hora_sessao < ?::timestamp
-                                                                AND (data_hora_sessao + (COALESCE(duracao, 50) || ' minutes')::interval) > ?::timestamp"
+                                                                AND (data_hora_sessao + (COALESCE(duracao, 50) * interval '1 minute')) > ?::timestamp"
                                                                clinica-id psicologo-uuid end start])]
-                                                  (when found (println "DEBUG: Conflito encontrado para" start "com agendamento" (:id found)))
+                                                  (when found (println "DEBUG: CONFLITO ENCONTRADO!" found))
                                                   found))
                                               sessoes-para-criar))]
                                           (some identity conflicts)))
@@ -557,6 +558,17 @@
                                                   AND data_inicio < ?::timestamp
                                                   AND data_fim > ?::timestamp"
                                                  clinica-id novo-psicologo-uuid novo-fim novo-data])
+
+              ;; Verificar se há agendamento conflitante (igual criação)
+              agendamento-conflitante (when (some? data_hora_sessao) ;; Só checa se estiver mudando horário/data
+                                       (execute-one! ["SELECT id FROM agendamentos 
+                                                       WHERE clinica_id = ? 
+                                                       AND psicologo_id = ?
+                                                       AND status != 'cancelado'
+                                                       AND id != ?
+                                                       AND data_hora_sessao < ?::timestamp
+                                                       AND (data_hora_sessao + (COALESCE(duracao, 50) * interval '1 minute')) > ?::timestamp"
+                                                      clinica-id novo-psicologo-uuid agendamento-id novo-fim novo-data]))
               
               ;; Se status for 'cancelado', zera o valor_consulta automaticamente
               valor-final (if (= status "cancelado") 0 valor_consulta)
@@ -572,8 +584,14 @@
                            (some? (:status_repasse (:body request))) (assoc :status_repasse (:status_repasse (:body request)))
                            (some? (:status_pagamento (:body request))) (assoc :status_pagamento (:status_pagamento (:body request))))]
           
-          (if bloqueio-existente
+          (cond
+            bloqueio-existente
             {:status 409 :body {:erro "Não é possível alterar para este horário. O período está bloqueado."}}
+            
+            agendamento-conflitante
+            {:status 409 :body {:erro "Já existe um agendamento neste horário."}}
+
+            :else
             (let [resultado (sql/update! @datasource :agendamentos update-map {:id agendamento-id :clinica_id clinica-id})]
               (if (zero? (:next.jdbc/update-count resultado))
                 {:status 500 :body {:erro "Erro ao atualizar agendamento."}}
@@ -761,7 +779,7 @@
                                                                        AND psicologo_id = ?
                                                                        AND status != 'cancelado'
                                                                        AND data_hora_sessao < ?::timestamp
-                                                                       AND (data_hora_sessao + (duracao || ' minutes')::interval) > ?::timestamp"
+                                                                       AND (data_hora_sessao + (COALESCE(duracao, 50) * interval '1 minute')) > ?::timestamp"
                                                                       clinica-id target-psicologo-id end start])]
                                     (into acc agendamentos)))
                                 []
@@ -798,7 +816,7 @@
                            {:status "cancelado" :valor_consulta 0} 
                            ["clinica_id = ? AND psicologo_id = ? AND status != 'cancelado' 
                              AND data_hora_sessao < ?
-                             AND (data_hora_sessao + (duracao || ' minutes')::interval) > ?"
+                             AND (data_hora_sessao + (COALESCE(duracao, 50) * interval '1 minute')) > ?"
                             clinica-id target-psicologo-id end-ts start-ts])))
 
           (let [novos-bloqueios (doall (map (fn [{:keys [start end]}]
