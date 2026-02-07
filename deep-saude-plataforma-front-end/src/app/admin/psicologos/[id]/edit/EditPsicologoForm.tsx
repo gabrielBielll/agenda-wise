@@ -107,6 +107,18 @@ export default function EditPsicologoForm({
               <Input id="email" name="email" type="email" defaultValue={psicologo.email} disabled={readOnly} />
                {state.errors?.email && <p className="text-sm font-medium text-destructive">{state.errors.email[0]}</p>}
             </div>
+            {!readOnly && (
+              <div className="space-y-2 md:col-span-2">
+                <Label htmlFor="senha">Nova Senha (Opcional)</Label>
+                <Input 
+                  id="senha" 
+                  name="senha" 
+                  type="password" 
+                  placeholder="Mínimo 6 caracteres. Deixe em branco para manter a atual." 
+                />
+                 {state.errors?.senha && <p className="text-sm font-medium text-destructive">{state.errors.senha[0]}</p>}
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

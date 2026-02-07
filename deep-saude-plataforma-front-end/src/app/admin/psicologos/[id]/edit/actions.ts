@@ -8,6 +8,7 @@ import { revalidatePath } from "next/cache";
 const psicologoSchema = z.object({
   nome: z.string().min(3, { message: "O nome deve ter pelo menos 3 caracteres." }).optional(),
   email: z.string().email({ message: "Por favor, insira um e-mail válido." }).optional(),
+  senha: z.string().min(6, { message: "A senha deve ter pelo menos 6 caracteres." }).optional(),
   cpf: z.string().optional(),
   telefone: z.string().optional(),
   data_nascimento: z.string().optional(),
@@ -23,6 +24,7 @@ export type FormState = {
   errors?: {
     nome?: string[];
     email?: string[];
+    senha?: string[];
     _form?: string[];
   };
   success: boolean;
@@ -36,6 +38,7 @@ export async function updatePsicologo(
   const validatedFields = psicologoSchema.safeParse({
     nome: formData.get("nome") || undefined,
     email: formData.get("email") || undefined,
+    senha: formData.get("senha") || undefined,
     cpf: formData.get("cpf") || undefined,
     telefone: formData.get("telefone") || undefined,
     data_nascimento: formData.get("data_nascimento") || undefined,

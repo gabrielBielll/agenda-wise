@@ -231,10 +231,10 @@
 (defn atualizar-usuario-handler [request]
   (let [clinica-id (get-in request [:identity :clinica_id])
         usuario-id (java.util.UUID/fromString (get-in request [:params :id]))
-        {:keys [nome email cpf telefone data_nascimento endereco crp registro_e_psi abordagem area_de_atuacao]} (:body request)]
+        {:keys [nome email senha cpf telefone data_nascimento endereco crp registro_e_psi abordagem area_de_atuacao]} (:body request)]
     (cond
-      (and (str/blank? nome) (str/blank? email))
-      {:status 400 :body {:erro "Pelo menos um campo (nome ou email) deve ser fornecido para atualização."}}
+      (and (str/blank? nome) (str/blank? email) (str/blank? senha))
+      {:status 400 :body {:erro "Pelo menos um campo (nome, email ou senha) deve ser fornecido para atualização."}}
 
       (and email (execute-one! ["SELECT id FROM usuarios WHERE email = ? AND id != ?" email usuario-id]))
       {:status 409 :body {:erro "O email fornecido já está em uso por outro usuário."}}
@@ -243,6 +243,7 @@
       (let [update-map (cond-> {}
                          (not (str/blank? nome)) (assoc :nome nome)
                          (not (str/blank? email)) (assoc :email email)
+                         (not (str/blank? senha)) (assoc :senha_hash (hashers/encrypt senha))
                          (some? cpf) (assoc :cpf cpf)
                          (some? telefone) (assoc :telefone telefone)
                          (some? data_nascimento) (assoc :data_nascimento (when data_nascimento (Date/valueOf data_nascimento)))
