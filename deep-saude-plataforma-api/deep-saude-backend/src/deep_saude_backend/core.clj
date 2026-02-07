@@ -742,7 +742,13 @@
   (try
     (let [clinica-id (get-in request [:identity :clinica_id])
           usuario-id (get-in request [:identity :user_id])
-          {:keys [data_inicio data_fim recorrencia_tipo quantidade_recorrencia]} (:body request)]
+          papel (get-in request [:identity :role])
+          {:keys [data_inicio data_fim recorrencia_tipo quantidade_recorrencia psicologo_id]} (:body request)
+          
+          target-psicologo-id (if (and (or (= papel "admin_clinica") (= papel "secretario")) 
+                                       (not (str/blank? psicologo_id)))
+                                (java.util.UUID/fromString psicologo_id)
+                                usuario-id)]
       
       (if (or (nil? data_inicio) (nil? data_fim))
         {:status 400 :body {:erro "data_inicio e data_fim são obrigatórios."}}
@@ -756,7 +762,7 @@
                                                                        AND status != 'cancelado'
                                                                        AND data_hora_sessao < ?::timestamp
                                                                        AND (data_hora_sessao + (duracao || ' minutes')::interval) > ?::timestamp"
-                                                                      clinica-id usuario-id end start])]
+                                                                      clinica-id target-psicologo-id end start])]
                                     (into acc agendamentos)))
                                 []
                                 intervalos)]
@@ -769,7 +775,14 @@
   (try
     (let [clinica-id (get-in request [:identity :clinica_id])
           usuario-id (get-in request [:identity :user_id])
-          {:keys [data_inicio data_fim motivo dia_inteiro recorrencia_tipo quantidade_recorrencia cancelar_conflitos]} (:body request)]
+          papel (get-in request [:identity :role])
+          {:keys [data_inicio data_fim motivo dia_inteiro recorrencia_tipo quantidade_recorrencia cancelar_conflitos psicologo_id]} (:body request)
+          
+          target-psicologo-id (if (and (or (= papel "admin_clinica") (= papel "secretario")) 
+                                       (not (str/blank? psicologo_id)))
+                                (java.util.UUID/fromString psicologo_id)
+                                usuario-id)]
+                                
       (if (or (nil? data_inicio) (nil? data_fim))
         {:status 400 :body {:erro "data_inicio e data_fim são obrigatórios."}}
         (let [intervalos (gerar-intervalos-bloqueio data_inicio data_fim recorrencia_tipo quantidade_recorrencia)
@@ -778,18 +791,20 @@
 
           ;; Se solicitado, cancelar agendamentos conflitantes
           (when cancelar_conflitos
-            (doseq [{:keys [start end]} intervalos]
+            (doseq [{:keys [start end]} intervalos
+                    :let [end-ts (java.sql.Timestamp. (.getTime end))
+                          start-ts (java.sql.Timestamp. (.getTime start))]]
               (sql/update! @datasource :agendamentos 
                            {:status "cancelado" :valor_consulta 0} 
                            ["clinica_id = ? AND psicologo_id = ? AND status != 'cancelado' 
-                             AND data_hora_sessao < ?::timestamp 
-                             AND (data_hora_sessao + (duracao || ' minutes')::interval) > ?::timestamp"
-                            clinica-id usuario-id end start])))
+                             AND data_hora_sessao < ?
+                             AND (data_hora_sessao + (duracao || ' minutes')::interval) > ?"
+                            clinica-id target-psicologo-id end-ts start-ts])))
 
           (let [novos-bloqueios (doall (map (fn [{:keys [start end]}]
                                               (sql/insert! @datasource :bloqueios_agenda
                                                            {:clinica_id    clinica-id
-                                                            :psicologo_id  usuario-id
+                                                            :psicologo_id  target-psicologo-id
                                                             :data_inicio   start
                                                             :data_fim      end
                                                             :motivo        motivo
@@ -853,23 +868,27 @@
 (defn remover-bloqueio-handler [request]
   (let [clinica-id (get-in request [:identity :clinica_id])
         usuario-id (get-in request [:identity :user_id])
+        papel (get-in request [:identity :role])
         bloqueio-id (java.util.UUID/fromString (get-in request [:params :id]))
         mode (or (get-in request [:params :mode]) (get-in request [:query-params "mode"]))] ;; "single" ou "all_future"
 
-    (if-let [bloqueio (execute-one! ["SELECT id, recorrencia_id, data_inicio FROM bloqueios_agenda WHERE id = ? AND clinica_id = ? AND psicologo_id = ?" 
-                                      bloqueio-id clinica-id usuario-id])]
-      (do
-        (cond
-          (and (= mode "all_future") (:recorrencia_id bloqueio))
-          (sql/delete! @datasource :bloqueios_agenda ["recorrencia_id = ? AND data_inicio >= ?" 
-                                                       (:recorrencia_id bloqueio)
-                                                       (:data_inicio bloqueio)])
+    (let [query (if (or (= papel "admin_clinica") (= papel "secretario"))
+                  ["SELECT id, recorrencia_id, data_inicio FROM bloqueios_agenda WHERE id = ? AND clinica_id = ?" bloqueio-id clinica-id]
+                  ["SELECT id, recorrencia_id, data_inicio FROM bloqueios_agenda WHERE id = ? AND clinica_id = ? AND psicologo_id = ?" bloqueio-id clinica-id usuario-id])]
 
-          :else
-          (sql/delete! @datasource :bloqueios_agenda {:id bloqueio-id}))
-        
-        {:status 200 :body {:mensagem "Bloqueio removido com sucesso."}})
-      {:status 404 :body {:erro "Bloqueio não encontrado ou você não tem permissão."}})))
+      (if-let [bloqueio (execute-one! query)]
+        (do
+          (cond
+            (and (= mode "all_future") (:recorrencia_id bloqueio))
+            (sql/delete! @datasource :bloqueios_agenda ["recorrencia_id = ? AND data_inicio >= ?" 
+                                                         (:recorrencia_id bloqueio)
+                                                         (:data_inicio bloqueio)])
+
+            :else
+            (sql/delete! @datasource :bloqueios_agenda {:id bloqueio-id}))
+          
+          {:status 200 :body {:mensagem "Bloqueio removido com sucesso."}})
+        {:status 404 :body {:erro "Bloqueio não encontrado ou você não tem permissão."}}))))
 
 ;; --- Handlers de Prontuários ---
 (defn criar-prontuario-handler [request]

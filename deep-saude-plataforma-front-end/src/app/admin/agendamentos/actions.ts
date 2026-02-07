@@ -188,3 +188,121 @@ export async function deleteAgendamento(id: string): Promise<{ message: string; 
   revalidatePath("/admin/agendamentos");
   return { message: "Agendamento excluído com sucesso.", success: true };
 }
+
+// ============ BLOQUEIOS DE AGENDA ADMIN ============
+
+export async function checkBlockConflictsAdmin(
+  dataInicio: string, 
+  dataFim: string, 
+  psicologoId: string,
+  recorrenciaTipo?: string, 
+  quantidadeRecorrencia?: number
+): Promise<{ conflitos: any[]; total: number; error?: string }> {
+  const session = await getServerSession(authOptions);
+  const token = (session as any)?.backendToken;
+
+  if (!token) return { conflitos: [], total: 0, error: "Erro de autenticação." };
+
+  const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/bloqueios/verificar-conflitos`;
+
+  try {
+    const response = await fetch(apiUrl, {
+      method: "POST",
+      headers: { 
+        "Content-Type": "application/json", 
+        "Authorization": `Bearer ${token}` 
+      },
+      body: JSON.stringify({
+        data_inicio: dataInicio.replace("T", " ") + ":00",
+        data_fim: dataFim.replace("T", " ") + ":00",
+        recorrencia_tipo: recorrenciaTipo,
+        quantidade_recorrencia: quantidadeRecorrencia,
+        psicologo_id: psicologoId
+      }),
+      cache: "no-store",
+    });
+
+    if (response.ok) {
+      return await response.json();
+    } else {
+        return { conflitos: [], total: 0, error: "Erro ao verificar conflitos." };
+    }
+  } catch (error) {
+    console.error("Erro ao verificar conflitos:", error);
+    return { conflitos: [], total: 0, error: "Erro de conexão." };
+  }
+}
+
+export async function createBloqueioAdmin(
+  dataInicio: string, 
+  dataFim: string, 
+  psicologoId: string,
+  motivo?: string,
+  diaInteiro?: boolean,
+  recorrenciaTipo?: string,
+  quantidadeRecorrencia?: number,
+  cancelarConflitos?: boolean
+): Promise<{ message: string; success: boolean }> {
+  const session = await getServerSession(authOptions);
+  const token = (session as any)?.backendToken;
+
+  if (!token) return { message: "Erro de autenticação.", success: false };
+
+  const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/bloqueios`;
+
+  try {
+    const response = await fetch(apiUrl, {
+      method: "POST",
+      headers: { 
+        "Content-Type": "application/json", 
+        "Authorization": `Bearer ${token}` 
+      },
+      body: JSON.stringify({
+        data_inicio: dataInicio.replace("T", " ") + ":00",
+        data_fim: dataFim.replace("T", " ") + ":00",
+        motivo,
+        dia_inteiro: diaInteiro || false,
+        recorrencia_tipo: recorrenciaTipo,
+        quantidade_recorrencia: quantidadeRecorrencia,
+        cancelar_conflitos: cancelarConflitos,
+        psicologo_id: psicologoId
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return { message: errorData.erro || "Falha ao criar bloqueio.", success: false };
+    }
+  } catch (error) {
+    return { message: "Erro de conexão com o servidor.", success: false };
+  }
+
+  revalidatePath("/admin/agendamentos");
+  return { message: "Horário bloqueado com sucesso!", success: true };
+}
+
+export async function deleteBloqueioAdmin(id: string, mode?: 'single' | 'all_future'): Promise<{ message: string; success: boolean }> {
+    const session = await getServerSession(authOptions);
+    const token = (session as any)?.backendToken;
+  
+    if (!token) return { message: "Erro de autenticação.", success: false };
+  
+    let apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/bloqueios/${id}`;
+    if (mode) apiUrl += `?mode=${mode}`;
+  
+    try {
+      const response = await fetch(apiUrl, {
+        method: "DELETE",
+        headers: { "Authorization": `Bearer ${token}` },
+      });
+  
+      if (!response.ok) {
+        return { message: "Falha ao remover bloqueio.", success: false };
+      }
+    } catch (error) {
+      return { message: "Erro de conexão com o servidor.", success: false };
+    }
+  
+    revalidatePath("/admin/agendamentos");
+    return { message: "Bloqueio removido com sucesso!", success: true };
+  }

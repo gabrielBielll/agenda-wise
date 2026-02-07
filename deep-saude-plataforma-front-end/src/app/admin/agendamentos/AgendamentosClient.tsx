@@ -17,6 +17,25 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
+import { createBloqueioAdmin, checkBlockConflictsAdmin, deleteBloqueioAdmin } from "./actions";
+import { Check, ChevronsUpDown, Lock } from "lucide-react";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
+
 // Utility to create a blocked time type compatible with WeekView
 interface Bloqueio {
   id: string;
@@ -25,6 +44,7 @@ interface Bloqueio {
   motivo?: string;
   dia_inteiro?: boolean;
   psicologo_id: string; // Critical for filtering
+  recorrencia_id?: string;
 }
 
 interface Agendamento {
@@ -68,6 +88,106 @@ export default function AgendamentosClient({
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [selectedDateFilter, setSelectedDateFilter] = useState<string>(""); // For List View
   const [currentCalendarDate, setCurrentCalendarDate] = useState<Date>(new Date()); // For Calendar View
+  const { toast } = useToast();
+
+  // Block Dialog State
+  const [isBlockDialogOpen, setIsBlockDialogOpen] = useState(false);
+  const [blockStart, setBlockStart] = useState("");
+  const [blockEnd, setBlockEnd] = useState("");
+  const [blockRecurrenceType, setBlockRecurrenceType] = useState("none");
+  const [blockRecurrenceCount, setBlockRecurrenceCount] = useState(1);
+  const [blockMotivo, setBlockMotivo] = useState("");
+  const [blockPsicologoId, setBlockPsicologoId] = useState("");
+  const [openPsicologoBlock, setOpenPsicologoBlock] = useState(false);
+
+  // Conflict State
+  const [conflictData, setConflictData] = useState<{ count: number, start: string, end: string, motivo: string, diaInteiro: boolean, psicologoId: string } | null>(null);
+  const [isConflictDialogOpen, setIsConflictDialogOpen] = useState(false);
+
+  // Delete Dialog State
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [deleteData, setDeleteData] = useState<{ id: string, recorrencia_id?: string } | null>(null);
+
+  const handleCreateBlock = async (formData: FormData) => {
+    // We can use state instead of formData since we might not wrap everything in a form element perfectly with shadcn
+    // But let's use the state variables we defined
+    
+    if (!blockStart || !blockEnd || !blockPsicologoId) {
+        toast({ title: "Erro", description: "Preencha todos os campos obrigatórios.", variant: "destructive" });
+        return;
+    }
+
+    // Check conflicts
+    const conflictResult = await checkBlockConflictsAdmin(blockStart, blockEnd, blockPsicologoId, blockRecurrenceType, blockRecurrenceCount);
+
+    if (conflictResult.total > 0) {
+        setConflictData({ 
+            count: conflictResult.total, 
+            start: blockStart, 
+            end: blockEnd, 
+            motivo: blockMotivo, 
+            diaInteiro: false, 
+            psicologoId: blockPsicologoId 
+        });
+        setIsBlockDialogOpen(false);
+        setIsConflictDialogOpen(true);
+        return;
+    }
+
+    const result = await createBloqueioAdmin(blockStart, blockEnd, blockPsicologoId, blockMotivo, false, blockRecurrenceType, blockRecurrenceCount);
+    
+    if (result.success) {
+        toast({ title: "Sucesso", description: result.message, className: "bg-green-500 text-white" });
+        setIsBlockDialogOpen(false);
+        // Reset fields
+        setBlockStart("");
+        setBlockEnd("");
+        setBlockMotivo("");
+    } else {
+        toast({ title: "Erro", description: result.message, variant: "destructive" });
+    }
+  };
+
+  const confirmBlockCreation = async (cancelConflicts: boolean) => {
+    if (!conflictData) return;
+
+    const result = await createBloqueioAdmin(
+      conflictData.start, 
+      conflictData.end, 
+      conflictData.psicologoId,
+      conflictData.motivo, 
+      conflictData.diaInteiro, 
+      blockRecurrenceType, 
+      blockRecurrenceCount,
+      cancelConflicts
+    );
+
+    if (result && result.success) {
+      toast({ title: "Sucesso", description: result.message, className: "bg-green-500 text-white" });
+      setIsConflictDialogOpen(false);
+      setConflictData(null);
+    } else {
+      toast({ title: "Erro", description: result?.message || "Erro ao criar bloqueio.", variant: "destructive" });
+    }
+  };
+
+  const handleDeleteBloqueio = (id: string, recorrencia_id?: string) => {
+      setDeleteData({ id, recorrencia_id });
+      setIsDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = async (mode?: 'single' | 'all_future') => {
+      if (!deleteData) return;
+
+      const result = await deleteBloqueioAdmin(deleteData.id, mode);
+      if (result.success) {
+          toast({ title: "Sucesso", description: result.message, className: "bg-green-500 text-white" });
+          setIsDeleteDialogOpen(false);
+          setDeleteData(null);
+      } else {
+          toast({ title: "Erro", description: result.message, variant: "destructive" });
+      }
+  };
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -177,6 +297,164 @@ export default function AgendamentosClient({
                 Novo Agendamento
               </Link>
             </Button>
+            
+            <Dialog open={isBlockDialogOpen} onOpenChange={setIsBlockDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" className="gap-2 border-orange-200 hover:bg-orange-50 text-orange-700">
+                  <Lock className="h-4 w-4" />
+                  Bloquear Horário
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle>Bloquear Horário</DialogTitle>
+                  <DialogDescription>
+                    Impede agendamentos neste intervalo.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  
+                  {/* Psicólogo Select */}
+                  <div className="flex flex-col gap-2">
+                    <Label htmlFor="block-psico">Psicólogo</Label>
+                    <Popover open={openPsicologoBlock} onOpenChange={setOpenPsicologoBlock}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={openPsicologoBlock}
+                          className="w-full justify-between font-normal"
+                        >
+                          {blockPsicologoId
+                            ? psicologos.find((p) => p.id === blockPsicologoId)?.nome
+                            : "Selecione o psicólogo..."}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[300px] p-0">
+                        <Command>
+                          <CommandInput placeholder="Buscar psicólogo..." />
+                          <CommandList>
+                            <CommandEmpty>Nenhum psicólogo encontrado.</CommandEmpty>
+                            <CommandGroup>
+                              {psicologos.map((p) => (
+                                <CommandItem
+                                  key={p.id}
+                                  value={p.nome}
+                                  onSelect={() => {
+                                    setBlockPsicologoId(p.id);
+                                    setOpenPsicologoBlock(false);
+                                  }}
+                                >
+                                  <Check
+                                    className={cn(
+                                      "mr-2 h-4 w-4",
+                                      blockPsicologoId === p.id ? "opacity-100" : "opacity-0"
+                                    )}
+                                  />
+                                  {p.nome}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="flex flex-col gap-2">
+                        <Label>Início</Label>
+                        <Input type="datetime-local" value={blockStart} onChange={e => setBlockStart(e.target.value)} />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                        <Label>Fim</Label>
+                        <Input type="datetime-local" value={blockEnd} onChange={e => setBlockEnd(e.target.value)} />
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <Label>Motivo</Label>
+                    <Input placeholder="Ex: Férias, Reunião..." value={blockMotivo} onChange={e => setBlockMotivo(e.target.value)} />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="flex flex-col gap-2">
+                         <Label>Repetição</Label>
+                         <Select value={blockRecurrenceType} onValueChange={setBlockRecurrenceType}>
+                            <SelectTrigger>
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="none">Não repetir</SelectItem>
+                                <SelectItem value="semanal">Semanalmente</SelectItem>
+                                <SelectItem value="quinzenal">Quinzenalmente (15 dias)</SelectItem>
+                            </SelectContent>
+                         </Select>
+                    </div>
+                     {blockRecurrenceType !== 'none' && (
+                        <div className="flex flex-col gap-2">
+                             <Label>Qtd. Vezes</Label>
+                             <Input 
+                                type="number" 
+                                min="2" max="52" 
+                                value={blockRecurrenceCount} 
+                                onChange={e => setBlockRecurrenceCount(parseInt(e.target.value))} 
+                             />
+                        </div>
+                     )}
+                  </div>
+
+                </div>
+                <DialogFooter>
+                    <Button onClick={() => handleCreateBlock(new FormData())}>Criar Bloqueio</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
+             {/* Conflict Dialog */}
+             <Dialog open={isConflictDialogOpen} onOpenChange={setIsConflictDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle className="text-destructive flex items-center gap-2">
+                            <AlertTriangle className="h-5 w-5" /> Conflito de Horários
+                        </DialogTitle>
+                        <DialogDescription>
+                            Existem {conflictData?.count} agendamento(s) no intervalo deste bloqueio.
+                            Deseja cancelar esses agendamentos automaticamente?
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="gap-2 sm:gap-0">
+                        <Button variant="outline" onClick={() => setIsConflictDialogOpen(false)}>Cancelar Operação</Button>
+                        <Button variant="destructive" onClick={() => confirmBlockCreation(true)}>Sim, Cancelar Agendamentos e Bloquear</Button>
+                        <Button variant="secondary" onClick={() => confirmBlockCreation(false)}>Criar Bloqueio Mesmo Assim (Manter Agendamentos)</Button>
+                    </DialogFooter>
+                </DialogContent>
+             </Dialog>
+
+             {/* Delete Block Dialog */}
+             <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Remover Bloqueio</DialogTitle>
+                        <DialogDescription>
+                            Deseja remover este bloqueio da agenda?
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="flex flex-col sm:flex-row gap-2">
+                        <Button variant="ghost" onClick={() => setIsDeleteDialogOpen(false)}>Cancelar</Button>
+                        <Button variant="destructive" onClick={() => confirmDelete('single')}>
+                            Remover Apenas Este
+                        </Button>
+                        {deleteData?.recorrencia_id && (
+                            <Button variant="destructive" onClick={() => confirmDelete('all_future')}>
+                                Remover Este e Futuros
+                            </Button>
+                        )}
+                    </DialogFooter>
+                </DialogContent>
+             </Dialog>
+
           </div>
         </div>
         
@@ -350,7 +628,7 @@ export default function AgendamentosClient({
                  onEditAppointment={(app) => {
                     window.location.href = `/admin/agendamentos/${app.id}/edit`;
                  }}
-                 onDeleteBloqueio={() => {}} 
+                 onDeleteBloqueio={(id, recorrencia_id) => handleDeleteBloqueio(id, recorrencia_id)} 
                />
              )}
           </div>
