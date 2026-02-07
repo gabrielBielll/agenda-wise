@@ -541,6 +541,47 @@
              
              {:status 400 :body {:erro "Agendamento não é recorrente."}})
 
+          (= mode "all")
+          (if-let [recorrencia-id (:recorrencia_id agendamento-atual)]
+             (let [novo-duracao (or duracao (:duracao agendamento-atual) 50)
+                   novo-valor (if (= status "cancelado") 0 (or valor_consulta (:valor_consulta agendamento-atual)))
+                   
+                   ;; Find ALL appointments in this series
+                   todos-agendamentos (execute-query! ["SELECT id, data_hora_sessao FROM agendamentos 
+                                                    WHERE recorrencia_id = ? 
+                                                    AND clinica_id = ?"
+                                                   recorrencia-id clinica-id])]
+               
+               (doall (map (fn [appt]
+                             (let [original-date (:data_hora_sessao appt)
+                                   new-timestamp (if data_hora_sessao
+                                                   (let [input-timestamp (java.sql.Timestamp/valueOf data_hora_sessao)
+                                                         cal-input (java.util.Calendar/getInstance)
+                                                         cal-original (java.util.Calendar/getInstance)]
+                                                     (.setTime cal-input input-timestamp)
+                                                     (.setTime cal-original original-date)
+                                                     (.set cal-original java.util.Calendar/HOUR_OF_DAY (.get cal-input java.util.Calendar/HOUR_OF_DAY))
+                                                     (.set cal-original java.util.Calendar/MINUTE (.get cal-input java.util.Calendar/MINUTE))
+                                                     (.set cal-original java.util.Calendar/SECOND 0)
+                                                     (java.sql.Timestamp. (.getTimeInMillis cal-original)))
+                                                   original-date)
+                                   
+                                   update-map (cond-> {}
+                                                (some? paciente_id) (assoc :paciente_id (java.util.UUID/fromString paciente_id))
+                                                (some? psicologo_id) (assoc :psicologo_id (java.util.UUID/fromString psicologo_id))
+                                                (some? data_hora_sessao) (assoc :data_hora_sessao new-timestamp)
+                                                (some? novo-valor) (assoc :valor_consulta novo-valor)
+                                                (some? novo-duracao) (assoc :duracao novo-duracao)
+                                                (some? status) (assoc :status status)
+                                                (some? observacoes) (assoc :observacoes observacoes))]
+                               
+                               (sql/update! @datasource :agendamentos update-map {:id (:id appt)})))
+                           todos-agendamentos))
+               
+               {:status 200 :body {:message (str (count todos-agendamentos) " agendamentos atualizados com sucesso.")}})
+             
+             {:status 400 :body {:erro "Agendamento não é recorrente."}})
+
           :else ;; Default: Single update (existing logic)
         (let [_ (println "DEBUG: Atualizando agendamento. Body:" (:body request)) 
               ;; Determinar dados finais para validação de bloqueio

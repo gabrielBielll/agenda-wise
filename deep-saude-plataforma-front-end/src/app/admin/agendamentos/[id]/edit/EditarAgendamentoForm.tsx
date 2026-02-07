@@ -10,6 +10,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { updateAgendamento, type FormState } from "../../actions";
 
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+
 interface Psicologo {
   id: string;
   nome: string;
@@ -28,6 +37,7 @@ interface Agendamento {
   valor_consulta: number;
   duracao?: number;
   status?: string;
+  recorrencia_id?: string;
 }
 
 const initialState: FormState = {
@@ -55,8 +65,34 @@ export default function EditarAgendamentoForm({
   pacientes: Paciente[];
 }) {
   const { toast } = useToast();
+  
+  const [isRecurrenceDialogOpen, setIsRecurrenceDialogOpen] = useState(false);
+  const [pendingFormData, setPendingFormData] = useState<FormData | null>(null);
+
   const updateWithId = updateAgendamento.bind(null, agendamento.id);
-  const [state, formAction] = useFormState(updateWithId, initialState);
+
+  const clientWrapperAction = async (prevState: FormState, formData: FormData): Promise<FormState> => {
+       // Check recurrence
+       if (agendamento.recorrencia_id && !formData.get('mode')) {
+           setPendingFormData(formData);
+           setIsRecurrenceDialogOpen(true);
+           return prevState; // Do nothing yet, wait for user selection
+       }
+       return updateWithId(prevState, formData);
+  };
+
+  const [state, formAction] = useFormState(clientWrapperAction, initialState);
+
+  const handleConfirmMode = (mode: string) => {
+    if (pendingFormData) {
+        pendingFormData.set('mode', mode);
+        React.startTransition(() => {
+            formAction(pendingFormData);
+        });
+        setIsRecurrenceDialogOpen(false);
+        setPendingFormData(null);
+    }
+  };
 
   // Time formatting helpers
   const formatForInput = (dateString: string) => {
@@ -93,22 +129,6 @@ export default function EditarAgendamentoForm({
       const newStart = e.target.value;
       setStart(newStart);
       
-      // Calculate current duration based on PREVIOUS Valid Start/End
-      // For simplicity, let's keep the user's intended duration if they are just moving the appointment block
-      // Or we can just default to 50min if calculation fails.
-      
-      // let currentDur = 50;
-      // if (start && end) {
-      //    const s = new Date(start).getTime();
-      //    const e_ = new Date(end).getTime();
-      //    const diff = (e_ - s) / 60000;
-      //    if (diff > 0) currentDur = diff;
-      // }
-      // The requirement was a bit ambiguous but usually "start time change preserves duration" is standard.
-      // But calculating "current duration" from state might be tricky if state is currently processing.
-      // Let's rely on calculating the previous duration from the *current* state values before updating.
-
-      // Actually, better UX: calculate duration from (end - start). If > 0, use it. Else 50.
       let durationToKeep = 50;
       if (start && end) {
           const sDate = new Date(start);
@@ -139,6 +159,7 @@ export default function EditarAgendamentoForm({
   }, [state, toast]);
 
   return (
+    <>
     <form action={formAction}>
       <CardContent className="space-y-4 pt-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -235,5 +256,28 @@ export default function EditarAgendamentoForm({
         <div className="flex justify-end pt-4"><SubmitButton /></div>
       </CardContent>
     </form>
+
+    <Dialog open={isRecurrenceDialogOpen} onOpenChange={setIsRecurrenceDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar Recorrência</DialogTitle>
+            <DialogDescription>
+              Este agendamento faz parte de uma série. Como você deseja aplicar as alterações?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => handleConfirmMode('single')}>
+              Apenas esta sessão
+            </Button>
+            <Button variant="secondary" onClick={() => handleConfirmMode('all_future')}>
+              Esta e futuras
+            </Button>
+            <Button variant="default" onClick={() => handleConfirmMode('all')}>
+              Todas (inclusive passadas)
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

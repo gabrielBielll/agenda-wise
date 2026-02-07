@@ -108,7 +108,7 @@ export async function getAgendamentoById(id: string): Promise<any> {
   }
 }
 
-export async function updateAgendamento(id: string, prevState: FormState, formData: FormData): Promise<FormState> {
+export async function updateAgendamento(id: string, prevState: FormState, formData: FormData, mode?: 'single' | 'all_future' | 'all'): Promise<FormState> {
   const rawData = Object.fromEntries(formData.entries());
   const validatedFields = agendamentoSchema.safeParse(rawData);
 
@@ -147,7 +147,8 @@ export async function updateAgendamento(id: string, prevState: FormState, formDa
       body: JSON.stringify({
         ...validatedFields.data,
         ...(duracao ? { duracao } : {}),
-        data_hora_sessao: validatedFields.data.data_hora_sessao.replace("T", " ") + ":00"
+        data_hora_sessao: validatedFields.data.data_hora_sessao.replace("T", " ") + ":00",
+        mode: mode || (formData.get('mode') as string | undefined) // Support passing mode via arg or formData
       }),
     });
 
