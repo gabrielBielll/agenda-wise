@@ -405,7 +405,7 @@
               duracao-sessao (or duracao 50)
               
               qtd-sessoes (if (and recorrencia_tipo (pos? (or quantidade_recorrencia 0))) 
-                                (min (or quantidade_recorrencia 1) 120) 
+                                (min (or quantidade_recorrencia 1) 150) 
                                 1)
               intervalo-dias (case recorrencia_tipo
                                "semanal" 7

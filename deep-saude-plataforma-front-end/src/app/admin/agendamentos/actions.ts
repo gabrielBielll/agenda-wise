@@ -13,6 +13,8 @@ const agendamentoSchema = z.object({
   data_hora_sessao_fim: z.string().optional(),
   valor_consulta: z.coerce.number().min(0, { message: "O valor deve ser positivo." }),
   status: z.string().optional(),
+  recorrencia_tipo: z.enum(["none", "semanal", "quinzenal"]).optional(),
+  quantidade_recorrencia: z.coerce.number().min(1).max(150).optional(),
 });
 
 export type FormState = {
@@ -24,6 +26,8 @@ export type FormState = {
     data_hora_sessao_fim?: string[];
     valor_consulta?: string[];
     status?: string[];
+    recorrencia_tipo?: string[];
+    quantidade_recorrencia?: string[];
   };
   success: boolean;
 };
@@ -63,7 +67,12 @@ export async function createAgendamento(prevState: FormState, formData: FormData
       body: JSON.stringify({
         ...validatedFields.data,
         duracao,
-        data_hora_sessao: validatedFields.data.data_hora_sessao.replace("T", " ") + ":00"
+        data_hora_sessao: validatedFields.data.data_hora_sessao.replace("T", " ") + ":00",
+        // Only include recurrence if type is valid and not 'none'
+        ...(validatedFields.data.recorrencia_tipo && validatedFields.data.recorrencia_tipo !== 'none' ? {
+            recorrencia_tipo: validatedFields.data.recorrencia_tipo,
+            quantidade_recorrencia: validatedFields.data.quantidade_recorrencia || 1
+        } : {})
       }),
     });
 

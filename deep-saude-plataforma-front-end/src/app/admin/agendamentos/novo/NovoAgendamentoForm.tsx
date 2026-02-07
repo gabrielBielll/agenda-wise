@@ -11,6 +11,7 @@ import { createAgendamento, type FormState } from "../actions";
 import { CalendarIcon, Clock, DollarSign, User, Check, ChevronsUpDown } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Command,
   CommandEmpty,
@@ -33,6 +34,7 @@ interface Psicologo {
 interface Paciente {
   id: string;
   nome: string;
+  psicologo_id?: string;
 }
 
 const initialState: FormState = {
@@ -84,6 +86,8 @@ export default function NovoAgendamentoForm({
 
   const [openPsicologo, setOpenPsicologo] = useState(false)
   const [valuePsicologo, setValuePsicologo] = useState("")
+
+  const [recorrenciaTipo, setRecorrenciaTipo] = useState("none");
 
   // Handlers
   const handleStartChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -149,37 +153,45 @@ export default function NovoAgendamentoForm({
                 <Command>
                   <CommandInput placeholder="Pesquisar paciente..." />
                   <CommandList>
-                    <CommandEmpty>Nenhum paciente encontrado.</CommandEmpty>
-                    <CommandGroup>
-                      {pacientes.map((p) => (
-                        <CommandItem
-                          key={p.id}
-                          value={p.nome}
-                          onSelect={() => {
-                             setValuePaciente(p.id)
-                             setOpenPaciente(false)
-                          }}
-                        >
-                          <div 
-                            className="flex items-center w-full cursor-pointer h-full"
-                            onClick={(e) => {
-                              // Fallback if CommandItem onSelect fails
-                              e.stopPropagation();
-                              setValuePaciente(p.id);
-                              setOpenPaciente(false);
+                      <CommandEmpty>Nenhum paciente encontrado.</CommandEmpty>
+                      <CommandGroup>
+                        {pacientes
+                          .filter(p => !valuePsicologo || !p.psicologo_id || p.psicologo_id === valuePsicologo)
+                          .map((p) => (
+                          <CommandItem
+                            key={p.id}
+                            value={p.nome}
+                            onSelect={() => {
+                               setValuePaciente(p.id)
+                               if (p.psicologo_id) {
+                                   setValuePsicologo(p.psicologo_id);
+                               }
+                               setOpenPaciente(false)
                             }}
                           >
-                            <Check
-                              className={cn(
-                                "mr-2 h-4 w-4",
-                                valuePaciente === p.id ? "opacity-100" : "opacity-0"
-                              )}
-                            />
-                            {p.nome}
-                          </div>
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
+                            <div 
+                              className="flex items-center w-full cursor-pointer h-full"
+                              onClick={(e) => {
+                                // Fallback if CommandItem onSelect fails
+                                e.stopPropagation();
+                                setValuePaciente(p.id);
+                                if (p.psicologo_id) {
+                                   setValuePsicologo(p.psicologo_id);
+                                }
+                                setOpenPaciente(false);
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  valuePaciente === p.id ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              {p.nome}
+                            </div>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
                   </CommandList>
                 </Command>
               </PopoverContent>
@@ -210,36 +222,46 @@ export default function NovoAgendamentoForm({
                   <CommandInput placeholder="Pesquisar psicólogo..." />
                   <CommandList>
                     <CommandEmpty>Nenhum psicólogo encontrado.</CommandEmpty>
-                    <CommandGroup>
-                      {psicologos.map((p) => (
-                        <CommandItem
-                          key={p.id}
-                          value={p.nome}
-                           onSelect={() => {
-                             setValuePsicologo(p.id)
-                             setOpenPsicologo(false)
-                          }}
-                        >
-                         <div 
-                            className="flex items-center w-full cursor-pointer h-full"
-                            onClick={(e) => {
-                              // Fallback if CommandItem onSelect fails
-                              e.stopPropagation();
-                              setValuePsicologo(p.id);
-                              setOpenPsicologo(false);
+                      <CommandGroup>
+                        {psicologos.map((p) => (
+                          <CommandItem
+                            key={p.id}
+                            value={p.nome}
+                             onSelect={() => {
+                               setValuePsicologo(p.id)
+                               // Clear patient if not compatible
+                               const currentPatient = pacientes.find(pat => pat.id === valuePaciente);
+                               if (currentPatient && currentPatient.psicologo_id && currentPatient.psicologo_id !== p.id) {
+                                   setValuePaciente("");
+                               }
+                               setOpenPsicologo(false)
                             }}
                           >
-                            <Check
-                              className={cn(
-                                "mr-2 h-4 w-4",
-                                valuePsicologo === p.id ? "opacity-100" : "opacity-0"
-                              )}
-                            />
-                            {p.nome}
-                          </div>
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
+                           <div 
+                              className="flex items-center w-full cursor-pointer h-full"
+                              onClick={(e) => {
+                                // Fallback if CommandItem onSelect fails
+                                e.stopPropagation();
+                                setValuePsicologo(p.id);
+                                // Clear patient if not compatible
+                                const currentPatient = pacientes.find(pat => pat.id === valuePaciente);
+                                if (currentPatient && currentPatient.psicologo_id && currentPatient.psicologo_id !== p.id) {
+                                    setValuePaciente("");
+                                }
+                                setOpenPsicologo(false);
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  valuePsicologo === p.id ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              {p.nome}
+                            </div>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
                   </CommandList>
                 </Command>
               </PopoverContent>
@@ -283,9 +305,101 @@ export default function NovoAgendamentoForm({
             <Input id="valor_consulta" name="valor_consulta" type="number" step="0.01" min="0" placeholder="0.00" required />
             {state.errors?.valor_consulta && <p className="text-sm font-medium text-destructive">{state.errors.valor_consulta[0]}</p>}
           </div>
-           {/* Spacer */}
-           <div></div>
+
+          <div className="space-y-2">
+            <Label htmlFor="recorrencia_tipo">Recorrência</Label>
+            <Select name="recorrencia_tipo" value={recorrenciaTipo} onValueChange={setRecorrenciaTipo}>
+              <SelectTrigger>
+                <SelectValue placeholder="Não se repete" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Não se repete</SelectItem>
+                <SelectItem value="semanal">Semanalmente</SelectItem>
+                <SelectItem value="quinzenal">Quinzenalmente</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
+
+        {recorrenciaTipo !== "none" && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="quantidade_recorrencia">Quantidade de Sessões</Label>
+              <div className="flex gap-2">
+                <Input 
+                  id="quantidade_recorrencia" 
+                  name="quantidade_recorrencia" 
+                  type="number" 
+                  min="2" 
+                  max="150" 
+                  defaultValue="4" 
+                  required={recorrenciaTipo !== "none"}
+                  className="w-24"
+                  onInput={(e) => {
+                      const input = e.currentTarget;
+                      if (input.value && parseInt(input.value) > 150) input.value = "150";
+                  }}
+                />
+                 <div className="flex flex-col justify-center text-xs gap-1">
+                      <button 
+                          type="button"
+                          className="text-primary hover:underline text-left whitespace-nowrap"
+                          onClick={() => {
+                              const startDateInput = document.getElementById('data_hora_sessao') as HTMLInputElement;
+                              const now = startDateInput?.value ? new Date(startDateInput.value) : new Date();
+                              
+                              const currentYear = now.getFullYear();
+                              const endOfYear = new Date(currentYear, 11, 31);
+                              const diffTime = Math.abs(endOfYear.getTime() - now.getTime());
+                              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                              
+                              let count = 0;
+                              if (recorrenciaTipo === 'semanal') {
+                                  count = Math.floor(diffDays / 7);
+                              } else if (recorrenciaTipo === 'quinzenal') {
+                                  count = Math.floor(diffDays / 14);
+                              }
+                              
+                              const input = document.getElementById('quantidade_recorrencia') as HTMLInputElement;
+                              if (input) input.value = Math.min(Math.max(count, 1), 150).toString();
+                          }}
+                      >
+                          Até o fim de {new Date().getFullYear()}
+                      </button>
+                      <button 
+                          type="button"
+                          className="text-primary hover:underline text-left whitespace-nowrap"
+                          onClick={() => {
+                              const startDateInput = document.getElementById('data_hora_sessao') as HTMLInputElement;
+                              const now = startDateInput?.value ? new Date(startDateInput.value) : new Date();
+                              
+                              const nextYear = now.getFullYear() + 1;
+                              const endOfNextYear = new Date(nextYear, 11, 31);
+                              const diffTime = Math.abs(endOfNextYear.getTime() - now.getTime());
+                              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                              
+                              let count = 0;
+                              if (recorrenciaTipo === 'semanal') {
+                                  count = Math.floor(diffDays / 7);
+                              } else if (recorrenciaTipo === 'quinzenal') {
+                                  count = Math.floor(diffDays / 14);
+                              }
+                              
+                              const input = document.getElementById('quantidade_recorrencia') as HTMLInputElement;
+                              if (input) input.value = Math.min(Math.max(count, 1), 150).toString();
+                          }}
+                      >
+                          Até o fim de {new Date().getFullYear() + 1}
+                      </button>
+                 </div>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Max: 150 sessões.
+              </p>
+            </div>
+            <div></div>
+          </div>
+        )}
 
         <div className="flex justify-end pt-4"><SubmitButton /></div>
       </CardContent>
