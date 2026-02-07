@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar, PlusCircle, AlertTriangle, Pencil, Search, List, CalendarDays } from "lucide-react";
+import { Calendar, PlusCircle, AlertTriangle, Pencil, Search, List, CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 import { WeekView } from "../../(app)/calendar/WeekView";
 import {
   Pagination,
@@ -66,11 +66,33 @@ export default function AgendamentosClient({
   const [selectedPaciente, setSelectedPaciente] = useState<string>("all");
   const [selectedPsicologo, setSelectedPsicologo] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState<string>("");
-  const [selectedDate, setSelectedDate] = useState<string>("");
+  const [selectedDateFilter, setSelectedDateFilter] = useState<string>(""); // For List View
+  const [currentCalendarDate, setCurrentCalendarDate] = useState<Date>(new Date()); // For Calendar View
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+
+  // Calendar Navigation Handlers
+  const handlePrevWeek = () => {
+    setCurrentCalendarDate(prev => {
+      const newDate = new Date(prev);
+      newDate.setDate(prev.getDate() - 7);
+      return newDate;
+    });
+  };
+
+  const handleNextWeek = () => {
+    setCurrentCalendarDate(prev => {
+      const newDate = new Date(prev);
+      newDate.setDate(prev.getDate() + 7);
+      return newDate;
+    });
+  };
+
+  const handleToday = () => {
+    setCurrentCalendarDate(new Date());
+  };
 
   const filteredAgendamentos = agendamentos.filter(ag => {
     const matchPaciente = selectedPaciente === "all" || ag.paciente_id === selectedPaciente;
@@ -82,14 +104,16 @@ export default function AgendamentosClient({
       (ag.nome_psicologo?.toLowerCase() || "").includes(term);
 
     let matchDate = true;
-    if (selectedDate) {
+    
+    // Only apply strict date filter in List View
+    if (viewMode === "list" && selectedDateFilter) {
       const agDateObj = new Date(ag.data_hora_sessao);
       const year = agDateObj.getFullYear();
       const month = String(agDateObj.getMonth() + 1).padStart(2, '0');
       const day = String(agDateObj.getDate()).padStart(2, '0');
       const agDateString = `${year}-${month}-${day}`;
       
-      matchDate = agDateString === selectedDate;
+      matchDate = agDateString === selectedDateFilter;
     }
 
     return matchPaciente && matchPsicologo && matchSearch && matchDate;
@@ -105,9 +129,20 @@ export default function AgendamentosClient({
   // Reset to page 1 if filters change
   React.useEffect(() => {
     setCurrentPage(1);
-  }, [selectedPaciente, selectedPsicologo, searchTerm, selectedDate]);
+  }, [selectedPaciente, selectedPsicologo, searchTerm, selectedDateFilter]);
 
   console.log("DEBUG: AgendamentosClient render. Total:", agendamentos.length, "Filtered:", filteredAgendamentos.length);
+
+  // Format Helper for Week Range Display
+  const getWeekRangeDisplay = (date: Date) => {
+    const start = new Date(date);
+    start.setDate(date.getDate() - date.getDay());
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+    
+    // Simple formatter (can be improved with date-fns format if needed, but native is fine)
+    return `${start.toLocaleDateString('pt-BR')} - ${end.toLocaleDateString('pt-BR')}`;
+  };
 
   return (
     <Card>
@@ -156,14 +191,30 @@ export default function AgendamentosClient({
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
+          
           <div className="w-full md:w-1/4">
-             <input
-              type="date"
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-            />
+             {viewMode === "list" ? (
+               <input
+                type="date"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                value={selectedDateFilter}
+                onChange={(e) => setSelectedDateFilter(e.target.value)}
+              />
+             ) : (
+               <div className="flex items-center justify-between border rounded-md px-2 h-10 bg-background">
+                 <Button variant="ghost" size="icon" onClick={handlePrevWeek} className="h-8 w-8">
+                   <ChevronLeft className="h-4 w-4" />
+                 </Button>
+                 <span className="text-xs font-medium cursor-pointer hover:underline" onClick={handleToday}>
+                   {getWeekRangeDisplay(currentCalendarDate)}
+                 </span>
+                 <Button variant="ghost" size="icon" onClick={handleNextWeek} className="h-8 w-8">
+                   <ChevronRight className="h-4 w-4" />
+                 </Button>
+               </div>
+             )}
           </div>
+
           <div className="w-full md:w-1/4">
              <Select value={selectedPaciente} onValueChange={setSelectedPaciente}>
               <SelectTrigger>
@@ -246,18 +297,12 @@ export default function AgendamentosClient({
                     />
                   </PaginationItem>
                   
-                  {/* Show partial page numbers if too many, simplified for now: show all or max 5 */}
                   {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                      // Logic to show window of pages could be added here
-                      // For now, simple logic: if > 5 pages, this needs more logic. 
-                      // Let's just show up to 5 for safety or implementing simple windowing.
-                      
                       let pageToShow = i + 1;
                       if (totalPages > 5) {
                           if (currentPage > 3) {
                               pageToShow = currentPage - 2 + i;
                           }
-                          // Cap at totalPages
                           if (pageToShow > totalPages) return null;
                       }
                       
@@ -294,20 +339,18 @@ export default function AgendamentosClient({
                </div>
              ) : (
                <WeekView 
-                 date={selectedDate ? new Date(selectedDate) : new Date()}
+                 date={currentCalendarDate}
                  appointments={filteredAgendamentos.map(ag => ({
                    id: ag.id,
                    data_hora_sessao: ag.data_hora_sessao,
                    nome_paciente: ag.nome_paciente || "",
-                   // Add other necessary fields if WeekView requires them, or update WeekView type
                  } as any))}
                  bloqueios={bloqueios.filter(b => b.psicologo_id === selectedPsicologo)}
-                 onAddAppointment={() => {}} // Read-only for now or implement later
+                 onAddAppointment={() => {}} 
                  onEditAppointment={(app) => {
-                    // Redirect to edit page
                     window.location.href = `/admin/agendamentos/${app.id}/edit`;
                  }}
-                 onDeleteBloqueio={() => {}} // Read-only
+                 onDeleteBloqueio={() => {}} 
                />
              )}
           </div>

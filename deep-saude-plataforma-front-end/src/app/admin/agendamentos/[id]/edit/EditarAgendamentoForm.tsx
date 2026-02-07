@@ -27,6 +27,7 @@ interface Agendamento {
   data_hora_sessao: string; // ISO string
   valor_consulta: number;
   duracao?: number;
+  status?: string;
 }
 
 const initialState: FormState = {
@@ -216,7 +217,19 @@ export default function EditarAgendamentoForm({
                 />
                 {state.errors?.valor_consulta && <p className="text-sm font-medium text-destructive">{state.errors.valor_consulta[0]}</p>}
             </div>
-            <div></div>
+            <div className="space-y-2">
+              <Label htmlFor="status">Status</Label>
+              <Select name="status" defaultValue={agendamento.status || "agendado"}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="agendado">Agendado</SelectItem>
+                  <SelectItem value="realizado">Realizado</SelectItem>
+                  <SelectItem value="cancelado">Cancelado</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
         </div>
 
         <div className="flex justify-end pt-4"><SubmitButton /></div>

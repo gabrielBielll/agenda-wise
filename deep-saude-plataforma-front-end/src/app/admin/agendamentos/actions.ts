@@ -12,6 +12,7 @@ const agendamentoSchema = z.object({
   data_hora_sessao: z.string().min(1, { message: "Data e hora de início são obrigatórias." }),
   data_hora_sessao_fim: z.string().optional(),
   valor_consulta: z.coerce.number().min(0, { message: "O valor deve ser positivo." }),
+  status: z.string().optional(),
 });
 
 export type FormState = {
@@ -20,13 +21,13 @@ export type FormState = {
     paciente_id?: string[];
     psicologo_id?: string[];
     data_hora_sessao?: string[];
-    data_hora_sessao_fim?: string[]; // Add to error types
+    data_hora_sessao_fim?: string[];
     valor_consulta?: string[];
+    status?: string[];
   };
   success: boolean;
 };
 
-// ... (createAgendamento remains mostly same, can update if needed but focus is update)
 export async function createAgendamento(prevState: FormState, formData: FormData): Promise<FormState> {
   const rawData = Object.fromEntries(formData.entries());
   const validatedFields = agendamentoSchema.safeParse(rawData);
@@ -44,7 +45,6 @@ export async function createAgendamento(prevState: FormState, formData: FormData
 
   if (!token) return { message: "Erro de autenticação.", success: false };
 
-  // Calculate duration if end time is present (optional for create, but good to have)
   let duracao = 50;
   if (validatedFields.data.data_hora_sessao && validatedFields.data.data_hora_sessao_fim) {
       const start = new Date(validatedFields.data.data_hora_sessao);
@@ -116,7 +116,6 @@ export async function updateAgendamento(id: string, prevState: FormState, formDa
 
   if (!token) return { message: "Erro de autenticação.", success: false };
 
-  // Calculate duration
   let duracao = undefined;
   if (validatedFields.data.data_hora_sessao && validatedFields.data.data_hora_sessao_fim) {
       const start = new Date(validatedFields.data.data_hora_sessao);
