@@ -1,95 +1,69 @@
+
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  
-  // Decodificar token usando NextAuth (suporta JWE/JWS e cookies seguros automaticamente)
-  // Importante: O secret DEVE ser o mesmo usado no route.ts
+
+  // Rotas públicas que não precisam de verificação (redundância para segurança, caso o matcher falhe)
+  if (pathname === '/admin/login' || pathname === '/') {
+    return NextResponse.next();
+  }
+
+  // Decodificar token usando NextAuth
   const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
   const role = token?.role as string | undefined;
+  const backendToken = token?.backendToken as string | undefined;
 
-  console.log(`[Middleware] Path: ${pathname} | Role: ${role} | Token Exists: ${!!token}`);
+  // REMOVIDO: Console log excessivo que causava spam no servidor
+  // console.log(`[Middleware] Path: ${pathname} | Role: ${role} | Token Exists: ${!!token}`);
 
-  // --- Helper to check backend token expiration ---
-  // --- Helper to check backend token expiration ---
-  const isBackendTokenExpired = (backendToken?: string) => {
-      if (!backendToken) return true;
+  // Helper para verificar expiração do token de backend
+  const isBackendTokenExpired = (bToken?: string) => {
+      if (!bToken) return true;
       try {
-          // Robust decoding for JWT parts
-          const parts = backendToken.split('.');
+          const parts = bToken.split('.');
           if (parts.length < 2) return true;
-          
           const payload = parts[1];
-          // Fix base64 padding if necessary (though usually standard JWTs are fine)
           const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
-          const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
-              return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-          }).join(''));
-
+          const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => 
+              '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
+          ).join(''));
           const decoded = JSON.parse(jsonPayload);
-          
-          // Add a safety buffer of 10 seconds to avoid edge cases
           if (!decoded.exp) return true;
+          // Buffer de 10s
           return (decoded.exp * 1000) < (Date.now() + 10000); 
       } catch (error) {
-          console.error("Error decoding backend token in middleware:", error);
           return true;
       }
   };
 
-  const backendToken = token?.backendToken as string | undefined;
-
-  // --- Rotas Públicas ---
-  // Login Admin: Se já estiver logado, redireciona
-  if (pathname === '/admin/login') {
-    // Only redirect if token exists AND backend token is valid
-    if (token && !isBackendTokenExpired(backendToken)) {
-      if (role === 'admin_clinica') {
-        return NextResponse.redirect(new URL('/admin/dashboard', request.url));
-      } else if (role === 'psicologo') {
-        // PERMITIR que psicólogo acesse login de admin para poder trocar de conta se necessário
-        // return NextResponse.redirect(new URL('/dashboard', request.url));
-        return NextResponse.next();
-      }
-    }
-    return NextResponse.next();
-  }
-
-  // Login Principal (/): Se já estiver logado, redireciona
-  if (pathname === '/') {
-    if (token) {
-      if (role === 'psicologo') {
-        return NextResponse.redirect(new URL('/dashboard', request.url));
-      } else if (role === 'admin_clinica') {
-        return NextResponse.redirect(new URL('/admin/dashboard', request.url));
-      }
-    }
-    return NextResponse.next();
+  // Se o token existe mas o backend token expirou, forçar logout/login
+  // Isso impede loops infinitos de "tenho token next-auth mas ele é inútil no backend"
+  if (token && isBackendTokenExpired(backendToken)) {
+      // Redireciona para login com flag de expirado
+      const loginUrl = new URL('/admin/login', request.url);
+      loginUrl.searchParams.set('expired', 'true');
+      // O ideal aqui seria limpar o cookie de sessão, mas o middleware tem limitações.
+      // O redirecionamento força o usuário a logar novamente.
+      return NextResponse.redirect(loginUrl);
   }
 
   // --- Rotas Protegidas ---
 
   // 1. Área Administrativa (/admin/*)
-  // Ignora /admin/login pois já foi tratado acima
-  if (pathname.startsWith('/admin') && pathname !== '/admin/login') {
-    if (!token || isBackendTokenExpired(backendToken)) {
-      // Create response to delete session cookie if expired? 
-      // NextAuth handles session separately, but redirecting to login is a start.
-      // Ideally we would trigger signOut, but in middleware we can only redirect.
-      // We can append a query param ?expired=true
-      const loginUrl = new URL('/admin/login', request.url);
-      if (token) loginUrl.searchParams.set('expired', 'true');
-      return NextResponse.redirect(loginUrl);
+  if (pathname.startsWith('/admin')) {
+    if (!token) {
+      return NextResponse.redirect(new URL('/admin/login', request.url));
     }
     
+    // Apenas admin tem acesso total, mas podemos ter exceções ou redirecionamentos
     if (role !== 'admin_clinica') {
-      // Se tiver outro papel válido, manda para a home desse papel
+      // Se for psicólogo tentando acessar admin, manda pro dashboard dele
       if (role === 'psicologo') {
         return NextResponse.redirect(new URL('/dashboard', request.url));
       }
-      // Token inválido ou sem papel
       return NextResponse.redirect(new URL('/admin/login', request.url));
     }
   }
@@ -99,14 +73,11 @@ export async function middleware(request: NextRequest) {
   const isAppRoute = appRoutes.some(route => pathname.startsWith(route));
 
   if (isAppRoute) {
-    if (!token || isBackendTokenExpired(backendToken)) {
-      const loginUrl = new URL('/', request.url);
-      if (token) loginUrl.searchParams.set('expired', 'true');
-      return NextResponse.redirect(loginUrl); // Redireciona para Login Principal
+    if (!token) {
+      return NextResponse.redirect(new URL('/', request.url));
     }
     
     if (role !== 'psicologo' && role !== 'admin_clinica') { 
-      // Se for admin tentando acessar área de psico, manda pro admin dashboard
       if (role === 'admin_clinica') {
         return NextResponse.redirect(new URL('/admin/dashboard', request.url));
       }
@@ -119,9 +90,13 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/admin/:path*',
-    '/dashboard/:path*',
-    '/calendar/:path*',
-    '/patients/:path*',
+    /*
+     * Matcher otimizado para não rodar em:
+     * - api routes (/api/...)
+     * - arquivos estáticos (_next/static, _next/image, favicon.ico)
+     * - página de login do admin (/admin/login)
+     * - página de login principal (/)
+     */
+    '/((?!api|_next/static|_next/image|favicon.ico|admin/login|$).*)',
   ],
 };
