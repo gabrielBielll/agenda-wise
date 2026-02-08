@@ -30,15 +30,21 @@
             port (or (.getPort uri) 5432)
             path (.getPath uri)
             dbname (if (seq path) (subs path 1) "defaultdb")
-            query (.getQuery uri)]
+            query (.getQuery uri)
+            query-params (when query
+                           (apply merge (for [pair (str/split query #"&")]
+                                          (let [[k v] (str/split pair #"=")]
+                                            {(keyword k) v}))))
+            ssl-mode (or (:sslmode query-params) "require")
+            ssl-enabled (not= ssl-mode "disable")]
         {:dbtype   "postgresql"
          :dbname   dbname
          :host     host
          :port     port
          :user     usuario
          :password senha
-         :ssl      true
-         :sslmode  "require"}))))
+         :ssl      ssl-enabled
+         :sslmode  ssl-mode}))))
 
 (defonce datasource (delay (jdbc/get-datasource @db-spec)))
 
