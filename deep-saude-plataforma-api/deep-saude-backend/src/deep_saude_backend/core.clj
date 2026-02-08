@@ -38,7 +38,7 @@
          :user     usuario
          :password senha
          :ssl      true
-         :sslmode  "verify-full"}))))
+         :sslmode  "require"}))))
 
 (defonce datasource (delay (jdbc/get-datasource @db-spec)))
 
