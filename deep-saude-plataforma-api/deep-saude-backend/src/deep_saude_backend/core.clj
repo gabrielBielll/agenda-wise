@@ -35,7 +35,9 @@
                            (apply merge (for [pair (str/split query #"&")]
                                           (let [[k v] (str/split pair #"=")]
                                             {(keyword k) v}))))
-            ssl-mode (or (:sslmode query-params) "require")
+            ;; Se sslmode for disable, mantém disable. Se for qualquer outra coisa (verify-full, require, nil), força require.
+            ssl-mode-param (:sslmode query-params)
+            ssl-mode (if (= ssl-mode-param "disable") "disable" "require")
             ssl-enabled (not= ssl-mode "disable")]
         {:dbtype   "postgresql"
          :dbname   dbname
