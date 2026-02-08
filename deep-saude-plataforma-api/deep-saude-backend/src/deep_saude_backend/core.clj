@@ -22,10 +22,23 @@
 (defonce db-spec
   (delay
     (when-let [db-url (env :database-url)]
-      {:dbtype   "postgresql"
-       :jdbcUrl  (str/replace-first db-url "postgresql://" "jdbc:postgresql://")
-       :ssl      false
-       :sslmode  "disable"})))
+      (let [uri (java.net.URI. db-url)
+            auth (some-> (.getUserInfo uri) (str/split #":"))
+            usuario (first auth)
+            senha (second auth)
+            host (.getHost uri)
+            port (or (.getPort uri) 5432)
+            path (.getPath uri)
+            dbname (if (seq path) (subs path 1) "defaultdb")
+            query (.getQuery uri)]
+        {:dbtype   "postgresql"
+         :dbname   dbname
+         :host     host
+         :port     port
+         :user     usuario
+         :password senha
+         :ssl      true
+         :sslmode  "verify-full"}))))
 
 (defonce datasource (delay (jdbc/get-datasource @db-spec)))
 
