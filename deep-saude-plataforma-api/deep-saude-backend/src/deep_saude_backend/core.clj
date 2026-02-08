@@ -183,34 +183,36 @@
 (defn login-handler [request]
   (let [{:keys [email senha]} (:body request)]
     (println "DEBUG LOGIN: Tentativa de login para email:" email)
-    (if-let [usuario (execute-one! ["SELECT u.id, u.clinica_id, u.papel_id, u.senha_hash, u.email, p.nome_papel 
-                                     FROM usuarios u 
-                                     JOIN papeis p ON u.papel_id = p.id 
-                                     WHERE u.email = ?" email])]
+    (if-let [usuario (execute-one! ["SELECT * FROM usuarios WHERE email = ?" email])]
       (do
-        (println "DEBUG LOGIN: Usuário encontrado:" (:email usuario) "ID:" (:id usuario))
-        (println "DEBUG LOGIN: Hash no banco:" (:senha_hash usuario))
-        (let [senha-valida (hashers/check senha (:senha_hash usuario))]
-          (println "DEBUG LOGIN: Senha válida?" senha-valida)
-          (if senha-valida
-            (let [claims {:user_id    (:id usuario)
-                          :clinica_id (:clinica_id usuario)
-                          :papel_id   (:papel_id usuario)
-                          :role       (:nome_papel usuario)
-                          :exp        (-> (java.time.Instant/now) (.plusSeconds 3600) .getEpochSecond)}
-                  token (jwt/sign claims jwt-secret)]
-              {:status 200 :body {:message "Usuário autenticado com sucesso."
-                                  :token   token
-                                  :user    {:id         (:id usuario)
-                                            :email      email
-                                            :clinica_id (:clinica_id usuario)
-                                            :papel_id   (:papel_id usuario)
-                                            :role       (:nome_papel usuario)}}})
-            (do
-              (println "DEBUG LOGIN: Senha incorreta.")
-              {:status 401 :body {:erro "Credenciais inválidas."}}))))
+        (println "DEBUG LOGIN: Usuário encontrado na tabela usuarios. ID:" (:id usuario))
+        (if-let [papel (execute-one! ["SELECT nome_papel FROM papeis WHERE id = ?" (:papel_id usuario)])]
+          (do
+            (println "DEBUG LOGIN: Papel encontrado:" (:nome_papel papel))
+            (let [senha-valida (hashers/check senha (:senha_hash usuario))]
+              (println "DEBUG LOGIN: Senha válida?" senha-valida)
+              (if senha-valida
+                (let [claims {:user_id    (:id usuario)
+                              :clinica_id (:clinica_id usuario)
+                              :papel_id   (:papel_id usuario)
+                              :role       (:nome_papel papel)
+                              :exp        (-> (java.time.Instant/now) (.plusSeconds 3600) .getEpochSecond)}
+                      token (jwt/sign claims jwt-secret)]
+                  {:status 200 :body {:message "Usuário autenticado com sucesso."
+                                      :token   token
+                                      :user    {:id         (:id usuario)
+                                                :email      email
+                                                :clinica_id (:clinica_id usuario)
+                                                :papel_id   (:papel_id usuario)
+                                                :role       (:nome_papel papel)}}})
+                (do
+                  (println "DEBUG LOGIN: Senha incorreta.")
+                  {:status 401 :body {:erro "Credenciais inválidas."}}))))
+          (do
+            (println "DEBUG LOGIN: Papel NÃO encontrado para ID:" (:papel_id usuario))
+            {:status 500 :body {:erro "Erro de integridade: Papel do usuário não encontrado."}})))
       (do
-        (println "DEBUG LOGIN: Usuário NÃO encontrado no banco.")
+        (println "DEBUG LOGIN: Usuário NÃO encontrado na tabela usuarios (SELECT simples).")
         {:status 401 :body {:erro "Credenciais inválidas."}}))))
 
 ;; --- Handlers de Usuários ---
