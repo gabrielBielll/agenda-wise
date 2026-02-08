@@ -1145,7 +1145,7 @@
         (wrap-jwt-autenticacao protected-routes)
         (route/not-found "Recurso não encontrado"))
       ;; APLICAÇÃO DO MIDDLEWARE DE CORS
-      (wrap-cors :access-control-allow-origin [#"http://localhost:3000" #"http://localhost:9002" #"https://deep-ngrv.onrender.com"] ; Adicionada porta 9002
+      (wrap-cors :access-control-allow-origin [#"http://localhost:3000" #"http://localhost:9002" #"https://.*\.code\.run" #"https://deep-ngrv.onrender.com"]
                  :access-control-allow-methods [:get :post :put :delete :options]
                  :access-control-allow-headers #{"Authorization" "Content-Type"})
       (wrap-params)
