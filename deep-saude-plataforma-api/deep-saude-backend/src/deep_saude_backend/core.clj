@@ -308,14 +308,32 @@
 ;; --- Handlers de Psicólogos ---
 (defn listar-psicologos-handler [request]
   (let [clinica-id (get-in request [:identity :clinica_id])]
+    (println "DEBUG PSICOLOGOS: clinica-id do JWT =" clinica-id "(tipo:" (type clinica-id) ")")
     (if-not clinica-id
       {:status 403 :body {:erro "Clínica ID não encontrada na identidade do usuário."}}
-      (let [papel-psicologo-id (:id (execute-one! ["SELECT id FROM papeis WHERE nome_papel = 'psicologo'"]))]
+      (let [papel-psicologo-id (:id (execute-one! ["SELECT id FROM papeis WHERE nome_papel = 'psicologo'"]))
+            _ (println "DEBUG PSICOLOGOS: papel-psicologo-id =" papel-psicologo-id "(tipo:" (type papel-psicologo-id) ")")
+            ;; Debug: contar TODOS os usuarios sem filtro
+            total-usuarios (:count (execute-one! ["SELECT COUNT(*) as count FROM usuarios"]))
+            _ (println "DEBUG PSICOLOGOS: total usuarios no banco =" total-usuarios)
+            ;; Debug: contar usuarios por clinica
+            por-clinica (:count (execute-one! ["SELECT COUNT(*) as count FROM usuarios WHERE clinica_id = ?" clinica-id]))
+            _ (println "DEBUG PSICOLOGOS: usuarios nesta clinica =" por-clinica)
+            ;; Debug: contar usuarios por papel
+            por-papel (:count (execute-one! ["SELECT COUNT(*) as count FROM usuarios WHERE papel_id = ?" papel-psicologo-id]))
+            _ (println "DEBUG PSICOLOGOS: usuarios com papel psicologo =" por-papel)
+            ;; Debug: listar todas as clinicas
+            clinicas (execute-query! ["SELECT id FROM clinicas"])
+            _ (println "DEBUG PSICOLOGOS: clinicas no banco =" (mapv :id clinicas))
+            ;; Debug: listar todos os papeis
+            papeis (execute-query! ["SELECT id, nome_papel FROM papeis"])
+            _ (println "DEBUG PSICOLOGOS: papeis no banco =" (mapv (fn [p] [(:id p) (:nome_papel p)]) papeis))]
         (if-not papel-psicologo-id
           {:status 500 :body {:erro "Configuração de papel 'psicologo' não encontrada."}}
           (let [psicologos (execute-query!
                              ["SELECT id, nome, email, clinica_id, papel_id, cpf, telefone, data_nascimento, endereco, crp, registro_e_psi, abordagem, area_de_atuacao FROM usuarios WHERE clinica_id = ? AND papel_id = ?"
                               clinica-id papel-psicologo-id])]
+            (println "DEBUG PSICOLOGOS: resultado final =" (count psicologos) "psicologos")
             {:status 200 :body psicologos}))))))
 
 ;; --- Handlers de Pacientes ---
