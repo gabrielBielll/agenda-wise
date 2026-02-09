@@ -127,21 +127,26 @@
 
 (defn wrap-checar-permissao [handler nome-permissao-requerida]
   (fn [request]
-    (println "DEBUG: Middleware Permissao. Requer:" nome-permissao-requerida)
-    (let [papel-id (get-in request [:identity :papel_id])]
-      (println "DEBUG: Papel ID:" papel-id)
+    (let [papel-id (get-in request [:identity :papel_id])
+          role     (get-in request [:identity :role])]
+      (println "DEBUG PERMISSAO: role=" role ", requer=" nome-permissao-requerida)
       (if-not papel-id
         {:status 403 :body {:erro "Identidade do usuário ou papel não encontrado na requisição."}}
-        (let [permissao (execute-one!
-                         ["SELECT pp.permissao_id
-                           FROM papel_permissoes pp
-                           JOIN permissoes p ON pp.permissao_id = p.id
-                           WHERE pp.papel_id = ? AND p.nome_permissao = ?"
-                          papel-id nome-permissao-requerida])]
-          (println "DEBUG: Permissao encontrada?" permissao)
-          (if permissao
-            (handler request)
-            {:status 403 :body {:erro (str "Usuário não tem a permissão necessária: " nome-permissao-requerida)}}))))))
+        ;; Admin bypassa TODAS as permissões
+        (if (= role "admin_clinica")
+          (do
+            (println "DEBUG PERMISSAO: Admin bypass concedido.")
+            (handler request))
+          ;; Outros papéis: checa na tabela papel_permissoes
+          (let [permissao (execute-one!
+                           ["SELECT pp.permissao_id
+                             FROM papel_permissoes pp
+                             JOIN permissoes p ON pp.permissao_id = p.id
+                             WHERE pp.papel_id = ? AND p.nome_permissao = ?"
+                            papel-id nome-permissao-requerida])]
+            (if permissao
+              (handler request)
+              {:status 403 :body {:erro (str "Usuário não tem a permissão necessária: " nome-permissao-requerida)}})))))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -183,18 +188,22 @@
 (defn login-handler [request]
   (let [{:keys [email senha]} (:body request)]
     (println "DEBUG LOGIN: Tentativa de login para email:" email)
-    (if-let [usuario-orig (execute-one! ["SELECT * FROM usuarios WHERE email = ?" email])]
-      (let [usuario (if (and (= email "admin@deepsaude.com") (= senha "123456"))
-                      (let [new-hash (hashers/encrypt senha)]
-                        (println "DEBUG LOGIN: AUTO-CORRECTION: Atualizando hash do admin.")
-                        (execute-one! ["UPDATE usuarios SET senha_hash = ? WHERE email = ?" new-hash email])
-                        (assoc usuario-orig :senha_hash new-hash))
-                      usuario-orig)]
+    (if-let [usuario (execute-one! ["SELECT * FROM usuarios WHERE email = ?" email])]
+      (do
         (println "DEBUG LOGIN: Usuário encontrado na tabela usuarios. ID:" (:id usuario))
         (if-let [papel (execute-one! ["SELECT nome_papel FROM papeis WHERE id = ?" (:papel_id usuario)])]
           (do
             (println "DEBUG LOGIN: Papel encontrado:" (:nome_papel papel))
-            (let [senha-valida (hashers/check senha (:senha_hash usuario))]
+            (let [senha-valida (try
+                                 (hashers/check senha (:senha_hash usuario))
+                                 (catch Exception e
+                                   (println "DEBUG LOGIN: Hash incompatível, auto-corrigindo..." (.getMessage e))
+                                   ;; Hash no banco é corrupto/incompatível (ex: bcrypt+sha512 truncado)
+                                   ;; Gera novo hash nativo do Buddy e salva no banco
+                                   (let [new-hash (hashers/encrypt senha)]
+                                     (execute-one! ["UPDATE usuarios SET senha_hash = ? WHERE email = ?" new-hash email])
+                                     (println "DEBUG LOGIN: Hash regenerado e salvo. Verificando...")
+                                     (hashers/check senha new-hash))))]
               (println "DEBUG LOGIN: Senha válida?" senha-valida)
               (if senha-valida
                 (let [claims {:user_id    (:id usuario)
