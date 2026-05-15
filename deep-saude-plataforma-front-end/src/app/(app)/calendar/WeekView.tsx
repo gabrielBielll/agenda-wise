@@ -197,7 +197,9 @@ export function WeekView({ date, appointments, bloqueios = [], onAddAppointment,
                       const minutes = appDate.getMinutes();
                       const topPos = (minutes / 60) * 100; // Percentage from top
                       const duration = app.duracao || 50;
-                      const height = (duration / 60) * 100;
+                      // Clamp duration so the card never extends past midnight of the same day
+                      const startMinuteOfDay = appDate.getHours() * 60 + minutes;
+                      const clampedDuration = Math.min(duration, 24 * 60 - startMinuteOfDay);
                       
                       return (
                           <div
@@ -208,7 +210,7 @@ export function WeekView({ date, appointments, bloqueios = [], onAddAppointment,
                                   ? "bg-red-100 dark:bg-red-900/20 border-red-500 text-red-700 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-900/30 opacity-80"
                                   : "bg-primary/10 border-primary text-foreground hover:bg-primary/20"
                               )}
-                              style={{ top: `${topPos}%`, height: `${height}%`, minHeight: '20px' }}
+                              style={{ top: `${topPos}%`, height: `${clampedDuration / 60 * 100}%`, minHeight: '20px' }}
                               onClick={(e) => {
                                   e.stopPropagation();
                                   onEditAppointment(app);
