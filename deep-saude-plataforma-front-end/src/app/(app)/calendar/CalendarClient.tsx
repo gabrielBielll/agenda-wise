@@ -85,7 +85,7 @@ const initialState: FormState = {
 function SubmitButton({ isEditing }: { isEditing: boolean }) {
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" disabled={pending}>
+    <Button type="submit" disabled={pending} className="min-w-[110px]">
       {pending ? (isEditing ? "Atualizando..." : "Criando...") : (isEditing ? "Salvar" : "Agendar")}
     </Button>
   );
@@ -274,7 +274,9 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
   const handleSlotClick = (selectedDate: Date, event?: React.MouseEvent, isBlocked?: boolean, bloqueioId?: string) => {
     // Show context menu with options
     if (event) {
-      setSlotAction({ date: selectedDate, x: event.clientX, y: event.clientY, isBlocked, bloqueioId });
+      const menuWidth = 184;
+      const clampedX = Math.min(event.clientX, window.innerWidth - menuWidth);
+      setSlotAction({ date: selectedDate, x: clampedX, y: event.clientY, isBlocked, bloqueioId });
     } else if (!isBlocked) {
       handleOpenNew(selectedDate);
     }
@@ -763,7 +765,7 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                       </Link>
                   </div>
               )}
-                <DialogFooter className="flex w-full items-center justify-between sm:justify-between">
+                <DialogFooter className="flex w-full items-center justify-between sm:justify-between sm:space-x-0">
                 {editingAppointment && (
                   <>
                      <Button variant="destructive" type="button" size="icon" onClick={() => handleDelete(editingAppointment.id)}>
@@ -1191,11 +1193,11 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                 nav_button_previous: "absolute left-1",
                 nav_button_next: "absolute right-1",
                 table: "w-full border-collapse space-y-1",
-                head_row: "flex",
-                head_cell: "text-muted-foreground rounded-md w-8 font-normal text-[0.8rem]",
+                head_row: "flex w-full",
+                head_cell: "text-muted-foreground rounded-md w-7 font-normal text-[0.7rem] text-center",
                 row: "flex w-full mt-2",
                 cell: "relative p-0 text-center text-sm focus-within:relative focus-within:z-20 [&:has([aria-selected])]:bg-accent",
-                day: "h-8 w-8 p-0 font-normal aria-selected:opacity-100 rounded-full hover:bg-accent hover:text-accent-foreground flex items-center justify-center", // Added flex centering
+                day: "h-7 w-7 p-0 font-normal aria-selected:opacity-100 rounded-full hover:bg-accent hover:text-accent-foreground flex items-center justify-center",
                 day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
                 day_today: "bg-accent text-accent-foreground",
                 day_outside: "text-muted-foreground opacity-50",
