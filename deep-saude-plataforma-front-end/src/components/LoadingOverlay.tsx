@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from "react";
 import { Loader2, Leaf } from "lucide-react";
 import { usePathname } from "next/navigation";
 
@@ -24,6 +24,7 @@ export function LoadingProvider({ children }: { children: React.ReactNode }) {
   });
 
   const pathname = usePathname();
+  const pathnameRef = useRef(pathname);
 
   const showLoading = useCallback((message = "Carregando...") => {
     setState({ visible: true, message });
@@ -33,10 +34,44 @@ export function LoadingProvider({ children }: { children: React.ReactNode }) {
     setState((prev) => ({ ...prev, visible: false }));
   }, []);
 
+  // Mantém o ref sempre atualizado para o click handler ter acesso ao pathname atual
+  useEffect(() => {
+    pathnameRef.current = pathname;
+  }, [pathname]);
+
   // Auto-oculta quando a navegação (rota) for concluída
   useEffect(() => {
     hideLoading();
   }, [pathname, hideLoading]);
+
+  // Intercepta cliques em links internos para mostrar loading automaticamente
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      // Ignora cliques com teclas modificadoras (abre em nova aba, etc.)
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+
+      const anchor = (e.target as HTMLElement).closest("a");
+      if (!anchor) return;
+
+      const href = anchor.getAttribute("href");
+      if (!href) return;
+
+      // Ignora links externos, mailto, tel, etc.
+      if (href.startsWith("http") || href.startsWith("//") || href.includes(":")) return;
+
+      // Ignora target="_blank"
+      if (anchor.target === "_blank") return;
+
+      // Ignora navegação para a mesma rota atual
+      const hrefWithoutHash = href.split("#")[0].split("?")[0];
+      if (hrefWithoutHash === pathnameRef.current || hrefWithoutHash === "") return;
+
+      showLoading();
+    };
+
+    document.addEventListener("click", handleClick);
+    return () => document.removeEventListener("click", handleClick);
+  }, [showLoading]);
 
   return (
     <LoadingContext.Provider value={{ showLoading, hideLoading }}>

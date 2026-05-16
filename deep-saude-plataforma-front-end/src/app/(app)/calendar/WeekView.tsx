@@ -69,10 +69,25 @@ export function WeekView({ date, appointments, bloqueios = [], onAddAppointment,
   const getAppointmentsForDayAndHour = (day: Date, hour: number) => {
     return appointments.filter(app => {
       const appDate = parseAsLocal(app.data_hora_sessao);
-      return appDate.getDate() === day.getDate() &&
-             appDate.getMonth() === day.getMonth() &&
-             appDate.getFullYear() === day.getFullYear() &&
-             appDate.getHours() === hour;
+      const duration = app.duracao || 50;
+      const endDate = new Date(appDate.getTime() + duration * 60000);
+
+      const dayStart = new Date(day);
+      dayStart.setHours(0, 0, 0, 0);
+
+      // Skip appointments that end before this day starts
+      if (endDate <= dayStart) return false;
+
+      // Render the card once per day, in the first hour slot it appears:
+      // - same-day appointments: their actual start hour
+      // - cross-day continuations: hour 0 (midnight) of the continuation day
+      const isSameDay = appDate.toDateString() === day.toDateString();
+      const firstHourOnDay = isSameDay ? appDate.getHours() : 0;
+
+      const slotEnd = new Date(day);
+      slotEnd.setHours(hour + 1, 0, 0, 0);
+
+      return hour === firstHourOnDay && appDate < slotEnd;
     });
   };
 
@@ -198,40 +213,55 @@ export function WeekView({ date, appointments, bloqueios = [], onAddAppointment,
                   {/* Render Appointments */}
                   {hourAppointments.map(app => {
                       const appDate = parseAsLocal(app.data_hora_sessao);
-                      const minutes = appDate.getMinutes();
-                      const topPos = (minutes / 60) * 100; // Percentage from top
                       const duration = app.duracao || 50;
-                      // Clamp duration so the card never extends past midnight of the same day
-                      const startMinuteOfDay = appDate.getHours() * 60 + minutes;
-                      const clampedDuration = Math.min(duration, 24 * 60 - startMinuteOfDay);
-                      
+                      const endDate = new Date(appDate.getTime() + duration * 60000);
+
+                      const dayStart = new Date(day);
+                      dayStart.setHours(0, 0, 0, 0);
+                      const dayMidnight = new Date(day);
+                      dayMidnight.setHours(24, 0, 0, 0);
+
+                      // Continuation cards start from 00:00 of this day
+                      const isContinuation = appDate < dayStart;
+                      const effectiveStart = isContinuation ? dayStart : appDate;
+                      const topPos = (effectiveStart.getMinutes() / 60) * 100;
+
+                      // Clamp end to midnight so card never overflows this day's column
+                      const effectiveEnd = endDate < dayMidnight ? endDate : dayMidnight;
+                      const durationMinutes = (effectiveEnd.getTime() - effectiveStart.getTime()) / 60000;
+                      if (durationMinutes <= 0) return null;
+
+                      const startLabel = `${String(appDate.getHours()).padStart(2, '0')}:${String(appDate.getMinutes()).padStart(2, '0')}`;
+                      const endLabel = `${String(endDate.getHours()).padStart(2, '0')}:${String(endDate.getMinutes()).padStart(2, '0')}`;
+
                       return (
                           <div
                               key={app.id}
                               className={cn(
                                 "absolute left-1 right-1 rounded-md p-1 text-[10px] transition-colors cursor-pointer z-10 overflow-hidden border-l-4",
-                                app.status === 'cancelado' 
+                                app.status === 'cancelado'
                                   ? "bg-red-100 dark:bg-red-900/20 border-red-500 text-red-700 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-900/30 opacity-80"
-                                  : "bg-primary/10 border-primary text-foreground hover:bg-primary/20"
+                                  : isContinuation
+                                    ? "bg-primary/10 border-primary border-dashed text-foreground hover:bg-primary/20 opacity-75"
+                                    : "bg-primary/10 border-primary text-foreground hover:bg-primary/20"
                               )}
-                              style={{ top: `${topPos}%`, height: `${clampedDuration / 60 * 100}%`, minHeight: '20px' }}
+                              style={{ top: `${topPos}%`, height: `${(durationMinutes / 60) * 100}%`, minHeight: '20px' }}
                               onClick={(e) => {
                                   e.stopPropagation();
                                   onEditAppointment(app);
                               }}
-                              title={`${app.nome_paciente} - ${String(appDate.getHours()).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`}
+                              title={`${app.nome_paciente} — ${startLabel} até ${endLabel}`}
                           >
-                              <span className="font-semibold block">
-                                {String(appDate.getHours()).padStart(2, '0')}:{String(minutes).padStart(2, '0')} - {
-                                  (() => {
-                                    const end = new Date(appDate.getTime() + duration * 60000);
-                                    return `${String(end.getHours()).padStart(2, '0')}:${String(end.getMinutes()).padStart(2, '0')}`;
-                                  })()
-                                }
-                              </span>
-                              <span className={cn("truncate block font-medium", app.status === 'cancelado' ? "line-through opacity-70" : "text-foreground/90")}>
-                                  {app.nome_paciente}
-                              </span>
+                              {isContinuation ? (
+                                <span className="font-semibold block truncate">↩ {app.nome_paciente}</span>
+                              ) : (
+                                <>
+                                  <span className="font-semibold block">{startLabel} - {endLabel}</span>
+                                  <span className={cn("truncate block font-medium", app.status === 'cancelado' ? "line-through opacity-70" : "text-foreground/90")}>
+                                      {app.nome_paciente}
+                                  </span>
+                                </>
+                              )}
                           </div>
                       );
                   })}
