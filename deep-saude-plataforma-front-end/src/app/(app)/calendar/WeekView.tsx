@@ -34,6 +34,10 @@ interface WeekViewProps {
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i); // 00:00 to 23:00
 
+// Backend returns dates with Z suffix (UTC), but the stored value is already local time.
+// Stripping timezone info forces JS to parse as local time, avoiding offset shifts.
+const parseAsLocal = (str: string) => new Date(str.replace('Z', '').replace(/[+-]\d{2}:\d{2}$/, ''));
+
 export function WeekView({ date, appointments, bloqueios = [], onAddAppointment, onEditAppointment, onDeleteBloqueio }: WeekViewProps) {
   const scrollContainerRef = React.useRef<HTMLDivElement>(null);
 
@@ -64,9 +68,9 @@ export function WeekView({ date, appointments, bloqueios = [], onAddAppointment,
 
   const getAppointmentsForDayAndHour = (day: Date, hour: number) => {
     return appointments.filter(app => {
-      const appDate = new Date(app.data_hora_sessao);
-      return appDate.getDate() === day.getDate() && 
-             appDate.getMonth() === day.getMonth() && 
+      const appDate = parseAsLocal(app.data_hora_sessao);
+      return appDate.getDate() === day.getDate() &&
+             appDate.getMonth() === day.getMonth() &&
              appDate.getFullYear() === day.getFullYear() &&
              appDate.getHours() === hour;
     });
@@ -74,8 +78,8 @@ export function WeekView({ date, appointments, bloqueios = [], onAddAppointment,
 
   const getBloqueiosForDayAndHour = (day: Date, hour: number) => {
     return bloqueios.filter(block => {
-      const inicio = new Date(block.data_inicio);
-      const fim = new Date(block.data_fim);
+      const inicio = parseAsLocal(block.data_inicio);
+      const fim = parseAsLocal(block.data_fim);
       const slotStart = new Date(day);
       slotStart.setHours(hour, 0, 0, 0);
       const slotEnd = new Date(day);
@@ -150,8 +154,8 @@ export function WeekView({ date, appointments, bloqueios = [], onAddAppointment,
                 >
                   {/* Render Bloqueios */}
                   {hourBloqueios.map(block => {
-                    const inicio = new Date(block.data_inicio);
-                    const fim = new Date(block.data_fim);
+                    const inicio = parseAsLocal(block.data_inicio);
+                    const fim = parseAsLocal(block.data_fim);
                     const slotStart = new Date(day);
                     slotStart.setHours(hour, 0, 0, 0);
                     const slotEnd = new Date(day);
@@ -193,7 +197,7 @@ export function WeekView({ date, appointments, bloqueios = [], onAddAppointment,
 
                   {/* Render Appointments */}
                   {hourAppointments.map(app => {
-                      const appDate = new Date(app.data_hora_sessao);
+                      const appDate = parseAsLocal(app.data_hora_sessao);
                       const minutes = appDate.getMinutes();
                       const topPos = (minutes / 60) * 100; // Percentage from top
                       const duration = app.duracao || 50;

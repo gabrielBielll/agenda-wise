@@ -532,7 +532,7 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                     type="datetime-local"
                     required
                     defaultValue={editingAppointment ? (() => {
-                      const date = new Date(editingAppointment.data_hora_sessao);
+                      const date = new Date(editingAppointment.data_hora_sessao.replace('Z', '').replace(/[+-]\d{2}:\d{2}$/, ''));
                       const year = date.getFullYear();
                       const month = String(date.getMonth() + 1).padStart(2, '0');
                       const day = String(date.getDate()).padStart(2, '0');
@@ -584,7 +584,7 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                     type="datetime-local"
                     required
                     defaultValue={editingAppointment ? (() => {
-                      const start = new Date(editingAppointment.data_hora_sessao);
+                      const start = new Date(editingAppointment.data_hora_sessao.replace('Z', '').replace(/[+-]\d{2}:\d{2}$/, ''));
                       const duration = editingAppointment.duracao || 50;
                       const end = addMinutes(start, duration);
                       
