@@ -9,10 +9,12 @@ import { Label } from '@/components/ui/label';
 import { Leaf, Lock } from "lucide-react";
 import { useRouter } from 'next/navigation';
 import { useSession, signIn, signOut } from 'next-auth/react';
+import { useLoading } from '@/components/LoadingOverlay';
 
 export default function LoginPage() {
   const router = useRouter();
   const { status } = useSession();
+  const { showLoading, hideLoading } = useLoading();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -28,6 +30,7 @@ export default function LoginPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    showLoading("Autenticando...");
 
     const result = await signIn('credentials', {
       redirect: false,
@@ -36,9 +39,9 @@ export default function LoginPage() {
     });
 
     if (result?.error) {
+      hideLoading();
       setError("Credenciais inválidas. Verifique seu e-mail e senha.");
     } else if (result?.ok) {
-      // O redirecionamento será tratado pelo useEffect ou pelo router.push aqui
       router.push('/dashboard');
     }
   };
@@ -86,7 +89,7 @@ export default function LoginPage() {
             <div className="relative flex justify-center text-xs uppercase"><span className="bg-background px-2 text-muted-foreground">Ou continue com</span></div>
           </div>
           
-          <Button onClick={() => signIn('google')} variant="outline" className="w-full">
+          <Button onClick={() => { showLoading("Conectando com Google..."); signIn('google'); }} variant="outline" className="w-full">
             <svg className="mr-2 h-5 w-5" aria-hidden="true" focusable="false" data-prefix="fab" data-icon="google" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 488 512"><path fill="currentColor" d="M488 261.8C488 403.3 391.1 504 248 504 110.8 504 0 393.2 0 256S110.8 8 248 8c66.8 0 123 24.5 166.3 64.9l-67.5 64.9C258.5 52.6 94.3 116.6 94.3 256c0 86.5 69.1 156.6 153.7 156.6 98.2 0 135-70.4 140.8-106.9H248v-85.3h236.1c2.3 12.7 3.9 24.9 3.9 41.4z"></path></svg>
             Entrar com Google
           </Button>

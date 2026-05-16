@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Building, Loader2 } from "lucide-react";
+import { useLoading } from "@/components/LoadingOverlay";
 
 // Schema
 const loginFormSchema = z.object({
@@ -32,6 +33,7 @@ type LoginFormValues = z.infer<typeof loginFormSchema>;
 export default function AdminLoginPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const { showLoading, hideLoading } = useLoading();
   const [isLoading, setIsLoading] = useState(false);
 
   const form = useForm<LoginFormValues>({
@@ -44,6 +46,7 @@ export default function AdminLoginPage() {
 
   const onSubmit = async (data: LoginFormValues) => {
     setIsLoading(true);
+    showLoading("Autenticando...");
 
     try {
       const result = await signIn("credentials", {
@@ -53,20 +56,18 @@ export default function AdminLoginPage() {
       });
 
       if (result?.error) {
+        hideLoading();
         toast({
           title: "Erro de Login",
           description: "Credenciais inválidas ou erro no servidor.",
           variant: "destructive",
         });
       } else if (result?.ok) {
-        toast({
-          title: "Sucesso!",
-          description: "Login realizado com sucesso. Redirecionando...",
-        });
-        // Force hard reload/redirect to ensure middleware catches the new token
-        window.location.href = "/admin/dashboard"; 
+        // Mantém o overlay até a nova página carregar (window.location causa reload completo)
+        window.location.href = "/admin/dashboard";
       }
     } catch (error) {
+      hideLoading();
       toast({
         title: "Erro Inesperado",
         description: "Ocorreu um erro ao tentar fazer login.",
