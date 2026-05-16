@@ -4,66 +4,91 @@
 
    ▲ Next.js 15.3.3 (Turbopack)
    - Local:        http://localhost:9002
-   - Network:      http://192.168.100.13:9002
+   - Network:      http://192.168.100.9:9002
    - Environments: .env.local
 
  ✓ Starting...
+Slow filesystem detected. If /Users/gabriel/Documents/developer/deep-saude-plataform/deep-saude-plataforma-front-end/.next is a network drive, consider moving it to a local folder. If you have an antivirus enabled, consider excluding your project directory.
  ○ Compiling middleware ...
- ✓ Compiled middleware in 3s
- ✓ Ready in 6.5s
+ ✓ Compiled middleware in 792ms
+ ✓ Ready in 5.3s
+ ○ Compiling / ...
+ ✓ Compiled / in 8.5s
+ GET /?expired=true 200 in 9659ms
  ○ Compiling /api/auth/[...nextauth] ...
- ✓ Compiled /api/auth/[...nextauth] in 7.4s
- GET /api/auth/session 200 in 9267ms
-[Middleware] Path: /admin/financeiro | Role: admin_clinica | Token Exists: true
-[Middleware] Path: /admin/login | Role: admin_clinica | Token Exists: true
+ ✓ Compiled /api/auth/[...nextauth] in 1313ms
+ GET /api/auth/session 200 in 2392ms
+ GET /api/auth/providers 200 in 142ms
+ GET /api/auth/csrf 200 in 133ms
+ POST /api/auth/callback/credentials 401 in 1256ms
  ○ Compiling /admin/login ...
- ✓ Compiled /admin/login in 7.2s
- GET /admin/login?expired=true 200 in 8014ms
- GET /api/auth/session 200 in 125ms
- ○ Compiling /favicon.ico ...
- ✓ Compiled /favicon.ico in 1825ms
- GET /favicon.ico?favicon.56766c03.ico 200 in 1850ms
- GET /favicon.ico 200 in 2260ms
- GET /api/auth/providers 200 in 155ms
- GET /api/auth/csrf 200 in 144ms
+ ✓ Compiled /admin/login in 8s
+ GET /admin/login 200 in 8705ms
+ GET /api/auth/session 200 in 241ms
+ GET /api/auth/providers 200 in 161ms
+ GET /api/auth/csrf 200 in 143ms
 NextAuth: Login API Response { status: 200, hasToken: true }
 NextAuth: Authorize success, returning user with token.
 FORCE OVERRIDE: Setting role to 'admin_clinica' for admin@deepsaude.com
 NextAuth: JWT Callback - Initial sign in
 NextAuth JWT: Forcing 'admin_clinica' for admin
- POST /api/auth/callback/credentials 200 in 1032ms
- GET /api/auth/session 200 in 111ms
-[Middleware] Path: /admin/dashboard | Role: admin_clinica | Token Exists: true
+ POST /api/auth/callback/credentials 200 in 1292ms
+ GET /api/auth/session 200 in 100ms
  ○ Compiling /admin/dashboard ...
- ✓ Compiled /admin/dashboard in 6.3s
- GET /admin/dashboard 200 in 7798ms
- GET /api/auth/session 200 in 92ms
-[Middleware] Path: /admin/financeiro | Role: admin_clinica | Token Exists: true
- ○ Compiling /admin/financeiro ...
- ✓ Compiled /admin/financeiro in 9.8s
- GET /admin/financeiro 200 in 11058ms
- GET /api/auth/session 200 in 1533ms
-[Middleware] Path: /admin/financeiro | Role: admin_clinica | Token Exists: true
- GET /api/auth/session 200 in 157ms
- GET /admin/financeiro 200 in 2079ms
- GET /favicon.ico?favicon.56766c03.ico 200 in 350ms
- GET /api/auth/session 200 in 280ms
- GET /api/auth/session 200 in 544ms
- ✓ Compiled in 1306ms
- GET /api/auth/session 200 in 584ms
- ✓ Compiled in 3.5s
- GET /api/auth/session 200 in 1409ms
-(node:7724) [DEP0060] DeprecationWarning: The `util._extend` API is deprecated. Please use Object.assign() instead.
-(Use `node --trace-deprecation ...` to show where the warning was created)
-[Middleware] Path: /admin/financeiro | Role: admin_clinica | Token Exists: true
- GET /admin/financeiro 200 in 1671ms
- GET /api/auth/session 200 in 197ms
- GET /favicon.ico 200 in 288ms
- GET /favicon.ico?favicon.56766c03.ico 200 in 383ms
- GET /api/auth/session 200 in 213ms
-[Middleware] Path: /admin/financeiro | Role: admin_clinica | Token Exists: true
- ✓ Compiled middleware in 21ms
-[Middleware] Path: /admin/financeiro | Role: admin_clinica | Token Exists: true
- GET /admin/financeiro 200 in 1037ms
- GET /admin/financeiro 200 in 240ms
- GET /favicon.ico?favicon.56766c03.ico 200 in 398ms
+ ✓ Compiled /admin/dashboard in 3.3s
+ GET /admin/dashboard 200 in 4420ms
+ GET /api/auth/session 200 in 133ms
+ ○ Compiling /favicon.ico ...
+ ✓ Compiled /favicon.ico in 2s
+ GET /favicon.ico 200 in 2373ms
+ GET /api/auth/session 200 in 231ms
+ GET /api/auth/session 200 in 137ms
+ ○ Compiling /admin/pacientes ...
+ ✓ Compiled /admin/pacientes in 7.4s
+ GET /admin/pacientes 200 in 8462ms
+ GET /api/auth/csrf 200 in 115ms
+ POST /api/auth/signout 200 in 146ms
+ GET /admin/login 200 in 472ms
+ GET /api/auth/session 200 in 97ms
+ GET /favicon.ico 200 in 319ms
+ GET /favicon.ico?favicon.56766c03.ico 200 in 298ms
+ ○ Compiling /login ...
+ ✓ Compiled /login in 17.8s
+ GET /login 307 in 20102ms
+ GET / 200 in 1034ms
+ GET /api/auth/session 200 in 303ms
+ GET /api/auth/providers 200 in 646ms
+ GET /api/auth/csrf 200 in 590ms
+ POST /api/auth/callback/credentials 401 in 2735ms
+ GET /api/auth/providers 200 in 1047ms
+ GET /api/auth/csrf 200 in 302ms
+ POST /api/auth/callback/credentials 401 in 2327ms
+ GET /api/auth/providers 200 in 202ms
+ GET /api/auth/csrf 200 in 425ms
+ POST /api/auth/callback/credentials 401 in 2325ms
+ GET /api/auth/providers 200 in 198ms
+ GET /api/auth/csrf 200 in 209ms
+NextAuth: Login API Response { status: 200, hasToken: true }
+NextAuth: Authorize success, returning user with token.
+NextAuth: JWT Callback - Initial sign in
+ POST /api/auth/callback/credentials 200 in 1292ms
+ GET /api/auth/session 200 in 133ms
+ ○ Compiling /dashboard ...
+ GET /api/auth/csrf 200 in 111ms
+ POST /api/auth/signout 200 in 126ms
+ GET / 200 in 1669ms
+ GET /api/auth/session 200 in 177ms
+ ✓ Compiled /dashboard in 15.5s
+ ○ Compiling /_not-found/page ...
+ GET /api/auth/providers 200 in 519ms
+ GET /api/auth/csrf 200 in 665ms
+ ✓ Compiled /_not-found/page in 22.2s
+ GET /.well-known/appspecific/com.chrome.devtools.json 404 in 23233ms
+NextAuth: Login API Response { status: 200, hasToken: true }
+NextAuth: Authorize success, returning user with token.
+NextAuth: JWT Callback - Initial sign in
+ POST /api/auth/callback/credentials 200 in 4401ms
+ GET /api/auth/session 200 in 225ms
+ GET /dashboard 200 in 829ms
+ GET /dashboard 200 in 2994ms
+[?25h

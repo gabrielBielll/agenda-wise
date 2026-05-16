@@ -51,6 +51,15 @@ CREATE TABLE IF NOT EXISTS pacientes (
   endereco TEXT,
   avatar_url TEXT,
   psicologo_id UUID REFERENCES usuarios(id),
+  historico_familiar TEXT,
+  uso_medicamentos TEXT,
+  diagnostico TEXT,
+  contatos_emergencia TEXT,
+  status VARCHAR(10) DEFAULT 'ativo',
+  nota_fiscal BOOLEAN DEFAULT false,
+  origem VARCHAR(50),
+  vencimento_pagamento VARCHAR(100),
+  tipo_pagamento VARCHAR(20) DEFAULT 'avulso',
   CONSTRAINT unique_email_clinica UNIQUE (email, clinica_id)
 );
 
@@ -60,7 +69,14 @@ CREATE TABLE IF NOT EXISTS agendamentos (
   paciente_id UUID REFERENCES pacientes(id),
   psicologo_id UUID REFERENCES usuarios(id),
   data_hora_sessao TIMESTAMP,
-  valor_consulta DECIMAL(10, 2)
+  valor_consulta DECIMAL(10, 2),
+  duracao INTEGER DEFAULT 50,
+  status VARCHAR(20) DEFAULT 'agendado',
+  recorrencia_id UUID,
+  observacoes TEXT,
+  valor_repasse DECIMAL(10, 2),
+  status_repasse VARCHAR(20) DEFAULT 'pendente',
+  status_pagamento VARCHAR(20) DEFAULT 'pendente'
 );
 
 CREATE TABLE IF NOT EXISTS prontuarios (
@@ -70,7 +86,25 @@ CREATE TABLE IF NOT EXISTS prontuarios (
   psicologo_id UUID REFERENCES usuarios(id),
   data_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   conteudo TEXT NOT NULL,
-  tipo VARCHAR(20) DEFAULT 'sessao' -- 'sessao' ou 'anotacao'
+  tipo VARCHAR(20) DEFAULT 'sessao', -- 'sessao' ou 'anotacao'
+  queixa_principal TEXT,
+  resumo_tecnico TEXT,
+  observacoes_estado_mental TEXT,
+  encaminhamentos_tarefas TEXT,
+  agendamento_id UUID REFERENCES agendamentos(id),
+  humor INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS bloqueios_agenda (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  clinica_id UUID REFERENCES clinicas(id),
+  psicologo_id UUID REFERENCES usuarios(id),
+  data_inicio TIMESTAMP NOT NULL,
+  data_fim TIMESTAMP NOT NULL,
+  motivo VARCHAR(255),
+  dia_inteiro BOOLEAN DEFAULT false,
+  recorrencia_id UUID,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Seeds: Roles
@@ -84,7 +118,6 @@ INSERT INTO permissoes (nome_permissao) VALUES
 ('visualizar_todos_agendamentos'),
 ('gerenciar_pacientes'),
 ('visualizar_pacientes'),
-('gerenciar_agendamentos_clinica'),
 ('gerenciar_agendamentos_clinica'),
 ('gerenciar_usuarios'),
 ('gerenciar_prontuarios')
@@ -101,3 +134,4 @@ SELECT p.id, per.id FROM papeis p, permissoes per
 WHERE p.nome_papel = 'psicologo' 
 AND per.nome_permissao IN ('visualizar_pacientes', 'visualizar_todos_agendamentos', 'gerenciar_agendamentos_clinica', 'gerenciar_pacientes', 'gerenciar_prontuarios') -- Minimal set
 ON CONFLICT DO NOTHING;
+
