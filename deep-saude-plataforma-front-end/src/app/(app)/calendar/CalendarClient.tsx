@@ -36,6 +36,7 @@ import { useFormStatus } from "react-dom";
 import { useActionState } from "react";
 import { createAgendamento, updateAgendamento, deleteAgendamento, cancelAgendamento, reactivateAgendamento, createBloqueio, deleteBloqueio, checkBlockConflicts, FormState, type Bloqueio } from "./actions";
 import { useToast } from "@/hooks/use-toast";
+import { useLoading } from "@/components/LoadingOverlay";
 import { CalendarHeader } from "./CalendarHeader";
 import { DayView } from "./DayView";
 import { WeekView } from "./WeekView";
@@ -129,6 +130,7 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
   const [newAppointmentDate, setNewAppointmentDate] = useState<Date | null>(null); // To store date clicked in views
   const [slotAction, setSlotAction] = useState<SlotAction | null>(null); // For context menu
   const { toast } = useToast();
+  const { showLoading, hideLoading } = useLoading();
   const [recurrenceType, setRecurrenceType] = useState<string>("none");
   const [isConflictOpen, setIsConflictOpen] = useState(false);
   const [forceSubmission, setForceSubmission] = useState(false);
@@ -159,22 +161,21 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
             
             // Alternative: Check editingAppointment.recorrencia_id
             if (editingAppointment.recorrencia_id && !formData.get('mode')) {
-                // If it's recurring and NO mode is set, we stop here and open the dialog?
-                // But we need the FormData using the CURRENT values of the form.
-                // We can save formData to state, open dialog, then call action again with mode appended.
                 setPendingEditData(formData);
                 setIsConfirmEditRecurrenceOpen(true);
-                return { message: "", success: false }; // Return dummy state to stop immediate submit logic? 
-                // Or better: don't call updateAgendamento yet.
+                return { message: "", success: false };
             } else {
-                 const mode = formData.get('mode') as 'single' | 'all_future' | undefined;
-                 result = await updateAgendamento(editingAppointment.id, prevState, formData, mode);
+                showLoading("Atualizando agendamento...");
+                const mode = formData.get('mode') as 'single' | 'all_future' | undefined;
+                result = await updateAgendamento(editingAppointment.id, prevState, formData, mode);
             }
         } else {
+            showLoading("Agendando sessão...");
             result = await createAgendamento(prevState, formData);
         }
     } catch (error) {
         console.error("Erro na server action:", error);
+        hideLoading();
         return { message: "Erro interno no servidor.", success: false };
     }
     return result || { message: "Erro desconhecido.", success: false };
@@ -187,17 +188,8 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
       // Since we can't easily modify the FormData object passed to startTransition if we call formAction directly with it...
       // wait, we can just append to pendingEditData if it's mutable? FormData is.
       pendingEditData.append('mode', mode);
-      
-      // Now we need to submit this data.
-      // calling startTransition(() => formAction(pendingEditData)) works?
-      // usage string: const [state, formAction] = useActionState(action, initialState);
-      
-      // Let's use a hidden input "mode" in the form and programmatic submit?
-      // No, because we already have the data in pendingEditData.
-      
-      // We can manually call the action wrapper?
-      // But useActionState wraps it. 
-      // We can call formAction(pendingEditData).
+
+      showLoading("Atualizando agendamento...");
       React.startTransition(() => {
           formAction(pendingEditData);
       });
@@ -213,6 +205,7 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
 // ... inside component ...
 
   useEffect(() => {
+    hideLoading();
     if (state.message) {
       if (state.success) {
         toast({
@@ -303,19 +296,20 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
     const motivo = formData.get('motivo') as string;
     const diaInteiro = formData.get('dia_inteiro') === 'on';
 
-    // 1. Check for conflicts first
+    showLoading("Verificando conflitos...");
     const conflictResult = await checkBlockConflicts(dataInicio, dataFim, blockRecurrenceType, blockRecurrenceCount);
 
     if (conflictResult.total > 0) {
-      // Conflicts found, open decision dialog
+      hideLoading();
       setConflictData({ count: conflictResult.total, start: dataInicio, end: dataFim, motivo, diaInteiro });
-      setIsBlockDialogOpen(false); // Close the input dialog
+      setIsBlockDialogOpen(false);
       setIsConflictDialogOpen(true);
       return;
     }
 
-    // No conflicts, proceed normally
+    showLoading("Criando bloqueio...");
     const result = await createBloqueio(dataInicio, dataFim, motivo, diaInteiro, blockRecurrenceType, blockRecurrenceCount);
+    hideLoading();
     if (result && result.success) {
       toast({ title: "Sucesso", description: result.message, className: "bg-green-500 text-white" });
       setIsBlockDialogOpen(false);
@@ -328,15 +322,17 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
   const confirmBlockCreation = async (cancelConflicts: boolean) => {
     if (!conflictData) return;
 
+    showLoading("Criando bloqueio...");
     const result = await createBloqueio(
-      conflictData.start, 
-      conflictData.end, 
-      conflictData.motivo, 
-      conflictData.diaInteiro, 
-      blockRecurrenceType, 
+      conflictData.start,
+      conflictData.end,
+      conflictData.motivo,
+      conflictData.diaInteiro,
+      blockRecurrenceType,
       blockRecurrenceCount,
       cancelConflicts
     );
+    hideLoading();
 
     if (result && result.success) {
       toast({ title: "Sucesso", description: result.message, className: "bg-green-500 text-white" });
@@ -349,11 +345,12 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
   };
 
   const handleDeleteBlock = async (id: string, mode?: 'single' | 'all_future') => {
+    showLoading("Excluindo bloqueio...");
     const result = await deleteBloqueio(id, mode);
+    hideLoading();
     if (result.success) {
       toast({ title: "Sucesso", description: result.message, className: "bg-green-500 text-white" });
       setIsConfirmDeleteBlockOpen(false);
-      // setBlockToDelete(null); // Keep state to avoid layout shift/error during close animation
     } else {
       toast({ title: "Erro", description: result.message, variant: "destructive" });
     }
@@ -384,21 +381,21 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
   };
 
   const executeDelete = async (id: string, mode: 'single' | 'all_future') => {
-      // Close confirmation dialogs FIRST to avoid conflict with parent dialog closure
       setIsConfirmDeleteApptOpen(false);
       setIsDeleteOpen(false);
-      
+
+      showLoading("Excluindo agendamento...");
       const result = await deleteAgendamento(id, mode);
-      
+      hideLoading();
+
       if (result.success) {
           toast({
               title: "Sucesso",
               description: result.message,
               className: "bg-green-500 text-white",
           });
-          
           setApptToDelete(null);
-          setIsDialogOpen(false); // Close edit dialog finally
+          setIsDialogOpen(false);
           setEditingAppointment(null);
       } else {
           toast({
@@ -410,7 +407,9 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
   };
 
   const handleCancel = async (id: string) => {
+    showLoading("Cancelando sessão...");
     const result = await cancelAgendamento(id);
+    hideLoading();
     if (result.success) {
       toast({
         title: "Sessão Cancelada",
@@ -431,7 +430,9 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
  
   
   const handleReactivate = async (id: string) => {
+    showLoading("Reativando sessão...");
     const result = await reactivateAgendamento(id);
+    hideLoading();
     if (result.success) {
       toast({
         title: "Sessão Reativada",
