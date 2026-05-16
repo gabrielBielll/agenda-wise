@@ -221,15 +221,18 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
             className: "bg-green-500 text-white",
         });
         
-        // Add delay to prevent 'removeChild' errors with Radix UI primitives (Select/Dialog race)
+        // Step 1: close dialogs (starts Radix close animation)
+        setIsDialogOpen(false);
+        setIsConflictOpen(false);
+        setIsConfirmEditRecurrenceOpen(false);
+        setForceSubmission(false);
+        // Step 2: clear appointment state AFTER the dialog animation finishes (~150ms).
+        // Changing editingAppointment at the same time as closing causes the Select Portal
+        // (rendered in document.body) to become orphaned mid-animation → removeChild crash.
         setTimeout(() => {
-            setIsDialogOpen(false);
-            setIsConflictOpen(false); // Close conflict dialog on success
-            setIsConfirmEditRecurrenceOpen(false); // Close edit recurrence dialog
             setEditingAppointment(null);
             setNewAppointmentDate(null);
-            setForceSubmission(false); // Reset force
-        }, 100);
+        }, 300);
       } else if (state.conflict) {
         setIsConflictOpen(true);
       } else {
@@ -459,7 +462,15 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
       {/* Sidebar */}
       <aside className="w-64 flex-shrink-0 border-r bg-card p-4 flex flex-col gap-6">
         
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <Dialog open={isDialogOpen} onOpenChange={(open) => {
+            setIsDialogOpen(open);
+            if (!open) {
+              setTimeout(() => {
+                setEditingAppointment(null);
+                setNewAppointmentDate(null);
+              }, 300);
+            }
+          }}>
           <DialogTrigger asChild>
             <Button className="w-full rounded-full h-12 shadow-md flex items-center justify-start pl-4 gap-3 bg-primary text-primary-foreground hover:bg-primary/90" onClick={() => handleOpenNew()}>
               <Plus className="h-6 w-6" /> 
