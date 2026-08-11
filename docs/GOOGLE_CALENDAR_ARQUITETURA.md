@@ -10,7 +10,7 @@ A spec original foi escrita sem acesso ao repositório. Ela propõe um modelo de
 Este documento faz três coisas:
 
 1. **Mapeia** cada decisão da spec para o que já existe (seção 2).
-2. **Registra as adaptações** — onde eu discordo da spec ou preciso ir além dela, sempre com o motivo (seção 4, decisões D7–D14).
+2. **Registra as adaptações** — onde eu discordo da spec ou preciso ir além dela, sempre com o motivo (seção 4, decisões D7–D15).
 3. **Aponta os pré-requisitos** que a spec não podia conhecer e que bloqueiam a Fase 1 (seção 3).
 
 Marcações: ⚠️ armadilha • ❓ pendente de confirmação • 🔴 bloqueador
@@ -338,6 +338,78 @@ Manter a coluna `vinculo_agenda.topologia` mesmo assim — custa nada e deixa a 
 
 Se der o segundo caso, isso vira a tarefa 1 do cronograma — coordenação com N profissionais, não desenvolvimento. Melhor descobrir hoje do que na Fase 2.
 
+### D15 — Migração A → B é barata depois da Fase 3, mas o escopo tem que ser decidido antes da verificação
+
+D14 adia o Modelo B. Isso levanta a pergunta natural: e se a clínica quiser migrar depois — perde o histórico?
+
+**Não. E o motivo é o desenho, não sorte.**
+
+#### O que "histórico" significa em cada camada
+
+| Camada | O que tem | Risco numa migração |
+|---|---|---|
+| `agendamentos` + `prontuarios` + financeiro | Paciente, valor, pagamento, repasse, evolução clínica | **Zero.** Nada disso trafega para o Google (D5, spec seção 7) |
+| Eventos no Google criados pela plataforma | Espelho de horários, marcados com `extendedProperties.origem=plataforma` | **Zero, depois da Fase 3** — regeneráveis a partir do banco |
+| Eventos no Google criados pelo psicólogo direto | Compromissos pessoais, coisas fora da plataforma | **Real** — só existem lá. Ficam na agenda antiga, que continua sendo dele |
+
+A partir da Fase 3 a plataforma sabe escrever qualquer série no Google via outbox. Logo, **"migrar para uma agenda nova" é o replay do outbox apontando para outro `calendarId`** — não é migração de dados, é reexecução de uma operação que já existe.
+
+#### Três caminhos, do mais barato ao mais caro
+
+**Caminho 1 — Elevar a agenda atual para `owner`. Sem migração nenhuma.**
+
+O psicólogo troca a permissão da clínica de "Fazer alterações nos eventos" (`writer`) para **"Fazer alterações e gerenciar compartilhamento"** (`owner`). Mesma agenda, mesmo `calendarId`, mesmo histórico, zero movimentação de dado. A clínica passa a ter controle total.
+
+De quebra, resolve o problema de identidade: com `accessRole = owner`, `acl.list` funciona e devolve o e-mail do dono — a sugestão automática de vínculo (spec 5.4) deixa de ser heurística e vira consulta direta.
+
+⚠️ **Não é transferência de posse.** Em agenda secundária de conta pessoal, `owner` é um papel que várias contas podem ter ao mesmo tempo; não existe operação "transfira e me remova". O psicólogo continua dono também, e ambos os lados podem remover o acesso do outro ou apagar a agenda. É co-propriedade, não transferência — o que é bem mais fácil de negociar politicamente, aliás.
+
+**Caminho 2 — Agenda nova, corte a partir de uma data. Histórico antigo fica onde está.**
+
+É o Modelo B puro. A plataforma cria a agenda nova, o psicólogo recebe acesso `writer`, e daquela data em diante tudo nasce lá. A agenda antiga continua com o psicólogo como arquivo. Não há perda de dado da clínica — o que ficou para trás no Google já está em `agendamentos`.
+
+**Caminho 3 — Agenda nova + replay do histórico.**
+
+Igual ao 2, mas a plataforma reescreve também as sessões passadas na agenda nova, lendo de `agendamentos`. Só faz sentido se alguém realmente consulta sessão antiga pelo Google — o que raramente é verdade, já que o prontuário e o financeiro estão na plataforma.
+
+⚠️ Reenviar um ano de histórico de todos os psicólogos de uma vez é como se descobre o limite de quota. Se for fazer, uma agenda por vez, com o worker de outbox respeitando backoff.
+
+#### Mecânica da migração, por psicólogo
+
+Migra-se um de cada vez — dá para pilotar com um voluntário antes de propor à clínica inteira.
+
+```
+1. calendars.insert                     → nova agenda na conta da clínica
+2. acl.insert (role=writer, o psicólogo)→ aparece sozinha no Google Calendar dele
+3. vinculo_agenda: linha antiga → pausado ; linha nova → ativo, topologia=modelo_b
+4. channels.stop no canal antigo ; events.watch na agenda nova
+5. limpar google_event_id/etag das recorrencias e agendamentos do psicólogo
+   (apontam para a agenda velha)
+6. enfileirar no outbox um "criar" por série ativa e por avulso futuro
+   → o worker reescreve tudo na agenda nova
+7. limpeza da agenda antiga: events.list com
+   privateExtendedProperty=origem=plataforma → events.delete em cada um
+```
+
+O passo 7 não é opcional. Sem ele o psicólogo fica com duas agendas mostrando as mesmas sessões, e não tem como saber qual é a boa. O filtro por `extendedProperties` garante que só apagamos o que nós criamos — os compromissos pessoais dele não são tocados.
+
+⚠️ Os IDs determinísticos de D9 são o que torna o passo 6 seguro para reexecutar: ID de evento é único **por agenda**, então os mesmos IDs valem na agenda nova, e um replay repetido não duplica nada.
+
+#### 🔴 A decisão que não dá para adiar: escopo
+
+O que **não** é reversível de graça é o escopo OAuth. Modelo B precisa criar agendas e conceder ACL — `calendar.events` não faz isso. Adicionar escopo depois significa **nova rodada de verificação** (semanas) **e novo consentimento** da conta da clínica.
+
+Então: implementar Modelo B pode ficar para depois, mas **decidir se ele existirá tem que acontecer antes de submeter à verificação.**
+
+| Se a resposta for | Pedir na verificação |
+|---|---|
+| "Modelo A para sempre" | `calendar.events` + `calendar.calendarlist.readonly` |
+| "talvez migremos um dia" | acrescentar o necessário para `calendars.insert` e `acl.insert` |
+
+❓ Antes de assumir que "acrescentar" significa o `calendar` completo, checar os escopos granulares na documentação do Google — em particular **`calendar.app.created`**, que permite criar agendas secundárias e controlar totalmente **apenas as que o próprio app criou**. Se ele cobrir `calendars.insert` + `acl.insert` nas agendas criadas por nós, é exatamente o Modelo B com uma fração da superfície do `calendar` completo, e uma justificativa muito mais fácil de defender na revisão. Vale meia hora no OAuth Playground antes de submeter qualquer coisa.
+
+**Recomendação:** pedir o escopo de criação de agenda **junto** na primeira verificação, mesmo sem implementar Modelo B agora. O custo de pedir um escopo a mais na primeira submissão é uma linha a mais de justificativa; o custo de pedir depois é repetir o processo inteiro.
+
 ---
 
 ## 5. Arquitetura de execução
@@ -449,7 +521,7 @@ Ajustado à realidade do repositório. As fases 1–3 já entregam valor; a 4 tr
 
 | Fase | Escopo | Depende de |
 |---|---|---|
-| **0 — Fundação** | 🔴 **Teste ACL vs iCal** (D14); confirmar escopos no OAuth Playground; `TIMESTAMPTZ` + fuso explícito (3.1); Migratus (3.2); consent screen em Produção; domínio verificado; iniciar verificação OAuth; **remover os 3 stubs** (D7) | ROB-004, AWS-006, AWS-012 |
+| **0 — Fundação** | 🔴 **Teste ACL vs iCal** (D14); 🔴 **decidir se Modelo B existirá algum dia** — define o escopo a pedir, e escopo não se acrescenta de graça (D15); confirmar escopos no OAuth Playground; `TIMESTAMPTZ` + fuso explícito (3.1); Migratus (3.2); consent screen em Produção; domínio verificado; iniciar verificação OAuth; **remover os 3 stubs** (D7) | ROB-004, AWS-006, AWS-012 |
 | **1 — Conexão** | `google_conexao` + `vinculo_agenda`; OAuth da clínica; refresh token criptografado; `calendarList.list`; **tela de mapeamento manual com confirmação humana** — no Modelo A ela é permanente, não provisória; permissão `gerenciar_integracao_google` | Fase 0 |
 | **2 — Escrita** | `recorrencias` + colunas de sync; `google.rrule`; outbox + worker (D8); IDs determinísticos (D9); todas as operações de D11; `If-Match` e 412 | Fase 1, ROB-010 |
 | **3 — Leitura** | Full sync + `syncToken`; 410 Gone; polling 15 min; tradução inbound (5.3); `bloqueios_agenda` externos (D12); regra financeira (D13) | Fase 2 |
@@ -469,12 +541,14 @@ Herdadas da spec (seção 12):
 3. **`acl.list` com `writer`** — se funcionar, vira o método primário de identificação de dono e simplifica a tela de mapeamento. A expectativa é 403.
 4. **Workspace ou Gmail pessoal?** — define se Domain-Wide Delegation é viável (spec 8.3), o que eliminaria OAuth, refresh token e teto de usuários de uma vez. Se os psicólogos usam Gmail pessoal, está descartado.
 5. ~~**Posse da agenda**~~ — **respondido:** Modelo A. Ver D14.
+6. 🔴 **Modelo B algum dia?** — não precisa ser implementado agora, mas o escopo tem que ser pedido na primeira verificação. Ver D15. Se a resposta for "talvez", checar antes se `calendar.app.created` resolve.
+7. **Elevar a agenda atual para `owner`** — vale propor aos psicólogos? Custa uma troca de permissão, não migra dado nenhum, e destrava `acl.list` para o mapeamento automático (D15, caminho 1).
 
 Novas, deste documento:
 
-6. **Scheduler** — `chime` in-process agora ou EventBridge direto? (5.4)
-7. **`this_and_future`** — split de série ou exceções individuais? (D11)
-8. **Retroatividade** — as recorrências já materializadas em produção ganham `recorrencias` retroativa e vão para o Google, ou a integração só vale para o que for criado a partir da Fase 2? Recomendo: backfill de `recorrencias` (derivável do `recorrencia_id` + espaçamento das linhas) mas push para o Google só sob ação explícita do admin, agenda por agenda. Empurrar um ano de histórico de todos os psicólogos num primeiro deploy é como se descobre o limite de quota.
+8. **Scheduler** — `chime` in-process agora ou EventBridge direto? (5.4)
+9. **`this_and_future`** — split de série ou exceções individuais? (D11)
+10. **Retroatividade** — as recorrências já materializadas em produção ganham `recorrencias` retroativa e vão para o Google, ou a integração só vale para o que for criado a partir da Fase 2? Recomendo: backfill de `recorrencias` (derivável do `recorrencia_id` + espaçamento das linhas) mas push para o Google só sob ação explícita do admin, agenda por agenda. Empurrar um ano de histórico de todos os psicólogos num primeiro deploy é como se descobre o limite de quota.
 
 ---
 
