@@ -24,6 +24,8 @@ Esta pasta organiza tudo o que precisa ser feito antes do Deep Saúde ir para pr
 | [cards/sprint-7-realtime/](cards/sprint-7-realtime/) | Chat real-time (Onda 2) — Aleph, Redis, WebSocket |
 | [cards/sprint-8-video/](cards/sprint-8-video/) | Vídeo / telemedicina (Onda 3) — LiveKit + consentimento |
 | [cards/aws-migration/](cards/aws-migration/) | **Trilha de migração para AWS** — 18 cards, dupla finalidade: migrar + estudar para certificação |
+| [GOOGLE_CALENDAR_ARQUITETURA.md](GOOGLE_CALENDAR_ARQUITETURA.md) | Arquitetura da integração com Google Agenda, ancorada no código atual — decisões, pré-requisitos e plano de fases |
+| [GOOGLE_CALENDAR_SPEC.md](GOOGLE_CALENDAR_SPEC.md) | Spec técnica de handoff da integração (documento-alvo, escrito sem acesso ao repo) |
 
 ## Convenções dos cards
 
