@@ -557,6 +557,29 @@ Além do que a spec 7 já cobre:
 
 Ajustado à realidade do repositório. As fases 1–3 já entregam valor; a 4 transforma em produto.
 
+### Estado atual
+
+**Fase 0 — feita, exceto o que depende do Google Cloud Console.**
+
+| Item | Estado |
+|---|---|
+| Migratus + migrations versionadas (`resources/migrations/`) | ✅ substituiu `ensure-finance-columns!` e o paredão de ALTERs do `init-db` |
+| `TIMESTAMPTZ` + `clinicas.timezone` | ✅ migration `20260811100100` |
+| `deep-saude-backend.tempo` — fuso e recorrência explícitos | ✅ com testes |
+| Fim da aritmética em milissegundos na recorrência | ✅ `ZonedDateTime.plusWeeks` |
+| Remoção dos 3 stubs do Google | ✅ rota `/api/calendar/events`, dep `googleapis`, toggle simulado |
+| NextAuth restrito a `openid email profile` + `email_verified` | ✅ |
+| Contrato de data/hora unificado no frontend (`src/lib/datetime.ts`) | ✅ eliminou os 9 pontos que removiam o fuso na mão |
+| Schema da integração (5 tabelas + colunas) | ✅ migration `20260811100200` |
+| `deep-saude-backend.google.rrule` — RRULE e IDs determinísticos | ✅ com testes |
+| Consent screen em Produção, domínio verificado, verificação OAuth | ⬜ depende do Google Cloud Console |
+
+**Fase 1 em diante:** o schema já existe; falta o código de OAuth, outbox worker, sync e webhook.
+
+⚠️ **Antes do primeiro deploy:** rodar `lein test` e subir a aplicação localmente. As migrations e os namespaces `tempo`/`rrule` foram testados, mas as alterações no `core.clj` não passaram por compilação — o ambiente onde foram escritas não tinha acesso ao Clojars.
+
+⚠️ **A migration de fuso e as mudanças no `core.clj` têm que ir juntas no mesmo deploy.** Separadas, o banco passa a ser TIMESTAMPTZ enquanto o código ainda grava horário de parede no fuso da JVM — que em container é UTC. Resultado: toda sessão nova gravada com 3 horas de diferença, sem erro nenhum aparecendo.
+
 | Fase | Escopo | Depende de |
 |---|---|---|
 | **0 — Fundação** | 🔴 **Escopos dos dois modelos no OAuth Playground** — a submissão inclui o escopo do Modelo B mesmo sem implementá-lo agora (D14); `TIMESTAMPTZ` + fuso explícito (3.1); Migratus (3.2); consent screen em Produção; domínio verificado; iniciar verificação OAuth; **remover os 3 stubs** (D7) | ROB-004, AWS-006, AWS-012 |

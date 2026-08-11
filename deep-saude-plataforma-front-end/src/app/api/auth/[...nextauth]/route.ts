@@ -12,6 +12,22 @@ export const authOptions: AuthOptions = {
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID as string,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
+      // Escopos BÁSICOS apenas — este login serve para identificar o
+      // profissional, não para acessar agenda.
+      //
+      // O acesso ao Google Calendar vem do token OAuth da clínica, guardado no
+      // backend (ver docs/GOOGLE_CALENDAR_ARQUITETURA.md, D7). Pedir escopo de
+      // calendar aqui multiplicaria por N o teto de 100 usuários do app não
+      // verificado e exporia token de agenda ao ambiente do frontend.
+      //
+      // O valor deste login é o `email_verified`: e-mail confirmado pelo Google,
+      // não digitado por alguém — é o insumo do mapeamento agenda<->psicólogo.
+      authorization: {
+        params: {
+          scope: "openid email profile",
+          prompt: "select_account",
+        },
+      },
     }),
     CredentialsProvider({
       name: 'Credentials',
@@ -74,9 +90,19 @@ export const authOptions: AuthOptions = {
       // ... existing google logic ...
       return true; 
     },
-    async jwt({ token, user, account }) {
+    async jwt({ token, user, account, profile }) {
       if (user) {
         console.log("NextAuth: JWT Callback - Initial sign in");
+
+        // Login com Google: guarda o e-mail VERIFICADO. É o que permite sugerir
+        // com segurança de quem é cada agenda na tela de mapeamento (spec 5.4).
+        // Um e-mail não verificado não serve para isso — vincular a agenda
+        // errada expõe pacientes de um profissional a outro.
+        if (account?.provider === 'google') {
+          const p = profile as { email?: string; email_verified?: boolean } | undefined;
+          token.googleEmail = p?.email_verified ? p.email : undefined;
+        }
+
         if (account?.provider === 'credentials') {
           token.backendToken = (user as any).backendToken;
           token.id = (user as any).id;
@@ -101,6 +127,7 @@ export const authOptions: AuthOptions = {
       (session.user as any).clinica_id = token.clinica_id;
       (session.user as any).papel_id = token.papel_id;
       (session.user as any).role = token.role;
+      (session.user as any).googleEmail = token.googleEmail;
       return session;
     }
   },

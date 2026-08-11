@@ -13,7 +13,8 @@
                  [org.postgresql/postgresql "42.7.1"] ; Driver JDBC
                  [environ "1.2.0"]
                  [buddy/buddy-sign "3.5.346"]
-                 [buddy/buddy-hashers "2.0.167"]]
+                 [buddy/buddy-hashers "2.0.167"]
+                 [migratus "1.5.4"]] ; Versionamento de schema — ver resources/migrations
   :plugins [[lein-ring "0.12.6"]] ; Para facilitar o desenvolvimento com Ring
   :ring {:handler deep-saude-backend.core/app
          :init deep-saude-backend.core/init-db ; Função para inicializar o DB (opcional aqui)

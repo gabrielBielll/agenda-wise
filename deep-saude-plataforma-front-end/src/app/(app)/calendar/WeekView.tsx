@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { cn } from "@/lib/utils";
+import { parseInstante } from "@/lib/datetime";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -34,9 +35,10 @@ interface WeekViewProps {
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i); // 00:00 to 23:00
 
-// Backend returns dates with Z suffix (UTC), but the stored value is already local time.
-// Stripping timezone info forces JS to parse as local time, avoiding offset shifts.
-const parseAsLocal = (str: string) => new Date(str.replace('Z', '').replace(/[+-]\d{2}:\d{2}$/, ''));
+// Datas vêm de @/lib/datetime. Antes havia aqui um `parseAsLocal` que removia o
+// sufixo de fuso na mão, para contornar a coluna TIMESTAMP sem fuso do banco.
+// A coluna agora é TIMESTAMPTZ e a API devolve instante de verdade — remover o
+// fuso passou a ser justamente o que produz o deslocamento.
 
 export function WeekView({ date, appointments, bloqueios = [], onAddAppointment, onEditAppointment, onDeleteBloqueio }: WeekViewProps) {
   const scrollContainerRef = React.useRef<HTMLDivElement>(null);
@@ -68,7 +70,7 @@ export function WeekView({ date, appointments, bloqueios = [], onAddAppointment,
 
   const getAppointmentsForDayAndHour = (day: Date, hour: number) => {
     return appointments.filter(app => {
-      const appDate = parseAsLocal(app.data_hora_sessao);
+      const appDate = parseInstante(app.data_hora_sessao);
       const duration = app.duracao || 50;
       const endDate = new Date(appDate.getTime() + duration * 60000);
 
@@ -93,8 +95,8 @@ export function WeekView({ date, appointments, bloqueios = [], onAddAppointment,
 
   const getBloqueiosForDayAndHour = (day: Date, hour: number) => {
     return bloqueios.filter(block => {
-      const inicio = parseAsLocal(block.data_inicio);
-      const fim = parseAsLocal(block.data_fim);
+      const inicio = parseInstante(block.data_inicio);
+      const fim = parseInstante(block.data_fim);
       const slotStart = new Date(day);
       slotStart.setHours(hour, 0, 0, 0);
       const slotEnd = new Date(day);
@@ -169,8 +171,8 @@ export function WeekView({ date, appointments, bloqueios = [], onAddAppointment,
                 >
                   {/* Render Bloqueios */}
                   {hourBloqueios.map(block => {
-                    const inicio = parseAsLocal(block.data_inicio);
-                    const fim = parseAsLocal(block.data_fim);
+                    const inicio = parseInstante(block.data_inicio);
+                    const fim = parseInstante(block.data_fim);
                     const slotStart = new Date(day);
                     slotStart.setHours(hour, 0, 0, 0);
                     const slotEnd = new Date(day);
@@ -212,7 +214,7 @@ export function WeekView({ date, appointments, bloqueios = [], onAddAppointment,
 
                   {/* Render Appointments */}
                   {hourAppointments.map(app => {
-                      const appDate = parseAsLocal(app.data_hora_sessao);
+                      const appDate = parseInstante(app.data_hora_sessao);
                       const duration = app.duracao || 50;
                       const endDate = new Date(appDate.getTime() + duration * 60000);
 

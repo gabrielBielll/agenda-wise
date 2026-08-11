@@ -10,6 +10,8 @@
             [clojure.string :as str]
             [buddy.sign.jwt :as jwt]
             [buddy.hashers :as hashers]
+            [migratus.core :as migratus]
+            [deep-saude-backend.tempo :as tempo]
             [ring.middleware.cors :refer [wrap-cors]]
             [ring.middleware.params :refer [wrap-params]])
   (:gen-class)
@@ -65,35 +67,41 @@
 (defn execute-one! [query-vector]
   (jdbc/execute-one! @datasource query-vector {:builder-fn rs/as-unqualified-lower-maps}))
 
-;; --- MIGRATION SAFEGUARD ---
-;; Ensure tables have necessary columns for finance module
-(defn ensure-finance-columns! []
-  (try
-    (println "MIGRATION: Verificando colunas financeiras na tabela agendamentos...")
-    ;; Check/Add valor_repasse
-    (try 
-       (jdbc/execute! @datasource ["ALTER TABLE agendamentos ADD COLUMN valor_repasse DECIMAL(10, 2)"])
-       (println "MIGRATION: Coluna 'valor_repasse' adicionada.")
-       (catch Exception _ (println "MIGRATION: Coluna 'valor_repasse' ja existe.")))
-    
-    ;; Check/Add status_repasse
-    (try 
-       (jdbc/execute! @datasource ["ALTER TABLE agendamentos ADD COLUMN status_repasse VARCHAR(20) DEFAULT 'pendente'"])
-       (println "MIGRATION: Coluna 'status_repasse' adicionada.")
-       (catch Exception _ (println "MIGRATION: Coluna 'status_repasse' ja existe.")))
-    
-    ;; Check/Add status_pagamento
-    (try 
-       (jdbc/execute! @datasource ["ALTER TABLE agendamentos ADD COLUMN status_pagamento VARCHAR(20) DEFAULT 'pendente'"])
-       (println "MIGRATION: Coluna 'status_pagamento' adicionada.")
-       (catch Exception _ (println "MIGRATION: Coluna 'status_pagamento' ja existe.")))
-    
-    (println "MIGRATION: Verificação concluída.")
-    (catch Exception e
-      (println "MIGRATION ERROR:" (.getMessage e)))))
+(defn fuso-da-clinica
+  "Fuso horário da clínica. Todo horário que chega do frontend é horário de
+   parede e precisa deste fuso para virar instante — ver deep-saude-backend.tempo.
 
-;; Run migration on startup (in a delay or future to avoid blocking, but here simple call is fine as it's quick)
-(future (ensure-finance-columns!))
+   Cai no padrão quando a clínica não tem fuso definido, o que mantém o
+   comportamento histórico (tudo era implicitamente São Paulo)."
+  [clinica-id]
+  (or (:timezone (execute-one! ["SELECT timezone FROM clinicas WHERE id = ?" clinica-id]))
+      tempo/fuso-padrao))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Migrações de schema (Migratus)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;; Substitui a antiga ensure-finance-columns!, que tentava ALTER TABLE no
+;; startup e engolia a exceção quando a coluna já existia. Aquilo não versiona,
+;; não tem ordem, não tem rollback e não registra o que já rodou — insustentável
+;; a partir do momento em que a integração com o Google adiciona 5 tabelas.
+;;
+;; As migrations vivem em resources/migrations e são a única fonte da verdade do
+;; schema. setup_db.sql permanece só como referência histórica.
+
+(defn migratus-config []
+  {:store                :database
+   :migration-dir        "migrations/"
+   :migration-table-name "schema_migracoes"
+   :db                   {:datasource @datasource}})
+
+(defn migrar!
+  "Aplica as migrations pendentes. Roda de forma síncrona no boot: subir a
+   aplicação com o schema desatualizado é pior do que não subir."
+  []
+  (println "MIGRATIONS: aplicando migrations pendentes...")
+  (migratus/migrate (migratus-config))
+  (println "MIGRATIONS: schema atualizado."))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -466,23 +474,23 @@
         {:status 400, :body {:erro "paciente_id, psicologo_id e data_hora_sessao são obrigatórios."}}
         (let [paciente-uuid (java.util.UUID/fromString paciente_id)
               psicologo-uuid (java.util.UUID/fromString psicologo_id)
-              sessao-timestamp-inicial (java.sql.Timestamp/valueOf data_hora_sessao)
+              fuso (fuso-da-clinica clinica-id)
+              inicio-zdt (tempo/parse-instante data_hora_sessao fuso)
               duracao-sessao (or duracao 50)
-              
-              qtd-sessoes (if (and recorrencia_tipo (pos? (or quantidade_recorrencia 0))) 
-                                (min (or quantidade_recorrencia 1) 150) 
+
+              qtd-sessoes (if (and recorrencia_tipo (pos? (or quantidade_recorrencia 0)))
+                                (min (or quantidade_recorrencia 1) 150)
                                 1)
-              intervalo-dias (case recorrencia_tipo
-                               "semanal" 7
-                               "quinzenal" 14
-                               0)
-              
-              sessoes-para-criar (for [i (range qtd-sessoes)]
-                                   (let [base-time (.getTime sessao-timestamp-inicial)
-                                         offset-millis (* i intervalo-dias 24 60 60 1000)
-                                         start-time (java.sql.Timestamp. (+ base-time offset-millis))
-                                         end-time (java.sql.Timestamp. (+ (.getTime start-time) (* duracao-sessao 60000)))]
-                                     {:start start-time :end end-time}))
+
+              ;; Ocorrências geradas na linha do tempo LOCAL: o horário de parede
+              ;; é preservado semana a semana. A versão anterior somava
+              ;; (* i 7 24 60 60 1000) milissegundos, o que escorrega uma hora ao
+              ;; atravessar mudança de horário de verão.
+              sessoes-para-criar (map (fn [{:keys [inicio fim]}]
+                                        {:start (tempo/->sql inicio)
+                                         :end   (tempo/->sql fim)})
+                                      (tempo/ocorrencias inicio-zdt recorrencia_tipo
+                                                         qtd-sessoes duracao-sessao))
 
               bloqueio-existente (some (fn [{:keys [start end]}]
                                          (execute-one! ["SELECT id FROM bloqueios_agenda 
@@ -530,11 +538,15 @@
             :else
             (let [novos-agendamentos (doall (map (fn [{:keys [start end]}]
                                                      (sql/insert! @datasource :agendamentos
-                                                                  (merge 
+                                                                  (merge
                                                                     {:clinica_id       clinica-id
                                                                      :paciente_id      paciente-uuid
                                                                      :psicologo_id     psicologo-uuid
                                                                      :data_hora_sessao start
+                                                                     ;; Chave de reconciliação com o Google (D10): a ocorrência
+                                                                     ;; nasce no horário original e este valor nunca muda, mesmo
+                                                                     ;; que a sessão seja remarcada depois.
+                                                                     :original_start_time start
                                                                      :valor_consulta   valor_consulta
                                                                      :duracao          duracao-sessao
                                                                      :observacoes      observacoes}
@@ -567,27 +579,22 @@
           (if-let [recorrencia-id (:recorrencia_id agendamento-atual)]
              (let [novo-duracao (or duracao (:duracao agendamento-atual) 50)
                    novo-valor (if (= status "cancelado") 0 (or valor_consulta (:valor_consulta agendamento-atual)))
-                   
+                   fuso (fuso-da-clinica clinica-id)
+
                    ;; Find all future appointments in this series (including this one)
-                   agendamentos-futuros (execute-query! ["SELECT id, data_hora_sessao FROM agendamentos 
-                                                    WHERE recorrencia_id = ? 
-                                                    AND data_hora_sessao >= ? 
+                   agendamentos-futuros (execute-query! ["SELECT id, data_hora_sessao FROM agendamentos
+                                                    WHERE recorrencia_id = ?
+                                                    AND data_hora_sessao >= ?
                                                     AND clinica_id = ?"
                                                    recorrencia-id (:data_hora_sessao agendamento-atual) clinica-id])]
-               
+
                (doall (map (fn [appt]
                              (let [original-date (:data_hora_sessao appt)
-                                   ;; If user sent a new data_hora_sessao, we extract the TIME and apply it to the original date of each appointment
+                                   ;; Cada ocorrência mantém a própria DATA e adota o HORÁRIO novo.
+                                   ;; Antes isso era feito com java.util.Calendar no fuso default da
+                                   ;; JVM (UTC em container); agora é explícito no fuso da clínica.
                                    new-timestamp (if data_hora_sessao
-                                                   (let [input-timestamp (java.sql.Timestamp/valueOf data_hora_sessao)
-                                                         cal-input (java.util.Calendar/getInstance)
-                                                         cal-original (java.util.Calendar/getInstance)]
-                                                     (.setTime cal-input input-timestamp)
-                                                     (.setTime cal-original original-date)
-                                                     (.set cal-original java.util.Calendar/HOUR_OF_DAY (.get cal-input java.util.Calendar/HOUR_OF_DAY))
-                                                     (.set cal-original java.util.Calendar/MINUTE (.get cal-input java.util.Calendar/MINUTE))
-                                                     (.set cal-original java.util.Calendar/SECOND 0)
-                                                     (java.sql.Timestamp. (.getTimeInMillis cal-original)))
+                                                   (tempo/->sql (tempo/com-horario-de original-date data_hora_sessao fuso))
                                                    original-date)
                                    
                                    update-map (cond-> {}
@@ -610,25 +617,18 @@
           (if-let [recorrencia-id (:recorrencia_id agendamento-atual)]
              (let [novo-duracao (or duracao (:duracao agendamento-atual) 50)
                    novo-valor (if (= status "cancelado") 0 (or valor_consulta (:valor_consulta agendamento-atual)))
-                   
+                   fuso (fuso-da-clinica clinica-id)
+
                    ;; Find ALL appointments in this series
-                   todos-agendamentos (execute-query! ["SELECT id, data_hora_sessao FROM agendamentos 
-                                                    WHERE recorrencia_id = ? 
+                   todos-agendamentos (execute-query! ["SELECT id, data_hora_sessao FROM agendamentos
+                                                    WHERE recorrencia_id = ?
                                                     AND clinica_id = ?"
                                                    recorrencia-id clinica-id])]
-               
+
                (doall (map (fn [appt]
                              (let [original-date (:data_hora_sessao appt)
                                    new-timestamp (if data_hora_sessao
-                                                   (let [input-timestamp (java.sql.Timestamp/valueOf data_hora_sessao)
-                                                         cal-input (java.util.Calendar/getInstance)
-                                                         cal-original (java.util.Calendar/getInstance)]
-                                                     (.setTime cal-input input-timestamp)
-                                                     (.setTime cal-original original-date)
-                                                     (.set cal-original java.util.Calendar/HOUR_OF_DAY (.get cal-input java.util.Calendar/HOUR_OF_DAY))
-                                                     (.set cal-original java.util.Calendar/MINUTE (.get cal-input java.util.Calendar/MINUTE))
-                                                     (.set cal-original java.util.Calendar/SECOND 0)
-                                                     (java.sql.Timestamp. (.getTimeInMillis cal-original)))
+                                                   (tempo/->sql (tempo/com-horario-de original-date data_hora_sessao fuso))
                                                    original-date)
                                    
                                    update-map (cond-> {}
@@ -648,14 +648,16 @@
              {:status 400 :body {:erro "Agendamento não é recorrente."}})
 
           :else ;; Default: Single update (existing logic)
-        (let [_ (println "DEBUG: Atualizando agendamento. Body:" (:body request)) 
+        (let [_ (println "DEBUG: Atualizando agendamento. Body:" (:body request))
+              fuso (fuso-da-clinica clinica-id)
               ;; Determinar dados finais para validação de bloqueio
-              novo-data (if data_hora_sessao (java.sql.Timestamp/valueOf data_hora_sessao) (:data_hora_sessao agendamento-atual))
+              novo-data-zdt (tempo/->zdt (or data_hora_sessao (:data_hora_sessao agendamento-atual)) fuso)
+              novo-data (tempo/->sql novo-data-zdt)
               novo-duracao (or duracao (:duracao agendamento-atual) 50)
               novo-psicologo-uuid (if psicologo_id (java.util.UUID/fromString psicologo_id) (:psicologo_id agendamento-atual))
-              
+
               ;; Calcular fim da sessão
-              novo-fim (java.sql.Timestamp. (+ (.getTime novo-data) (* novo-duracao 60000)))
+              novo-fim (tempo/->sql (tempo/mais-minutos novo-data-zdt novo-duracao))
               
               ;; Verificar se há bloqueio conflitante (apenas se houver mudança de horário, duração ou psicólogo, mas por segurança checamos sempre que possível conflito)
               bloqueio-existente (execute-one! ["SELECT id FROM bloqueios_agenda 
@@ -681,7 +683,7 @@
               update-map (cond-> {}
                            (some? paciente_id) (assoc :paciente_id (java.util.UUID/fromString paciente_id))
                            (some? psicologo_id) (assoc :psicologo_id (java.util.UUID/fromString psicologo_id))
-                           (some? data_hora_sessao) (assoc :data_hora_sessao (java.sql.Timestamp/valueOf data_hora_sessao))
+                           (some? data_hora_sessao) (assoc :data_hora_sessao novo-data)
                            (some? valor-final) (assoc :valor_consulta valor-final)
                            (some? duracao) (assoc :duracao duracao)
                            (some? status) (assoc :status status)
@@ -852,24 +854,22 @@
 
 ;; --- Handlers de Bloqueios de Agenda ---
 
-(defn gerar-intervalos-bloqueio [data_inicio data_fim recorrencia_tipo quantidade_recorrencia]
-  (let [start-ts (java.sql.Timestamp/valueOf data_inicio)
-        end-ts   (java.sql.Timestamp/valueOf data_fim)
-        duracao-millis (- (.getTime end-ts) (.getTime start-ts))
-        
-        qtd-bloqueios (if (and recorrencia_tipo (pos? (or quantidade_recorrencia 0))) 
-                          (min (or quantidade_recorrencia 1) 120) 
-                          1)
-        intervalo-dias (case recorrencia_tipo
-                         "semanal" 7
-                         "quinzenal" 14
-                         0)]
-    (for [i (range qtd-bloqueios)]
-      (let [base-time (.getTime start-ts)
-            offset-millis (* i intervalo-dias 24 60 60 1000)
-            s-time (java.sql.Timestamp. (+ base-time offset-millis))
-            e-time (java.sql.Timestamp. (+ (.getTime s-time) duracao-millis))]
-        {:start s-time :end e-time}))))
+(defn gerar-intervalos-bloqueio
+  "Intervalos de um bloqueio, com ou sem recorrência.
+
+   Mesmo tratamento de fuso do agendamento: horário de parede preservado entre
+   as repetições, duração real preservada dentro de cada uma."
+  [data_inicio data_fim recorrencia_tipo quantidade_recorrencia fuso]
+  (let [inicio-zdt (tempo/parse-instante data_inicio fuso)
+        fim-zdt    (tempo/parse-instante data_fim fuso)
+        duracao-minutos (.toMinutes (java.time.Duration/between inicio-zdt fim-zdt))
+
+        qtd-bloqueios (if (and recorrencia_tipo (pos? (or quantidade_recorrencia 0)))
+                          (min (or quantidade_recorrencia 1) 120)
+                          1)]
+    (map (fn [{:keys [inicio fim]}]
+           {:start (tempo/->sql inicio) :end (tempo/->sql fim)})
+         (tempo/ocorrencias inicio-zdt recorrencia_tipo qtd-bloqueios duracao-minutos))))
 
 (defn verificar-conflitos-handler [request]
   (try
@@ -886,8 +886,9 @@
       (if (or (nil? data_inicio) (nil? data_fim))
         {:status 400 :body {:erro "data_inicio e data_fim são obrigatórios."}}
         
-        (let [intervalos (gerar-intervalos-bloqueio data_inicio data_fim recorrencia_tipo quantidade_recorrencia)
-              
+        (let [intervalos (gerar-intervalos-bloqueio data_inicio data_fim recorrencia_tipo
+                                                    quantidade_recorrencia (fuso-da-clinica clinica-id))
+
               conflitos (reduce (fn [acc {:keys [start end]}]
                                   (let [agendamentos (execute-query! ["SELECT id, data_hora_sessao, duracao, status FROM agendamentos 
                                                                        WHERE clinica_id = ? 
@@ -918,15 +919,15 @@
                                 
       (if (or (nil? data_inicio) (nil? data_fim))
         {:status 400 :body {:erro "data_inicio e data_fim são obrigatórios."}}
-        (let [intervalos (gerar-intervalos-bloqueio data_inicio data_fim recorrencia_tipo quantidade_recorrencia)
-              recorrencia-uuid (when (and recorrencia_tipo (not= recorrencia_tipo "none")) 
+        (let [intervalos (gerar-intervalos-bloqueio data_inicio data_fim recorrencia_tipo
+                                                   quantidade_recorrencia (fuso-da-clinica clinica-id))
+              recorrencia-uuid (when (and recorrencia_tipo (not= recorrencia_tipo "none"))
                                  (java.util.UUID/randomUUID))]
 
           ;; Se solicitado, cancelar agendamentos conflitantes
+          ;; (start/end já vêm como OffsetDateTime, prontos para o JDBC)
           (when cancelar_conflitos
-            (doseq [{:keys [start end]} intervalos
-                    :let [end-ts (java.sql.Timestamp. (.getTime end))
-                          start-ts (java.sql.Timestamp. (.getTime start))]]
+            (doseq [{start-ts :start end-ts :end} intervalos]
               (sql/update! @datasource :agendamentos 
                            {:status "cancelado" :valor_consulta 0} 
                            ["clinica_id = ? AND psicologo_id = ? AND status != 'cancelado' 
@@ -1229,60 +1230,17 @@
       (try
         (execute-query! ["SELECT 1"])
         (println "Conexão com o banco de dados estabelecida com sucesso!")
+        ;; Schema: antes era um paredão de ALTER TABLE ... IF NOT EXISTS aqui,
+        ;; sem ordem nem registro do que já havia rodado. Agora é Migratus.
+        ;; ⚠️ Migração falha aborta o boot de propósito — subir com o schema
+        ;; desatualizado é pior do que não subir.
+        (migrar!)
+
         (try
-          (execute-query! ["ALTER TABLE agendamentos ADD COLUMN IF NOT EXISTS duracao INTEGER DEFAULT 50"])
-          (println "Coluna 'duracao' verificada/adicionada com sucesso.")
-          
-          ;; Status para cancelamento de sessões
-          (execute-query! ["ALTER TABLE agendamentos ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'agendado'"])
-          (println "Coluna 'status' de agendamentos verificada/adicionada com sucesso.")
-          
-          ;; Novos campos Prontuário
-          (execute-query! ["ALTER TABLE prontuarios ADD COLUMN IF NOT EXISTS queixa_principal TEXT"])
-          (execute-query! ["ALTER TABLE prontuarios ADD COLUMN IF NOT EXISTS resumo_tecnico TEXT"])
-          (execute-query! ["ALTER TABLE prontuarios ADD COLUMN IF NOT EXISTS observacoes_estado_mental TEXT"])
-          (execute-query! ["ALTER TABLE prontuarios ADD COLUMN IF NOT EXISTS encaminhamentos_tarefas TEXT"])
-          (execute-query! ["ALTER TABLE prontuarios ADD COLUMN IF NOT EXISTS agendamento_id UUID"])
-          (execute-query! ["ALTER TABLE prontuarios ADD COLUMN IF NOT EXISTS humor INTEGER"])
-          (println "Novas colunas de prontuário verificadas/adicionadas com sucesso.")
-
-          ;; Novo campo de status para pacientes
-          (execute-query! ["ALTER TABLE pacientes ADD COLUMN IF NOT EXISTS status VARCHAR(10) DEFAULT 'ativo'"])
-          (println "Coluna 'status' de pacientes verificada/adicionada com sucesso.")
-
-          ;; Novos campos Clínicos do Paciente
-          (execute-query! ["ALTER TABLE pacientes ADD COLUMN IF NOT EXISTS historico_familiar TEXT"])
-          (execute-query! ["ALTER TABLE pacientes ADD COLUMN IF NOT EXISTS uso_medicamentos TEXT"])
-          (execute-query! ["ALTER TABLE pacientes ADD COLUMN IF NOT EXISTS diagnostico TEXT"])
-          (execute-query! ["ALTER TABLE pacientes ADD COLUMN IF NOT EXISTS contatos_emergencia TEXT"])
-          (println "Novas colunas de dados clínicos do paciente verificadas/adicionadas com sucesso.")
-
-          ;; Novos campos Financeiros do Paciente
-          (execute-query! ["ALTER TABLE pacientes ADD COLUMN IF NOT EXISTS nota_fiscal BOOLEAN DEFAULT false"])
-          (execute-query! ["ALTER TABLE pacientes ADD COLUMN IF NOT EXISTS origem VARCHAR(50)"])
-          (execute-query! ["ALTER TABLE pacientes ADD COLUMN IF NOT EXISTS vencimento_pagamento VARCHAR(100)"])
-          (execute-query! ["ALTER TABLE pacientes ADD COLUMN IF NOT EXISTS tipo_pagamento VARCHAR(20) DEFAULT 'avulso'"])
-          (println "Novas colunas financeiras do paciente verificadas/adicionadas com sucesso.")
-
-          ;; Tabela de Bloqueios de Agenda
-          (execute-query! ["CREATE TABLE IF NOT EXISTS bloqueios_agenda (
-                            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-                            clinica_id UUID NOT NULL,
-                            psicologo_id UUID NOT NULL,
-                            data_inicio TIMESTAMP NOT NULL,
-                            data_fim TIMESTAMP NOT NULL,
-                            motivo VARCHAR(255),
-                            dia_inteiro BOOLEAN DEFAULT false,
-                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                           )"])
-          (execute-query! ["ALTER TABLE bloqueios_agenda ADD COLUMN IF NOT EXISTS recorrencia_id UUID"])
-          (println "Tabela bloqueios_agenda verificada/criada com sucesso.")
-
           ;; Sincronização de status de agendamentos passados na inicialização
           (sincronizar-status-global!)
-
           (catch Exception e
-            (println "Aviso ao verificar colunas:" (.getMessage e))))
+            (println "Aviso na sincronização de status:" (.getMessage e))))
         (catch Exception e
           (println "Falha ao conectar ao banco de dados:" (.getMessage e)))))
     (println "AVISO: DATABASE_URL não configurada. As operações de banco de dados irão falhar.")))

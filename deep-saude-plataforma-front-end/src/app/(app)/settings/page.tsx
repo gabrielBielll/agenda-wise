@@ -6,23 +6,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Bell, CalendarCog, UserCog, Palette, ShieldCheck, ExternalLink } from "lucide-react";
+import { Bell, CalendarCog, UserCog, Palette, ShieldCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 export default function SettingsPage() {
-  const [isCalendarSynced, setIsCalendarSynced] = useState(false); // Mock state
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const { toast } = useToast();
-
-  const handleGoogleCalendarSync = () => {
-    // Placeholder for OAuth flow
-    setIsCalendarSynced(!isCalendarSynced);
-    toast({
-      title: `Sincronização com Google Agenda ${!isCalendarSynced ? 'Ativada' : 'Desativada'} (Simulado)`,
-      description: `O status da integração do seu calendário foi atualizado.`,
-      className: "bg-primary text-primary-foreground"
-    });
-  };
 
   const handleSaveChanges = () => {
     // Placeholder for saving settings
@@ -48,36 +37,31 @@ export default function SettingsPage() {
         <CardHeader>
           <CardTitle className="font-headline text-xl flex items-center"><CalendarCog className="mr-2 h-6 w-6 text-primary" />Integração com Calendário</CardTitle>
         </CardHeader>
+        {/*
+          Não há toggle de conexão aqui de propósito.
+
+          A conexão com o Google é uma só por clínica e é feita pelo admin — a
+          agenda de cada psicólogo já está compartilhada com a conta da clínica.
+          O vínculo agenda<->profissional também é exclusivo do admin: oferecer
+          ao psicólogo uma lista de agendas para escolher "qual é a minha" seria
+          um vetor direto de acesso indevido ao histórico de pacientes de outro
+          profissional. Ver docs/GOOGLE_CALENDAR_ARQUITETURA.md (D14, spec 5.4).
+
+          Antes havia aqui um switch "(Simulado)" que não fazia nada.
+        */}
         <CardContent className="space-y-4">
-          <div className="flex items-center justify-between p-4 border rounded-lg">
-            <div>
-              <Label htmlFor="google-calendar-sync" className="text-base font-medium">Sincronização com Google Agenda</Label>
-              <p className="text-sm text-muted-foreground">
-                {isCalendarSynced ? "Seu calendário está sincronizado no momento." : "Conecte seu Google Agenda para gerenciar agendamentos."}
-              </p>
-            </div>
-            <Button onClick={handleGoogleCalendarSync} variant={isCalendarSynced ? "outline" : "default"}>
-              <ExternalLink className="mr-2 h-4 w-4" />
-              {isCalendarSynced ? 'Desconectar Google Agenda' : 'Conectar Google Agenda'}
-            </Button>
+          <div className="p-4 border rounded-lg space-y-2">
+            <p className="text-base font-medium">Gerenciada pela clínica</p>
+            <p className="text-sm text-muted-foreground">
+              A sincronização com o Google Agenda é configurada uma vez pelo
+              administrador da clínica e vale para todos os profissionais. Sua
+              agenda aparece automaticamente assim que estiver vinculada.
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Se suas sessões não estão aparecendo no Google Agenda, fale com o
+              administrador da clínica.
+            </p>
           </div>
-          {isCalendarSynced && (
-            <Card className="bg-secondary/30 p-4">
-              <CardHeader className="p-0 pb-2">
-                <CardTitle className="text-md">Opções de Sincronização</CardTitle>
-              </CardHeader>
-              <CardContent className="p-0 space-y-2">
-                <div className="flex items-center space-x-2">
-                  <Switch id="two-way-sync" defaultChecked />
-                  <Label htmlFor="two-way-sync">Ativar sincronização bidirecional</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Switch id="private-events" />
-                  <Label htmlFor="private-events">Sincronizar eventos privados como "Ocupado"</Label>
-                </div>
-              </CardContent>
-            </Card>
-          )}
         </CardContent>
       </Card>
       

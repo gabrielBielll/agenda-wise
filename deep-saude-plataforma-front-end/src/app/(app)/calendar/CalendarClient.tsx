@@ -3,6 +3,7 @@
 import { signOut } from "next-auth/react";
 
 import { Button } from "@/components/ui/button";
+import { paraInputLocal, maisMinutos } from "@/lib/datetime";
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, PlusCircle, Pencil, Trash2, Calendar as CalendarIcon, ChevronLeft, ChevronRight, FileText, ExternalLink } from "lucide-react";
@@ -546,13 +547,7 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                     type="datetime-local"
                     required
                     defaultValue={editingAppointment ? (() => {
-                      const date = new Date(editingAppointment.data_hora_sessao.replace('Z', '').replace(/[+-]\d{2}:\d{2}$/, ''));
-                      const year = date.getFullYear();
-                      const month = String(date.getMonth() + 1).padStart(2, '0');
-                      const day = String(date.getDate()).padStart(2, '0');
-                      const hours = String(date.getHours()).padStart(2, '0');
-                      const minutes = String(date.getMinutes()).padStart(2, '0');
-                      return `${year}-${month}-${day}T${hours}:${minutes}`;
+                      return paraInputLocal(editingAppointment.data_hora_sessao);
                     })() : (newAppointmentDate ? (() => {
                         const d = newAppointmentDate;
                         const year = d.getFullYear();
@@ -598,16 +593,8 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                     type="datetime-local"
                     required
                     defaultValue={editingAppointment ? (() => {
-                      const start = new Date(editingAppointment.data_hora_sessao.replace('Z', '').replace(/[+-]\d{2}:\d{2}$/, ''));
                       const duration = editingAppointment.duracao || 50;
-                      const end = addMinutes(start, duration);
-                      
-                      const year = end.getFullYear();
-                      const month = String(end.getMonth() + 1).padStart(2, '0');
-                      const day = String(end.getDate()).padStart(2, '0');
-                      const hours = String(end.getHours()).padStart(2, '0');
-                      const minutes = String(end.getMinutes()).padStart(2, '0');
-                      return `${year}-${month}-${day}T${hours}:${minutes}`;
+                      return paraInputLocal(maisMinutos(editingAppointment.data_hora_sessao, duration));
                     })() : (newAppointmentDate ? (() => {
                         const d = newAppointmentDate;
                         // Calculate default end time (start + 50m)
