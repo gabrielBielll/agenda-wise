@@ -294,53 +294,98 @@ Interação que a spec não podia prever. `sincronizar-status-global!` (`core.cl
 
 **Regra:** cancelamento vindo do Google para sessão com `status_pagamento = 'pago'` ou `status_repasse = 'transferido'` **não** altera o financeiro. Marca `sync_status = 'divergente'` e sobe no painel do admin para decisão humana. É a aplicação concreta do ⚠️ da spec 6.5 ("nunca último-a-escrever-ganha cego").
 
-### D14 — Modelo A é o modelo. Modelo B fica fora do escopo.
+### D14 — Sistema híbrido: A e B convivem permanentemente
 
-**Confirmado com a clínica:** o psicólogo cria a própria agenda, compartilha com a conta da clínica, e a clínica adiciona à lista dela. É o Modelo A da spec D3, e vai continuar sendo.
+**Confirmado com a clínica:**
 
-A spec propõe Modelo B (plataforma cria a agenda via `calendars.insert`, concede acesso ao psicólogo via `acl.insert`) como padrão para novos cadastros. **Não construir agora.** Três motivos:
+| Pergunta | Resposta | Consequência |
+|---|---|---|
+| A clínica consegue escrever nas agendas? | **Sim, acesso total** | Compartilhamento é ACL com `writer` (no mínimo). O caminho iCal está descartado — não há trabalho de recadastramento pela frente |
+| Contas dos psicólogos | **Gmail pessoal** | Domain-Wide Delegation (spec 8.3) está fora. OAuth com refresh token é o único caminho |
+| Topologia desejada | **B é o ideal; A preservado** | Sistema suporta os dois, permanentemente |
 
-1. **Escopo OAuth.** Modelo B exige o escopo `calendar` completo. Modelo A precisa só de escrita em eventos + listagem de agendas. Escopo mais estreito = revisão de verificação mais simples, e a verificação já é o gargalo real do projeto (spec 8.2).
-2. **É decisão política, não técnica.** Alguns profissionais fazem questão de ser donos da própria agenda. Não vale queimar capital político para resolver um problema que o item 3 já resolve.
-3. **O risco que B mitiga já está mitigado.** A contrapartida do Modelo A é "profissional sai da clínica e leva o histórico". Mas o histórico da clínica está em `agendamentos`, com valores, prontuários e repasses. O Google é espelho de horários (D5 da spec). Perder a agenda do Google é perder o espelho, não o dado.
+**Decisão:** implementar Modelo A primeiro (é o que já existe em produção), e desenhar desde o começo para que Modelo B entre depois **sem refatorar nada do núcleo**.
 
-Manter a coluna `vinculo_agenda.topologia` mesmo assim — custa nada e deixa a porta aberta.
+#### Por que híbrido custa quase nada
+
+Porque a topologia só afeta **como o vínculo nasce e morre** — não afeta nada do que acontece depois.
+
+```
+       ┌── Modelo A: psicólogo compartilha → aparece no calendarList
+       │              → admin mapeia na UI (confirmação humana)
+provisionamento ──┤
+       │
+       └── Modelo B: calendars.insert + acl.insert
+                      → vínculo já nasce ativo, sem passo humano
+                            │
+                            ▼
+              ╔═══════════════════════════════╗
+              ║  vinculo_agenda               ║  ◄── o seam
+              ║  (clinica_id, calendar_id,    ║
+              ║   usuario_id, topologia)      ║
+              ╚═══════════════════════════════╝
+                            │
+                            ▼
+        outbox · RRULE · sync · webhook · reconciliação
+        ── tudo isto é CEGO para a topologia ──
+```
+
+⚠️ **Regra de projeto: `topologia` não pode ser lida fora do provisionamento.** Se um `if topologia = modelo_a` aparecer no worker de outbox ou no caminho de sync, o híbrido dobrou a superfície de teste e a decisão saiu do controle. O motor lê `google_calendar_id` e mais nada.
+
+#### O que realmente muda entre A e B
+
+| | **Modelo A** (legado) | **Modelo B** (novos) |
+|---|---|---|
+| Quem cria a agenda | Psicólogo | Plataforma (`calendars.insert`) |
+| Como o vínculo nasce | `calendarList.list` → linha `pendente` → **admin confirma na UI** | Automático — o `calendarId` volta na resposta |
+| `accessRole` da clínica | `writer` | `owner` |
+| `acl.list` | Provavelmente 403 | Funciona → identificação de dono direta |
+| Psicólogo descompartilha | **Risco real** → estado `sem_acesso` | Não acontece — a agenda é da clínica |
+| Psicólogo sai da clínica | Leva a agenda do Google | Histórico permanece |
+| Passo manual do profissional | Compartilhar a agenda | Um clique para aceitar (ver ressalva abaixo) |
+
+⚠️ **Riscos que continuam existindo enquanto houver vínculos Modelo A:**
+
+- **O psicólogo pode descompartilhar ou sair a qualquer momento.** O estado `sem_acesso` (spec 3.2) é requisito da Fase 4: se uma agenda ativa some do `calendarList`, alerta visível no painel. Sem isso a sincronização para em silêncio e ninguém percebe até um paciente aparecer no horário errado.
+- **O psicólogo pode apagar a agenda inteira.** Recuperação = agenda nova + replay do outbox (D15). Os IDs determinísticos de D9 tornam isso um reprocessamento, não uma migração manual.
+
+Nenhum dos dois se aplica a vínculos Modelo B. **Migrar o legado A → B é como esses riscos deixam de existir** — a mecânica está em D15.
+
+❓ **"Acesso total" é `writer` ou `owner`?** `calendarList.list` devolve o `accessRole` exato de cada agenda na Fase 1 — não precisa bloquear nada por isso agora. Se vier `owner` em alguma, `acl.list` funciona nela e a sugestão automática de vínculo fica trivial para esses casos.
 
 ⚠️ **Em compensação, dois riscos do Modelo A passam a ser de primeira classe:**
 
 - **O psicólogo pode descompartilhar ou sair a qualquer momento.** O estado `sem_acesso` (spec 3.2) deixa de ser refinamento e vira requisito da Fase 4: se uma agenda ativa some do `calendarList`, alerta visível no painel. Sem isso, a sincronização para em silêncio e ninguém percebe até um paciente aparecer no horário errado.
 - **O psicólogo pode apagar a agenda inteira.** Recuperação = agenda nova + reenvio de tudo. Os IDs determinísticos de D9 tornam isso um replay do outbox em vez de uma migração manual — IDs de evento são únicos por agenda, então os mesmos IDs são reutilizáveis numa agenda nova.
 
-#### Escopos a pedir (Modelo A)
+#### 🔴 Escopos — pedir os dois modelos de uma vez
 
-| Escopo | Para quê |
-|---|---|
-| `.../auth/calendar.events` | Ler e escrever eventos nas agendas compartilhadas; `events.watch` |
-| `.../auth/calendar.calendarlist.readonly` | `calendarList.list` — descobrir quais agendas a clínica enxerga |
+Este é o único ponto do híbrido que **não** é adiável. Acrescentar escopo depois exige nova rodada de verificação (semanas) e novo consentimento da conta da clínica. Como Modelo B é o destino declarado, o escopo dele entra na **primeira** submissão, mesmo que a implementação venha na Fase 5.
 
-❓ Confirmar essa dupla no [OAuth Playground](https://developers.google.com/oauthplayground) contra uma agenda real antes de submeter à verificação — teste de 5 minutos que evita retrabalho de semanas. Se `calendarList.list` não passar com o escopo granular, o fallback é `calendar.readonly` junto de `calendar.events`; `calendar` completo só como último recurso.
-
-#### 🔴 O teste que decide tudo: ACL ou iCal?
-
-"O psicólogo compartilha e a gente adiciona" descreve dois fluxos diferentes, e **só um deles funciona pela API**:
-
-| | **ACL** — "Compartilhar com pessoas específicas" | **iCal** — "Adicionar outras agendas → Por URL" |
+| Escopo | Para quê | Modelo |
 |---|---|---|
-| Como chega | Convite por e-mail para a conta da clínica; clicar adiciona à lista | O psicólogo manda o endereço secreto `.ics`; a clínica cola no campo de URL |
-| `accessRole` no `calendarList` | `writer` (ou `owner`) | `reader` — **somente leitura, sempre** |
-| ID da agenda | `xxxx@group.calendar.google.com` | URL/hash, formato diferente |
-| Escrita pela API | ✅ | ❌ Impossível, sem contorno |
+| `.../auth/calendar.events` | Ler/escrever eventos; `events.watch` | A e B |
+| `.../auth/calendar.calendarlist.readonly` | `calendarList.list` — descobrir as agendas visíveis | A e B |
+| criação de agenda + ACL | `calendars.insert`, `acl.insert` | B |
 
-**Teste de 30 segundos, sem código:** na conta da clínica, abrir o Google Agenda e começar a criar um evento novo. No seletor de "Agenda" do formulário, **a agenda do psicólogo aparece como opção?**
+❓ **A terceira linha precisa de meia hora no [OAuth Playground](https://developers.google.com/oauthplayground) antes de submeter.** Duas alternativas:
 
-- **Aparece** → é ACL com writer. Está tudo certo, pode seguir.
-- **Não aparece** → é assinatura por URL. **Todos os psicólogos precisam refazer o compartilhamento** pelo caminho certo (Configurações da agenda → "Compartilhar com pessoas específicas" → adicionar o e-mail da clínica → permissão **"Fazer alterações nos eventos"**) antes que qualquer linha deste projeto tenha efeito.
+- **`calendar.app.created`** — dá controle total apenas sobre agendas que o próprio app criou. Encaixa perfeitamente no Modelo B e é uma superfície muito menor. ⚠️ **Mas cobre só o lado B**: as agendas do Modelo A não foram criadas por nós, então continuam dependendo de `calendar.events`. E não tenho certeza se ele autoriza `acl.insert` — é exatamente isso que o teste tem que responder.
+- **`calendar` completo** — resolve tudo, sem dúvida nenhuma, com a superfície máxima e a justificativa mais difícil na revisão do Google.
 
-Se der o segundo caso, isso vira a tarefa 1 do cronograma — coordenação com N profissionais, não desenvolvimento. Melhor descobrir hoje do que na Fase 2.
+Se `calendar.app.created` cobrir `calendars.insert` **e** `acl.insert`, o conjunto ideal é a trinca granular. Se não cobrir `acl.insert`, testar somar `calendar.acls`. Só cair no `calendar` completo se as duas falharem.
 
-### D15 — Migração A → B é barata depois da Fase 3, mas o escopo tem que ser decidido antes da verificação
+#### ⚠️ Ressalva: Modelo B com Gmail pessoal não é 100% automático
 
-D14 adia o Modelo B. Isso levanta a pergunta natural: e se a clínica quiser migrar depois — perde o histórico?
+A spec 5.3 afirma que no Modelo B "a agenda aparece automaticamente no Google Calendar dele". Isso vale para contas do mesmo domínio Workspace. **Com Gmail pessoal — que é o caso aqui — o `acl.insert` dispara um e-mail de convite, e o profissional precisa clicar para a agenda entrar na lista dele.**
+
+Não invalida o Modelo B: continua sendo **um clique, sem OAuth, sem tela de consentimento**, contra "criar agenda, achar as configurações de compartilhamento, digitar o e-mail da clínica, escolher a permissão certa" do Modelo A. Mas o onboarding precisa contar com esse passo — e o painel precisa mostrar quando o convite ainda não foi aceito, senão vira suporte.
+
+❓ Confirmar o comportamento real ao testar `acl.insert` contra um Gmail pessoal na Fase 5.
+
+### D15 — Migrar o legado A → B não custa histórico
+
+Com o híbrido decidido (D14), a pergunta seguinte é o que acontece com as agendas que já existem quando a clínica quiser passá-las para Modelo B: perde o histórico?
 
 **Não. E o motivo é o desenho, não sorte.**
 
@@ -395,20 +440,13 @@ O passo 7 não é opcional. Sem ele o psicólogo fica com duas agendas mostrando
 
 ⚠️ Os IDs determinísticos de D9 são o que torna o passo 6 seguro para reexecutar: ID de evento é único **por agenda**, então os mesmos IDs valem na agenda nova, e um replay repetido não duplica nada.
 
-#### 🔴 A decisão que não dá para adiar: escopo
+#### Quando migrar
 
-O que **não** é reversível de graça é o escopo OAuth. Modelo B precisa criar agendas e conceder ACL — `calendar.events` não faz isso. Adicionar escopo depois significa **nova rodada de verificação** (semanas) **e novo consentimento** da conta da clínica.
+A migração só faz sentido **depois da Fase 3**, quando o replay do outbox existe. Antes disso seria trabalho manual.
 
-Então: implementar Modelo B pode ficar para depois, mas **decidir se ele existirá tem que acontecer antes de submeter à verificação.**
+Não há pressa: um vínculo Modelo A funcionando sincroniza exatamente igual a um Modelo B. A migração compra **redução de risco** (fim do `sem_acesso`, continuidade se o profissional sair), não funcionalidade. Migrar quando for conveniente, um psicólogo por vez.
 
-| Se a resposta for | Pedir na verificação |
-|---|---|
-| "Modelo A para sempre" | `calendar.events` + `calendar.calendarlist.readonly` |
-| "talvez migremos um dia" | acrescentar o necessário para `calendars.insert` e `acl.insert` |
-
-❓ Antes de assumir que "acrescentar" significa o `calendar` completo, checar os escopos granulares na documentação do Google — em particular **`calendar.app.created`**, que permite criar agendas secundárias e controlar totalmente **apenas as que o próprio app criou**. Se ele cobrir `calendars.insert` + `acl.insert` nas agendas criadas por nós, é exatamente o Modelo B com uma fração da superfície do `calendar` completo, e uma justificativa muito mais fácil de defender na revisão. Vale meia hora no OAuth Playground antes de submeter qualquer coisa.
-
-**Recomendação:** pedir o escopo de criação de agenda **junto** na primeira verificação, mesmo sem implementar Modelo B agora. O custo de pedir um escopo a mais na primeira submissão é uma linha a mais de justificativa; o custo de pedir depois é repetir o processo inteiro.
+⚠️ O escopo OAuth necessário para isso tem que estar na primeira verificação — ver D14.
 
 ---
 
@@ -521,28 +559,32 @@ Ajustado à realidade do repositório. As fases 1–3 já entregam valor; a 4 tr
 
 | Fase | Escopo | Depende de |
 |---|---|---|
-| **0 — Fundação** | 🔴 **Teste ACL vs iCal** (D14); 🔴 **decidir se Modelo B existirá algum dia** — define o escopo a pedir, e escopo não se acrescenta de graça (D15); confirmar escopos no OAuth Playground; `TIMESTAMPTZ` + fuso explícito (3.1); Migratus (3.2); consent screen em Produção; domínio verificado; iniciar verificação OAuth; **remover os 3 stubs** (D7) | ROB-004, AWS-006, AWS-012 |
+| **0 — Fundação** | 🔴 **Escopos dos dois modelos no OAuth Playground** — a submissão inclui o escopo do Modelo B mesmo sem implementá-lo agora (D14); `TIMESTAMPTZ` + fuso explícito (3.1); Migratus (3.2); consent screen em Produção; domínio verificado; iniciar verificação OAuth; **remover os 3 stubs** (D7) | ROB-004, AWS-006, AWS-012 |
 | **1 — Conexão** | `google_conexao` + `vinculo_agenda`; OAuth da clínica; refresh token criptografado; `calendarList.list`; **tela de mapeamento manual com confirmação humana** — no Modelo A ela é permanente, não provisória; permissão `gerenciar_integracao_google` | Fase 0 |
 | **2 — Escrita** | `recorrencias` + colunas de sync; `google.rrule`; outbox + worker (D8); IDs determinísticos (D9); todas as operações de D11; `If-Match` e 412 | Fase 1, ROB-010 |
 | **3 — Leitura** | Full sync + `syncToken`; 410 Gone; polling 15 min; tradução inbound (5.3); `bloqueios_agenda` externos (D12); regra financeira (D13) | Fase 2 |
 | **4 — Tempo real** | Webhook + validação de `channel_token`; `events.watch`; `google_canal_watch`; cron de renovação; **estado `sem_acesso` com alerta — requisito, não refinamento (D14)** | Fase 3, decisão de scheduler (5.4) |
-| **5 — Refinamento** | Login Google com escopo básico + `usuarios.google_email` verificado; sugestão automática de vínculo (spec 5.4); painel de saúde da integração; log de auditoria de vínculos | Fase 4 |
+| **5 — Modelo B** | `calendars.insert` + `acl.insert`; provisionamento automático de vínculo; painel de convites pendentes (D14); migração A → B por psicólogo (D15) | Fase 4 |
+| **6 — Refinamento** | Login Google com escopo básico + `usuarios.google_email` verificado; sugestão automática de vínculo (spec 5.4); painel de saúde da integração; log de auditoria de vínculos | Fase 1+ |
 
-**Modelo B saiu do plano** (D14). Se um dia voltar: `calendars.insert` seguido de `INSERT vinculo_agenda` **não** cabe numa transação de banco — chamada de rede dentro de transação é anti-padrão. O padrão seria gravar a intenção primeiro (linha `pendente`), chamar a API, confirmar; se o processo morrer no meio, sobra uma agenda no Google sem vínculo, reconciliável via `calendarList.list` — que é justamente o que a Fase 1 já sabe fazer.
+⚠️ Na Fase 5, `calendars.insert` seguido de `INSERT vinculo_agenda` **não** cabe numa transação de banco — chamada de rede dentro de transação é anti-padrão. O padrão: gravar a intenção primeiro (linha `pendente`), chamar a API, confirmar. Se o processo morrer no meio, sobra uma agenda no Google sem vínculo — reconciliável via `calendarList.list`, que é justamente o que a Fase 1 já sabe fazer.
 
 ---
 
 ## 8. ❓ Pendências
 
-Herdadas da spec (seção 12):
+Herdadas da spec (seção 12) — **todas respondidas:**
 
-1. 🔴 **Como o compartilhamento é feito hoje** — ACL ("compartilhar com pessoas específicas") ou endereço secreto iCal adicionado "por URL"? Ver o teste em D14. **Primeira coisa a fazer, antes de qualquer linha de código.**
-2. **Permissão concedida** — writer ("fazer alterações nos eventos") ou reader ("ver todos os detalhes")? Escrita exige writer. Sai do mesmo teste do item 1.
-3. **`acl.list` com `writer`** — se funcionar, vira o método primário de identificação de dono e simplifica a tela de mapeamento. A expectativa é 403.
-4. **Workspace ou Gmail pessoal?** — define se Domain-Wide Delegation é viável (spec 8.3), o que eliminaria OAuth, refresh token e teto de usuários de uma vez. Se os psicólogos usam Gmail pessoal, está descartado.
-5. ~~**Posse da agenda**~~ — **respondido:** Modelo A. Ver D14.
-6. 🔴 **Modelo B algum dia?** — não precisa ser implementado agora, mas o escopo tem que ser pedido na primeira verificação. Ver D15. Se a resposta for "talvez", checar antes se `calendar.app.created` resolve.
-7. **Elevar a agenda atual para `owner`** — vale propor aos psicólogos? Custa uma troca de permissão, não migra dado nenhum, e destrava `acl.list` para o mapeamento automático (D15, caminho 1).
+1. ~~Tipo de compartilhamento~~ → **ACL.** A clínica escreve nas agendas. Sem recadastramento pela frente.
+2. ~~Permissão concedida~~ → **writer, no mínimo.** O `accessRole` exato de cada agenda sai do `calendarList.list` na Fase 1.
+3. ~~`acl.list` com `writer`~~ → segue como 403 esperado, e por isso a confirmação humana no vínculo Modelo A é permanente. Deixa de importar conforme as agendas migram para B.
+4. ~~Workspace ou Gmail pessoal~~ → **Gmail pessoal.** Domain-Wide Delegation descartado; OAuth com refresh token é o único caminho. Reforça a criptografia do token em repouso e o monitoramento de `invalid_grant` (spec 8.4).
+5. ~~Posse da agenda~~ → **híbrida.** A para o legado, B como destino. Ver D14.
+
+Em aberto:
+
+6. **Elevar as agendas atuais para `owner`** — vale propor aos psicólogos como passo intermediário? Custa uma troca de permissão, não migra dado nenhum, e destrava `acl.list` (D15, caminho 1). Pode ser mais fácil de negociar do que a migração completa para B.
+7. **Quando migrar o legado A → B** — todos de uma vez após a Fase 5, ou conforme conveniência? Não há pressa técnica; a migração compra redução de risco, não funcionalidade.
 
 Novas, deste documento:
 
@@ -556,8 +598,8 @@ Novas, deste documento:
 
 Além do checklist da spec (seção 11), específico daqui:
 
-- [ ] Compartilhamento confirmado como ACL com writer, não assinatura por URL (D14)
-- [ ] Escopo mais estreito que atende (`calendar.events` + `calendar.calendarlist.readonly`), não `calendar` completo
+- [ ] Escopo do Modelo B pedido já na **primeira** verificação, mesmo sem implementá-lo (D14)
+- [ ] `topologia` nunca lida fora do provisionamento — motor de sync cego ao modelo (D14)
 - [ ] `TIMESTAMPTZ` em `agendamentos` e `bloqueios_agenda` antes de qualquer sync
 - [ ] `ZonedDateTime.plusWeeks` no lugar da aritmética em milissegundos
 - [ ] `original_start_time` preenchido na criação e **imutável** depois
