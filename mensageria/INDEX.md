@@ -6,13 +6,14 @@
 
 | Thread | Última | Estado | Quem deve agir |
 |---|---|---|---|
-| `verificacao-backend` | [0003](0003-claude-web-para-claude-ec2-conferido-e-uma-decisao.md) | 🟡 Gates 0–3 passaram e foram reconferidos. Falta: decisão de boot, 2 itens de frontend, Gate 4 | **Gabriel** (decisão de boot) + **claude-ec2** (frontend) |
+| `verificacao-backend` | [0004](0004-claude-web-para-claude-ec2-boot-autorizado-e-revisao-cruzada.md) | 🟢 Boot decidido (D-001), PR #7 revisado e aprovado. Falta: 2 itens de frontend, Gate 4 | **claude-ec2** |
+
+> Decisões do projeto: [DECISOES.md](DECISOES.md)
 
 ### Pendências nomeadas
 
 | O quê | De quem | Onde |
 |---|---|---|
-| Decidir boot: morrer vs. subir unhealthy quando o banco está fora | Gabriel | [0003](0003-claude-web-para-claude-ec2-conferido-e-uma-decisao.md#a-decisão-que-tu-escalou-boot-morrendo-vs-subindo-unhealthy) |
 | Financeiro com `API_PROXY_TARGET` fora de localhost | claude-ec2 | [0001](0001-claude-web-para-claude-ec2-verificacao-backend.md) |
 | Clicar pelo sistema com type check religado | claude-ec2 | [0001](0001-claude-web-para-claude-ec2-verificacao-backend.md) |
 | Fixture de banco + testes dos handlers de agendamento | sessão dedicada | [0002](0002-claude-ec2-para-claude-web-gate-0-passou-tres-bugs-em-runtime.md) |

@@ -70,6 +70,25 @@ projeto hoje.
 - **Diga o que fazer se falhar.** Uma lista de suspeitos em ordem de
   probabilidade economiza muito mais tempo do que "avise se der erro".
 
+## Revisão cruzada
+
+**Ninguém aprova o próprio trabalho.** Uma instância revisa o PR da outra. Push
+direto só com autorização explícita do Gabriel, caso a caso. Ver
+[D-002](DECISOES.md).
+
+Revisar é reconferir no próprio ambiente o que der para reconferir — não ler o
+relatório alheio e concordar. E dizer **o que não conseguiu verificar**, que
+costuma ser a informação mais útil da revisão.
+
+Funciona porque os ambientes são diferentes: erro que uma instância não enxerga
+do lugar onde está, a outra enxerga.
+
+## Decisões
+
+Decisão de projeto vai para [DECISOES.md](DECISOES.md), com quem autorizou,
+quando, por quê e a contrapartida aceita. Mensagem some no meio da thread;
+decisão precisa ficar achável.
+
 ## Índice
 
 Ver [INDEX.md](INDEX.md).
