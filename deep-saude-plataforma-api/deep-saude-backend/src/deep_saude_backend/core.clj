@@ -11,7 +11,10 @@
             [buddy.sign.jwt :as jwt]
             [buddy.hashers :as hashers]
             [migratus.core :as migratus]
+            [deep-saude-backend.db :refer [datasource execute-query! execute-one!]]
             [deep-saude-backend.tempo :as tempo]
+            [deep-saude-backend.google.rrule :as rrule]
+            [deep-saude-backend.google.handlers :as google]
             [ring.middleware.cors :refer [wrap-cors]]
             [ring.middleware.params :refer [wrap-params]])
   (:gen-class)
@@ -21,51 +24,18 @@
 ;; Configuração do Banco de Dados e JWT
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defonce db-spec
-  (delay
-    (when-let [db-url (env :database-url)]
-      (let [uri (java.net.URI. db-url)
-            auth (some-> (.getUserInfo uri) (str/split #":"))
-            usuario (first auth)
-            senha (second auth)
-            host (.getHost uri)
-            port (or (.getPort uri) 5432)
-            path (.getPath uri)
-            dbname (if (seq path) (subs path 1) "defaultdb")
-            query (.getQuery uri)
-            query-params (when query
-                           (apply merge (for [pair (str/split query #"&")]
-                                          (let [[k v] (str/split pair #"=")]
-                                            {(keyword k) v}))))
-            ;; Se sslmode for disable, mantém disable. Se for qualquer outra coisa (verify-full, require, nil), força require.
-            ssl-mode-param (:sslmode query-params)
-            ssl-mode (if (= ssl-mode-param "disable") "disable" "require")
-            ssl-enabled (not= ssl-mode "disable")]
-        {:dbtype   "postgresql"
-         :dbname   dbname
-         :host     host
-         :port     port
-         :user     usuario
-         :password senha
-         :ssl      ssl-enabled
-         :sslmode  ssl-mode}))))
-
-(defonce datasource (delay (jdbc/get-datasource @db-spec)))
+;; db-spec, datasource e os helpers de query moram em deep-saude-backend.db.
+;; Ver a docstring de lá para o motivo da extração.
 
 (def jwt-secret
   (if-let [secret (env :jwt-secret)]
-    (do
-      (println (str "SUCCESS: JWT_SECRET encontrada. Início: '" (subs secret 0 (min 4 (count secret))) "...', Fim: '..." (subs secret (max 0 (- (count secret) 4))) "'."))
-      secret)
+    ;; ⚠️ Não logar nem pedaço do segredo. A versão anterior imprimia os 4
+    ;; primeiros e os 4 últimos caracteres no startup — em log agregado isso é
+    ;; material entregue de graça para quem quiser forjar um JWT.
+    (do (println "JWT_SECRET carregada.") secret)
     (do
       (println "ERROR: Variável de ambiente JWT_SECRET não foi encontrada!")
       (throw (Exception. "FATAL: A variável de ambiente :jwt-secret não está configurada! A aplicação será encerrada.")))))
-
-(defn execute-query! [query-vector]
-  (jdbc/execute! @datasource query-vector {:builder-fn rs/as-unqualified-lower-maps}))
-
-(defn execute-one! [query-vector]
-  (jdbc/execute-one! @datasource query-vector {:builder-fn rs/as-unqualified-lower-maps}))
 
 (defn fuso-da-clinica
   "Fuso horário da clínica. Todo horário que chega do frontend é horário de
@@ -193,26 +163,35 @@
                                :usuario_admin novo-admin}}
           {:status 500 :body {:erro "Erro interno: O papel 'admin_clinica' não foi encontrado ou não pôde ser associado."}})))))
 
+(defn senha-confere?
+  "Verifica a senha contra o hash armazenado.
+
+   ⚠️ Antes, o `catch` aqui pegava a senha que a pessoa acabou de digitar,
+   gravava como novo hash do usuário e devolvia `true` — 'auto-correção'. Na
+   prática: qualquer conta cujo hash estivesse corrompido era tomada por quem
+   soubesse o e-mail, e o atacante ainda saía com a senha definida por ele.
+   `hashers/check` lança justamente quando o hash é ilegível, então o caminho
+   era alcançável.
+
+   Hash ilegível agora é falha de autenticação. A recuperação passa por um admin
+   (PUT /api/usuarios/:id com `senha`) ou, se quem ficou trancado for o próprio
+   admin, pela CLI de resgate (`lein run reset-senha`). Nunca pelo login."
+  [senha hash-armazenado usuario-id]
+  (try
+    (hashers/check senha hash-armazenado)
+    (catch Exception e
+      (println "LOGIN: hash ilegível para o usuário" (str usuario-id)
+               "- autenticação negada. Necessário reset por admin."
+               (.getMessage e))
+      false)))
+
 (defn login-handler [request]
   (let [{:keys [email senha]} (:body request)]
-    (println "DEBUG LOGIN: Tentativa de login para email:" email)
     (if-let [usuario (execute-one! ["SELECT * FROM usuarios WHERE email = ?" email])]
       (do
-        (println "DEBUG LOGIN: Usuário encontrado na tabela usuarios. ID:" (:id usuario))
         (if-let [papel (execute-one! ["SELECT nome_papel FROM papeis WHERE id = ?" (:papel_id usuario)])]
           (do
-            (println "DEBUG LOGIN: Papel encontrado:" (:nome_papel papel))
-            (let [senha-valida (try
-                                 (hashers/check senha (:senha_hash usuario))
-                                 (catch Exception e
-                                   (println "DEBUG LOGIN: Hash incompatível, auto-corrigindo..." (.getMessage e))
-                                   ;; Hash no banco é corrupto/incompatível (ex: bcrypt+sha512 truncado)
-                                   ;; Gera novo hash nativo do Buddy e salva no banco
-                                   (let [new-hash (hashers/encrypt senha)]
-                                     (execute-one! ["UPDATE usuarios SET senha_hash = ? WHERE email = ?" new-hash email])
-                                     (println "DEBUG LOGIN: Hash regenerado e salvo. Verificando...")
-                                     (hashers/check senha new-hash))))]
-              (println "DEBUG LOGIN: Senha válida?" senha-valida)
+            (let [senha-valida (senha-confere? senha (:senha_hash usuario) (:id usuario))]
               (if senha-valida
                 (let [claims {:user_id    (:id usuario)
                               :clinica_id (:clinica_id usuario)
@@ -227,15 +206,13 @@
                                                 :clinica_id (:clinica_id usuario)
                                                 :papel_id   (:papel_id usuario)
                                                 :role       (:nome_papel papel)}}})
-                (do
-                  (println "DEBUG LOGIN: Senha incorreta.")
-                  {:status 401 :body {:erro "Credenciais inválidas."}}))))
+                {:status 401 :body {:erro "Credenciais inválidas."}})))
           (do
-            (println "DEBUG LOGIN: Papel NÃO encontrado para ID:" (:papel_id usuario))
+            (println "LOGIN: papel inexistente para o usuário" (str (:id usuario)))
             {:status 500 :body {:erro "Erro de integridade: Papel do usuário não encontrado."}})))
-      (do
-        (println "DEBUG LOGIN: Usuário NÃO encontrado na tabela usuarios (SELECT simples).")
-        {:status 401 :body {:erro "Credenciais inválidas."}}))))
+      ;; Mesma resposta para usuário inexistente e senha errada: distinguir os
+      ;; dois casos permite enumerar quem tem conta na plataforma.
+      {:status 401 :body {:erro "Credenciais inválidas."}})))
 
 ;; --- Handlers de Usuários ---
 (defn criar-usuario-handler [request]
@@ -521,9 +498,12 @@
               psicologo-valido? (execute-one! ["SELECT id FROM usuarios WHERE id = ? AND clinica_id = ?" 
                                                psicologo-uuid clinica-id])
 
-              ;; Generate recurrence ID if valid recurrence
-              recorrencia-uuid (when (and recorrencia_tipo (pos? (or quantidade_recorrencia 0)) (> qtd-sessoes 1))
-                                 (java.util.UUID/randomUUID))]
+              ;; Série existe se, e somente se, há um RRULE de verdade.
+              ;; Amarrar as duas coisas evita o caso em que recorrencia_tipo é
+              ;; um valor não suportado ("mensal"): antes isso gerava um
+              ;; recorrencia_id para uma "série" de uma sessão só.
+              rrule-str (rrule/->rrule recorrencia_tipo qtd-sessoes)
+              recorrencia-uuid (when rrule-str (java.util.UUID/randomUUID))]
           
           (cond
             bloqueio-existente
@@ -536,24 +516,43 @@
             {:status 422, :body {:erro "Paciente ou psicólogo não pertence à clínica do usuário autenticado."}}
 
             :else
-            (let [novos-agendamentos (doall (map (fn [{:keys [start end]}]
-                                                     (sql/insert! @datasource :agendamentos
-                                                                  (merge
-                                                                    {:clinica_id       clinica-id
-                                                                     :paciente_id      paciente-uuid
-                                                                     :psicologo_id     psicologo-uuid
-                                                                     :data_hora_sessao start
-                                                                     ;; Chave de reconciliação com o Google (D10): a ocorrência
-                                                                     ;; nasce no horário original e este valor nunca muda, mesmo
-                                                                     ;; que a sessão seja remarcada depois.
-                                                                     :original_start_time start
-                                                                     :valor_consulta   valor_consulta
-                                                                     :duracao          duracao-sessao
-                                                                     :observacoes      observacoes}
-                                                                    (when recorrencia-uuid {:recorrencia_id recorrencia-uuid}))
-                                                                  {:builder-fn rs/as-unqualified-lower-maps :return-keys true}))
-                                                   sessoes-para-criar))]
-                {:status 201, :body (first novos-agendamentos)})))))
+            ;; Série inteira em UMA transação.
+            ;;
+            ;; Antes eram N sql/insert! soltos: cair no meio de uma recorrência
+            ;; de 40 sessões deixava 17 sessões órfãs no banco, sem série e sem
+            ;; ninguém saber. É também o pré-requisito do outbox da Fase 2, que
+            ;; precisa gravar a intenção de sync na mesma transação do dado.
+            (jdbc/with-transaction [tx @datasource]
+              (when recorrencia-uuid
+                (sql/insert! tx :recorrencias
+                             {:id              recorrencia-uuid
+                              :clinica_id      clinica-id
+                              :psicologo_id    psicologo-uuid
+                              :paciente_id     paciente-uuid
+                              :rrule           rrule-str
+                              :dtstart         (tempo/->sql inicio-zdt)
+                              :duracao_minutos duracao-sessao
+                              :timezone        fuso
+                              :status          "ativa"}))
+              (let [novos-agendamentos
+                    (doall (map (fn [{:keys [start]}]
+                                  (sql/insert! tx :agendamentos
+                                               (merge
+                                                 {:clinica_id       clinica-id
+                                                  :paciente_id      paciente-uuid
+                                                  :psicologo_id     psicologo-uuid
+                                                  :data_hora_sessao start
+                                                  ;; Chave de reconciliação com o Google (D10): a ocorrência
+                                                  ;; nasce no horário original e este valor nunca muda, mesmo
+                                                  ;; que a sessão seja remarcada depois.
+                                                  :original_start_time start
+                                                  :valor_consulta   valor_consulta
+                                                  :duracao          duracao-sessao
+                                                  :observacoes      observacoes}
+                                                 (when recorrencia-uuid {:recorrencia_id recorrencia-uuid}))
+                                               {:builder-fn rs/as-unqualified-lower-maps :return-keys true}))
+                                sessoes-para-criar))]
+                {:status 201, :body (first novos-agendamentos)}))))))
     (catch Exception e
       (println "ERRO FATAL NO HANDLER:" (.getMessage e))
       (.printStackTrace e)
@@ -588,27 +587,32 @@
                                                     AND clinica_id = ?"
                                                    recorrencia-id (:data_hora_sessao agendamento-atual) clinica-id])]
 
-               (doall (map (fn [appt]
-                             (let [original-date (:data_hora_sessao appt)
-                                   ;; Cada ocorrência mantém a própria DATA e adota o HORÁRIO novo.
-                                   ;; Antes isso era feito com java.util.Calendar no fuso default da
-                                   ;; JVM (UTC em container); agora é explícito no fuso da clínica.
-                                   new-timestamp (if data_hora_sessao
-                                                   (tempo/->sql (tempo/com-horario-de original-date data_hora_sessao fuso))
-                                                   original-date)
-                                   
-                                   update-map (cond-> {}
-                                                (some? paciente_id) (assoc :paciente_id (java.util.UUID/fromString paciente_id))
-                                                (some? psicologo_id) (assoc :psicologo_id (java.util.UUID/fromString psicologo_id))
-                                                (some? data_hora_sessao) (assoc :data_hora_sessao new-timestamp) ;; Use calculated timestamp
-                                                (some? novo-valor) (assoc :valor_consulta novo-valor)
-                                                (some? novo-duracao) (assoc :duracao novo-duracao)
-                                                (some? status) (assoc :status status)
-                                                (some? observacoes) (assoc :observacoes observacoes))]
-                               
-                               (sql/update! @datasource :agendamentos update-map {:id (:id appt)})))
-                           agendamentos-futuros))
-               
+               ;; Uma transação para a série inteira: ou todas as ocorrências
+               ;; futuras mudam, ou nenhuma muda. Antes eram N updates soltos, e
+               ;; uma falha no meio deixava a série metade num horário e metade
+               ;; noutro — sem erro visível para quem editou.
+               (jdbc/with-transaction [tx @datasource]
+                 (doall (map (fn [appt]
+                               (let [original-date (:data_hora_sessao appt)
+                                     ;; Cada ocorrência mantém a própria DATA e adota o HORÁRIO novo.
+                                     ;; Antes isso era feito com java.util.Calendar no fuso default da
+                                     ;; JVM (UTC em container); agora é explícito no fuso da clínica.
+                                     new-timestamp (if data_hora_sessao
+                                                     (tempo/->sql (tempo/com-horario-de original-date data_hora_sessao fuso))
+                                                     original-date)
+
+                                     update-map (cond-> {}
+                                                  (some? paciente_id) (assoc :paciente_id (java.util.UUID/fromString paciente_id))
+                                                  (some? psicologo_id) (assoc :psicologo_id (java.util.UUID/fromString psicologo_id))
+                                                  (some? data_hora_sessao) (assoc :data_hora_sessao new-timestamp) ;; Use calculated timestamp
+                                                  (some? novo-valor) (assoc :valor_consulta novo-valor)
+                                                  (some? novo-duracao) (assoc :duracao novo-duracao)
+                                                  (some? status) (assoc :status status)
+                                                  (some? observacoes) (assoc :observacoes observacoes))]
+
+                                 (sql/update! tx :agendamentos update-map {:id (:id appt)})))
+                             agendamentos-futuros)))
+
                {:status 200 :body {:message (str (count agendamentos-futuros) " agendamentos atualizados com sucesso.")}})
              
              {:status 400 :body {:erro "Agendamento não é recorrente."}})
@@ -625,24 +629,26 @@
                                                     AND clinica_id = ?"
                                                    recorrencia-id clinica-id])]
 
-               (doall (map (fn [appt]
-                             (let [original-date (:data_hora_sessao appt)
-                                   new-timestamp (if data_hora_sessao
-                                                   (tempo/->sql (tempo/com-horario-de original-date data_hora_sessao fuso))
-                                                   original-date)
-                                   
-                                   update-map (cond-> {}
-                                                (some? paciente_id) (assoc :paciente_id (java.util.UUID/fromString paciente_id))
-                                                (some? psicologo_id) (assoc :psicologo_id (java.util.UUID/fromString psicologo_id))
-                                                (some? data_hora_sessao) (assoc :data_hora_sessao new-timestamp)
-                                                (some? novo-valor) (assoc :valor_consulta novo-valor)
-                                                (some? novo-duracao) (assoc :duracao novo-duracao)
-                                                (some? status) (assoc :status status)
-                                                (some? observacoes) (assoc :observacoes observacoes))]
-                               
-                               (sql/update! @datasource :agendamentos update-map {:id (:id appt)})))
-                           todos-agendamentos))
-               
+               ;; Mesma atomicidade do modo "all_future".
+               (jdbc/with-transaction [tx @datasource]
+                 (doall (map (fn [appt]
+                               (let [original-date (:data_hora_sessao appt)
+                                     new-timestamp (if data_hora_sessao
+                                                     (tempo/->sql (tempo/com-horario-de original-date data_hora_sessao fuso))
+                                                     original-date)
+
+                                     update-map (cond-> {}
+                                                  (some? paciente_id) (assoc :paciente_id (java.util.UUID/fromString paciente_id))
+                                                  (some? psicologo_id) (assoc :psicologo_id (java.util.UUID/fromString psicologo_id))
+                                                  (some? data_hora_sessao) (assoc :data_hora_sessao new-timestamp)
+                                                  (some? novo-valor) (assoc :valor_consulta novo-valor)
+                                                  (some? novo-duracao) (assoc :duracao novo-duracao)
+                                                  (some? status) (assoc :status status)
+                                                  (some? observacoes) (assoc :observacoes observacoes))]
+
+                                 (sql/update! tx :agendamentos update-map {:id (:id appt)})))
+                             todos-agendamentos)))
+
                {:status 200 :body {:message (str (count todos-agendamentos) " agendamentos atualizados com sucesso.")}})
              
              {:status 400 :body {:erro "Agendamento não é recorrente."}})
@@ -924,29 +930,32 @@
               recorrencia-uuid (when (and recorrencia_tipo (not= recorrencia_tipo "none"))
                                  (java.util.UUID/randomUUID))]
 
-          ;; Se solicitado, cancelar agendamentos conflitantes
-          ;; (start/end já vêm como OffsetDateTime, prontos para o JDBC)
-          (when cancelar_conflitos
-            (doseq [{start-ts :start end-ts :end} intervalos]
-              (sql/update! @datasource :agendamentos 
-                           {:status "cancelado" :valor_consulta 0} 
-                           ["clinica_id = ? AND psicologo_id = ? AND status != 'cancelado' 
-                             AND data_hora_sessao < ?
-                             AND (data_hora_sessao + (COALESCE(duracao, 50) * interval '1 minute')) > ?"
-                            clinica-id target-psicologo-id end-ts start-ts])))
+          ;; Cancelamento de conflitos + criação dos bloqueios numa transação só.
+          ;; Falhar no meio aqui era especialmente ruim: cancelava sessões de
+          ;; pacientes e depois não criava o bloqueio que justificava o cancelamento.
+          (jdbc/with-transaction [tx @datasource]
+            ;; (start/end já vêm como OffsetDateTime, prontos para o JDBC)
+            (when cancelar_conflitos
+              (doseq [{start-ts :start end-ts :end} intervalos]
+                (sql/update! tx :agendamentos
+                             {:status "cancelado" :valor_consulta 0}
+                             ["clinica_id = ? AND psicologo_id = ? AND status != 'cancelado'
+                               AND data_hora_sessao < ?
+                               AND (data_hora_sessao + (COALESCE(duracao, 50) * interval '1 minute')) > ?"
+                              clinica-id target-psicologo-id end-ts start-ts])))
 
-          (let [novos-bloqueios (doall (map (fn [{:keys [start end]}]
-                                              (sql/insert! @datasource :bloqueios_agenda
-                                                           {:clinica_id    clinica-id
-                                                            :psicologo_id  target-psicologo-id
-                                                            :data_inicio   start
-                                                            :data_fim      end
-                                                            :motivo        motivo
-                                                            :dia_inteiro   (or dia_inteiro false)
-                                                            :recorrencia_id recorrencia-uuid}
-                                                           {:builder-fn rs/as-unqualified-lower-maps :return-keys true}))
-                                            intervalos))]
-            {:status 201 :body (first novos-bloqueios)}))))
+            (let [novos-bloqueios (doall (map (fn [{:keys [start end]}]
+                                                (sql/insert! tx :bloqueios_agenda
+                                                             {:clinica_id    clinica-id
+                                                              :psicologo_id  target-psicologo-id
+                                                              :data_inicio   start
+                                                              :data_fim      end
+                                                              :motivo        motivo
+                                                              :dia_inteiro   (or dia_inteiro false)
+                                                              :recorrencia_id recorrencia-uuid}
+                                                             {:builder-fn rs/as-unqualified-lower-maps :return-keys true}))
+                                              intervalos))]
+              {:status 201 :body (first novos-bloqueios)})))))
     (catch Exception e
       (println "ERRO ao criar bloqueio:" (.getMessage e))
       {:status 500 :body {:erro (str "Erro interno: " (.getMessage e))}})))
@@ -1190,6 +1199,23 @@
   (GET  "/" request (wrap-jwt-autenticacao listar-bloqueios-handler))
   (DELETE "/:id" request (wrap-jwt-autenticacao remover-bloqueio-handler)))
 
+;; ROTAS DA INTEGRAÇÃO COM GOOGLE AGENDA
+;;
+;; ⚠️ Todas exigem `gerenciar_integracao_google`, permissão concedida só ao
+;; admin_clinica. Não é excesso de zelo: vincular a agenda errada a um
+;; profissional expõe o histórico de pacientes de outro (spec 5.4).
+(defroutes google-routes
+  (POST "/conectar"     request (wrap-checar-permissao google/iniciar-conexao-handler "gerenciar_integracao_google"))
+  (POST "/callback"     request (wrap-checar-permissao google/callback-handler "gerenciar_integracao_google"))
+  (GET  "/status"       request (wrap-checar-permissao google/status-handler "gerenciar_integracao_google"))
+  (POST "/desconectar"  request (wrap-checar-permissao google/desconectar-handler "gerenciar_integracao_google"))
+  (POST "/agendas/sincronizar" request (wrap-checar-permissao google/sincronizar-agendas-handler "gerenciar_integracao_google"))
+  (GET  "/agendas"      request (wrap-checar-permissao google/listar-agendas-handler "gerenciar_integracao_google"))
+  (GET  "/agendas/:id/sugestoes" request (wrap-checar-permissao google/sugerir-vinculo-handler "gerenciar_integracao_google"))
+  (PUT  "/agendas/:id/vinculo"   request (wrap-checar-permissao google/vincular-handler "gerenciar_integracao_google"))
+  (DELETE "/agendas/:id/vinculo" request (wrap-checar-permissao google/desvincular-handler "gerenciar_integracao_google"))
+  (PUT  "/agendas/:id/pausa"     request (wrap-checar-permissao google/pausar-handler "gerenciar_integracao_google")))
+
 (defroutes protected-routes
   (POST   "/api/usuarios" request (wrap-checar-permissao criar-usuario-handler "gerenciar_usuarios"))
   (GET    "/api/usuarios/:id" request (wrap-checar-permissao obter-usuario-handler "gerenciar_usuarios"))
@@ -1202,8 +1228,10 @@
   (context "/api/pacientes" [] pacientes-routes)
 
   (context "/api/agendamentos" [] agendamentos-routes)
-  
-  (context "/api/bloqueios" [] bloqueios-routes))
+
+  (context "/api/bloqueios" [] bloqueios-routes)
+
+  (context "/api/google" [] google-routes))
 
 (def app
   (-> (defroutes app-routes
@@ -1248,8 +1276,41 @@
 (defn destroy-db []
   (println "Finalizando aplicação..."))
 
-(defn -main [& _]
-  (init-db)
-  (let [port (Integer. (or (env :port) 3000))]
-    (println (str "Servidor iniciado na porta " port))
-    (jetty/run-jetty #'app {:port port :join? false})))
+(defn reset-senha!
+  "CLI de resgate: redefine a senha de um usuário direto pelo banco.
+
+   Existe porque o login deixou de 'auto-corrigir' hash ilegível (ver
+   senha-confere?). Um usuário comum nessa situação é resolvido por um admin via
+   PUT /api/usuarios/:id — mas se quem ficou trancado for o próprio admin, não
+   sobra ninguém para fazer isso.
+
+   Uso: lein run reset-senha admin@exemplo.com 'nova-senha'
+
+   Exige as mesmas variáveis de ambiente do servidor, então o privilégio é o de
+   quem já tem acesso ao banco — não amplia superfície."
+  [email nova-senha]
+  (cond
+    (or (str/blank? email) (str/blank? nova-senha))
+    (do (println "Uso: lein run reset-senha <email> <nova-senha>") 1)
+
+    (< (count nova-senha) 8)
+    (do (println "Senha muito curta (mínimo 8 caracteres).") 1)
+
+    :else
+    (if-let [usuario (execute-one! ["SELECT id FROM usuarios WHERE email = ?" email])]
+      (do
+        (sql/update! @datasource :usuarios
+                     {:senha_hash (hashers/encrypt nova-senha)}
+                     {:id (:id usuario)})
+        (println "Senha redefinida para o usuário" (str (:id usuario)))
+        0)
+      (do (println "Usuário não encontrado para o e-mail informado.") 1))))
+
+(defn -main [& args]
+  (case (first args)
+    "reset-senha" (System/exit (reset-senha! (second args) (nth args 2 nil)))
+    (do
+      (init-db)
+      (let [port (Integer. (or (env :port) 3000))]
+        (println (str "Servidor iniciado na porta " port))
+        (jetty/run-jetty #'app {:port port :join? false})))))
