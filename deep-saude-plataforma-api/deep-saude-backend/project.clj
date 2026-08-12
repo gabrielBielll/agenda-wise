@@ -15,7 +15,8 @@
                  [buddy/buddy-sign "3.5.346"]
                  [buddy/buddy-hashers "2.0.167"]
                  [migratus "1.5.4"] ; Versionamento de schema — ver resources/migrations
-                 [cheshire "5.12.0"]] ; JSON das respostas do Google (era só transitiva via ring-json)
+                 [cheshire "5.12.0"] ; JSON das respostas do Google (era só transitiva via ring-json)
+                 [com.zaxxer/HikariCP "5.1.0"]] ; Pool de conexões — ver db.clj
   :plugins [[lein-ring "0.12.6"]] ; Para facilitar o desenvolvimento com Ring
   :ring {:handler deep-saude-backend.core/app
          :init deep-saude-backend.core/init-db ; Função para inicializar o DB (opcional aqui)

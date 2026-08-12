@@ -132,36 +132,78 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn health-check-handler [_]
-  {:status 200 :headers {"Content-Type" "text/plain"} :body "Servidor Deep Saúde OK!"})
+  ;; Health check que só devolve 200 sem olhar o banco não é health check: a
+  ;; aplicação continua "saudável" para o balanceador enquanto todas as
+  ;; requisições reais falham.
+  (try
+    (execute-one! ["SELECT 1"])
+    {:status 200 :headers {"Content-Type" "application/json"}
+     :body {:status "ok" :banco "ok"}}
+    (catch Exception e
+      (println "HEALTH: banco indisponível:" (.getMessage e))
+      {:status 503 :headers {"Content-Type" "application/json"}
+       :body {:status "degradado" :banco "indisponivel"}})))
 
 ;; --- Handlers de Autenticação e Provisionamento ---
+
+(defn- provisionamento-autorizado?
+  "Provisionar clínica cria um tenant e um admin. Sem proteção, qualquer um na
+   internet criava clínicas à vontade — enchia o banco e gerava contas de admin
+   arbitrárias.
+
+   A autorização é um segredo compartilhado no header, porque este endpoint
+   precisa funcionar ANTES de existir qualquer usuário para autenticar.
+
+   ⚠️ Falha fechada: sem PROVISIONING_TOKEN configurado, o endpoint não
+   funciona. Aberto por padrão foi exatamente o problema."
+  [request]
+  (let [esperado (env :provisioning-token)
+        recebido (get-in request [:headers "x-provisioning-token"])]
+    (and (not (str/blank? esperado))
+         (not (str/blank? recebido))
+         ;; Comparação em tempo constante: `=` em string vaza, por tempo de
+         ;; resposta, quantos caracteres iniciais bateram.
+         (java.security.MessageDigest/isEqual
+          (.getBytes ^String esperado "UTF-8")
+          (.getBytes ^String recebido "UTF-8")))))
+
 (defn provisionar-clinica-handler [request]
   (let [{:keys [nome_clinica limite_psicologos nome_admin email_admin senha_admin]} (:body request)]
     (cond
+      (not (provisionamento-autorizado? request))
+      (do
+        (println "PROVISIONAMENTO: tentativa não autorizada.")
+        {:status 403 :body {:erro "Provisionamento não autorizado."
+                            :code "provisionamento_nao_autorizado"}})
+
       (or (str/blank? nome_clinica) (str/blank? nome_admin) (str/blank? email_admin) (str/blank? senha_admin))
       {:status 400, :body {:erro "Nome da clínica, nome do admin, email e senha são obrigatórios."}}
+
+      (< (count (str senha_admin)) 8)
+      {:status 400, :body {:erro "A senha do administrador deve ter ao menos 8 caracteres."}}
 
       (execute-one! ["SELECT id FROM usuarios WHERE email = ?" email_admin])
       {:status 409, :body {:erro "Email do administrador já cadastrado no sistema."}}
 
       :else
-      (let [nova-clinica (sql/insert! @datasource :clinicas
-                                      {:nome_da_clinica nome_clinica :limite_psicologos limite_psicologos}
-                                      {:builder-fn rs/as-unqualified-lower-maps :return-keys [:id :nome_da_clinica]})
-            papel-admin-id (:id (execute-one! ["SELECT id FROM papeis WHERE nome_papel = 'admin_clinica'"]))
-            novo-admin (when papel-admin-id
-                         (sql/insert! @datasource :usuarios
-                                      {:clinica_id (:id nova-clinica)
-                                       :papel_id   papel-admin-id
-                                       :nome       nome_admin
-                                       :email      email_admin
-                                       :senha_hash (hashers/encrypt senha_admin)}
-                                      {:builder-fn rs/as-unqualified-lower-maps :return-keys [:id :email]}))]
-        (if novo-admin
-          {:status 201 :body {:message "Clínica e usuário administrador criados com sucesso."
-                               :clinica nova-clinica
-                               :usuario_admin novo-admin}}
-          {:status 500 :body {:erro "Erro interno: O papel 'admin_clinica' não foi encontrado ou não pôde ser associado."}})))))
+      ;; Clínica e admin na mesma transação: uma clínica sem admin é um tenant
+      ;; órfão que ninguém consegue acessar nem remover pela aplicação.
+      (if-let [papel-admin-id (:id (execute-one! ["SELECT id FROM papeis WHERE nome_papel = 'admin_clinica'"]))]
+        (jdbc/with-transaction [tx @datasource]
+          (let [nova-clinica (sql/insert! tx :clinicas
+                                          {:nome_da_clinica nome_clinica :limite_psicologos limite_psicologos}
+                                          {:builder-fn rs/as-unqualified-lower-maps :return-keys [:id :nome_da_clinica]})
+                novo-admin (sql/insert! tx :usuarios
+                                        {:clinica_id (:id nova-clinica)
+                                         :papel_id   papel-admin-id
+                                         :nome       nome_admin
+                                         :email      email_admin
+                                         :senha_hash (hashers/encrypt senha_admin)}
+                                        {:builder-fn rs/as-unqualified-lower-maps :return-keys [:id :email]})]
+            {:status 201 :body {:message "Clínica e usuário administrador criados com sucesso."
+                                :clinica nova-clinica
+                                :usuario_admin novo-admin}}))
+        {:status 500 :body {:erro "Papel 'admin_clinica' não encontrado. Rode as migrations."}}))))
 
 (defn senha-confere?
   "Verifica a senha contra o hash armazenado.
@@ -349,10 +391,11 @@
 (defn listar-pacientes-handler [request]
   (let [identity (:identity request)
         clinica-id (:clinica_id identity)
-        papel-id (:papel_id identity)
         user-id (:user_id identity)
-        nome-papel (:nome_papel (execute-one! ["SELECT nome_papel FROM papeis WHERE id = ?" papel-id]))]
-        
+        ;; Papel vem do JWT, já assinado. Reler do banco a cada requisição era
+        ;; uma query extra por listagem sem nenhuma informação nova.
+        nome-papel (:role identity)]
+
     (let [pacientes (if (or (= nome-papel "admin_clinica") (= nome-papel "secretario"))
                       ;; Se for admin ou secretário, busca todos os pacientes da clínica
                       (execute-query! 
@@ -556,7 +599,7 @@
     (catch Exception e
       (println "ERRO FATAL NO HANDLER:" (.getMessage e))
       (.printStackTrace e)
-      {:status 500 :body {:erro (str "Erro interno: " (.getMessage e))}})))
+      {:status 500 :body {:erro "Erro interno."}})))
 
 
 (defn obter-agendamento-handler [request]
@@ -715,7 +758,7 @@
     (catch Exception e
       (println "ERRO AO ATUALIZAR AGENDAMENTO:" (.getMessage e))
       (.printStackTrace e)
-      {:status 500 :body {:erro (str "Erro interno: " (.getMessage e))}})))
+      {:status 500 :body {:erro "Erro interno."}})))
 
 
 (defn remover-agendamento-handler [request]
@@ -756,7 +799,7 @@
     (catch Exception e
       (println "ERRO AO REMOVER AGENDAMENTO:" (.getMessage e))
       (.printStackTrace e)
-      {:status 500 :body {:erro (str "Erro interno: " (.getMessage e))}})))
+      {:status 500 :body {:erro "Erro interno."}})))
 ;; Função global de sincronização (sem contexto de request)
 ;; Usada na inicialização do backend para TODAS as clínicas
 (defn sincronizar-status-global! []
@@ -823,17 +866,17 @@
     (catch Exception e
       (println "ERRO AO SINCRONIZAR STATUS:" (.getMessage e))
       (.printStackTrace e)
-      {:status 500 :body {:erro (str "Erro ao sincronizar: " (.getMessage e))}})))
+      {:status 500 :body {:erro "Erro ao sincronizar."}})))
 
 (defn listar-agendamentos-handler [request]
   (let [identity (:identity request)
         clinica-id (:clinica_id identity)
-        papel-id (:papel_id identity)
         user-id (:user_id identity)
         paciente-id-filter (get-in request [:params :paciente_id])
-        nome-papel (:nome_papel (execute-one! ["SELECT nome_papel FROM papeis WHERE id = ?" papel-id]))]
-    (println "DEBUG: Listar Agendamentos - User:" user-id "Papel:" nome-papel "Clinica:" clinica-id "Paciente Filter:" paciente-id-filter)
-    
+        ;; O papel já vem assinado no JWT — a consulta que estava aqui era uma
+        ;; ida ao banco por requisição para reler o que já estava em mãos.
+        nome-papel (:role identity)]
+
     (let [base-query "SELECT a.*, p.nome as nome_paciente, p.nota_fiscal, p.origem, p.vencimento_pagamento, p.tipo_pagamento, u.nome as nome_psicologo
                       FROM agendamentos a
                       JOIN pacientes p ON a.paciente_id = p.id
@@ -958,7 +1001,7 @@
               {:status 201 :body (first novos-bloqueios)})))))
     (catch Exception e
       (println "ERRO ao criar bloqueio:" (.getMessage e))
-      {:status 500 :body {:erro (str "Erro interno: " (.getMessage e))}})))
+      {:status 500 :body {:erro "Erro interno."}})))
 
 (defn listar-bloqueios-handler [request]
   (let [identity (:identity request)
@@ -1076,7 +1119,7 @@
         (catch Exception e
           (println "ERRO CRIAR PRONTUARIO:" (.getMessage e))
           (.printStackTrace e)
-          {:status 500 :body {:erro (str "Erro interno: " (.getMessage e))}})))))
+          {:status 500 :body {:erro "Erro interno."}})))))
 
 (defn listar-prontuarios-handler [request]
   (let [identity (:identity request)

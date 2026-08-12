@@ -7,7 +7,9 @@
   (:require [clojure.string :as str]
             [environ.core :refer [env]]
             [next.jdbc :as jdbc]
-            [next.jdbc.result-set :as rs]))
+            [next.jdbc.connection :as connection]
+            [next.jdbc.result-set :as rs])
+  (:import (com.zaxxer.hikari HikariDataSource)))
 
 (defonce db-spec
   (delay
@@ -39,7 +41,31 @@
          :ssl      ssl-enabled
          :sslmode  ssl-mode}))))
 
-(defonce datasource (delay (jdbc/get-datasource @db-spec)))
+(defn- inteiro [chave padrao]
+  (if-let [v (env chave)] (Integer/parseInt (str v)) padrao))
+
+(defonce datasource
+  (delay
+    ;; Pool de conexões (HikariCP).
+    ;;
+    ;; Antes era `jdbc/get-datasource` sobre o mapa de configuração, que abre
+    ;; uma conexão NOVA a cada query e a descarta em seguida. Contra um Postgres
+    ;; local isso passa despercebido; contra CockroachDB gerenciado, cada query
+    ;; paga handshake TCP + TLS. Um handler que faz 5 queries pagava 5 handshakes.
+    ;;
+    ;; `max-lifetime` abaixo do tempo de corte do servidor é o que evita o
+    ;; clássico "connection reset" intermitente: bancos gerenciados derrubam
+    ;; conexões ociosas em silêncio, e o pool precisa reciclar antes disso.
+    (connection/->pool
+     HikariDataSource
+     (assoc @db-spec
+            :maximumPoolSize (inteiro :db-pool-size 10)
+            :minimumIdle     (inteiro :db-pool-min-idle 2)
+            :connectionTimeout (inteiro :db-connection-timeout-ms 10000)
+            :idleTimeout     300000     ;; 5 min
+            :maxLifetime     1500000    ;; 25 min
+            :keepaliveTime   120000     ;; 2 min
+            :poolName        "deep-saude-pool"))))
 
 (defn execute-query! [query-vector]
   (jdbc/execute! @datasource query-vector {:builder-fn rs/as-unqualified-lower-maps}))
