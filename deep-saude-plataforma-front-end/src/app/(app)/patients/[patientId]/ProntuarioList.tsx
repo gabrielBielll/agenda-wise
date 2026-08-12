@@ -20,8 +20,17 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
+import type { DateRange } from "react-day-picker";
 
-// ... existing code
+// Reconstruído a partir do uso: a definição havia sido apagada por uma edição
+// parcial e substituída por um comentário "... existing code". O arquivo só
+// compilava porque next.config desligava a checagem de tipos.
+interface ProntuarioListProps {
+  initialProntuarios: Prontuario[];
+  patientId: string;
+  /** Repassado direto para ProntuarioItem, que também o tipa como any[]. */
+  appointments: any[];
+}
 
 export default function ProntuarioList({ initialProntuarios, patientId, appointments }: ProntuarioListProps) {
   const [searchTerm, setSearchTerm] = useState("");

@@ -29,7 +29,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-// ... existing code
+// Reconstruído a partir do uso: a definição havia sido apagada por uma edição
+// parcial e substituída por um comentário "... existing code".
+interface Patient {
+  id: string;
+  nome: string;
+  status?: 'ativo' | 'inativo';
+  avatar_url?: string | null;
+  /** Derivado no backend a partir do último agendamento; nem sempre presente. */
+  lastSession?: string | null;
+}
 
 export default function PatientsPage() {
   const { data: session, status: sessionStatus } = useSession();

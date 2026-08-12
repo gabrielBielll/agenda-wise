@@ -1,6 +1,6 @@
 import React from 'react';
 import { getServerSession } from "next-auth/next";
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'; // Importar authOptions
+import { authOptions } from '@/lib/auth'; // Importar authOptions
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from "@/components/ui/button";

@@ -66,7 +66,23 @@ interface Agendamento {
   nome_psicologo?: string;
   status?: string; // agendado, realizado, cancelado
   valor_repasse?: number;
-  status_repasse?: 'bloqueado' | 'disponivel' | 'transferido'; // Repasse (Psi)
+  /**
+   * ⚠️ DÍVIDA CONHECIDA — esta coluna tem duas máquinas de estado concorrentes.
+   *
+   * Dois handlers deste mesmo arquivo escrevem valores diferentes na MESMA
+   * coluna, pelo mesmo endpoint:
+   *   - handleUpdateRepasse       alterna 'pago' <-> 'pendente'
+   *   - handleUpdateRepasseStatus alterna 'transferido' <-> 'disponivel'
+   *
+   * Somando o default do banco ('pendente') e o vocabulário documentado em
+   * TECHNICAL_NOTES ('bloqueado' | 'disponivel' | 'transferido'), a coluna
+   * aceita cinco valores vindos de três vocabulários. O backend grava o que
+   * chegar, sem validar.
+   *
+   * O tipo abaixo descreve o que de fato acontece hoje, não o que deveria.
+   * Unificar as duas máquinas é decisão de negócio — ver docs/AUDITORIA_2026-08.md.
+   */
+  status_repasse?: 'bloqueado' | 'disponivel' | 'transferido' | 'pendente' | 'pago';
   status_pagamento?: 'pendente' | 'pago'; // Pagamento (Paciente)
   // New patient financial fields
   nota_fiscal?: boolean;
@@ -967,6 +983,12 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
                             acc[name].total += val;
                             acc[name].count += 1;
                             acc[name].repasse += rep;
+                            // ⚠️ Conta apenas repasses marcados por handleUpdateRepasse.
+                            // Os marcados como 'transferido' pelo outro handler NÃO entram
+                            // aqui — consequência direta das duas máquinas de estado
+                            // descritas em `status_repasse`. Enquanto elas não forem
+                            // unificadas, este número fica incompleto de propósito, em vez
+                            // de parecer certo somando critérios que não se combinam.
                             if (curr.status_repasse === 'pago') acc[name].paid += 1;
                             
                             return acc;

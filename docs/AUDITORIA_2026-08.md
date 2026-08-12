@@ -93,7 +93,51 @@ Duas listagens reliam `nome_papel` do banco a cada requisição, sendo que o pap
 
 Já registrado como SEC-006. Continua valendo — e vale mais agora, porque a permissão nova `gerenciar_integracao_google` também é ignorada pelo bypass.
 
-### 2.9 🟡 Sem limite de payload e sem rate limiting
+### 2.9 🔴 O build ignorava erros de tipo — e escondia bugs reais
+
+`next.config.ts` tinha `typescript.ignoreBuildErrors: true`. Com isso, TypeScript era decoração: não reprovava nada. Os erros acumulados não eram ruído.
+
+O que estava escondido:
+
+| | |
+|---|---|
+| **Contador zerado no painel financeiro** | `status_repasse === 'pago'` numa comparação que **nunca pode ser verdadeira**. A coluna "{pagos}/{total} Pagos" por psicólogo ficava permanentemente em zero |
+| **Quatro definições de tipo apagadas** | `ProntuarioListProps`, `Patient`, `FormState` e o import de `DateRange` foram removidos por edições parciais e substituídos por comentários `// ... existing code`. Um deles quebrava um import entre arquivos |
+| **`authOptions` exportado de `route.ts`** | No App Router só handlers podem ser exportados de um arquivo de rota. **Isto reprova o build de produção** — provavelmente o motivo de a checagem ter sido desligada |
+| **`params` do Next.js 15** | `src/app/api/pacientes/[id]/route.ts` usava a assinatura antiga; no Next 15 `params` é `Promise` |
+
+**Corrigido** — os 10 erros resolvidos, `authOptions` movido para `src/lib/auth.ts` (23 importadores atualizados) e a checagem religada. **O build de produção passa com o type check ligado.**
+
+`eslint.ignoreDuringBuilds` continua `true`: religar exige uma passada de limpeza própria, e é o type check que pega bug de verdade.
+
+### 2.10 🔴 O módulo financeiro apontava para `localhost` em produção
+
+Todo o `FinanceiroClient` chama a API em caminho relativo (`/api/agendamentos/...`, 8 pontos). Esses caminhos dependem dos `rewrites` do `next.config`, que tinham `http://localhost:3000` **fixo**.
+
+Em desenvolvimento funciona, porque o backend roda nessa porta. Em produção, com frontend e backend em hosts diferentes, marcar pagamento, marcar repasse e as transferências em lote apontavam para lugar nenhum.
+
+E `src/app/api/pacientes/[id]/route.ts` encaminhava para `${BACKEND_URL}/pacientes/:id` — **sem o prefixo `/api`**, que é onde o backend expõe a rota. Como arquivo de rota tem precedência sobre rewrite, a atualização de paciente pelo financeiro caía em 404.
+
+**Corrigido** — rewrites passam a ler `API_PROXY_TARGET` / `NEXT_PUBLIC_API_URL`, e o prefixo foi acertado.
+
+### 2.11 🟠 `status_repasse` tem duas máquinas de estado concorrentes
+
+Dois handlers do mesmo arquivo escrevem valores diferentes na mesma coluna, pelo mesmo endpoint:
+
+| Handler | Alterna entre |
+|---|---|
+| `handleUpdateRepasse` | `'pago'` ↔ `'pendente'` |
+| `handleUpdateRepasseStatus` | `'transferido'` ↔ `'disponivel'` |
+
+Somando o default do banco (`'pendente'`) e o vocabulário documentado em `TECHNICAL_NOTES` (`'bloqueado' | 'disponivel' | 'transferido'`), a coluna aceita **cinco valores vindos de três vocabulários**. O backend grava o que chegar, sem validar.
+
+**Não corrigido de propósito.** Qual das duas máquinas é a correta é decisão de negócio, não de código — e escolher errado corrompe o controle de repasse. O que fiz foi fazer o tipo descrever a realidade e documentar a contradição no ponto exato. Ver 4.2.
+
+### 2.12 🟠 Token do backend em `localStorage`
+
+`src/lib/admin-api.ts` guarda o JWT do backend em `localStorage`, legível por qualquer XSS. Já registrado como SEC-008; continua valendo.
+
+### 2.13 🟡 Sem limite de payload e sem rate limiting
 
 Nenhum limite de tamanho de corpo e nenhum rate limiting em login ou provisionamento. Login sem limite permite força bruta.
 
@@ -131,12 +175,15 @@ Ordenada por dependência. O que está em cima destrava o que está embaixo.
 
 | | Por quê |
 |---|---|
+| **Unificar `status_repasse`** (2.11) | Decisão de negócio pendente. Enquanto durar, o controle de repasse tem dados em vocabulários incompatíveis |
 | **Paginação em agendamentos e pacientes** (2.4) | É o próximo gargalo depois dos índices. Envolve frontend |
-| **Rate limiting em login e provisionamento** (2.9) | Login sem limite é força bruta livre |
-| **Limite de payload** (2.9) | Uma linha de middleware |
-| **Validação de input no backend** | Hoje a validação real está no frontend; o backend confia no que chega |
+| **Rate limiting em login e provisionamento** (2.13) | Login sem limite é força bruta livre |
+| **Limite de payload** (2.13) | Uma linha de middleware |
+| **Validação de input no backend** | Hoje a validação real está no frontend; o backend confia no que chega. `status_repasse` é o exemplo vivo |
 | **Testes de `core.clj`** | A parte com dinheiro e sigilo é a que não tem teste |
+| **Token fora do `localStorage`** (2.12) | Cookie httpOnly |
 | **RBAC sem bypass de admin** (2.8) | Quanto mais permissões existirem, pior fica |
+| **Religar o ESLint** | O type check já voltou; o lint é a próxima camada |
 
 ### 4.3 Google Agenda — continuidade
 
@@ -162,5 +209,12 @@ Sendo explícito sobre os limites desta auditoria:
 
 - **Nada foi compilado nem executado como aplicação.** Sem acesso ao Clojars, o que existe é: migrations testadas contra PostgreSQL 16 real, namespaces puros com 105 asserções, e verificação estática de sintaxe e referências.
 - **Os números de performance são de PostgreSQL local**, não de CockroachDB gerenciado. A direção do resultado é confiável; a magnitude, contra rede, tende a ser maior, não menor.
-- **Não avaliei o frontend em profundidade** — só o caminho de data/hora e os stubs do Google.
+- **O frontend foi auditado por build e tipo, não por uso.** O build de produção passa com type check ligado, mas nenhuma tela foi aberta. Bug de comportamento que o compilador não vê continua possível.
 - **Não olhei LGPD/CFM**, retenção de dados, nem o fluxo de prontuário. Ficam para uma rodada dedicada (sprint 6 do board).
+- **Não avaliei acessibilidade nem performance de render.**
+
+### Uma observação sobre o padrão dos achados
+
+Quatro definições de tipo apagadas e substituídas por `// ... existing code`, um import quebrado entre arquivos, um contador comparando valores que nunca se igualam. É o rastro de edições parciais que nunca foram verificadas — e sobreviveram porque **as duas verificações que teriam pego isso estavam desligadas**: o type check no build e o teste automatizado.
+
+Religar o type check foi mais valioso do que qualquer correção individual desta rodada: a partir de agora esse tipo de coisa reprova o build em vez de virar dívida silenciosa. O equivalente no backend — testes em `core.clj` — continua faltando.

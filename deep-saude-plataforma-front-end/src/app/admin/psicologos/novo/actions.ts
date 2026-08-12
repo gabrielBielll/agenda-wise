@@ -1,7 +1,7 @@
 "use server";
 
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { authOptions } from "@/lib/auth";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 
@@ -20,7 +20,21 @@ const psicologoSchema = z.object({
   area_de_atuacao: z.string().optional(),
 });
 
-// ...
+/**
+ * Estado do formulário usado com `useFormState`.
+ *
+ * Reconstruído a partir do uso: a definição havia sido apagada por uma edição
+ * parcial e substituída por um comentário "...". A página importa este tipo,
+ * então o import estava quebrado — invisível porque o build ignorava tipos.
+ *
+ * As chaves de `errors` acompanham o schema do Zod, e é assim que a página lê
+ * (`state.errors?.nome`).
+ */
+export type FormState = {
+  message: string;
+  success: boolean;
+  errors?: Partial<Record<keyof z.infer<typeof psicologoSchema>, string[]>>;
+};
 
 export async function createPsicologo(
   prevState: FormState,

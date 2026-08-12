@@ -75,7 +75,13 @@ export default function DashboardPage() {
         </CardHeader>
         <CardContent className="flex flex-wrap gap-4">
           <Button asChild size="lg">
-            <Link href="/calendar/new">
+            {/*
+              Antes apontava para /calendar/new, uma página que criava evento
+              direto no Google Calendar com o fuso do browser, sem paciente e sem
+              valor — parte do stub de integração que nunca funcionou (o token
+              nunca era populado). O agendamento de verdade é o do calendário.
+            */}
+            <Link href="/calendar">
               <CalendarCheck className="mr-2 h-5 w-5" /> Novo Agendamento
             </Link>
           </Button>
