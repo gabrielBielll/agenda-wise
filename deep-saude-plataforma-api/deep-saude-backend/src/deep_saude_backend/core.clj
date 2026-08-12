@@ -1311,11 +1311,16 @@
                  :access-control-allow-headers #{"Authorization" "Content-Type"})
       (wrap-params)
       (middleware-json/wrap-json-body {:keywords? true})
-      (middleware-json/wrap-json-response)
       ;; Último a envolver = primeiro a rodar. O limite de payload precisa vir
       ;; antes do parser de JSON: o ponto é recusar o corpo grande sem gastar
-      ;; memória desserializando.
-      (limites/wrap-limite-payload)))
+      ;; memória desserializando. Como `wrap-json-body` está aqui dentro, essa
+      ;; ordem se mantém.
+      (limites/wrap-limite-payload)
+      ;; ⚠️ `wrap-json-response` tem que ser o mais externo de todos, senão as
+      ;; respostas geradas por quem está FORA dele saem sem serializar. Era o
+      ;; caso do 413: o corpo chegava ao Jetty como mapa Clojure e virava um 500
+      ;; cru, sem corpo — justamente na resposta que existe para ser clara.
+      (middleware-json/wrap-json-response)))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1326,22 +1331,24 @@
     (do
       (println "DATABASE_URL encontrada.")
       (println "Tentando conectar ao banco de dados...")
-      (try
-        (execute-query! ["SELECT 1"])
-        (println "Conexão com o banco de dados estabelecida com sucesso!")
-        ;; Schema: antes era um paredão de ALTER TABLE ... IF NOT EXISTS aqui,
-        ;; sem ordem nem registro do que já havia rodado. Agora é Migratus.
-        ;; ⚠️ Migração falha aborta o boot de propósito — subir com o schema
-        ;; desatualizado é pior do que não subir.
-        (migrar!)
+      (execute-query! ["SELECT 1"])
+      (println "Conexão com o banco de dados estabelecida com sucesso!")
+      ;; Schema: antes era um paredão de ALTER TABLE ... IF NOT EXISTS aqui,
+      ;; sem ordem nem registro do que já havia rodado. Agora é Migratus.
+      ;;
+      ;; ⚠️ `migrar!` fica FORA de try de propósito: migração que falha tem que
+      ;; abortar o boot — subir com o schema desatualizado é pior do que não
+      ;; subir. Antes ele estava dentro de um `catch Exception` que só imprimia
+      ;; "Falha ao conectar ao banco de dados" e deixava a aplicação subir do
+      ;; mesmo jeito. Isso mascarou por completo o pool sem usuário do db.clj: o
+      ;; log dizia "Servidor iniciado" com o banco 100% inacessível.
+      (migrar!)
 
-        (try
-          ;; Sincronização de status de agendamentos passados na inicialização
-          (sincronizar-status-global!)
-          (catch Exception e
-            (println "Aviso na sincronização de status:" (.getMessage e))))
+      (try
+        ;; Sincronização de status de agendamentos passados na inicialização
+        (sincronizar-status-global!)
         (catch Exception e
-          (println "Falha ao conectar ao banco de dados:" (.getMessage e)))))
+          (println "Aviso na sincronização de status:" (.getMessage e)))))
     (println "AVISO: DATABASE_URL não configurada. As operações de banco de dados irão falhar.")))
 
 (defn destroy-db []

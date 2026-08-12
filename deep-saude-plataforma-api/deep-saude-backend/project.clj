@@ -26,4 +26,10 @@
   :profiles {:uberjar {:aot :all
                        :jvm-opts ["-Dclojure.compiler.direct-linking=true"]}
              :dev {:dependencies [[javax.servlet/servlet-api "2.5"] ; Para desenvolvimento local com `lein ring server`
-                                  [ring/ring-mock "0.4.0"]]}})
+                                  [ring/ring-mock "0.4.0"]]}
+             ;; `core.clj` aborta o carregamento do namespace quando :jwt-secret
+             ;; não existe. Como o teste de core.clj precisa fazer require dele,
+             ;; sem isto `lein test` morre inteiro — inclusive os testes que não
+             ;; têm nada a ver com JWT — com "FATAL: a variável :jwt-secret não
+             ;; está configurada". Segredo de teste, nunca usado fora daqui.
+             :test {:jvm-opts ["-Djwt-secret=segredo-apenas-para-teste"]}})

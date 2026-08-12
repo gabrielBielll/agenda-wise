@@ -56,16 +56,32 @@
     ;; `max-lifetime` abaixo do tempo de corte do servidor é o que evita o
     ;; clássico "connection reset" intermitente: bancos gerenciados derrubam
     ;; conexões ociosas em silêncio, e o pool precisa reciclar antes disso.
-    (connection/->pool
-     HikariDataSource
-     (assoc @db-spec
-            :maximumPoolSize (inteiro :db-pool-size 10)
-            :minimumIdle     (inteiro :db-pool-min-idle 2)
-            :connectionTimeout (inteiro :db-connection-timeout-ms 10000)
-            :idleTimeout     300000     ;; 5 min
-            :maxLifetime     1500000    ;; 25 min
-            :keepaliveTime   120000     ;; 2 min
-            :poolName        "deep-saude-pool"))))
+    ;;
+    ;; ⚠️ `->pool` não é `get-datasource`. Ele repassa cada chave do mapa como
+    ;; propriedade de bean do HikariDataSource, e o Hikari não tem `user`, `ssl`
+    ;; nem `sslmode` — a credencial dele chama `username`, e o resto do que é do
+    ;; driver tem que viajar na URL. Passar o db-spec cru aqui fazia o pool
+    ;; subir SEM usuário e SEM TLS, em silêncio: a conexão caía no usuário do
+    ;; sistema operacional e o `sslmode` montado acima era descartado. Contra
+    ;; banco gerenciado isso é falha de autenticação no boot.
+    ;;
+    ;; Por isso a separação explícita: o que é do driver vai por `jdbc-url`, e
+    ;; só credencial e ajuste de pool ficam como propriedade do Hikari.
+    (let [spec (or @db-spec
+                   (throw (ex-info "DATABASE_URL não configurada — sem ela não há pool." {})))]
+      (connection/->pool
+       HikariDataSource
+       {:jdbcUrl           (connection/jdbc-url
+                            (select-keys spec [:dbtype :dbname :host :port :ssl :sslmode]))
+        :username          (:user spec)
+        :password          (:password spec)
+        :maximumPoolSize   (inteiro :db-pool-size 10)
+        :minimumIdle       (inteiro :db-pool-min-idle 2)
+        :connectionTimeout (inteiro :db-connection-timeout-ms 10000)
+        :idleTimeout       300000     ;; 5 min
+        :maxLifetime       1500000    ;; 25 min
+        :keepaliveTime     120000     ;; 2 min
+        :poolName          "deep-saude-pool"}))))
 
 (defn execute-query! [query-vector]
   (jdbc/execute! @datasource query-vector {:builder-fn rs/as-unqualified-lower-maps}))

@@ -105,8 +105,15 @@ ALTER TABLE agendamentos ADD COLUMN IF NOT EXISTS google_updated TIMESTAMPTZ;
 --;;
 ALTER TABLE agendamentos ADD COLUMN IF NOT EXISTS origem_ultima_alteracao TEXT;
 --;;
+-- sync_status: nao_sincronizado | pendente | sincronizado | divergente
+--
+-- ⚠️ Este comentário fica ACIMA do comando de propósito. O migratus remove
+-- comentário só quando o `--` está na coluna 0 (regex `^--.*`), e ele faz isso
+-- ANTES de tirar a indentação. Comentário indentado depois do `;` sobrevive à
+-- limpeza, e aí o driver lê "comando; comentário" como DOIS comandos e devolve
+-- dois resultados para uma entrada de batch: "Too many update results were
+-- returned". Isso derrubava esta migration inteira.
 ALTER TABLE agendamentos ADD COLUMN IF NOT EXISTS sync_status TEXT DEFAULT 'nao_sincronizado';
-  -- nao_sincronizado | pendente | sincronizado | divergente
 --;;
 -- Baseline da chave de reconciliação: para o que já existe, a ocorrência
 -- nunca foi remarcada do lado do Google, então original_start_time = início.
