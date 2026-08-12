@@ -13,6 +13,8 @@
             [migratus.core :as migratus]
             [deep-saude-backend.db :refer [datasource execute-query! execute-one!]]
             [deep-saude-backend.tempo :as tempo]
+            [deep-saude-backend.dominio :as dominio]
+            [deep-saude-backend.limites :as limites]
             [deep-saude-backend.google.rrule :as rrule]
             [deep-saude-backend.google.handlers :as google]
             [ring.middleware.cors :refer [wrap-cors]]
@@ -228,12 +230,19 @@
       false)))
 
 (defn login-handler [request]
-  (let [{:keys [email senha]} (:body request)]
+  (let [{:keys [email senha]} (:body request)
+        ;; Contador por IP+e-mail, liberado no sucesso (ver mais abaixo).
+        chave-limite (str "login:" (limites/ip-do-request request) ":" email)]
     (if-let [usuario (execute-one! ["SELECT * FROM usuarios WHERE email = ?" email])]
       (do
         (if-let [papel (execute-one! ["SELECT nome_papel FROM papeis WHERE id = ?" (:papel_id usuario)])]
           (do
             (let [senha-valida (senha-confere? senha (:senha_hash usuario) (:id usuario))]
+              (when senha-valida
+                ;; Acertou a senha: zera o contador. Sem isso, quem errou
+                ;; algumas vezes e depois acertou continuaria pagando pelas
+                ;; tentativas anteriores até a janela vencer.
+                (limites/liberar! chave-limite))
               (if senha-valida
                 (let [claims {:user_id    (:id usuario)
                               :clinica_id (:clinica_id usuario)
@@ -614,8 +623,14 @@
     (let [clinica-id (get-in request [:identity :clinica_id])
           agendamento-id (java.util.UUID/fromString (get-in request [:params :id]))
           {:keys [paciente_id psicologo_id data_hora_sessao valor_consulta duracao status mode observacoes]} (:body request)]
-      
-      (if-let [agendamento-atual (execute-one! ["SELECT * FROM agendamentos WHERE id = ? AND clinica_id = ?" agendamento-id clinica-id])]
+
+      (if-let [erro-de-dominio (dominio/validar (:body request))]
+        ;; Sem esta checagem o backend gravava qualquer string nas colunas de
+        ;; estado. Foi assim que `status_repasse` acabou com cinco valores de
+        ;; três vocabulários diferentes na mesma coluna.
+        {:status 422 :body {:erro erro-de-dominio :code "valor_de_dominio_invalido"}}
+
+        (if-let [agendamento-atual (execute-one! ["SELECT * FROM agendamentos WHERE id = ? AND clinica_id = ?" agendamento-id clinica-id])]
         (cond
           (= mode "all_future")
           (if-let [recorrencia-id (:recorrencia_id agendamento-atual)]
@@ -754,7 +769,7 @@
                 {:status 500 :body {:erro "Erro ao atualizar agendamento."}}
                 (let [agendamento-atualizado (execute-one! ["SELECT * FROM agendamentos WHERE id = ?" agendamento-id])]
                   {:status 200 :body agendamento-atualizado}))))))
-        {:status 404 :body {:erro "Agendamento não encontrado."}}))
+          {:status 404 :body {:erro "Agendamento não encontrado."}})))
     (catch Exception e
       (println "ERRO AO ATUALIZAR AGENDAMENTO:" (.getMessage e))
       (.printStackTrace e)
@@ -1204,8 +1219,17 @@
 ;; Definição das Rotas e Aplicação Principal
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defroutes public-routes
-  (POST "/api/admin/provisionar-clinica" [] provisionar-clinica-handler)
-  (POST "/api/auth/login" [] login-handler)
+  ;; Rotas públicas são as únicas alcançáveis sem token — e por isso as únicas
+  ;; onde força bruta é possível. O limite é por IP; no login, também por
+  ;; e-mail tentado, para que atacar uma conta específica não consuma a cota
+  ;; de todo mundo atrás do mesmo NAT.
+  (POST "/api/admin/provisionar-clinica" []
+    (limites/wrap-rate-limit provisionar-clinica-handler
+                             {:nome "provisionar" :max-tentativas 5 :janela-ms 3600000}))
+  (POST "/api/auth/login" []
+    (limites/wrap-rate-limit login-handler
+                             {:nome "login" :max-tentativas 10 :janela-ms 300000
+                              :chave-extra #(get-in % [:body :email])}))
   (GET  "/api/health" [] health-check-handler))
 
 ;; ROTAS DE PRONTUÁRIOS
@@ -1287,7 +1311,11 @@
                  :access-control-allow-headers #{"Authorization" "Content-Type"})
       (wrap-params)
       (middleware-json/wrap-json-body {:keywords? true})
-      (middleware-json/wrap-json-response)))
+      (middleware-json/wrap-json-response)
+      ;; Último a envolver = primeiro a rodar. O limite de payload precisa vir
+      ;; antes do parser de JSON: o ponto é recusar o corpo grande sem gastar
+      ;; memória desserializando.
+      (limites/wrap-limite-payload)))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

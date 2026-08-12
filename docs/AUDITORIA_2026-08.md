@@ -22,7 +22,7 @@ Severidade: 🔴 bloqueia produção • 🟠 dói em produção • 🟡 dívid
 | Backend | Clojure, arquivo único de ~1300 linhas + 8 namespaces novos |
 | Banco | PostgreSQL / CockroachDB |
 | Frontend | Next.js 15, ~10 erros de tipo pré-existentes |
-| Testes | 105 asserções (todas criadas nesta rodada); `core.clj` sem cobertura |
+| Testes | 158 asserções (todas criadas nesta rodada); `core.clj` sem cobertura |
 | Migrations | Versionadas desde esta rodada |
 
 ---
@@ -120,26 +120,42 @@ E `src/app/api/pacientes/[id]/route.ts` encaminhava para `${BACKEND_URL}/pacient
 
 **Corrigido** — rewrites passam a ler `API_PROXY_TARGET` / `NEXT_PUBLIC_API_URL`, e o prefixo foi acertado.
 
-### 2.11 🟠 `status_repasse` tem duas máquinas de estado concorrentes
+### 2.11 🟠 `status_repasse` tinha duas máquinas de estado concorrentes
 
-Dois handlers do mesmo arquivo escrevem valores diferentes na mesma coluna, pelo mesmo endpoint:
+Dois handlers do mesmo arquivo escreviam valores diferentes na mesma coluna, pelo mesmo endpoint:
 
-| Handler | Alterna entre |
-|---|---|
-| `handleUpdateRepasse` | `'pago'` ↔ `'pendente'` |
-| `handleUpdateRepasseStatus` | `'transferido'` ↔ `'disponivel'` |
+| Handler | Alterna entre | Call sites |
+|---|---|---|
+| `handleUpdateRepasse` | `'pago'` ↔ `'pendente'` | **nenhum** |
+| `handleUpdateRepasseStatus` | `'transferido'` ↔ `'disponivel'` | 1 |
 
-Somando o default do banco (`'pendente'`) e o vocabulário documentado em `TECHNICAL_NOTES` (`'bloqueado' | 'disponivel' | 'transferido'`), a coluna aceita **cinco valores vindos de três vocabulários**. O backend grava o que chegar, sem validar.
+Somando o default do banco (`'pendente'`) e o vocabulário documentado em `TECHNICAL_NOTES`, a coluna aceitava **cinco valores vindos de três vocabulários**. O backend gravava o que chegasse, sem validar.
 
-**Não corrigido de propósito.** Qual das duas máquinas é a correta é decisão de negócio, não de código — e escolher errado corrompe o controle de repasse. O que fiz foi fazer o tipo descrever a realidade e documentar a contradição no ponto exato. Ver 4.2.
+Na primeira leitura eu classifiquei isto como decisão de negócio e deixei em aberto. Ao investigar os call sites, deixou de ser: **`handleUpdateRepasse` era código morto** — duplicata obsoleta de `handleUpdatePagamento` que ficou apontando para a coluna errada. A máquina viva é a documentada em `TECHNICAL_NOTES`.
+
+**Corrigido** — handler morto removido, tipo estreitado para o vocabulário real, e o contador do painel acertado para `'transferido'` (o estado terminal do repasse).
+
+**E a causa raiz também:** o novo namespace `deep-saude-backend.dominio` centraliza os vocabulários de `status`, `status_pagamento` e `status_repasse`, e a atualização de agendamento passa a devolver 422 para valor fora do conjunto. Coluna de estado sem validação no servidor não é um campo — é um campo de texto livre com nome bonito, e foi exatamente assim que cinco valores incompatíveis entraram.
 
 ### 2.12 🟠 Token do backend em `localStorage`
 
 `src/lib/admin-api.ts` guarda o JWT do backend em `localStorage`, legível por qualquer XSS. Já registrado como SEC-008; continua valendo.
 
-### 2.13 🟡 Sem limite de payload e sem rate limiting
+### 2.13 🟠 Sem limite de payload e sem rate limiting
 
-Nenhum limite de tamanho de corpo e nenhum rate limiting em login ou provisionamento. Login sem limite permite força bruta.
+Nenhum limite de tamanho de corpo e nenhum rate limiting. Login sem limite é força bruta livre: a senha de qualquer conta vira questão de tempo e banda.
+
+**Corrigido** — `deep-saude-backend.limites`:
+
+| | |
+|---|---|
+| Login | 10 tentativas / 5 min, por IP **e por e-mail tentado** — atacar uma conta não consome a cota de todo mundo atrás do mesmo NAT. Zera no acerto da senha |
+| Provisionamento | 5 / hora por IP |
+| Payload | 256 KB, recusado **antes** do parser de JSON |
+
+⚠️ Contador em memória, por instância: ao escalar horizontalmente o limite efetivo multiplica pelo número de instâncias. É o trade-off aceito para não introduzir Redis agora; o ponto de troca está isolado nesse namespace.
+
+⚠️ `X-Forwarded-For` é forjável por quem fala direto com a aplicação. Isto limita tráfego normal; bloquear atacante determinado é trabalho da borda (WAF/CDN, [AWS-016](cards/aws-migration/AWS-016-waf-shield.md)).
 
 ---
 
@@ -164,6 +180,16 @@ Além dos itens marcados acima:
 
 Ordenada por dependência. O que está em cima destrava o que está embaixo.
 
+### 4.0 Variáveis de ambiente novas
+
+| Variável | Obrigatória? | Para quê |
+|---|---|---|
+| `PROVISIONING_TOKEN` | **Sim, para provisionar** | Sem ela o endpoint de criar clínica não funciona (falha fechada) |
+| `GOOGLE_TOKEN_KEY` | Só para o Google | 32 bytes em base64. Gerar com `deep-saude-backend.google.cripto/gerar-chave` |
+| `GOOGLE_CLIENT_ID` / `_SECRET` / `_REDIRECT_URI` | Só para o Google | Credenciais OAuth |
+| `API_PROXY_TARGET` | Recomendada no frontend | Destino dos rewrites; sem ela cai em `NEXT_PUBLIC_API_URL` e depois em localhost |
+| `DB_POOL_SIZE` | Não | Padrão 10 |
+
 ### 4.1 Antes de qualquer deploy
 
 1. **Compilar e rodar `lein test`.** Nada do que foi escrito nesta rodada passou por compilação — o ambiente não alcançava o Clojars. Migrations, `tempo`, `rrule`, `cripto` e `vinculos` têm teste; `core.clj` foi verificado por reader e por análise estática de referências (`dev/checa_refs.clj`), o que não é a mesma coisa.
@@ -175,11 +201,9 @@ Ordenada por dependência. O que está em cima destrava o que está embaixo.
 
 | | Por quê |
 |---|---|
-| **Unificar `status_repasse`** (2.11) | Decisão de negócio pendente. Enquanto durar, o controle de repasse tem dados em vocabulários incompatíveis |
+| **Limpeza dos dados de `status_repasse`** | A validação impede novos valores inválidos, mas as linhas já gravadas com vocabulário errado continuam lá. Precisa de um `UPDATE` de correção depois de conferir o volume em produção |
 | **Paginação em agendamentos e pacientes** (2.4) | É o próximo gargalo depois dos índices. Envolve frontend |
-| **Rate limiting em login e provisionamento** (2.13) | Login sem limite é força bruta livre |
-| **Limite de payload** (2.13) | Uma linha de middleware |
-| **Validação de input no backend** | Hoje a validação real está no frontend; o backend confia no que chega. `status_repasse` é o exemplo vivo |
+| **Validação nos demais handlers** | `dominio/validar` está ligado na atualização de agendamento; falta estender para criação e para os outros recursos |
 | **Testes de `core.clj`** | A parte com dinheiro e sigilo é a que não tem teste |
 | **Token fora do `localStorage`** (2.12) | Cookie httpOnly |
 | **RBAC sem bypass de admin** (2.8) | Quanto mais permissões existirem, pior fica |

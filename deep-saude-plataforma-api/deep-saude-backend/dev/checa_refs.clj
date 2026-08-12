@@ -67,13 +67,37 @@
 
 (def problemas (atom []))
 
+;; Macros de threading inserem um argumento implícito nas formas seguintes.
+;; Sem tratar isso, `(-> x (f/g))` seria contado como chamada de 0 argumentos e
+;; viraria alarme falso — e verificador que dá alarme falso é verificador que
+;; todo mundo aprende a ignorar.
+(def ^:private threading '#{-> ->> some-> some->> cond-> cond->>})
+
+(defn args-implicitos
+  "Mapa {forma -> quantos argumentos o threading acrescenta a ela}."
+  [raiz]
+  (let [extras (atom {})]
+    ((fn anda [f]
+       (when (coll? f)
+         (when (and (seq? f) (symbol? (first f)) (threading (first f)))
+           ;; cond->/cond->> alternam teste e forma; os demais são só formas
+           (let [corpo (if (#{'cond-> 'cond->>} (first f))
+                         (take-nth 2 (drop 3 f))
+                         (drop 2 f))]
+             (doseq [etapa corpo :when (seq? etapa)]
+               (swap! extras update etapa (fnil inc 0)))))
+         (doseq [x (if (map? f) (mapcat identity f) f)] (anda x))))
+     raiz)
+    @extras))
+
 (defn anda [f visitar]
   (when (coll? f)
     (when (seq? f) (visitar f))
     (doseq [x (if (map? f) (mapcat identity f) f)] (anda x visitar))))
 
 (doseq [[arquivo fs] por-arquivo
-        :let [al (aliases fs)]]
+        :let [al (aliases fs)
+              extras (args-implicitos fs)]]
   (doseq [f fs]
     (anda f
       (fn [forma]
@@ -83,7 +107,7 @@
               (when-let [alvo-defs (get defs-por-ns alvo-ns)]
                 (let [nome (symbol (name h))
                       aridades (get alvo-defs nome ::ausente)
-                      n-args (dec (count forma))]
+                      n-args (+ (dec (count forma)) (get extras forma 0))]
                   (cond
                     (= ::ausente aridades)
                     (swap! problemas conj

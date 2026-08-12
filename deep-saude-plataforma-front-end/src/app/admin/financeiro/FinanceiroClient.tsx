@@ -67,22 +67,13 @@ interface Agendamento {
   status?: string; // agendado, realizado, cancelado
   valor_repasse?: number;
   /**
-   * ⚠️ DÍVIDA CONHECIDA — esta coluna tem duas máquinas de estado concorrentes.
+   * Estado do repasse ao psicólogo.
    *
-   * Dois handlers deste mesmo arquivo escrevem valores diferentes na MESMA
-   * coluna, pelo mesmo endpoint:
-   *   - handleUpdateRepasse       alterna 'pago' <-> 'pendente'
-   *   - handleUpdateRepasseStatus alterna 'transferido' <-> 'disponivel'
-   *
-   * Somando o default do banco ('pendente') e o vocabulário documentado em
-   * TECHNICAL_NOTES ('bloqueado' | 'disponivel' | 'transferido'), a coluna
-   * aceita cinco valores vindos de três vocabulários. O backend grava o que
-   * chegar, sem validar.
-   *
-   * O tipo abaixo descreve o que de fato acontece hoje, não o que deveria.
-   * Unificar as duas máquinas é decisão de negócio — ver docs/AUDITORIA_2026-08.md.
+   * `pendente` é o default do banco e significa "ainda não liberado".
+   * `bloqueado` é derivado na exibição a partir do pagamento do paciente, não
+   * gravado. O backend valida este conjunto desde a auditoria de agosto/2026.
    */
-  status_repasse?: 'bloqueado' | 'disponivel' | 'transferido' | 'pendente' | 'pago';
+  status_repasse?: 'pendente' | 'bloqueado' | 'disponivel' | 'transferido';
   status_pagamento?: 'pendente' | 'pago'; // Pagamento (Paciente)
   // New patient financial fields
   nota_fiscal?: boolean;
@@ -231,59 +222,16 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
   
   const lucroLiquido = totalReceita - totalRepasse;
 
-  // Function to update Repasse Status
-  const handleUpdateRepasse = async (id: string, currentStatus: string | undefined, valorConsulta: number) => {
-      const newStatus = currentStatus === 'pago' ? 'pendente' : 'pago';
-      // If setting to paid, ensure we fix the value based on current rate if not already set
-      const repasseValue = valorConsulta * (commissionRate / 100);
-
-      // Optimistic update
-      setAgendamentos(prev => prev.map(ag => 
-          ag.id === id ? { ...ag, status_repasse: newStatus, valor_repasse: ag.valor_repasse ?? repasseValue } : ag
-      ));
-
-      try {
-          // Making request...
-          const res = await fetch(`/api/agendamentos/${id}`, {
-              method: 'PUT',
-              headers: {
-                  'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${token}`
-              },
-              body: JSON.stringify({
-                  status_repasse: newStatus,
-                  valor_repasse: repasseValue // Ensure value is saved
-              })
-          });
-          
-          if (!res.ok) {
-            const errText = await res.text();
-            console.error("Failed to update repasse:", res.status, errText);
-            throw new Error(`Failed to update: ${res.status} ${errText}`);
-          }
-          
-          toast({
-              title: "Status atualizado",
-              description: `Repasse marcado como ${newStatus}.`,
-              className: "bg-green-500 text-white"
-          });
-
-      } catch (error: any) {
-          console.error("Error updating repasse:", error);
-          // Extract message from error object if possible
-          const cleanMsg = error.message?.replace("Failed to update: ", "") || "Erro desconhecido";
-          
-           toast({
-              title: "Erro ao atualizar",
-              description: cleanMsg.substring(0, 100), // Limit length
-              variant: "destructive"
-          });
-          // Revert
-          setAgendamentos(prev => prev.map(ag => 
-            ag.id === id ? { ...ag, status_repasse: currentStatus as any } : ag
-          ));
-      }
-  };
+  // REMOVIDO: handleUpdateRepasse.
+  //
+  // Escrevia 'pago'/'pendente' em status_repasse — vocabulário de
+  // status_pagamento, não de repasse. Era duplicata obsoleta de
+  // handleUpdatePagamento que ficou apontando para a coluna errada, e não
+  // tinha nenhum call site. Enquanto existiu, fazia a mesma coluna receber
+  // duas máquinas de estado incompatíveis.
+  //
+  // A máquina viva é handleUpdateRepasseStatus ('disponivel' <-> 'transferido'),
+  // que é a documentada em TECHNICAL_NOTES.
 
   // Function to update Session Status (Agendada, Realizada, Cancelada)
   const handleUpdateStatus = async (id: string, newStatus: string) => {
@@ -983,13 +931,11 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
                             acc[name].total += val;
                             acc[name].count += 1;
                             acc[name].repasse += rep;
-                            // ⚠️ Conta apenas repasses marcados por handleUpdateRepasse.
-                            // Os marcados como 'transferido' pelo outro handler NÃO entram
-                            // aqui — consequência direta das duas máquinas de estado
-                            // descritas em `status_repasse`. Enquanto elas não forem
-                            // unificadas, este número fica incompleto de propósito, em vez
-                            // de parecer certo somando critérios que não se combinam.
-                            if (curr.status_repasse === 'pago') acc[name].paid += 1;
+                            // Comparava com 'pago', valor que esta coluna nunca assume:
+                            // o contador exibido como "{pagos}/{total} Pagos" ficava
+                            // permanentemente em zero. O estado terminal do repasse é
+                            // 'transferido'.
+                            if (curr.status_repasse === 'transferido') acc[name].paid += 1;
                             
                             return acc;
                         }, {} as Record<string, { total: number; count: number; repasse: number; paid: number }>)
