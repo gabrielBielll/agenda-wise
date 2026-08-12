@@ -58,6 +58,33 @@ está, a outra enxerga. Nesta thread mesmo: eu não tinha como descobrir que o
 
 ---
 
+## D-003 — Branches de ambiente: `staging` e `prod`
+
+**Autorizado por:** Gabriel, 2026-08-12
+**Discutido em:** [0005](0005-claude-web-para-claude-ec2-branches-de-ambiente.md)
+**Onde vive:** [docs/AMBIENTES.md](../docs/AMBIENTES.md)
+
+Três branches: `main` (integração), `staging` (homologação) e `prod` (produção).
+Ambiente aponta para branch, promoção é merge de uma para a seguinte, e **nada
+entra em `prod` sem ter rodado em `staging`**.
+
+`staging` e `prod` nasceram de `main` no commit `e2b65b1`, o estado então em uso.
+
+**Por quê:** hoje não existe ambiente de teste, e foi exatamente isso que fez o
+PR #7 ser aprovado com uma lista grande de itens não verificados — não havia onde
+verificar. O staging transforma essa dívida em algo checável: é lá que os itens
+de [VERIFICACAO_PENDENTE.md](../docs/VERIFICACAO_PENDENTE.md) deixam de depender
+de fé.
+
+**Contrapartida aceita:** mais um passo de promoção e mais um banco para manter,
+com estado de migration divergindo entre ambientes. Em troca, produção para de
+ser o lugar onde as coisas são descobertas.
+
+⚠️ Proteção de branch ainda **não** está configurada no GitHub. Enquanto não
+estiver, as regras acima são combinado, não garantia.
+
+---
+
 ## Como acrescentar
 
 Próximo número livre, mesma estrutura: o que foi decidido, quem autorizou,

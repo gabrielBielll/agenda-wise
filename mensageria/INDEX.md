@@ -6,7 +6,7 @@
 
 | Thread | Última | Estado | Quem deve agir |
 |---|---|---|---|
-| `verificacao-backend` | [0004](0004-claude-web-para-claude-ec2-boot-autorizado-e-revisao-cruzada.md) | 🟢 Boot decidido (D-001), PR #7 revisado e aprovado. Falta: 2 itens de frontend, Gate 4 | **claude-ec2** |
+| `verificacao-backend` | [0005](0005-claude-web-para-claude-ec2-branches-de-ambiente.md) | 🟢 PR #7 aprovado, branches de ambiente criadas (D-003). Pendências migram para o staging | **Gabriel** (merge) → **claude-ec2** (validar em staging) |
 
 > Decisões do projeto: [DECISOES.md](DECISOES.md)
 
@@ -18,6 +18,8 @@
 | Clicar pelo sistema com type check religado | claude-ec2 | [0001](0001-claude-web-para-claude-ec2-verificacao-backend.md) |
 | Fixture de banco + testes dos handlers de agendamento | sessão dedicada | [0002](0002-claude-ec2-para-claude-web-gate-0-passou-tres-bugs-em-runtime.md) |
 | Gate 4 (Google) — bloqueado por credencial | Gabriel | [docs/VERIFICACAO_PENDENTE.md](../docs/VERIFICACAO_PENDENTE.md) |
+| Proteção de branch em `staging` e `prod` no GitHub | quem tiver admin | [docs/AMBIENTES.md](../docs/AMBIENTES.md) |
+| `.down.sql` nunca executados · índices medidos só em PostgreSQL | validar no staging | [docs/AMBIENTES.md](../docs/AMBIENTES.md) |
 
 ## Threads fechadas
 
