@@ -1326,12 +1326,46 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Funções de Inicialização
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(def ^:private tentativas-de-conexao
+  "Quantas vezes tentar o banco no boot antes de desistir."
+  5)
+
+(defn aguardar-banco!
+  "Espera o banco responder, com backoff. Desiste lançando a última exceção.
+
+   Contrapartida da D-001 (ver mensageria/DECISOES.md). Migration que falha tem
+   que derrubar o boot — nisso não se mexe. Mas indisponibilidade *momentânea*
+   do banco no instante do boot é outra coisa: reinício do Cockroach ou blip de
+   rede durante o deploy não são schema quebrado, e derrubar por isso vira
+   crash-loop à toa.
+
+   Só a CONEXÃO tem nova tentativa. A migration continua sem `try`, de
+   propósito: transiente se resolve esperando, schema errado não."
+  ([] (aguardar-banco! tentativas-de-conexao))
+  ([tentativas]
+   (loop [n 1]
+     (let [resultado (try
+                       (execute-query! ["SELECT 1"])
+                       :ok
+                       (catch Exception e
+                         (if (>= n tentativas)
+                           (do (println "BOOT: banco inacessível após" tentativas "tentativas.")
+                               (throw e))
+                           (do (println "BOOT: banco indisponível, tentativa" n "de" tentativas
+                                        "— nova tentativa em" (* 2 n) "s")
+                               :repetir))))]
+       (if (= resultado :ok)
+         true
+         (do (Thread/sleep (* 2000 n))
+             (recur (inc n))))))))
+
 (defn init-db []
   (if (env :database-url)
     (do
       (println "DATABASE_URL encontrada.")
       (println "Tentando conectar ao banco de dados...")
-      (execute-query! ["SELECT 1"])
+      (aguardar-banco!)
       (println "Conexão com o banco de dados estabelecida com sucesso!")
       ;; Schema: antes era um paredão de ALTER TABLE ... IF NOT EXISTS aqui,
       ;; sem ordem nem registro do que já havia rodado. Agora é Migratus.

@@ -12,7 +12,8 @@
   (:require [clojure.test :refer :all]
             [ring.mock.request :as mock]
             [cheshire.core :as json]
-            [deep-saude-backend.core :as core]))
+            [deep-saude-backend.core :as core]
+            [deep-saude-backend.db :as db]))
 
 (deftest app-esta-montado
   (testing "o handler existe e é chamável"
@@ -50,6 +51,34 @@
           "corpo não-string chega no Jetty como mapa e vira 500 sem corpo")
       (is (= "payload_muito_grande"
              (get (json/parse-string (:body resp)) "code"))))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Boot — contrapartida da D-001
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;; A regra da D-001 é "migration que falha derruba o boot". A aresta que sobrou
+;; é que uma indisponibilidade MOMENTÂNEA do banco derrubava junto, virando
+;; crash-loop por um blip de rede. Estes testes fixam a distinção: transiente é
+;; absorvido, permanente continua derrubando.
+
+(deftest aguardar-banco-absorve-indisponibilidade-transitoria
+  (let [tentativas (atom 0)]
+    (with-redefs [db/execute-query! (fn [_]
+                                      (swap! tentativas inc)
+                                      (when (< @tentativas 2)
+                                        (throw (java.sql.SQLException. "connection refused")))
+                                      [{:?column? 1}])]
+      (is (true? (core/aguardar-banco! 3)))
+      (is (= 2 @tentativas) "deve ter repetido uma vez antes de conseguir"))))
+
+(deftest aguardar-banco-desiste-quando-o-banco-nao-volta
+  (let [tentativas (atom 0)]
+    (with-redefs [db/execute-query! (fn [_]
+                                      (swap! tentativas inc)
+                                      (throw (java.sql.SQLException. "connection refused")))]
+      (is (thrown? java.sql.SQLException (core/aguardar-banco! 2))
+          "banco que não volta tem que derrubar o boot, não repetir para sempre")
+      (is (= 2 @tentativas) "deve ter tentado exatamente o número pedido"))))
 
 (deftest limite-de-payload-nao-atrapalha-requisicao-pequena
   (testing "corpo pequeno passa direto pelo limite e chega na autenticação"
