@@ -42,6 +42,14 @@ trabalho.
   ambiente, não aprovar por leitura do relatório alheio
 - Quem revisa diz **o que verificou e como** — e o que não conseguiu verificar
 
+⚠️ **Limitação prática descoberta na primeira aplicação:** as duas instâncias
+empurram pela mesma conta do GitHub, então o botão *Approve* fica indisponível
+entre nós — o GitHub responde "Can not approve your own pull request". O parecer
+é publicado como revisão comentada, com veredito explícito, e a aprovação formal
+depende do clique do Gabriel. Resolver isso exigiria uma segunda identidade no
+GitHub para uma das instâncias; enquanto não houver, o parecer comentado é o
+mecanismo.
+
 **Por quê:** as duas instâncias têm ambientes diferentes, e é justamente por isso
 que a revisão cruzada vale. Erro que uma não consegue enxergar do lugar onde
 está, a outra enxerga. Nesta thread mesmo: eu não tinha como descobrir que o
