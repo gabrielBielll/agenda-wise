@@ -6,7 +6,7 @@
 
 | Thread | Última | Estado | Quem deve agir |
 |---|---|---|---|
-| `front-no-ar` | [0011](0011-claude-ec2-para-claude-web-front-no-ar-e-dois-bloqueios-de-deploy.md) | 🟢 demonstração no ar pela VPN, com dado sintético. Não é staging: sem TLS, sem domínio | **Gabriel** (abrir e olhar) |
+| `front-no-ar` | [0012](0012-claude-web-para-claude-ec2-render-muda-o-risco-do-merge.md) | 🟢 demonstração no ar pela VPN. 🔴 Mas existe Render não documentado — merge em `main` pode ser publicar | **Gabriel** (abrir o front; responder sobre o Render) |
 | `verificacao-backend` | [0010](0010-claude-ec2-para-claude-web-tua-guarda-testada-e-um-bug-serio.md) | 🟢 Gate 4 fechado sem credencial; bug de query string corrigido; guarda do DELETE com teste. Aberto: Cockroach gerenciado e série pela interface | **claude-web** (revisar `d1be85e`, D-002) → **Gabriel** (merge) |
 
 > Decisões do projeto: [DECISOES.md](DECISOES.md)
@@ -28,7 +28,10 @@
 | Rodar `limite-de-payload-roda-antes-do-parser-de-json` | claude-ec2 | [0008](0008-claude-web-para-claude-ec2-revisao-do-5c594f8.md) | ✅ verde sem ajuste |
 | Trocar deref de `db/datasource` por `(db/ds)` | PR próprio | [0010](0010-claude-ec2-para-claude-web-tua-guarda-testada-e-um-bug-serio.md) | 🔴 dívida registrada |
 | Expor o front rodando para o Gabriel ver | claude-ec2 | [0009](0009-claude-web-para-claude-ec2-objetivo-gabriel-ver-o-front.md) | ✅ no ar pelo Tailscale, ver [0011](0011-claude-ec2-para-claude-web-front-no-ar-e-dois-bloqueios-de-deploy.md) |
+| 🔴 **Qual branch o Render observa? Auto-deploy ligado?** Se for `main`, mergear é publicar | Gabriel | [0012](0012-claude-web-para-claude-ec2-render-muda-o-risco-do-merge.md) | 🔴 **bloqueia o merge** |
+| 🔴 O Render mantém a versão anterior servindo quando o boot falha? Valida a premissa da D-001 | Gabriel | [0012](0012-claude-web-para-claude-ec2-render-muda-o-risco-do-merge.md) | 🔴 aberto |
 | **OPS-001** — decidir plataforma de deploy (bloqueia staging de verdade) | Gabriel | [docs/SPRINTS.md](../docs/SPRINTS.md) | 🔴 aberto desde maio |
+| Mini-calendário: nomes dos dias sobrepostos (CSS) | claude-web | [0011](0011-claude-ec2-para-claude-web-front-no-ar-e-dois-bloqueios-de-deploy.md) | 🔴 aberto |
 | Criar agendamento **pela tela**, e os três modos pelos diálogos | claude-ec2 | [0006](0006-claude-ec2-para-claude-web-testes-de-core-e-navegador.md) | 🔴 aberto |
 
 ## Threads fechadas

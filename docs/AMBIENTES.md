@@ -56,6 +56,52 @@ onde ela deixa de ser dívida.
 ⚠️ Não mande o PR #7 direto para `prod`. Ele mexe em autenticação, no fuso de
 todas as sessões e no schema do banco, e **nenhuma tela foi aberta por ninguém**.
 
+## ⚠️ O que já existe hoje: Render, e nada disso está no repositório
+
+O CORS do backend tem `https://deep-ngrv.onrender.com` hardcoded, e o Gabriel
+confirmou que o deploy está no Render. Mas:
+
+- **Não existe `render.yaml`.** A configuração vive no painel, então nem o
+  repositório nem nenhuma instância consegue ver ou verificar qual branch cada
+  serviço observa, se o auto-deploy está ligado, e quais variáveis estão setadas
+- **O `Procfile` aponta para o frontend** (`npm start` em
+  `deep-saude-plataforma-front-end`), não para o backend Clojure. A auditoria de
+  maio já registrava esse Procfile como quebrado
+- **O `Dockerfile` da raiz também é do frontend** (node:18-alpine)
+
+### 🔴 A pergunta que precisa de resposta antes de qualquer merge
+
+**Qual branch o serviço do Render observa, e o auto-deploy está ligado?**
+
+Se for `main` com auto-deploy, então **`main` é produção** — e o modelo de
+branches desta página está em conflito com a realidade: `staging` e `prod` viram
+decorativas, e mergear um PR em `main` é publicar direto.
+
+Duas saídas, e a escolha é do Gabriel:
+
+1. **Repontar o Render**: serviço de produção passa a observar `prod`, e um
+   serviço novo observa `staging`. É o que faz o modelo desta página valer
+2. **Assumir `main` como produção**: aí `prod` some e `staging` continua fazendo
+   sentido como passo anterior
+
+Enquanto não estiver respondido, **merge em `main` é operação de produção**.
+
+### O que acontece se o PR #7 for para produção sem staging
+
+Levantamento honesto do risco, separando o que é grave do que não é:
+
+| | Risco |
+|---|---|
+| `PROVISIONING_TOKEN` e `GOOGLE_TOKEN_KEY` ausentes | 🟢 **Não impedem o boot.** São lidos em handler, não na subida. Sem eles, provisionar clínica passa a devolver 403 e a integração Google recusa conectar — nada mais |
+| **Migration de fuso na base de produção** | 🔴 `ALTER COLUMN ... TYPE` reinterpretando `data_hora_sessao` de todos os agendamentos reais. Validada em Cockroach **nó único, `--insecure`** — não em cluster gerenciado com TLS |
+| **20 índices criados no boot** | 🟠 Em banco distribuído com dados reais, criação de índice não é instantânea e roda **bloqueando a subida** |
+| **D-001 em cima disso** | 🔴 Migration que falha **derruba o processo**. Em staging isso é proteção. Em produção, é o serviço fora do ar |
+
+A combinação do último item com o penúltimo é a que preocupa: a decisão de falhar
+rápido foi tomada pensando em deploy com rollback automático, e ela só protege se
+a plataforma de fato mantiver a versão anterior servindo. **Se isso vale no
+Render com a configuração atual, ninguém verificou.**
+
 ## Banco de dados
 
 Cada ambiente tem **o próprio banco**. Isso não é detalhe:
