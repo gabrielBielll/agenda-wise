@@ -9,7 +9,7 @@
 | `front-no-ar` | [0014](0014-claude-ec2-para-claude-web-main-e-producao-confirmado.md) | 🔴 **`main` é produção** — o Render aponta para ela (D-004). Serviço suspenso hoje, mas isso é trégua, não salvaguarda. Três branches protegidas (D-005) | **Gabriel** (D-003 × D-004; premissa da D-001) → **orla** (revisar) |
 | `verificacao-backend` | [0015](0015-claude-web-para-claude-ec2-revisao-e-um-risco-de-build.md) | 🟢 `d1be85e`+`4031762` revisados, sem reparo no mérito. 1 risco de build corrigido (e2e fora do tsconfig da app) | **Gabriel** (merge) |
 | `onboarding-claude-local` | [0016](0016-claude-web-para-claude-local-boas-vindas-e-o-que-so-voce-consegue.md) | 🟠 `vale` respondeu ([0018](0018-vale-para-orla-o-que-eu-nao-consigo-e-um-choque-de-nomes.md)): sem Docker/JVM/Playwright e **sem credencial do Render** — as duas perguntas seguem abertas. Choque entre D-006 e o esquema `dev-*` | **Gabriel** (arbitrar nomes; Render) |
-| `onboarding-duna` | [0020](0020-duna-para-equipe-java-e-lein-locais.md) | 🟢 `duna` revisou D-001..D-005 e agora tem Java 21 + Leiningen locais. Premissa de rollback do processo confirmada; **rollback do banco não existe**. Docker local é inviável sem root/user namespaces | **orla** (avaliar) → **Gabriel** (decidir ajustes) |
+| `onboarding-duna` | [0021](0021-duna-para-equipe-postgres-local-suite-verde.md) | 🟢 `duna` revisou D-001..D-005 e agora roda backend contra PostgreSQL 18 local: **65 testes/245 asserções verdes**. Premissa de rollback do processo confirmada; rollback do banco não existe | **orla** (avaliar) → **Gabriel** (decidir ajustes) |
 
 > Decisões do projeto: [DECISOES.md](DECISOES.md)
 
@@ -61,7 +61,7 @@ _(nenhuma ainda)_
 | `orla` | Claude | Dev | Sandbox na nuvem, Clojars bloqueado | PostgreSQL local, JVM, `next build`, análise estática | Compilar Clojure, rodar o backend |
 | `pico` | Claude | Dev | EC2, Clojars liberado, docker | Compilar e rodar a API, PostgreSQL 16 e **CockroachDB**, **Playwright** | Credencial do Google (Gate 4) |
 | `vale` | Claude | Dev | **Termux/Android `aarch64`** (telefone do Gabriel), rede aberta | git e GitHub, Node 24, npm, Python 3.14, análise estática do repo, `curl` contra o que está no ar; **alcança o Clojars** | JVM e `lein` (instaláveis), **Docker** e **Playwright** (limite duro do Android), painel do Render (sem credencial) |
-| `duna` | **GPT** | Dev | **Termux/Android `aarch64`** (telefone do Gabriel), rede aberta | git/GitHub CLI, Node 24, npm, Python 3.14, **OpenJDK 21, Leiningen 2.12**, análise estática e documentação web | Docker local inviável (sem root/user namespaces); dependências npm/Playwright não instaladas; sem painel do Render |
+| `duna` | **GPT** | Dev | **Termux/Android `aarch64`** (telefone do Gabriel), rede aberta | git/GitHub CLI, Node 24, npm, Python 3.14, **OpenJDK 21, Leiningen 2.12, PostgreSQL 18 local**, suíte Clojure com banco, análise estática e documentação web | Docker local inviável (sem root/user namespaces); dependências npm/Playwright não instaladas; sem painel do Render |
 
 ## Como rodar os testes
 
