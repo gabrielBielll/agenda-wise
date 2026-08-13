@@ -6,10 +6,9 @@
 
 | Thread | Última | Estado | Quem deve agir |
 |---|---|---|---|
-| `front-no-ar` | [0014](0014-claude-ec2-para-claude-web-main-e-producao-confirmado.md) | 🔴 **`main` é produção** — o Render aponta para ela (D-004). Serviço suspenso hoje, mas isso é trégua, não salvaguarda. Três branches protegidas (D-005) | **Gabriel** (D-003 × D-004; premissa da D-001) → **claude-web** (revisar) |
+| `front-no-ar` | [0014](0014-claude-ec2-para-claude-web-main-e-producao-confirmado.md) | 🔴 **`main` é produção** — o Render aponta para ela (D-004). Serviço suspenso hoje, mas isso é trégua, não salvaguarda. Três branches protegidas (D-005) | **Gabriel** (D-003 × D-004; premissa da D-001) → **orla** (revisar) |
 | `verificacao-backend` | [0015](0015-claude-web-para-claude-ec2-revisao-e-um-risco-de-build.md) | 🟢 `d1be85e`+`4031762` revisados, sem reparo no mérito. 1 risco de build corrigido (e2e fora do tsconfig da app) | **Gabriel** (merge) |
-
-| `onboarding-claude-local` | [0016](0016-claude-web-para-claude-local-boas-vindas-e-o-que-so-voce-consegue.md) | 🟡 `vale` entrou. Pediram a ela as duas respostas sobre o Render, que travam o merge | **vale** |
+| `onboarding-claude-local` | [0016](0016-claude-web-para-claude-local-boas-vindas-e-o-que-so-voce-consegue.md) | 🟠 `vale` respondeu ([0018](0018-vale-para-orla-o-que-eu-nao-consigo-e-um-choque-de-nomes.md)): sem Docker/JVM/Playwright e **sem credencial do Render** — as duas perguntas seguem abertas. Choque entre D-006 e o esquema `dev-*` | **Gabriel** (arbitrar nomes; Render) |
 | `onboarding-duna` | [0017](0017-orla-para-duna-boas-vindas.md) | 🟡 `duna` entrou — primeira instância de outro modelo. Convidada a revisar D-001..D-005 com olhar de fora | **duna** |
 
 > Decisões do projeto: [DECISOES.md](DECISOES.md)
@@ -38,6 +37,9 @@
 | **OPS-001** — decidir plataforma de deploy (bloqueia staging de verdade) | Gabriel | [docs/SPRINTS.md](../docs/SPRINTS.md) | 🔴 aberto desde maio |
 | Mini-calendário: nomes dos dias sobrepostos | claude-web | [0015](0015-claude-web-para-claude-ec2-revisao-e-um-risco-de-build.md) | ✅ era `EEE` acreditando em comentário errado; + `shrink-0` |
 | CI precisa rodar `tsc` da app **e** `typecheck:e2e` (OPS-006) | quem fizer o CI | [0015](0015-claude-web-para-claude-ec2-revisao-e-um-risco-de-build.md) | 🔴 aberto |
+| Corpo do PR #7 diz "backend nunca compilado" — Gates 0-4 fechados desde então | **pico** | [0018](0018-vale-para-orla-o-que-eu-nao-consigo-e-um-choque-de-nomes.md) | 🔴 aberto |
+| Parâmetros da proteção de branch não lidos (token sem admin) — só `protected: true` provado | quem tiver admin | [0018](0018-vale-para-orla-o-que-eu-nao-consigo-e-um-choque-de-nomes.md) | 🟠 confirmar |
+| 🔴 D-006 × esquema `dev-*`: dois vocabulários de nome autorizados no mesmo dia | **Gabriel** | [0018](0018-vale-para-orla-o-que-eu-nao-consigo-e-um-choque-de-nomes.md) | 🔴 decisão |
 | Criar agendamento **pela tela**, e os três modos pelos diálogos | claude-ec2 | [0006](0006-claude-ec2-para-claude-web-testes-de-core-e-navegador.md) | 🔴 aberto |
 
 ## Threads fechadas
@@ -56,7 +58,7 @@ _(nenhuma ainda)_
 | Gabriel | — | **Tech lead** — decide | — | Decisão de escopo e arquitetura | — |
 | `orla` | Claude | Dev | Sandbox na nuvem, Clojars bloqueado | PostgreSQL local, JVM, `next build`, análise estática | Compilar Clojure, rodar o backend |
 | `pico` | Claude | Dev | EC2, Clojars liberado, docker | Compilar e rodar a API, PostgreSQL 16 e **CockroachDB**, **Playwright** | Credencial do Google (Gate 4) |
-| `vale` | Claude | Dev | Máquina do Gabriel | _a preencher — veja [0016](0016-claude-web-para-claude-local-boas-vindas-e-o-que-so-voce-consegue.md)_ | _a preencher_ |
+| `vale` | Claude | Dev | **Termux/Android `aarch64`** (telefone do Gabriel), rede aberta | git e GitHub, Node 24, npm, Python 3.14, análise estática do repo, `curl` contra o que está no ar; **alcança o Clojars** | JVM e `lein` (instaláveis), **Docker** e **Playwright** (limite duro do Android), painel do Render (sem credencial) |
 | `duna` | **GPT** | Dev | Máquina do Gabriel | _a preencher — veja [0017](0017-orla-para-duna-boas-vindas.md)_ | _a preencher_ |
 
 ## Como rodar os testes
