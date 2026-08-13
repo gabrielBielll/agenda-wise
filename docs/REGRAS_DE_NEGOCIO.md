@@ -39,10 +39,7 @@ sem gastar auditoria.
   financeiro por si.
 - ❓ Falta cobra? Repassa ao psicólogo?
 
-**R-004 — Editar série recorrente**
-- Hoje: três modos — só esta ocorrência, esta e as seguintes, ou a série toda.
-- ❓ "A série toda" pode mexer em ocorrência **já realizada e já paga**? Hoje o
-  limite não está claro no código, e é onde eu mais desconfio de defeito.
+**R-004** — ✅ confirmada, ver abaixo. **O código viola.**
 
 **R-005 — Limite de recorrência**
 - Hoje: até 120 agendamentos de uma vez; semanal ou quinzenal.
@@ -61,11 +58,7 @@ sem gastar auditoria.
 - Hoje: admin marca; psicólogo ❓.
 - ❓ O psicólogo pode marcar que recebeu, ou é só a clínica?
 
-**R-008 — Repasse bloqueado**
-- Hoje: `bloqueado` é derivado na exibição a partir do pagamento — a tela mostra,
-  mas não grava. Estados: `pendente`, `bloqueado`, `disponivel`, `transferido`.
-- ❓ Confirma a cadeia: sessão realizada → paciente paga → repasse fica
-  disponível → clínica transfere? O repasse pode sair antes de o paciente pagar?
+**R-008** — ✅ confirmada, ver abaixo.
 
 **R-009 — Comissão**
 - Hoje: existem colunas de comissão no banco.
@@ -85,11 +78,7 @@ sem gastar auditoria.
 - ❓ Paciente pode ser atendido por mais de um psicólogo? Em férias/substituição,
   quem enxerga o quê?
 
-**R-012 — Prontuário**
-- Hoje: **só o autor edita.** Outro psicólogo da mesma clínica ❓ e o admin ❓
-  conseguem ler.
-- ❓ Isto é o mais sensível do sistema. Admin da clínica deve poder **ler**
-  prontuário? A regra hoje permite. É o que você quer?
+**R-012** — ✅ confirmada, ver abaixo. **O código viola.**
 
 **R-013 — Desligar psicólogo**
 - Hoje: ❓ não achei fluxo de desligamento.
@@ -111,15 +100,78 @@ sem gastar auditoria.
 
 ## Fuso horário
 
-**R-016 — Todo mundo em São Paulo?**
-- Hoje: o sistema assume `America/Sao_Paulo` em tudo.
-- ❓ Existe psicólogo ou paciente em outro fuso, hoje ou no plano? A resposta
-  muda o quanto o item 1 da [revisão](REVISAO_PRE_PRODUCAO.md) é grave: se todos
-  estão em São Paulo, é bomba armada; se não, já está explodindo.
+**R-016** — ✅ confirmada, ver abaixo.
 
 ---
 
 ## Regras confirmadas
 
-_(vazio — a primeira que você confirmar sai da lista de perguntas e entra aqui,
-numerada e no formato do protocolo)_
+Confirmadas pelo Gabriel em 2026-08-13.
+
+---
+
+### R-004 — Passado é imutável
+
+Editar série recorrente **nunca** altera ocorrência que já aconteceu. Vale para
+os três modos, inclusive "a série toda". Sessão realizada é registro, não
+rascunho.
+
+🔴 **O código viola esta regra em dois lugares** — ver A-001 e A-002 na
+[revisão](REVISAO_PRE_PRODUCAO.md).
+
+---
+
+### R-008 — Repasse só depois do pagamento
+
+A cadeia é estrita:
+
+```
+sessão realizada → paciente paga a clínica → repasse fica disponível → clínica transfere
+```
+
+A clínica **não adianta** dinheiro ao psicólogo. Repasse não sai antes de o
+pagamento do paciente entrar; o risco de inadimplência não é do psicólogo, mas
+o dinheiro também não anda antes de existir.
+
+---
+
+### R-012 — Prontuário é do psicólogo
+
+**Por padrão, só o psicólogo autor lê e edita o prontuário.** Nem o admin da
+clínica, nem outro psicólogo da mesma clínica.
+
+Existe uma **saída de emergência**: uma flag de super-admin, habilitada **via
+código** — não por tela, não por configuração que alguém com acesso ao painel
+possa ligar. Quando for preciso, o Gabriel entra no código e libera.
+
+**Por que via código:** exigir alteração de código e implantação para ler
+prontuário alheio é a inconveniência que dá sentido à regra. Flag que se liga
+pela interface vira flag ligada.
+
+🔴 **O código viola:** hoje o admin lê prontuário sem flag nenhuma.
+
+⚠️ **Recomendação da `orla`, pendente de decisão:** todo acesso pela flag
+deveria deixar registro — quem, quando, qual prontuário. Prontuário é sigilo
+profissional (CFP) e dado sensível de saúde (LGPD). Saída de emergência sem
+registro é indistinguível de porta dos fundos quando alguém perguntar.
+
+---
+
+### R-016 — Um fuso hoje, vários no futuro
+
+**Hoje:** todos no Rio de Janeiro / Niterói. Mesmo fuso de São Paulo, então o
+`America/Sao_Paulo` fixo do sistema está correto e não há divergência em
+produção.
+
+**No plano:** psicólogos de **outros países**.
+
+Consequências, e são duas de tamanhos diferentes:
+
+1. O defeito do contrato de datas (`admin/agendamentos` renderiza no fuso do
+   navegador) **está armado e não explodiu** — todo mundo no mesmo fuso o
+   esconde. Corrigir na Fase 2, sem urgência de produção.
+2. 🟠 **Psicólogo em outro país quebra a premissa, não só a tela.** O fuso hoje é
+   da clínica (`fuso-da-clinica`). Com psicólogo no exterior, fuso passa a ser
+   atributo de **pessoa**, e a pergunta "que horas é a sessão" tem duas respostas
+   legítimas ao mesmo tempo. Isso é modelagem, não conserto — precisa entrar no
+   desenho antes de abrir para fora, não depois.

@@ -16,6 +16,81 @@ tamanho e acoplamento dos módulos, paginação, instrumentação, segredos.
 
 ---
 
+## 🔴 A-001 — "A série toda" reescreve o valor de sessões já pagas
+
+**Viola:** [R-004](REGRAS_DE_NEGOCIO.md) (passado é imutável)
+**Onde:** `core.clj`, modo `all` de `atualizar-agendamento-handler` (~linha 678)
+**Achado em:** 2026-08-13, minutos depois de o Gabriel confirmar a R-004
+
+```clojure
+todos-agendamentos (execute-query! ["SELECT id, data_hora_sessao FROM agendamentos
+                                 WHERE recorrencia_id = ?
+                                 AND clinica_id = ?"   ; <- sem filtro de data
+                                recorrencia-id clinica-id])
+```
+
+Sem filtro de data e **sem filtro de status**. Pega toda a série, inclusive
+ocorrência `realizado` e `pago`.
+
+E não para no horário. Repare em como o valor é montado:
+
+```clojure
+novo-valor (if (= status "cancelado") 0 (or valor_consulta (:valor_consulta agendamento-atual)))
+...
+(some? novo-valor) (assoc :valor_consulta novo-valor)
+```
+
+`novo-valor` **nunca é nil** — cai no valor do agendamento sendo editado. Como o
+`cond->` só testa `some?`, o `valor_consulta` é gravado em **toda** ocorrência,
+sempre.
+
+**Consequência concreta:** o usuário abre uma sessão, escolhe "a série toda" só
+para mudar o horário das próximas — e o sistema reescreve, em silêncio, o
+`valor_consulta` de todas as sessões passadas, incluindo as que já foram pagas e
+repassadas. O livro financeiro muda depois de o dinheiro ter andado.
+
+Não há mensagem, não há confirmação, e a resposta diz "N agendamentos
+atualizados com sucesso".
+
+---
+
+## 🔴 A-002 — "Esta e as seguintes" é relativo à ocorrência, não a hoje
+
+**Viola:** [R-004](REGRAS_DE_NEGOCIO.md)
+**Onde:** `core.clj`, modo `all_future` (~linha 643)
+
+```clojure
+AND data_hora_sessao >= ?
+...
+recorrencia-id (:data_hora_sessao agendamento-atual) clinica-id
+```
+
+O corte é a data **da ocorrência aberta**, não `now()`. Abrir uma sessão de três
+meses atrás e escolher "esta e as seguintes" alcança tudo daquela data em
+diante — três meses de sessões já realizadas junto.
+
+Mais sutil que a A-001 e pela mesma porta: o mesmo `novo-valor` incondicional
+reescreve o `valor_consulta` de cada uma.
+
+**Correção das duas:** o corte tem que ser `now()` **e** o status, não a data da
+ocorrência. Ocorrência `realizado` sai do conjunto em qualquer modo — é o que a
+R-004 diz.
+
+---
+
+## 🔴 A-003 — Admin lê prontuário sem flag nenhuma
+
+**Viola:** [R-012](REGRAS_DE_NEGOCIO.md)
+**Onde:** `core.clj`, `listar-prontuarios-handler`
+
+A R-012 diz: só o psicólogo autor, com saída de emergência por flag no código.
+Hoje não existe flag — o admin da clínica lê direto.
+
+A escrita já está certa (`atualizar-prontuario-handler` checa autoria e devolve
+403). É a **leitura** que está aberta.
+
+---
+
 ## 🔴 1. O contrato de datas foi aplicado pela metade
 
 **Onde:** `src/app/admin/agendamentos/**` (4 arquivos)
@@ -186,7 +261,13 @@ porque o `e2e` ficou fora do tsconfig da app.
 
 ### Fase 1 — Fechar o que quebra
 
-Itens 1, 2 e 7. São correções pequenas e de risco alto se ficarem.
+**A-001, A-002 e A-003 primeiro** — violam regra de negócio confirmada, e as
+duas primeiras corrompem registro financeiro em silêncio.
+
+Depois os itens 1, 2 e 7: correções pequenas e de risco alto se ficarem.
+
+⚠️ **A-001 e A-002 precisam de teste antes da correção** ([D-008](../mensageria/DECISOES.md)): um que crie
+série com ocorrência passada paga, edite pelos dois modos e falhe hoje.
 
 ### Fase 2 — Refactor estrutural
 
