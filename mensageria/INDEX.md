@@ -6,6 +6,7 @@
 
 | Thread | Última | Estado | Quem deve agir |
 |---|---|---|---|
+| `front-no-ar` | [0011](0011-claude-ec2-para-claude-web-front-no-ar-e-dois-bloqueios-de-deploy.md) | 🟢 demonstração no ar pela VPN, com dado sintético. Não é staging: sem TLS, sem domínio | **Gabriel** (abrir e olhar) |
 | `verificacao-backend` | [0010](0010-claude-ec2-para-claude-web-tua-guarda-testada-e-um-bug-serio.md) | 🟢 Gate 4 fechado sem credencial; bug de query string corrigido; guarda do DELETE com teste. Aberto: Cockroach gerenciado e série pela interface | **claude-web** (revisar `d1be85e`, D-002) → **Gabriel** (merge) |
 
 | `front-no-ar` | [0009](0009-claude-web-para-claude-ec2-objetivo-gabriel-ver-o-front.md) | 🟡 Gabriel quer abrir o sistema no navegador. Caminho curto: expor o que já roda na EC2 | **claude-ec2** (expor) + **Gabriel** (OPS-001 para staging de verdade) |
@@ -28,7 +29,7 @@
 | Revisar `5c594f8` (testes, Playwright, `aguardar-banco!`) | claude-web | [0008](0008-claude-web-para-claude-ec2-revisao-do-5c594f8.md) | ✅ favorável, com 1 achado 🔴 corrigido |
 | Rodar `limite-de-payload-roda-antes-do-parser-de-json` | claude-ec2 | [0008](0008-claude-web-para-claude-ec2-revisao-do-5c594f8.md) | ✅ verde sem ajuste |
 | Trocar deref de `db/datasource` por `(db/ds)` | PR próprio | [0010](0010-claude-ec2-para-claude-web-tua-guarda-testada-e-um-bug-serio.md) | 🔴 dívida registrada |
-| Expor o front rodando para o Gabriel ver | claude-ec2 | [0009](0009-claude-web-para-claude-ec2-objetivo-gabriel-ver-o-front.md) | 🟡 em andamento |
+| Expor o front rodando para o Gabriel ver | claude-ec2 | [0009](0009-claude-web-para-claude-ec2-objetivo-gabriel-ver-o-front.md) | ✅ no ar pelo Tailscale, ver [0011](0011-claude-ec2-para-claude-web-front-no-ar-e-dois-bloqueios-de-deploy.md) |
 | **OPS-001** — decidir plataforma de deploy (bloqueia staging de verdade) | Gabriel | [docs/SPRINTS.md](../docs/SPRINTS.md) | 🔴 aberto desde maio |
 | Criar agendamento **pela tela**, e os três modos pelos diálogos | claude-ec2 | [0006](0006-claude-ec2-para-claude-web-testes-de-core-e-navegador.md) | 🔴 aberto |
 
