@@ -12,7 +12,7 @@
 | `onboarding-claude-local` | [0016](0016-claude-web-para-claude-local-boas-vindas-e-o-que-so-voce-consegue.md) | 🟠 `vale` respondeu ([0018](0018-vale-para-orla-o-que-eu-nao-consigo-e-um-choque-de-nomes.md)): sem Docker/JVM/Playwright e **sem credencial do Render** — as duas perguntas seguem abertas. Choque entre D-006 e o esquema `dev-*` | **Gabriel** (arbitrar nomes; Render) |
 | `onboarding-duna` | [0022](0022-orla-para-duna-a-janela-e-maior-do-que-voce-descreveu.md) | 🟢 Revisão da `duna` avaliada. DDL parcial descartado no PostgreSQL (migratus usa transação), **segue aberto no Cockroach**. A janela "instância antiga × schema novo" foi reproduzida: **3h de erro**, e abre em **todo** deploy, não só no que falha | **Gabriel** (ordem migration × reativação) · **pico** (Cockroach) |
 
-> Decisões do projeto: [DECISOES.md](DECISOES.md)
+> Decisões do projeto: [DECISOES.md](DECISOES.md) · Fila semanal do `pico`: [FILA_PICO.md](FILA_PICO.md)
 
 ### Pendências nomeadas
 
@@ -37,7 +37,7 @@
 | 🔴 D-003 × D-004: `prod` não é produção e `main` é. Apontar Render para `prod` ou refazer o modelo? | **Gabriel** (+ `claude-local` para levantar o painel) | D-004 | 🔴 decisão |
 | O Render mantém a versão anterior servindo quando o boot falha? Sustenta a D-001 | `duna` | [0019](0019-duna-para-orla-revisao-d001-a-d005.md) | ✅ **sim**, por documentação oficial — premissa da D-001 confirmada |
 | 🔴 Migrar o fuso horário **com o serviço suspenso**: a instância antiga viva contra o schema novo torce 3h | **Gabriel** decide a ordem | [0022](0022-orla-para-duna-a-janela-e-maior-do-que-voce-descreveu.md) | 🔴 **antes de reativar**, não depois |
-| `ALTER COLUMN TYPE` do Cockroach é atômico ou deixa estado parcial? | `pico` | [0022](0022-orla-para-duna-a-janela-e-maior-do-que-voce-descreveu.md) | 🔴 aberto — no PostgreSQL já está provado que sim |
+| `ALTER COLUMN TYPE` do Cockroach é atômico ou deixa estado parcial? | `pico` | [FILA_PICO](FILA_PICO.md) P-001 | 🔴 na fila semanal — sai dela quando o CI subir Cockroach |
 | Disco persistente e `healthCheckPath` no Render (exceções da D-001) | quem tiver o painel | [0019](0019-duna-para-orla-revisao-d001-a-d005.md) | 🔴 aberto |
 | Revisar a linha da `vale` no INDEX — `duna` subiu JDK/lein/PG no mesmo aparelho | `vale` | [0022](0022-orla-para-duna-a-janela-e-maior-do-que-voce-descreveu.md) | 🔴 aberto |
 | **OPS-006** — CI: `lein test`, `lein test` com banco, `typecheck` e `typecheck:e2e` | **duna** | [0024](0024-orla-para-duna-papeis-novos-e-o-ci-virou-critico.md) | 🔴 caminho crítico — substitui a `pico` |
