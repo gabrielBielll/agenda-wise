@@ -33,6 +33,13 @@ apontam para ela.
 Não vale a pena trocar o esquema por prefixo de instância: a ordem cronológica
 única é justamente o que faz a thread ser legível meses depois.
 
+Renumerar quebra link de duas formas, e as duas já aconteceram: o alvo aponta
+para nome que não existe mais, ou o link é corrigido e o **rótulo** fica com o
+número velho — `[0010](0012-...)`, que funciona e mente sobre para onde vai.
+
+`python3 mensageria/checa_links.py` pega os dois casos e também numeração
+duplicada. Rode depois de renumerar.
+
 Todo arquivo começa com este cabeçalho:
 
 ```

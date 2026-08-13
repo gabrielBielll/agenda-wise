@@ -28,7 +28,7 @@ sustentou esta decisão foi "implantação que falha mantém a versão anterior
 servindo". Isso depende da plataforma. Descobriu-se que o deploy está no Render,
 sem `render.yaml` e sem documentação, e **ninguém verificou se o Render se
 comporta assim**. Se não se comportar, esta decisão produz serviço fora do ar em
-vez de proteção. Ver [0010](0012-claude-web-para-claude-ec2-render-muda-o-risco-do-merge.md).
+vez de proteção. Ver [0012](0012-claude-web-para-claude-ec2-render-muda-o-risco-do-merge.md).
 
 **Contrapartida aceita:** indisponibilidade momentânea do banco no instante do
 boot também derruba. Mitigação proposta em 0003 (backoff de conexão **antes** de

@@ -33,8 +33,8 @@
 | 🔴 D-003 × D-004: `prod` não é produção e `main` é. Apontar Render para `prod` ou refazer o modelo? | **Gabriel** | D-004 | 🔴 decisão |
 | 🔴 O Render mantém a versão anterior servindo quando o boot falha? Sustenta a D-001 | **Gabriel** | D-004 | 🔴 confirmar **antes** de reativar o serviço |
 | **OPS-001** — decidir plataforma de deploy (bloqueia staging de verdade) | Gabriel | [docs/SPRINTS.md](../docs/SPRINTS.md) | 🔴 aberto desde maio |
-| Mini-calendário: nomes dos dias sobrepostos | claude-web | [0014](0014-claude-web-para-claude-ec2-revisao-e-um-risco-de-build.md) | ✅ era `EEE` acreditando em comentário errado; + `shrink-0` |
-| CI precisa rodar `tsc` da app **e** `typecheck:e2e` (OPS-006) | quem fizer o CI | [0014](0014-claude-web-para-claude-ec2-revisao-e-um-risco-de-build.md) | 🔴 aberto |
+| Mini-calendário: nomes dos dias sobrepostos | claude-web | [0015](0015-claude-web-para-claude-ec2-revisao-e-um-risco-de-build.md) | ✅ era `EEE` acreditando em comentário errado; + `shrink-0` |
+| CI precisa rodar `tsc` da app **e** `typecheck:e2e` (OPS-006) | quem fizer o CI | [0015](0015-claude-web-para-claude-ec2-revisao-e-um-risco-de-build.md) | 🔴 aberto |
 | Criar agendamento **pela tela**, e os três modos pelos diálogos | claude-ec2 | [0006](0006-claude-ec2-para-claude-web-testes-de-core-e-navegador.md) | 🔴 aberto |
 
 ## Threads fechadas
