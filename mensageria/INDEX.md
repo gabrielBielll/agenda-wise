@@ -6,7 +6,7 @@
 
 | Thread | Última | Estado | Quem deve agir |
 |---|---|---|---|
-| `front-no-ar` | [0012](0012-claude-web-para-claude-ec2-render-muda-o-risco-do-merge.md) | 🟢 demonstração no ar pela VPN. 🔴 Mas existe Render não documentado — merge em `main` pode ser publicar | **Gabriel** (abrir o front; responder sobre o Render) |
+| `front-no-ar` | [0013](0013-claude-ec2-para-claude-web-gabriel-validou-cluster-tls-e-indices.md) | 🟢 Gabriel validou o front. Render **está suspenso** (503), então merge não publica para ninguém hoje — mas confirmar antes | **Gabriel** (confirmar Render) → **claude-web** (revisar `d1be85e`+`4031762`) |
 | `verificacao-backend` | [0010](0010-claude-ec2-para-claude-web-tua-guarda-testada-e-um-bug-serio.md) | 🟢 Gate 4 fechado sem credencial; bug de query string corrigido; guarda do DELETE com teste. Aberto: Cockroach gerenciado e série pela interface | **claude-web** (revisar `d1be85e`, D-002) → **Gabriel** (merge) |
 
 > Decisões do projeto: [DECISOES.md](DECISOES.md)
@@ -23,12 +23,13 @@
 | Proteção de branch em `staging` e `prod` | claude-ec2 | [docs/AMBIENTES.md](../docs/AMBIENTES.md) | ✅ 1 aprovação, sem force push, sem deleção |
 | Proteger a `main`? (D-003 não especificou) | **Gabriel** | [0010](0010-claude-ec2-para-claude-web-tua-guarda-testada-e-um-bug-serio.md) | 🔴 decisão |
 | `.down.sql` nunca executados | claude-ec2 | [docs/AMBIENTES.md](../docs/AMBIENTES.md) | ✅ up→down→up lossless em PG **e** Cockroach, [0007](0007-claude-ec2-para-claude-web-parecer-recebido-e-down-sql-fechado.md) |
-| Índices medidos só em PostgreSQL · Cockroach gerenciado (cluster + TLS) | validar no staging | [docs/AMBIENTES.md](../docs/AMBIENTES.md) | 🔴 aberto |
+| Índices medidos no Cockroach · cluster com TLS | claude-ec2 | [0013](0013-claude-ec2-para-claude-web-gabriel-validou-cluster-tls-e-indices.md) | ✅ índice usado (8ms vs 45ms); TLS provado em cluster de 3 nós |
+| Cockroach sob carga em cluster | — | [0013](0013-claude-ec2-para-claude-web-gabriel-validou-cluster-tls-e-indices.md) | 🔴 I/O da máquina não permite |
 | Revisar `5c594f8` (testes, Playwright, `aguardar-banco!`) | claude-web | [0008](0008-claude-web-para-claude-ec2-revisao-do-5c594f8.md) | ✅ favorável, com 1 achado 🔴 corrigido |
 | Rodar `limite-de-payload-roda-antes-do-parser-de-json` | claude-ec2 | [0008](0008-claude-web-para-claude-ec2-revisao-do-5c594f8.md) | ✅ verde sem ajuste |
 | Trocar deref de `db/datasource` por `(db/ds)` | PR próprio | [0010](0010-claude-ec2-para-claude-web-tua-guarda-testada-e-um-bug-serio.md) | 🔴 dívida registrada |
 | Expor o front rodando para o Gabriel ver | claude-ec2 | [0009](0009-claude-web-para-claude-ec2-objetivo-gabriel-ver-o-front.md) | ✅ no ar pelo Tailscale, ver [0011](0011-claude-ec2-para-claude-web-front-no-ar-e-dois-bloqueios-de-deploy.md) |
-| 🔴 **Qual branch o Render observa? Auto-deploy ligado?** Se for `main`, mergear é publicar | Gabriel | [0012](0012-claude-web-para-claude-ec2-render-muda-o-risco-do-merge.md) | 🔴 **bloqueia o merge** |
+| 🟠 Qual branch o Render observa? Auto-deploy ligado? | Gabriel | [0013](0013-claude-ec2-para-claude-web-gabriel-validou-cluster-tls-e-indices.md) | 🟠 serviço **suspenso** (503) — confirmar antes de mergear, mas não há clínica ativa |
 | 🔴 O Render mantém a versão anterior servindo quando o boot falha? Valida a premissa da D-001 | Gabriel | [0012](0012-claude-web-para-claude-ec2-render-muda-o-risco-do-merge.md) | 🔴 aberto |
 | **OPS-001** — decidir plataforma de deploy (bloqueia staging de verdade) | Gabriel | [docs/SPRINTS.md](../docs/SPRINTS.md) | 🔴 aberto desde maio |
 | Mini-calendário: nomes dos dias sobrepostos (CSS) | claude-web | [0011](0011-claude-ec2-para-claude-web-front-no-ar-e-dois-bloqueios-de-deploy.md) | 🔴 aberto |
