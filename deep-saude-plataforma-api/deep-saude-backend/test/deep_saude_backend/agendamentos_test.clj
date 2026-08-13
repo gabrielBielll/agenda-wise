@@ -150,6 +150,44 @@
 ;; Criação
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; A guarda que protege o DELETE
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;; `exigir-banco-de-teste!` veio da revisão cruzada e é o que impede este
+;; namespace de apagar agendamentos no banco errado. Guarda sem teste é guarda
+;; que ninguém sabe se funciona — e esta em particular só é exercitada no
+;; caminho feliz, onde ela nunca dispara. Os testes abaixo forçam o disparo.
+
+(deftest guarda-aborta-quando-o-banco-conectado-nao-e-o-esperado
+  (testing "URL apontando para outro banco derruba antes de qualquer DELETE"
+    (is (thrown-with-msg?
+         clojure.lang.ExceptionInfo #"ABORTADO"
+         (#'deep-saude-backend.agendamentos-test/exigir-banco-de-teste!
+          "jdbc:postgresql://localhost:5432/banco_de_producao"))))
+  (testing "a mensagem diz os dois nomes, senão não dá para diagnosticar"
+    (let [erro (try (#'deep-saude-backend.agendamentos-test/exigir-banco-de-teste!
+                     "jdbc:postgresql://localhost:5432/banco_de_producao")
+                    (catch clojure.lang.ExceptionInfo e e))]
+      (is (= "banco_de_producao" (:esperado (ex-data erro))))
+      (is (some? (:conectado (ex-data erro)))))))
+
+(deftest guarda-falha-fechada-quando-nao-da-para-determinar-o-banco
+  ;; Falhar fechada é o que diferencia uma guarda de um enfeite: URL de onde não
+  ;; se extrai nome não pode virar "então deixa passar".
+  (doseq [url ["" "jdbc:postgresql://localhost:5432/" "lixo"]]
+    (testing (str "URL inutilizável: " (pr-str url))
+      (is (thrown-with-msg?
+           clojure.lang.ExceptionInfo #"ABORTADO"
+           (#'deep-saude-backend.agendamentos-test/exigir-banco-de-teste! url))))))
+
+(deftest guarda-aceita-o-banco-certo
+  (testing "no banco de teste de verdade ela deixa passar e devolve o nome"
+    (let [nome (#'deep-saude-backend.agendamentos-test/exigir-banco-de-teste!
+                (env :test-database-url))]
+      (is (string? nome))
+      (is (seq nome)))))
+
 (deftest criar-sessao-avulsa
   (let [resp (criar (assoc sessao-base :data_hora_sessao "2027-03-10T14:00:00"))]
     (is (= 201 (:status resp)))

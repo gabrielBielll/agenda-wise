@@ -6,9 +6,25 @@
   (:require [clojure.string :as str]
             [deep-saude-backend.google.http :as http]))
 
-(def auth-endpoint  "https://accounts.google.com/o/oauth2/v2/auth")
-(def token-endpoint "https://oauth2.googleapis.com/token")
-(def revoke-endpoint "https://oauth2.googleapis.com/revoke")
+;; Endpoints com override por ambiente — mesmo motivo do api.clj: sem costura,
+;; o fluxo OAuth só roda com projeto real no Google Cloud. O padrão é o Google
+;; de verdade; produção não muda.
+;;
+;; ⚠️ Só os ENDPOINTS são configuráveis. Os escopos abaixo continuam fixos de
+;; propósito: escopo é contrato de privacidade com a clínica, não configuração
+;; de ambiente. Um `GOOGLE_SCOPES` em variável de ambiente seria um jeito de
+;; pedir acesso a mais coisa sem passar por revisão de código.
+(def auth-endpoint
+  (or (System/getenv "GOOGLE_AUTH_ENDPOINT")
+      "https://accounts.google.com/o/oauth2/v2/auth"))
+
+(def token-endpoint
+  (or (System/getenv "GOOGLE_TOKEN_ENDPOINT")
+      "https://oauth2.googleapis.com/token"))
+
+(def revoke-endpoint
+  (or (System/getenv "GOOGLE_REVOKE_ENDPOINT")
+      "https://oauth2.googleapis.com/revoke"))
 
 ;; Escopos — ver D14/D15.
 ;;

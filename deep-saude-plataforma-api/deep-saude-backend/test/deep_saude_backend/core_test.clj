@@ -76,6 +76,24 @@
             "413 aqui significa que o limite decidiu antes de alguém tentar interpretar o corpo")
         (is (= "payload_muito_grande"
                (get (json/parse-string (:body resp)) "code")))))))
+(deftest parametros-de-query-chegam-como-palavra-chave
+  ;; Regressão de um defeito silencioso: `wrap-params` do Ring produz `:params`
+  ;; com chaves de TEXTO, e os handlers leem `(get-in request [:params :algo])`.
+  ;; Sem `wrap-keyword-params` na pilha, todo filtro de query string virava nil
+  ;; sem erro nenhum — a listagem devolvia tudo como se não houvesse filtro, e o
+  ;; `code` do callback do Google nunca era visto.
+  ;;
+  ;; O teste não passa por handler de negócio de propósito: ele inspeciona o
+  ;; `:params` que a pilha entrega, que é onde o defeito mora. Assim continua
+  ;; valendo mesmo que os handlers mudem.
+  (let [visto (atom nil)
+        app   (core/montar-app (fn [req] (reset! visto (:params req)) {:status 200 :body {}}))]
+    (app (mock/request :get "/qualquer?paciente_id=abc&data_inicio=2030-01-01"))
+    (testing "chaves viram palavra-chave"
+      (is (= "abc" (:paciente_id @visto)))
+      (is (= "2030-01-01" (:data_inicio @visto))))
+    (testing "e não sobram como texto"
+      (is (nil? (get @visto "paciente_id"))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Boot — contrapartida da D-001

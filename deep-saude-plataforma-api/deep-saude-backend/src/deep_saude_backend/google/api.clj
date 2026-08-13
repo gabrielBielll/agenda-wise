@@ -7,7 +7,23 @@
    nada agora e evita refatoração depois (spec seção 9)."
   (:require [deep-saude-backend.google.http :as http]))
 
-(def base "https://www.googleapis.com/calendar/v3")
+;; Endpoints com override por ambiente.
+;;
+;; O padrão é o Google de verdade e não muda nada em produção. O override existe
+;; porque, sem ele, este namespace só é exercitável com credencial real do Google
+;; Cloud — e foi exatamente isso que deixou o Gate 4 inteiro sem verificação.
+;; Com a costura, dá para apontar para um dublê e testar paginação, tratamento
+;; de 403 e o caminho de `sem_acesso` sem depender de conta nenhuma.
+;;
+;; `System/getenv` em vez de environ pelo mesmo motivo do cripto.clj: manter o
+;; namespace sem dependência externa.
+(def base
+  (or (System/getenv "GOOGLE_API_BASE")
+      "https://www.googleapis.com/calendar/v3"))
+
+(def userinfo-endpoint
+  (or (System/getenv "GOOGLE_USERINFO_URL")
+      "https://www.googleapis.com/oauth2/v3/userinfo"))
 
 (defn- auth-headers [access-token]
   {"Authorization" (str "Bearer " access-token)
@@ -20,7 +36,7 @@
    perceber que conectou a conta pessoal dele em vez da conta da clínica — e o
    sintoma disso é 'nenhuma agenda aparece', que parece outro problema."
   [access-token]
-  (let [resp (http/requisitar :get "https://www.googleapis.com/oauth2/v3/userinfo"
+  (let [resp (http/requisitar :get userinfo-endpoint
                               {:headers (auth-headers access-token)})]
     (when (http/ok? resp)
       (get-in resp [:json :email]))))

@@ -18,7 +18,8 @@
             [deep-saude-backend.google.rrule :as rrule]
             [deep-saude-backend.google.handlers :as google]
             [ring.middleware.cors :refer [wrap-cors]]
-            [ring.middleware.params :refer [wrap-params]])
+            [ring.middleware.params :refer [wrap-params]]
+            [ring.middleware.keyword-params :refer [wrap-keyword-params]])
   (:gen-class)
   (:import (java.sql Date))) ; Importar java.sql.Date para conversão
 
@@ -1300,15 +1301,42 @@
 
   (context "/api/google" [] google-routes))
 
-(def app
-  (-> (defroutes app-routes
-        public-routes
-        (wrap-jwt-autenticacao protected-routes)
-        (route/not-found "Recurso não encontrado"))
+(defroutes app-routes
+  public-routes
+  (wrap-jwt-autenticacao protected-routes)
+  (route/not-found "Recurso não encontrado"))
+
+(defn montar-app
+  "A pilha de middlewares, aplicada a um handler qualquer.
+
+   Extraída de `app` para que a PILHA tenha teste próprio, sem passar por
+   handler de negócio. Dois dos defeitos encontrados nesta auditoria eram da
+   pilha e não dos handlers — a ordem do `wrap-json-response` e a ausência do
+   `wrap-keyword-params` — e nenhum teste de handler pegaria qualquer um dos
+   dois."
+  [handler]
+  (-> handler
       ;; APLICAÇÃO DO MIDDLEWARE DE CORS
       (wrap-cors :access-control-allow-origin [#"http://localhost:3000" #"http://localhost:9002" #"https://.*\.code\.run" #"https://deep-ngrv.onrender.com"]
                  :access-control-allow-methods [:get :post :put :delete :options]
                  :access-control-allow-headers #{"Authorization" "Content-Type"})
+      ;; ⚠️ Ordem importa e é contraintuitiva no `->`: quem aparece DEPOIS aqui
+      ;; roda ANTES na requisição. `wrap-keyword-params` vem listado antes de
+      ;; `wrap-params` justamente para rodar DEPOIS dele, que é a única ordem em
+      ;; que há um `:params` para converter.
+      ;;
+      ;; Sem isto, `wrap-params` deixa `:params` com chaves de TEXTO e todo
+      ;; handler que lê `(get-in request [:params :algo])` enxerga nil — em
+      ;; silêncio, sem erro. O efeito medido antes do conserto:
+      ;;
+      ;;   GET /api/agendamentos?paciente_id=X   ignorava o filtro e devolvia tudo
+      ;;   GET /api/bloqueios?data_inicio=...    ignorava o período e devolvia tudo
+      ;;   POST /api/google/callback?code=...    nunca enxergava o code, então o
+      ;;                                         fluxo OAuth não tinha como fechar
+      ;;
+      ;; Parâmetro de ROTA (`/:id`) não passava por isso: quem keywordiza esses
+      ;; é o compojure. Por isso o defeito só aparecia em filtro e query string.
+      (wrap-keyword-params)
       (wrap-params)
       (middleware-json/wrap-json-body {:keywords? true})
       ;; Último a envolver = primeiro a rodar. O limite de payload precisa vir
@@ -1321,6 +1349,8 @@
       ;; caso do 413: o corpo chegava ao Jetty como mapa Clojure e virava um 500
       ;; cru, sem corpo — justamente na resposta que existe para ser clara.
       (middleware-json/wrap-json-response)))
+
+(def app (montar-app app-routes))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
