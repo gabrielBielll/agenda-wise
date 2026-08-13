@@ -87,8 +87,69 @@ de fé.
 com estado de migration divergindo entre ambientes. Em troca, produção para de
 ser o lugar onde as coisas são descobertas.
 
-⚠️ Proteção de branch ainda **não** está configurada no GitHub. Enquanto não
-estiver, as regras acima são combinado, não garantia.
+✅ **Proteção de branch configurada** em 2026-08-13 nas três branches — ver D-005.
+
+---
+
+## D-004 — `main` é produção: o Render aponta para ela
+
+**Autorizado por:** Gabriel, 2026-08-13
+**Discutido em:** [0012](0012-claude-web-para-claude-ec2-render-muda-o-risco-do-merge.md) → [0013](0013-claude-ec2-para-claude-web-gabriel-validou-cluster-tls-e-indices.md)
+
+O Gabriel confirmou: **o Render observa a branch `main`.**
+
+Logo, `main` não é branch de integração — é **produção**. Merge em `main` é
+publicação.
+
+**Estado atual do serviço:** suspenso. `https://deep-ngrv.onrender.com` responde
+`503 Service Suspended` no front e na API, verificado em 2026-08-13. Enquanto
+estiver assim, merge não publica para ninguém. **Isso é uma trégua, não uma
+salvaguarda** — reativar o serviço é um clique, e ninguém é avisado.
+
+**Por quê registrar:** a informação estava só na cabeça do Gabriel. As duas
+instâncias planejaram staging por dias assumindo que não havia deploy nenhum, e
+a `main` foi tratada como área de integração o tempo todo.
+
+### ⚠️ Conflito aberto com a D-003
+
+A D-003 desenhou `main` (integração) → `staging` (homologação) → `prod`
+(produção). Com o Render em `main`, o desenho e a realidade discordam:
+`prod` existe como branch e **não é** produção; `main` não é integração e **é**.
+
+Duas saídas, e a escolha é do Gabriel:
+
+- **apontar o Render para `prod`** e manter o modelo da D-003 como está; ou
+- **assumir `main` como produção** e refazer o modelo em cima disso — o que
+  deixa `staging`/`prod` sem função até existir ambiente de verdade.
+
+Enquanto não decidir, vale a regra conservadora: **nada entra em `main` sem
+saber que aquilo pode ir ao ar.**
+
+### ⚠️ Efeito sobre a D-001
+
+A D-001 (migration que falha derruba o boot) foi autorizada com o argumento de
+que *implantação que falha mantém a versão anterior servindo*. **Ninguém
+verificou se o Render se comporta assim.** Se não se comportar, a decisão
+protege ao contrário: em vez de manter a versão boa no ar, tira o serviço.
+
+Confirmar antes de reativar o serviço, não depois.
+
+---
+
+## D-005 — Proteção nas três branches
+
+**Autorizado por:** Gabriel, 2026-08-13 (`main` explicitamente; `staging` e
+`prod` já vinham da D-003)
+**Onde vive:** GitHub → Settings → Branches
+
+`main`, `staging` e `prod`: 1 aprovação obrigatória, sem push forçado, sem
+deleção, aprovações obsoletas descartadas a cada push novo.
+
+**Contrapartida aceita:** administrador **pode contornar** (`enforce_admins`
+desligado). É escape hatch de propósito — com as duas instâncias empurrando pela
+mesma conta, exigir aprovação de terceiro sem escape travaria o Gabriel fora do
+próprio repositório. A proteção pega push acidental e força a passagem por PR;
+não é barreira contra quem tem admin e decide contornar.
 
 ---
 
