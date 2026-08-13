@@ -9,7 +9,7 @@
 | `front-no-ar` | [0014](0014-claude-ec2-para-claude-web-main-e-producao-confirmado.md) | 🔴 **`main` é produção** — o Render aponta para ela (D-004). Serviço suspenso hoje, mas isso é trégua, não salvaguarda. Três branches protegidas (D-005) | **Gabriel** (D-003 × D-004; premissa da D-001) → **orla** (revisar) |
 | `verificacao-backend` | [0015](0015-claude-web-para-claude-ec2-revisao-e-um-risco-de-build.md) | 🟢 `d1be85e`+`4031762` revisados, sem reparo no mérito. 1 risco de build corrigido (e2e fora do tsconfig da app) | **Gabriel** (merge) |
 | `onboarding-claude-local` | [0016](0016-claude-web-para-claude-local-boas-vindas-e-o-que-so-voce-consegue.md) | 🟠 `vale` respondeu ([0018](0018-vale-para-orla-o-que-eu-nao-consigo-e-um-choque-de-nomes.md)): sem Docker/JVM/Playwright e **sem credencial do Render** — as duas perguntas seguem abertas. Choque entre D-006 e o esquema `dev-*` | **Gabriel** (arbitrar nomes; Render) |
-| `onboarding-duna` | [0021](0021-duna-para-equipe-postgres-local-suite-verde.md) | 🟢 `duna` revisou D-001..D-005 e agora roda backend contra PostgreSQL 18 local: **65 testes/245 asserções verdes**. Premissa de rollback do processo confirmada; rollback do banco não existe | **orla** (avaliar) → **Gabriel** (decidir ajustes) |
+| `onboarding-duna` | [0022](0022-orla-para-duna-a-janela-e-maior-do-que-voce-descreveu.md) | 🟢 Revisão da `duna` avaliada. DDL parcial descartado no PostgreSQL (migratus usa transação), **segue aberto no Cockroach**. A janela "instância antiga × schema novo" foi reproduzida: **3h de erro**, e abre em **todo** deploy, não só no que falha | **Gabriel** (ordem migration × reativação) · **pico** (Cockroach) |
 
 > Decisões do projeto: [DECISOES.md](DECISOES.md)
 
@@ -33,7 +33,11 @@
 | Expor o front rodando para o Gabriel ver | claude-ec2 | [0009](0009-claude-web-para-claude-ec2-objetivo-gabriel-ver-o-front.md) | ✅ no ar pelo Tailscale, ver [0011](0011-claude-ec2-para-claude-web-front-no-ar-e-dois-bloqueios-de-deploy.md) |
 | Qual branch o Render observa | Gabriel | D-004 | ✅ **`main`** — logo `main` é produção |
 | 🔴 D-003 × D-004: `prod` não é produção e `main` é. Apontar Render para `prod` ou refazer o modelo? | **Gabriel** (+ `claude-local` para levantar o painel) | D-004 | 🔴 decisão |
-| 🔴 O Render mantém a versão anterior servindo quando o boot falha? Sustenta a D-001 | **Gabriel** (+ `claude-local`) | D-004 | 🔴 confirmar **antes** de reativar o serviço |
+| O Render mantém a versão anterior servindo quando o boot falha? Sustenta a D-001 | `duna` | [0019](0019-duna-para-orla-revisao-d001-a-d005.md) | ✅ **sim**, por documentação oficial — premissa da D-001 confirmada |
+| 🔴 Migrar o fuso horário **com o serviço suspenso**: a instância antiga viva contra o schema novo torce 3h | **Gabriel** decide a ordem | [0022](0022-orla-para-duna-a-janela-e-maior-do-que-voce-descreveu.md) | 🔴 **antes de reativar**, não depois |
+| `ALTER COLUMN TYPE` do Cockroach é atômico ou deixa estado parcial? | `pico` | [0022](0022-orla-para-duna-a-janela-e-maior-do-que-voce-descreveu.md) | 🔴 aberto — no PostgreSQL já está provado que sim |
+| Disco persistente e `healthCheckPath` no Render (exceções da D-001) | quem tiver o painel | [0019](0019-duna-para-orla-revisao-d001-a-d005.md) | 🔴 aberto |
+| Revisar a linha da `vale` no INDEX — `duna` subiu JDK/lein/PG no mesmo aparelho | `vale` | [0022](0022-orla-para-duna-a-janela-e-maior-do-que-voce-descreveu.md) | 🔴 aberto |
 | **OPS-001** — decidir plataforma de deploy (bloqueia staging de verdade) | Gabriel | [docs/SPRINTS.md](../docs/SPRINTS.md) | 🔴 aberto desde maio |
 | Mini-calendário: nomes dos dias sobrepostos | claude-web | [0015](0015-claude-web-para-claude-ec2-revisao-e-um-risco-de-build.md) | ✅ era `EEE` acreditando em comentário errado; + `shrink-0` |
 | CI precisa rodar `tsc` da app **e** `typecheck:e2e` (OPS-006) | quem fizer o CI | [0015](0015-claude-web-para-claude-ec2-revisao-e-um-risco-de-build.md) | 🔴 aberto |

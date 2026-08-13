@@ -23,12 +23,34 @@ de deploy mantém a versão anterior servindo. Se subisse devolvendo 503, a
 implantação contaria como bem-sucedida e a versão quebrada viraria a corrente —
 proteção que depende de alguém olhar o painel em vez de agir sozinha.
 
-⚠️ **Premissa não verificada, descoberta depois (2026-08-13):** o argumento que
-sustentou esta decisão foi "implantação que falha mantém a versão anterior
-servindo". Isso depende da plataforma. Descobriu-se que o deploy está no Render,
-sem `render.yaml` e sem documentação, e **ninguém verificou se o Render se
-comporta assim**. Se não se comportar, esta decisão produz serviço fora do ar em
-vez de proteção. Ver [0012](0012-claude-web-para-claude-ec2-render-muda-o-risco-do-merge.md).
+✅ **Premissa confirmada (2026-08-13), por documentação:** a `duna` cruzou a
+documentação oficial do Render em [0019](0019-duna-para-orla-revisao-d001-a-d005.md) — deploy cujo build/start falha
+mantém o deploy anterior em execução, e a instância nova só recebe tráfego
+depois de ficar saudável. O argumento que sustentou esta decisão vale. Duas
+exceções: serviço com disco persistente não recebe zero-downtime deploy, e
+**depois de suspensão não há instância anterior para preservar** — que é o caso
+de hoje. Ainda não verificado no painel: se há disco persistente e qual o
+`healthCheckPath`.
+
+🔴 **Risco que a confirmação abriu:** a D-001 protege o **processo**, não o
+**estado**. A migration commita contra o banco compartilhado *antes* de o boot
+terminar, e é justamente enquanto isso que a instância antiga segue servindo —
+por projeto, não por falha. Reproduzido com driver real, PostgreSQL 16 e JVM em
+UTC em [0022](0022-orla-para-duna-a-janela-e-maior-do-que-voce-descreveu.md): assim que a migration de fuso horário commita, a
+instância antiga passa a exibir toda sessão **3 horas atrasada**, e sessão criada
+nessa janela nasce **3 horas adiantada em definitivo** — a conversão
+`AT TIME ZONE` já rodou e não roda de novo.
+
+⚠️ **Consequência operacional, e é a que vale antes de qualquer merge:** a
+migration de fuso horário deve entrar **com o serviço ainda suspenso**. Sem
+instância antiga viva não há janela. Reativar primeiro e migrar depois abre a
+janela em produção.
+
+DDL parcial não é risco no PostgreSQL: o migratus 1.5.4 envolve cada migration
+em transação (`use-tx?`, verdadeiro salvo `-- :disable-transaction` na primeira
+linha — nenhum dos nossos `.up.sql` tem), e lá o DDL é transacional. **No
+CockroachDB continua em aberto**, porque a mudança de schema é assíncrona e sai
+do escopo da transação. Pendente com a `pico`.
 
 **Contrapartida aceita:** indisponibilidade momentânea do banco no instante do
 boot também derruba. Mitigação proposta em 0003 (backoff de conexão **antes** de
@@ -128,11 +150,16 @@ saber que aquilo pode ir ao ar.**
 ### ⚠️ Efeito sobre a D-001
 
 A D-001 (migration que falha derruba o boot) foi autorizada com o argumento de
-que *implantação que falha mantém a versão anterior servindo*. **Ninguém
-verificou se o Render se comporta assim.** Se não se comportar, a decisão
-protege ao contrário: em vez de manter a versão boa no ar, tira o serviço.
+que *implantação que falha mantém a versão anterior servindo*. ✅ **Confirmado em
+2026-08-13** pela documentação do Render ([0019](0019-duna-para-orla-revisao-d001-a-d005.md)) — ver a D-001 acima.
 
-Confirmar antes de reativar o serviço, não depois.
+🔴 **Mas apareceu outro motivo para não reativar ainda**, e é mais concreto do
+que o primeiro: a instância antiga fica viva de propósito enquanto o schema já
+mudou, e a migration de fuso horário torce o horário em 3 horas nessa janela
+([0022](0022-orla-para-duna-a-janela-e-maior-do-que-voce-descreveu.md)). Com o serviço suspenso a janela não existe.
+
+**Migrar com o serviço suspenso; reativar depois.** A ordem inversa faz o teste
+em produção.
 
 ---
 
