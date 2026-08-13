@@ -1306,6 +1306,32 @@
   (wrap-jwt-autenticacao protected-routes)
   (route/not-found "Recurso não encontrado"))
 
+(def ^:private origens-padrao
+  [#"http://localhost:3000" #"http://localhost:9002"
+   #"https://.*\.code\.run" #"https://deep-ngrv.onrender.com"])
+
+(defn origens-permitidas
+  "Origens aceitas pelo CORS.
+
+   `CORS_ORIGINS` sobrescreve a lista, separada por vírgula. Sem ela, vale o
+   padrão histórico — nada muda em quem já roda.
+
+   Existe porque a lista era fixa no código, e o painel do admin faz health
+   check do NAVEGADOR: publicar em qualquer host novo (staging, uma máquina de
+   demonstração, um domínio próprio) fazia a tela travar em 'Conectando ao
+   servidor...' sem dizer que o problema era CORS. Descoberto exatamente assim.
+
+   Cada entrada vira regex ancorada: `https://app.exemplo.com` casa com essa
+   origem e só com ela. Ancorar importa — sem `\\A` e `\\z`, `exemplo.com`
+   casaria também com `exemplo.com.invasor.net`."
+  []
+  (if-let [bruto (env :cors-origins)]
+    (->> (str/split (str bruto) #",")
+         (map str/trim)
+         (remove str/blank?)
+         (mapv #(re-pattern (str "\\A" (java.util.regex.Pattern/quote %) "\\z"))))
+    origens-padrao))
+
 (defn montar-app
   "A pilha de middlewares, aplicada a um handler qualquer.
 
@@ -1317,7 +1343,7 @@
   [handler]
   (-> handler
       ;; APLICAÇÃO DO MIDDLEWARE DE CORS
-      (wrap-cors :access-control-allow-origin [#"http://localhost:3000" #"http://localhost:9002" #"https://.*\.code\.run" #"https://deep-ngrv.onrender.com"]
+      (wrap-cors :access-control-allow-origin (origens-permitidas)
                  :access-control-allow-methods [:get :post :put :delete :options]
                  :access-control-allow-headers #{"Authorization" "Content-Type"})
       ;; ⚠️ Ordem importa e é contraintuitiva no `->`: quem aparece DEPOIS aqui
@@ -1453,6 +1479,14 @@
     "reset-senha" (System/exit (reset-senha! (second args) (nth args 2 nil)))
     (do
       (init-db)
-      (let [port (Integer. (or (env :port) 3000))]
-        (println (str "Servidor iniciado na porta " port))
-        (jetty/run-jetty #'app {:port port :join? false})))))
+      ;; `HOST` restringe a interface de escuta. Sem ele o Jetty ouve em todas,
+      ;; que é o que se quer atrás de um balanceador — e é exatamente o que NÃO
+      ;; se quer numa máquina com IP público, onde "todas" inclui a internet.
+      ;; Poder amarrar a uma interface privada (VPN, rede interna) é a diferença
+      ;; entre expor a API para a rede certa e para o mundo.
+      (let [port (Integer/parseInt (str (or (env :port) 3000)))
+            host (env :host)]
+        (println (str "Servidor iniciado na porta " port
+                      (if host (str ", ouvindo apenas em " host) ", ouvindo em todas as interfaces")))
+        (jetty/run-jetty #'app (cond-> {:port port :join? false}
+                                 host (assoc :host host)))))))

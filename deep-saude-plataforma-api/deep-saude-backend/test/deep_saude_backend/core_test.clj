@@ -13,7 +13,8 @@
             [ring.mock.request :as mock]
             [cheshire.core :as json]
             [deep-saude-backend.core :as core]
-            [deep-saude-backend.db :as db]))
+            [deep-saude-backend.db :as db]
+            [environ.core]))
 
 (deftest app-esta-montado
   (testing "o handler existe e é chamável"
@@ -94,6 +95,32 @@
       (is (= "2030-01-01" (:data_inicio @visto))))
     (testing "e não sobram como texto"
       (is (nil? (get @visto "paciente_id"))))))
+
+(deftest origens-de-cors-configuraveis
+  ;; A lista de origens era fixa no código, e o painel do admin faz health check
+  ;; do NAVEGADOR. Publicar em host novo travava a tela em "Conectando ao
+  ;; servidor..." sem dizer que o problema era CORS — foi assim que apareceu.
+  (testing "sem CORS_ORIGINS, vale o padrão histórico"
+    (with-redefs [environ.core/env {}]
+      (let [origens (core/origens-permitidas)]
+        (is (seq origens))
+        (is (some #(re-find % "http://localhost:9002") origens)))))
+
+  (testing "CORS_ORIGINS sobrescreve, aceitando lista separada por vírgula"
+    (with-redefs [environ.core/env {:cors-origins "https://app.exemplo.com, https://admin.exemplo.com"}]
+      (let [origens (core/origens-permitidas)]
+        (is (= 2 (count origens)))
+        (is (some #(re-matches % "https://app.exemplo.com") origens))
+        (is (some #(re-matches % "https://admin.exemplo.com") origens)))))
+
+  (testing "a origem é ancorada — sufixo não pode casar"
+    ;; Sem `\A`/`\z`, "https://app.exemplo.com" casaria dentro de
+    ;; "https://app.exemplo.com.invasor.net" e o atacante herdaria o CORS.
+    (with-redefs [environ.core/env {:cors-origins "https://app.exemplo.com"}]
+      (let [origem (first (core/origens-permitidas))]
+        (is (re-matches origem "https://app.exemplo.com"))
+        (is (nil? (re-matches origem "https://app.exemplo.com.invasor.net")))
+        (is (nil? (re-matches origem "https://prefixo-https://app.exemplo.com")))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Boot — contrapartida da D-001
