@@ -35,8 +35,14 @@ function Calendar({
         nav_button_next: "absolute right-1",
         table: "w-full border-collapse space-y-1",
         head_row: "flex",
+        // `shrink-0` e `text-center` não são cosmética: `head_row` é flex, e
+        // item de flex tem `min-width: auto`, então se o texto do dia for mais
+        // largo que `w-9` a célula CRESCE em vez de cortar. O cabeçalho fica
+        // mais largo que a grade de dias e as colunas desalinham. Com
+        // `shrink-0` a largura passa a ser garantida, independente do que o
+        // formatador devolver.
         head_cell:
-          "text-muted-foreground rounded-md w-9 font-normal text-[0.8rem]",
+          "text-muted-foreground rounded-md w-9 shrink-0 text-center font-normal text-[0.8rem]",
         row: "flex w-full mt-2",
         cell: "h-9 w-9 text-center text-sm p-0 relative [&:has([aria-selected].day-range-end)]:rounded-r-md [&:has([aria-selected].day-outside)]:bg-accent/50 [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20",
         day: cn(
@@ -71,8 +77,15 @@ function Calendar({
           return `${month.charAt(0).toUpperCase() + month.slice(1)} de ${year}`;
         },
         formatWeekdayName: (date, options) => {
-          // EEE returns short day (Seg, Ter, Qua...)
-          const str = format(date, "EEE", { locale: options?.locale });
+          // ⚠️ Era "EEE", com o comentário "returns short day (Seg, Ter, Qua...)".
+          // O comentário estava errado para esta versão do date-fns com locale
+          // ptBR: "EEE" devolve o nome INTEIRO — Domingo, Segunda, Terça. Daí o
+          // cabeçalho do mini-calendário sair embolado.
+          //
+          //   EEE     -> Domingo, Segunda, Terça, ...
+          //   EEEEEE  -> Dom, Seg, Ter, Qua, Qui, Sex, Sab   <- o que se queria
+          //   EEEEE   -> D, S, T, Q, Q, S, S
+          const str = format(date, "EEEEEE", { locale: options?.locale });
           return str.charAt(0).toUpperCase() + str.slice(1);
         }
       }}
