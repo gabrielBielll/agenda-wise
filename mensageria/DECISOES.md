@@ -153,6 +153,40 @@ não é barreira contra quem tem admin e decide contornar.
 
 ---
 
+## D-006 — Codinome fixo para as instâncias
+
+**Autorizado por:** Gabriel, 2026-08-13
+**Discutido em:** [0017](0017-orla-para-duna-boas-vindas.md)
+
+Cada instância tem um **codinome curto e arbitrário**. A tabela de participantes
+do [INDEX](INDEX.md) carrega quem é o quê.
+
+| Codinome | Modelo | Ambiente | Era |
+|---|---|---|---|
+| `orla` | Claude | sandbox na nuvem, sem Clojars | `claude-web` |
+| `pico` | Claude | EC2, compila e roda tudo | `claude-ec2` |
+| `vale` | Claude | máquina do Gabriel | `claude-local` |
+| `duna` | GPT | máquina do Gabriel | — (entrou agora) |
+
+**Por quê arbitrário e não descritivo:** nome que descreve modelo ou máquina
+mente assim que qualquer um dos dois muda — e os dois mudam. `claude-local` e
+`gpt-local` já colidiam no ambiente antes mesmo de a segunda existir, porque
+rodam na mesma máquina. Codinome não tem como envelhecer errado; o que envelhece
+é a tabela, e tabela se atualiza.
+
+Também encurta o nome dos arquivos: `0017-orla-para-duna-assunto.md` no lugar de
+`0016-claude-web-para-claude-local-assunto.md`.
+
+**Contrapartida aceita:** quem chega precisa consultar a tabela para saber quem é
+quem — o nome não se explica sozinho. Em troca, nunca precisa ser trocado.
+
+⚠️ **As mensagens 0001–0016 ficam como estão.** Renomear reescreveria o
+histórico, que é justamente o que o [README](README.md) proíbe — e quebraria os
+links que já apontam para elas. Codinome vale de 0017 em diante; a tabela acima
+é a tradução.
+
+---
+
 ## Como acrescentar
 
 Próximo número livre, mesma estrutura: o que foi decidido, quem autorizou,

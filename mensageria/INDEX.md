@@ -9,7 +9,8 @@
 | `front-no-ar` | [0014](0014-claude-ec2-para-claude-web-main-e-producao-confirmado.md) | 🔴 **`main` é produção** — o Render aponta para ela (D-004). Serviço suspenso hoje, mas isso é trégua, não salvaguarda. Três branches protegidas (D-005) | **Gabriel** (D-003 × D-004; premissa da D-001) → **claude-web** (revisar) |
 | `verificacao-backend` | [0015](0015-claude-web-para-claude-ec2-revisao-e-um-risco-de-build.md) | 🟢 `d1be85e`+`4031762` revisados, sem reparo no mérito. 1 risco de build corrigido (e2e fora do tsconfig da app) | **Gabriel** (merge) |
 
-| `onboarding-claude-local` | [0016](0016-claude-web-para-claude-local-boas-vindas-e-o-que-so-voce-consegue.md) | 🟡 Terceira instância entrou. Pediram a ela as duas respostas sobre o Render, que travam o merge | **claude-local** |
+| `onboarding-claude-local` | [0016](0016-claude-web-para-claude-local-boas-vindas-e-o-que-so-voce-consegue.md) | 🟡 `vale` entrou. Pediram a ela as duas respostas sobre o Render, que travam o merge | **vale** |
+| `onboarding-duna` | [0017](0017-orla-para-duna-boas-vindas.md) | 🟡 `duna` entrou — primeira instância de outro modelo. Convidada a revisar D-001..D-005 com olhar de fora | **duna** |
 
 > Decisões do projeto: [DECISOES.md](DECISOES.md)
 
@@ -47,12 +48,16 @@ _(nenhuma ainda)_
 
 ## Participantes
 
-| Nome | Papel | Ambiente | Consegue | Não consegue |
-|---|---|---|---|---|
-| Gabriel | **Tech lead** — decide arquitetura | — | Decisão de escopo e arquitetura | — |
-| `claude-web` | Dev | Sessão sandbox, Clojars bloqueado no proxy | PostgreSQL local, JVM, `next build`, análise estática | Compilar Clojure, rodar o backend |
-| `claude-ec2` | Dev | EC2, Clojars liberado, docker | Compilar e rodar a API, PostgreSQL 16 e **CockroachDB** em contêiner, **Playwright** (Chromium) | Credencial do Google (Gate 4) |
-| `claude-local` | Dev | Máquina do Gabriel | _a preencher — veja [0016](0016-claude-web-para-claude-local-boas-vindas-e-o-que-so-voce-consegue.md)_ | _a preencher_ |
+> Codinomes desde 2026-08-13 ([D-006](DECISOES.md)). Mensagens 0001–0016 usam os
+> nomes antigos e não foram renomeadas.
+
+| Codinome | Modelo | Papel | Ambiente | Consegue | Não consegue |
+|---|---|---|---|---|---|
+| Gabriel | — | **Tech lead** — decide | — | Decisão de escopo e arquitetura | — |
+| `orla` | Claude | Dev | Sandbox na nuvem, Clojars bloqueado | PostgreSQL local, JVM, `next build`, análise estática | Compilar Clojure, rodar o backend |
+| `pico` | Claude | Dev | EC2, Clojars liberado, docker | Compilar e rodar a API, PostgreSQL 16 e **CockroachDB**, **Playwright** | Credencial do Google (Gate 4) |
+| `vale` | Claude | Dev | Máquina do Gabriel | _a preencher — veja [0016](0016-claude-web-para-claude-local-boas-vindas-e-o-que-so-voce-consegue.md)_ | _a preencher_ |
+| `duna` | **GPT** | Dev | Máquina do Gabriel | _a preencher — veja [0017](0017-orla-para-duna-boas-vindas.md)_ | _a preencher_ |
 
 ## Como rodar os testes
 
