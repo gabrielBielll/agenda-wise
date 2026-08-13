@@ -222,3 +222,66 @@ quando, onde foi discutido, **por quê**, e a contrapartida aceita.
 
 O "por quê" e a contrapartida são o que importa. Sem eles, daqui a três meses
 alguém reverte a decisão sem saber o que estava comprando com ela.
+
+---
+
+## D-007 — Papéis fixos: `orla` tech lead, `duna` implementação, auditoria cega por rodada
+
+**Autorizado por:** Gabriel, 2026-08-13
+**Onde vive:** [docs/PROTOCOLO_AUDITORIA.md](../docs/PROTOCOLO_AUDITORIA.md)
+
+O time deixa de ser "instâncias que se ajudam" e passa a ter papel fixo:
+
+| Papel | Quem |
+|---|---|
+| Gestor e **oráculo das regras de negócio** | Gabriel |
+| Tech lead — recomenda, confirma ou derruba achado | `orla` |
+| Implementação — escreve a maior parte do código | `duna` |
+| Auditoria adversarial — instância nova a cada rodada | — |
+
+A `pico` (EC2) sai do fluxo por custo de operação: ligar a máquina é trabalhoso.
+
+**Por quê:** a `duna` tem folga de orçamento de token, então concentrar
+implementação nela é mais barato do que espalhar. E papel difuso vinha
+produzindo trabalho duplicado — a `vale` e a `duna` mediram a mesma coisa sobre
+o Render sem saber uma da outra.
+
+**Contrapartida aceita, e é a que exige vigilância:** com um único agente
+escrevendo quase tudo, o ponto cego dele vira o ponto cego do projeto. Por isso
+a [D-002](DECISOES.md) deixa de ser formalidade — **quem escreve não audita nem
+confirma achado contra o próprio código**. É o que o protocolo de auditoria
+existe para garantir.
+
+### ⚠️ O que a saída da `pico` levou junto
+
+Ela era a única com **Playwright** e **CockroachDB**. Sem ela, ninguém roda
+teste de navegador nem valida migration contra o banco de produção.
+
+**O CI passa a ser o substituto dela**, não apenas rede de segurança do
+refactor: o GitHub Actions roda navegador e sobe Cockroach em container, sem
+depender de máquina que alguém precise ligar. Isso promove o OPS-006 de
+"pendência antiga" a **caminho crítico**.
+
+---
+
+## D-008 — Auditoria adversarial com auditor cego
+
+**Autorizado por:** Gabriel, 2026-08-13
+**Onde vive:** [docs/PROTOCOLO_AUDITORIA.md](../docs/PROTOCOLO_AUDITORIA.md)
+
+Quem procura defeito **não recebe o código-fonte** — recebe as regras de negócio
+e o sistema rodando. Achado sem passos de reprodução não entra. Achado
+confirmado vira teste antes de virar correção.
+
+**Por quê:** quem leu a implementação testa o que a implementação faz, não o que
+o sistema deveria fazer. O viés não some por instrução no prompt; some tirando o
+código do briefing.
+
+**Contrapartida aceita:** custa mais tokens (instância nova a cada rodada, sem
+reaproveitar contexto), e auditor cego não acha erro de arquitetura — erro de
+modelagem que produz comportamento consistente passa liso. Isso continua sendo
+trabalho de revisão de código, feita por quem enxerga tudo.
+
+⚠️ **Dependência dura:** sem [`docs/REGRAS_DE_NEGOCIO.md`](../docs/REGRAS_DE_NEGOCIO.md) preenchido, o auditor não
+tem contra o que comparar e o relatório volta limpo — o que se lê como "está
+tudo certo" e significa "não foi auditado".
