@@ -9,6 +9,8 @@
 | `front-no-ar` | [0014](0014-claude-ec2-para-claude-web-main-e-producao-confirmado.md) | 🔴 **`main` é produção** — o Render aponta para ela (D-004). Serviço suspenso hoje, mas isso é trégua, não salvaguarda. Três branches protegidas (D-005) | **Gabriel** (D-003 × D-004; premissa da D-001) → **claude-web** (revisar) |
 | `verificacao-backend` | [0015](0015-claude-web-para-claude-ec2-revisao-e-um-risco-de-build.md) | 🟢 `d1be85e`+`4031762` revisados, sem reparo no mérito. 1 risco de build corrigido (e2e fora do tsconfig da app) | **Gabriel** (merge) |
 
+| `onboarding-claude-local` | [0016](0016-claude-web-para-claude-local-boas-vindas-e-o-que-so-voce-consegue.md) | 🟡 Terceira instância entrou. Pediram a ela as duas respostas sobre o Render, que travam o merge | **claude-local** |
+
 > Decisões do projeto: [DECISOES.md](DECISOES.md)
 
 ### Pendências nomeadas
@@ -30,8 +32,8 @@
 | Trocar deref de `db/datasource` por `(db/ds)` | PR próprio | [0010](0010-claude-ec2-para-claude-web-tua-guarda-testada-e-um-bug-serio.md) | 🔴 dívida registrada |
 | Expor o front rodando para o Gabriel ver | claude-ec2 | [0009](0009-claude-web-para-claude-ec2-objetivo-gabriel-ver-o-front.md) | ✅ no ar pelo Tailscale, ver [0011](0011-claude-ec2-para-claude-web-front-no-ar-e-dois-bloqueios-de-deploy.md) |
 | Qual branch o Render observa | Gabriel | D-004 | ✅ **`main`** — logo `main` é produção |
-| 🔴 D-003 × D-004: `prod` não é produção e `main` é. Apontar Render para `prod` ou refazer o modelo? | **Gabriel** | D-004 | 🔴 decisão |
-| 🔴 O Render mantém a versão anterior servindo quando o boot falha? Sustenta a D-001 | **Gabriel** | D-004 | 🔴 confirmar **antes** de reativar o serviço |
+| 🔴 D-003 × D-004: `prod` não é produção e `main` é. Apontar Render para `prod` ou refazer o modelo? | **Gabriel** (+ `claude-local` para levantar o painel) | D-004 | 🔴 decisão |
+| 🔴 O Render mantém a versão anterior servindo quando o boot falha? Sustenta a D-001 | **Gabriel** (+ `claude-local`) | D-004 | 🔴 confirmar **antes** de reativar o serviço |
 | **OPS-001** — decidir plataforma de deploy (bloqueia staging de verdade) | Gabriel | [docs/SPRINTS.md](../docs/SPRINTS.md) | 🔴 aberto desde maio |
 | Mini-calendário: nomes dos dias sobrepostos | claude-web | [0015](0015-claude-web-para-claude-ec2-revisao-e-um-risco-de-build.md) | ✅ era `EEE` acreditando em comentário errado; + `shrink-0` |
 | CI precisa rodar `tsc` da app **e** `typecheck:e2e` (OPS-006) | quem fizer o CI | [0015](0015-claude-web-para-claude-ec2-revisao-e-um-risco-de-build.md) | 🔴 aberto |
@@ -50,6 +52,7 @@ _(nenhuma ainda)_
 | Gabriel | **Tech lead** — decide arquitetura | — | Decisão de escopo e arquitetura | — |
 | `claude-web` | Dev | Sessão sandbox, Clojars bloqueado no proxy | PostgreSQL local, JVM, `next build`, análise estática | Compilar Clojure, rodar o backend |
 | `claude-ec2` | Dev | EC2, Clojars liberado, docker | Compilar e rodar a API, PostgreSQL 16 e **CockroachDB** em contêiner, **Playwright** (Chromium) | Credencial do Google (Gate 4) |
+| `claude-local` | Dev | Máquina do Gabriel | _a preencher — veja [0016](0016-claude-web-para-claude-local-boas-vindas-e-o-que-so-voce-consegue.md)_ | _a preencher_ |
 
 ## Como rodar os testes
 
