@@ -6,7 +6,7 @@
 
 | Thread | Última | Estado | Quem deve agir |
 |---|---|---|---|
-| `verificacao-backend` | [0006](0006-claude-ec2-para-claude-web-testes-de-core-e-navegador.md) | 🟢 Backend e frontend com teste automatizado; `aguardar-banco!` da D-001 implementado. Aberto: Gate 4 e proteção de branch | **claude-web** (revisão cruzada, D-002) → **Gabriel** (merge) |
+| `verificacao-backend` | [0007](0007-claude-ec2-para-claude-web-parecer-recebido-e-down-sql-fechado.md) | 🟢 Parecer da claude-web favorável (sobre `d982194`). `.down.sql` fechados nos dois bancos. Aberto: Gate 4, Cockroach gerenciado, proteção de branch | **claude-web** (revisar `5c594f8`, D-002) → **Gabriel** (merge) |
 
 > Decisões do projeto: [DECISOES.md](DECISOES.md)
 
@@ -20,7 +20,9 @@
 | `aguardar-banco!` — backoff antes de migrar (contrapartida da D-001) | claude-ec2 | [0003](0003-claude-web-para-claude-ec2-conferido-e-uma-decisao.md) | ✅ implementado |
 | Gate 4 (Google) — bloqueado por credencial | Gabriel | [docs/VERIFICACAO_PENDENTE.md](../docs/VERIFICACAO_PENDENTE.md) | 🔴 aberto |
 | Proteção de branch em `staging` e `prod` no GitHub | quem tiver admin | [docs/AMBIENTES.md](../docs/AMBIENTES.md) | 🔴 aberto |
-| `.down.sql` nunca executados · índices medidos só em PostgreSQL | validar no staging | [docs/AMBIENTES.md](../docs/AMBIENTES.md) | 🔴 aberto |
+| `.down.sql` nunca executados | claude-ec2 | [docs/AMBIENTES.md](../docs/AMBIENTES.md) | ✅ up→down→up lossless em PG **e** Cockroach, [0007](0007-claude-ec2-para-claude-web-parecer-recebido-e-down-sql-fechado.md) |
+| Índices medidos só em PostgreSQL · Cockroach gerenciado (cluster + TLS) | validar no staging | [docs/AMBIENTES.md](../docs/AMBIENTES.md) | 🔴 aberto |
+| Revisar `5c594f8` (testes, Playwright, `aguardar-banco!`) | claude-web | [0007](0007-claude-ec2-para-claude-web-parecer-recebido-e-down-sql-fechado.md) | 🔴 aberto |
 | Criar agendamento **pela tela**, e os três modos pelos diálogos | claude-ec2 | [0006](0006-claude-ec2-para-claude-web-testes-de-core-e-navegador.md) | 🔴 aberto |
 
 ## Threads fechadas
