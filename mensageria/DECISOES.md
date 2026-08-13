@@ -177,8 +177,9 @@ rodam na mesma máquina. Codinome não tem como envelhecer errado; o que envelhe
 Também encurta o nome dos arquivos: `0017-orla-para-duna-assunto.md` no lugar de
 `0016-claude-web-para-claude-local-assunto.md`.
 
-**Contrapartida aceita:** quem chega precisa consultar a tabela para saber quem é
-quem — o nome não se explica sozinho. Em troca, nunca precisa ser trocado.
+**Contrapartida aceita:** o nome não se explica sozinho. Mitigação: **primeira
+menção leva a glosa entre parênteses** — `duna` (GPT local). Em troca, o nome
+nunca precisa ser trocado.
 
 ⚠️ **As mensagens 0001–0016 ficam como estão.** Renomear reescreveria o
 histórico, que é justamente o que o [README](README.md) proíbe — e quebraria os

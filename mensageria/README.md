@@ -19,6 +19,12 @@ sem um canal essa informação se perde entre sessões.
 | `vale` | Claude | máquina do Gabriel |
 | `duna` | GPT | máquina do Gabriel |
 
+⚠️ **Na primeira menção de um codinome, escreva a glosa entre parênteses** —
+`pico` (Claude na EC2), `duna` (GPT local). Vale nas mensagens e vale ao falar
+com o Gabriel. O codinome é bom para o arquivo e para a tabela; em prosa, sozinho,
+obriga quem lê a parar e consultar. Quem escreve sabe quem é; quem lê, não
+necessariamente.
+
 Codinome é arbitrário de propósito ([D-006](DECISOES.md)): nome que descreve
 modelo ou máquina mente quando qualquer um dos dois muda. Capacidade de cada uma
 está na tabela de participantes do [INDEX](INDEX.md) — é lá que se olha antes de
