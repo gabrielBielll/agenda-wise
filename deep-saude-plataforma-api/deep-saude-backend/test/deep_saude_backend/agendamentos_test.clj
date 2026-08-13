@@ -56,6 +56,35 @@
                          VALUES (?, ?, ?, ?) ON CONFLICT (id) DO NOTHING"
                         pac cli (str "Paciente " nome) psi]))))
 
+(defn- nome-do-banco-na-url
+  "Nome do banco na JDBC URL. nil quando não dá para determinar."
+  [url]
+  (some-> url (str/replace #"\?.*$" "") (->> (re-find #"/([^/]+)$")) second not-empty))
+
+(defn- exigir-banco-de-teste!
+  "Aborta se o datasource em uso não for o banco de TEST_DATABASE_URL.
+
+   ⚠️ Este namespace roda `DELETE FROM agendamentos`. Até aqui, o único
+   impedimento para isso acontecer no banco errado era um aviso em docstring — e
+   aviso não impede nada.
+
+   A checagem pergunta ao próprio banco quem ele é, pelo mesmo caminho que os
+   handlers usam. Se o `with-redefs` do datasource deixar de surtir efeito algum
+   dia — por refatoração, por AOT com direct-linking, por alguém cachear o valor
+   no carregamento do namespace — o DELETE cairia no banco que `DATABASE_URL`
+   estivesse apontando. Aqui ele para antes, e alto.
+
+   Falha fechada: sem conseguir determinar o nome esperado, também aborta."
+  [url]
+  (let [esperado (nome-do-banco-na-url url)
+        conectado (:current_database (db/execute-one! ["SELECT current_database()"]))]
+    (when-not (and esperado conectado (= esperado conectado))
+      (throw (ex-info (str "ABORTADO: os testes de banco não estão conectados ao banco de teste. "
+                           "Esperado '" esperado "', conectado em '" conectado "'. "
+                           "Nenhum DELETE foi executado.")
+                      {:esperado esperado :conectado conectado})))
+    conectado))
+
 (defn- limpar-agendamentos! []
   (db/execute-one! ["DELETE FROM agendamentos"])
   (db/execute-one! ["DELETE FROM recorrencias"])
@@ -68,6 +97,9 @@
   (if-let [url (env :test-database-url)]
     (let [ds (jdbc/get-datasource {:jdbcUrl url})]
       (with-redefs [db/datasource (delay ds)]
+        ;; ⚠️ Antes de qualquer DELETE: confirmar que estamos mesmo no banco de
+        ;; teste. Ver exigir-banco-de-teste!.
+        (exigir-banco-de-teste! url)
         (migratus/migrate (core/migratus-config))
         (limpar-agendamentos!)
         (semear-cadastro!)

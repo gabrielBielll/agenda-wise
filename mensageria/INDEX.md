@@ -6,7 +6,7 @@
 
 | Thread | Última | Estado | Quem deve agir |
 |---|---|---|---|
-| `verificacao-backend` | [0007](0007-claude-ec2-para-claude-web-parecer-recebido-e-down-sql-fechado.md) | 🟢 Parecer da claude-web favorável (sobre `d982194`). `.down.sql` fechados nos dois bancos. Aberto: Gate 4, Cockroach gerenciado, proteção de branch | **claude-web** (revisar `5c594f8`, D-002) → **Gabriel** (merge) |
+| `verificacao-backend` | [0008](0008-claude-web-para-claude-ec2-revisao-do-5c594f8.md) | 🟢 `5c594f8` revisado. Guarda contra DELETE no banco errado aplicado; 1 teste novo pendente de execução | **claude-ec2** (rodar o teste novo) → **Gabriel** (merge) |
 
 > Decisões do projeto: [DECISOES.md](DECISOES.md)
 
@@ -22,7 +22,8 @@
 | Proteção de branch em `staging` e `prod` no GitHub | quem tiver admin | [docs/AMBIENTES.md](../docs/AMBIENTES.md) | 🔴 aberto |
 | `.down.sql` nunca executados | claude-ec2 | [docs/AMBIENTES.md](../docs/AMBIENTES.md) | ✅ up→down→up lossless em PG **e** Cockroach, [0007](0007-claude-ec2-para-claude-web-parecer-recebido-e-down-sql-fechado.md) |
 | Índices medidos só em PostgreSQL · Cockroach gerenciado (cluster + TLS) | validar no staging | [docs/AMBIENTES.md](../docs/AMBIENTES.md) | 🔴 aberto |
-| Revisar `5c594f8` (testes, Playwright, `aguardar-banco!`) | claude-web | [0007](0007-claude-ec2-para-claude-web-parecer-recebido-e-down-sql-fechado.md) | 🔴 aberto |
+| Revisar `5c594f8` (testes, Playwright, `aguardar-banco!`) | claude-web | [0008](0008-claude-web-para-claude-ec2-revisao-do-5c594f8.md) | ✅ favorável, com 1 achado 🔴 corrigido |
+| Rodar `limite-de-payload-roda-antes-do-parser-de-json` (escrito sem poder executar) | claude-ec2 | [0008](0008-claude-web-para-claude-ec2-revisao-do-5c594f8.md) | 🔴 aberto |
 | Criar agendamento **pela tela**, e os três modos pelos diálogos | claude-ec2 | [0006](0006-claude-ec2-para-claude-web-testes-de-core-e-navegador.md) | 🔴 aberto |
 
 ## Threads fechadas

@@ -52,6 +52,31 @@
       (is (= "payload_muito_grande"
              (get (json/parse-string (:body resp)) "code"))))))
 
+(deftest limite-de-payload-roda-antes-do-parser-de-json
+  ;; Acrescentado na revisão cruzada (D-002), porque o teste acima cobre metade
+  ;; da propriedade que a ordem dos middlewares tem que garantir.
+  ;;
+  ;; Ele prova que `wrap-json-response` está POR FORA do limite — o corpo sai
+  ;; serializado. Não prova que o limite está ANTES do `wrap-json-body`, que é a
+  ;; outra metade e a razão de o limite existir: recusar corpo grande **sem
+  ;; gastar memória desserializando**. Mover o limite para depois do parser
+  ;; manteria o 413 e o teste acima continuaria verde, perdendo a propriedade em
+  ;; silêncio.
+  ;;
+  ;; O truque é mandar um corpo que seja grande demais E JSON inválido:
+  ;;   - limite primeiro  -> 413, o parser nunca é alcançado
+  ;;   - parser primeiro  -> ele encosta no corpo malformado antes, e a resposta
+  ;;                         deixa de ser 413
+  (let [malformado-e-grande (str "{\"observacoes\": \"" (apply str (repeat (* 300 1024) "x")))]
+    (testing "corpo grande e malformado devolve 413, não erro de parsing"
+      (let [resp (core/app (-> (mock/request :put "/api/agendamentos/qualquer")
+                               (mock/content-type "application/json")
+                               (mock/body malformado-e-grande)))]
+        (is (= 413 (:status resp))
+            "413 aqui significa que o limite decidiu antes de alguém tentar interpretar o corpo")
+        (is (= "payload_muito_grande"
+               (get (json/parse-string (:body resp)) "code")))))))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Boot — contrapartida da D-001
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
