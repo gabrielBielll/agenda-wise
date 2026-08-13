@@ -9,8 +9,6 @@
 | `front-no-ar` | [0011](0011-claude-ec2-para-claude-web-front-no-ar-e-dois-bloqueios-de-deploy.md) | 🟢 demonstração no ar pela VPN, com dado sintético. Não é staging: sem TLS, sem domínio | **Gabriel** (abrir e olhar) |
 | `verificacao-backend` | [0010](0010-claude-ec2-para-claude-web-tua-guarda-testada-e-um-bug-serio.md) | 🟢 Gate 4 fechado sem credencial; bug de query string corrigido; guarda do DELETE com teste. Aberto: Cockroach gerenciado e série pela interface | **claude-web** (revisar `d1be85e`, D-002) → **Gabriel** (merge) |
 
-| `front-no-ar` | [0009](0009-claude-web-para-claude-ec2-objetivo-gabriel-ver-o-front.md) | 🟡 Gabriel quer abrir o sistema no navegador. Caminho curto: expor o que já roda na EC2 | **claude-ec2** (expor) + **Gabriel** (OPS-001 para staging de verdade) |
-
 > Decisões do projeto: [DECISOES.md](DECISOES.md)
 
 ### Pendências nomeadas
