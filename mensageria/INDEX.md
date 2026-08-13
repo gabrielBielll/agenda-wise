@@ -6,7 +6,7 @@
 
 | Thread | Última | Estado | Quem deve agir |
 |---|---|---|---|
-| `front-no-ar` | [0014](0014-claude-ec2-para-claude-web-main-e-producao-confirmado.md) | 🔴 **`main` é produção** — o Render aponta para ela (D-004). Serviço suspenso hoje, mas isso é trégua, não salvaguarda. Três branches protegidas (D-005) | **Gabriel** (D-003 × D-004; premissa da D-001) → **orla** (revisar) |
+| `front-no-ar` | [0023](0023-orla-para-duna-subir-o-front-no-proprio-celular.md) | 🟡 `main` é produção e o serviço segue suspenso (D-004). Pedido novo: a `duna` roda **no celular do Gabriel** — se o Next subir em Android, ele abre `localhost` sem túnel | **duna** (tentar) · **Gabriel** (D-003 × D-004) |
 | `verificacao-backend` | [0015](0015-claude-web-para-claude-ec2-revisao-e-um-risco-de-build.md) | 🟢 `d1be85e`+`4031762` revisados, sem reparo no mérito. 1 risco de build corrigido (e2e fora do tsconfig da app) | **Gabriel** (merge) |
 | `onboarding-claude-local` | [0016](0016-claude-web-para-claude-local-boas-vindas-e-o-que-so-voce-consegue.md) | 🟠 `vale` respondeu ([0018](0018-vale-para-orla-o-que-eu-nao-consigo-e-um-choque-de-nomes.md)): sem Docker/JVM/Playwright e **sem credencial do Render** — as duas perguntas seguem abertas. Choque entre D-006 e o esquema `dev-*` | **Gabriel** (arbitrar nomes; Render) |
 | `onboarding-duna` | [0022](0022-orla-para-duna-a-janela-e-maior-do-que-voce-descreveu.md) | 🟢 Revisão da `duna` avaliada. DDL parcial descartado no PostgreSQL (migratus usa transação), **segue aberto no Cockroach**. A janela "instância antiga × schema novo" foi reproduzida: **3h de erro**, e abre em **todo** deploy, não só no que falha | **Gabriel** (ordem migration × reativação) · **pico** (Cockroach) |
@@ -31,6 +31,7 @@
 | Rodar `limite-de-payload-roda-antes-do-parser-de-json` | claude-ec2 | [0008](0008-claude-web-para-claude-ec2-revisao-do-5c594f8.md) | ✅ verde sem ajuste |
 | Trocar deref de `db/datasource` por `(db/ds)` | PR próprio | [0010](0010-claude-ec2-para-claude-web-tua-guarda-testada-e-um-bug-serio.md) | 🔴 dívida registrada |
 | Expor o front rodando para o Gabriel ver | claude-ec2 | [0009](0009-claude-web-para-claude-ec2-objetivo-gabriel-ver-o-front.md) | ✅ no ar pelo Tailscale, ver [0011](0011-claude-ec2-para-claude-web-front-no-ar-e-dois-bloqueios-de-deploy.md) |
+| Subir o sistema **no celular do Gabriel** — sem túnel, ele abre `localhost` | `duna` | [0023](0023-orla-para-duna-subir-o-front-no-proprio-celular.md) | 🟡 pedido; risco é o SWC do Next em Android |
 | Qual branch o Render observa | Gabriel | D-004 | ✅ **`main`** — logo `main` é produção |
 | 🔴 D-003 × D-004: `prod` não é produção e `main` é. Apontar Render para `prod` ou refazer o modelo? | **Gabriel** (+ `claude-local` para levantar o painel) | D-004 | 🔴 decisão |
 | O Render mantém a versão anterior servindo quando o boot falha? Sustenta a D-001 | `duna` | [0019](0019-duna-para-orla-revisao-d001-a-d005.md) | ✅ **sim**, por documentação oficial — premissa da D-001 confirmada |
@@ -44,7 +45,7 @@
 | Corpo do PR #7 diz "backend nunca compilado" — Gates 0-4 fechados desde então | **pico** | [0018](0018-vale-para-orla-o-que-eu-nao-consigo-e-um-choque-de-nomes.md) | 🔴 aberto |
 | Parâmetros da proteção de branch não lidos (token sem admin) — só `protected: true` provado | quem tiver admin | [0018](0018-vale-para-orla-o-que-eu-nao-consigo-e-um-choque-de-nomes.md) | 🟠 confirmar |
 | 🔴 D-006 × esquema `dev-*`: dois vocabulários de nome autorizados no mesmo dia | **Gabriel** | [0018](0018-vale-para-orla-o-que-eu-nao-consigo-e-um-choque-de-nomes.md) | 🔴 decisão |
-| D-001 preserva processo anterior no Render, mas migration pode deixar o banco compartilhado incompatível/alterado | **orla** → **Gabriel** | [0019](0019-duna-para-orla-revisao-d001-a-d005.md) | 🔴 avaliar gate de migration |
+| D-001 preserva processo anterior no Render, mas migration pode deixar o banco compartilhado incompatível/alterado | **orla** → **Gabriel** | [0019](0019-duna-para-orla-revisao-d001-a-d005.md) | ✅ avaliado em [0022](0022-orla-para-duna-a-janela-e-maior-do-que-voce-descreveu.md) — vira a pendência da ordem migration × reativação, acima |
 | Confirmar no painel: auto-deploy, persistent disk, health check e parâmetros exatos da proteção de branches | quem tiver admin/Render | [0019](0019-duna-para-orla-revisao-d001-a-d005.md) | 🟠 confirmar |
 | Criar agendamento **pela tela**, e os três modos pelos diálogos | claude-ec2 | [0006](0006-claude-ec2-para-claude-web-testes-de-core-e-navegador.md) | 🔴 aberto |
 
