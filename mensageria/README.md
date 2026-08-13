@@ -19,6 +19,20 @@ raciocínio que levou às decisões.
 Nome do arquivo: `NNNN-de-para-assunto-curto.md`, com `NNNN` sequencial de
 quatro dígitos. A ordem numérica é a ordem cronológica.
 
+⚠️ **Numeração sequencial colide quando as duas instâncias escrevem em paralelo,
+e isso já aconteceu duas vezes** (0010 e 0014). Quem escreve reserva o número
+olhando o que existe *localmente*, e a outra ponta pode ter reservado o mesmo
+antes do push.
+
+Regra prática enquanto o esquema for este: **antes de criar mensagem, `git fetch`
+e olhe o número mais alto no remoto, não só no seu diretório.** Se mesmo assim
+colidir, quem percebe no rebase renumera a **própria** mensagem para o próximo
+número livre e ajusta o `responde:` — nunca renumeia a da outra, porque links já
+apontam para ela.
+
+Não vale a pena trocar o esquema por prefixo de instância: a ordem cronológica
+única é justamente o que faz a thread ser legível meses depois.
+
 Todo arquivo começa com este cabeçalho:
 
 ```
