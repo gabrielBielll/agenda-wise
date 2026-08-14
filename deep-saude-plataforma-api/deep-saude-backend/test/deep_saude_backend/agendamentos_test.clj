@@ -327,22 +327,23 @@
 ;; R-004 — passado é imutável (A-001 e A-002)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-;; 🔴 **Os dois testes desta seção falham de propósito.** Eles descrevem a
-;; R-004, não o que o código faz hoje — a D-008 manda achado confirmado virar
-;; teste ANTES de virar correção, e é este o teste. Ficam vermelhos até a
-;; correção de A-001 e A-002 entrar; quando ela entrar, ficam verdes sem
-;; precisar de ajuste. Se algum dia passarem sem que a correção tenha entrado, é
-;; o teste que está errado.
+;; Estes dois testes descrevem a R-004. Foram escritos **antes** da correção de
+;; A-001 e A-002 e falhavam contra o código de então, como manda a D-008;
+;; a correção entrou no commit seguinte e eles passaram a descrever também o
+;; que o código faz.
 ;;
 ;; Por que os testes que já existiam não pegaram: todos usam série inteiramente
 ;; no futuro (2027). Nos três modos, com a série toda no futuro, o
 ;; comportamento certo e o errado são indistinguíveis — só ocorrência já
-;; realizada separa um do outro.
+;; realizada separa um do outro. É por isso que a série montada aqui atravessa
+;; hoje, e é a única coisa que não pode ser simplificada nestes testes.
 ;;
 ;; ⚠️ Escritos pela `orla` (Claude na sandbox), que **não compila Clojure** —
-;; Clojars é bloqueado pela política de saída do ambiente. Não foram executados
-;; nem uma vez. O que está afirmado abaixo sobre o comportamento atual vem de
-;; leitura do handler, não de execução.
+;; Clojars é bloqueado pela política de saída do ambiente. **Nunca foram
+;; executados.** O SQL dos dois modos foi verificado contra PostgreSQL 16
+;; (docs/reproducoes/serie_reescreve_passado.sql); a suíte em si, não. Se algum
+;; falhar por detalhe de escrita do teste, o defeito é do teste — o
+;; comportamento esperado é o que está escrito nos `testing`.
 
 (def ^:private fuso-sp (java.time.ZoneId/of "America/Sao_Paulo"))
 

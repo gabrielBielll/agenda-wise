@@ -55,8 +55,9 @@
 | D-001 preserva processo anterior no Render, mas migration pode deixar o banco compartilhado incompatível/alterado | **orla** → **Gabriel** | [0019](0019-duna-para-orla-revisao-d001-a-d005.md) | ✅ avaliado em [0022](0022-orla-para-duna-a-janela-e-maior-do-que-voce-descreveu.md) — vira a pendência da ordem migration × reativação, acima |
 | Confirmar no painel: auto-deploy, persistent disk, health check e parâmetros exatos da proteção de branches | quem tiver admin/Render | [0019](0019-duna-para-orla-revisao-d001-a-d005.md) | 🟠 confirmar |
 | Criar agendamento **pela tela**, e os três modos pelos diálogos | claude-ec2 | [0006](0006-claude-ec2-para-claude-web-testes-de-core-e-navegador.md) | 🔴 aberto |
-| **A-001 e A-002** — reproduzidos em PG 16 (R$600 em 4 sessões pagas) e com teste vermelho escrito, como manda a D-008 | `orla` | [docs/REVISAO_PRE_PRODUCAO.md](../docs/REVISAO_PRE_PRODUCAO.md) | 🔴 **Gabriel**: autorizar a correção |
-| Rodar os dois testes novos da R-004 — a `orla` não compila Clojure | **duna** | [docs/REVISAO_PRE_PRODUCAO.md](../docs/REVISAO_PRE_PRODUCAO.md) | 🔴 aberto |
+| **A-001 e A-002** — reproduzidos em PG 16 (R$600 em 4 sessões pagas), teste escrito antes (D-008) e correção autorizada e aplicada | `orla` | [docs/REVISAO_PRE_PRODUCAO.md](../docs/REVISAO_PRE_PRODUCAO.md) | 🟡 **falta rodar a suíte** |
+| 🔴 Rodar `lein test` com banco — a correção da R-004 e os dois testes novos nunca foram executados; a `orla` não compila Clojure | **duna** | [docs/REVISAO_PRE_PRODUCAO.md](../docs/REVISAO_PRE_PRODUCAO.md) | 🔴 aberto |
+| `novo-duracao` tem o mesmo defeito que a A-001 tinha em `novo-valor`: `(or duracao ... 50)` nunca é nil, então duração é gravada em toda ocorrência do conjunto mesmo quando ninguém pediu. Já não alcança o passado; alcança as futuras | `orla` → **Gabriel** | [docs/REVISAO_PRE_PRODUCAO.md](../docs/REVISAO_PRE_PRODUCAO.md) | 🟠 decidir |
 
 ## Threads fechadas
 

@@ -87,6 +87,22 @@ R-004 diz.
 ✅ **Reproduzido junto com a A-001**, no mesmo arquivo: abrir a ocorrência mais
 antiga da série alcança as seis, quatro delas realizadas.
 
+✅ **Corrigidos em 2026-08-14**, autorizado pelo Gabriel. Em `core.clj`,
+`filtro-do-passado` e `valor-para-a-serie`, compartilhados pelos dois modos.
+
+⚠️ **A correção proposta acima estava errada em um ponto, e o erro só apareceu
+ao escrever o teste.** "O corte tem que ser `now()`, não a data da ocorrência"
+lido ao pé da letra quebra o `all_future`: com a série toda no futuro — o caso
+comum — cortar só por `now()` faz "esta e as seguintes" pegar a série inteira,
+inclusive as anteriores à que o usuário abriu. São os **dois** cortes, não a
+troca de um pelo outro. O modo `all` leva só o de `now()`, porque ali não existe
+corte de ocorrência.
+
+Verificado contra PostgreSQL 16, os quatro casos: série atravessando hoje pelos
+dois modos (2 alcançadas, nenhuma realizada) e série toda no futuro (`all_future`
+na 3ª de 4 → 2; `all` → 4). As duas strings de SELECT foram extraídas do fonte e
+aceitas pelo `PREPARE` do PostgreSQL. **A suíte Clojure não rodou** — ver abaixo.
+
 🧪 **Teste antes da correção, como manda a [D-008](../mensageria/DECISOES.md):**
 `all-nao-reescreve-ocorrencia-ja-realizada` e
 `all-future-corta-em-hoje-nao-na-ocorrencia-aberta`, em

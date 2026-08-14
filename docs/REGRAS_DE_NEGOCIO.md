@@ -116,8 +116,12 @@ Editar série recorrente **nunca** altera ocorrência que já aconteceu. Vale pa
 os três modos, inclusive "a série toda". Sessão realizada é registro, não
 rascunho.
 
-🔴 **O código viola esta regra em dois lugares** — ver A-001 e A-002 na
-[revisão](REVISAO_PRE_PRODUCAO.md).
+✅ **Corrigido em 2026-08-14**, autorizado pelo Gabriel. Os dois modos de série
+passaram a cortar por `now()` **e** por status, e `valor_consulta` só é gravado
+quando alguém pediu mudança de valor. Ver A-001 e A-002 na
+[revisão](REVISAO_PRE_PRODUCAO.md); teste em `agendamentos_test.clj`, seção
+"R-004". ⚠️ A suíte ainda não rodou — ver a pendência da `duna` no
+[INDEX](../mensageria/INDEX.md).
 
 ---
 

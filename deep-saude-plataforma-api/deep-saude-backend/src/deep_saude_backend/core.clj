@@ -619,6 +619,50 @@
       {:status 200 :body agendamento}
       {:status 404 :body {:erro "Agendamento não encontrado."}})))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; R-004 — passado é imutável
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;; As duas peças abaixo são o que separa a edição de série do passado. Ver
+;; docs/REGRAS_DE_NEGOCIO.md (R-004), os achados A-001 e A-002 em
+;; docs/REVISAO_PRE_PRODUCAO.md e a reprodução em
+;; docs/reproducoes/serie_reescreve_passado.sql.
+
+(def ^:private filtro-do-passado
+  "Tira do conjunto o que já aconteceu. Vale para os dois modos de série.
+
+   Dois critérios porque cada um pega o que o outro deixa passar: a data pega a
+   ocorrência que já passou e ainda não foi sincronizada para `realizado`
+   (a sincronização roda no boot e ao abrir o Financeiro, não continuamente), e
+   o status pega a que foi marcada como realizada sem que a hora tenha chegado.
+
+   Fica como string concatenada, e não como cláusula montada, porque não tem
+   parâmetro: `now()` é avaliado pelo banco, na mesma transação do UPDATE."
+  " AND data_hora_sessao >= now()
+    AND (status IS NULL OR status <> 'realizado')")
+
+(defn- valor-para-a-serie
+  "O `valor_consulta` a gravar nas ocorrências de uma série — ou nil para não
+   tocar na coluna.
+
+   ⚠️ Devolver nil é o ponto. A versão anterior era
+
+       (if (= status \"cancelado\") 0 (or valor_consulta (:valor_consulta agendamento-atual)))
+
+   que **nunca** dá nil: sem valor no corpo da requisição, caía no valor do
+   agendamento aberto. Como o `cond->` adiante só testa `some?`, o
+   `valor_consulta` era gravado em toda ocorrência do conjunto, em toda edição
+   — inclusive quando o usuário só queria mudar o horário. Era essa a metade
+   cara da A-001: o horário mudava à vista, o dinheiro mudava calado.
+
+   Agora só grava quando alguém pediu: valor no corpo, ou cancelamento, que
+   zera por regra."
+  [status valor_consulta]
+  (cond
+    (= status "cancelado") 0
+    (some? valor_consulta) valor_consulta
+    :else nil))
+
 (defn atualizar-agendamento-handler [request]
   (try
     (let [clinica-id (get-in request [:identity :clinica_id])
@@ -636,14 +680,21 @@
           (= mode "all_future")
           (if-let [recorrencia-id (:recorrencia_id agendamento-atual)]
              (let [novo-duracao (or duracao (:duracao agendamento-atual) 50)
-                   novo-valor (if (= status "cancelado") 0 (or valor_consulta (:valor_consulta agendamento-atual)))
+                   novo-valor (valor-para-a-serie status valor_consulta)
                    fuso (fuso-da-clinica clinica-id)
 
-                   ;; Find all future appointments in this series (including this one)
-                   agendamentos-futuros (execute-query! ["SELECT id, data_hora_sessao FROM agendamentos
+                   ;; Desta ocorrência em diante — e nunca para trás de agora.
+                   ;; Os DOIS cortes, não um ou outro: só a data da ocorrência
+                   ;; deixava "esta e as seguintes", aberta numa sessão antiga,
+                   ;; alcançar meses de sessões já realizadas (A-002); só
+                   ;; `now()` faria o modo pegar a série inteira sempre que ela
+                   ;; estivesse toda no futuro, que é o caso comum — deixaria de
+                   ;; ser "esta e as seguintes".
+                   agendamentos-futuros (execute-query! [(str "SELECT id, data_hora_sessao FROM agendamentos
                                                     WHERE recorrencia_id = ?
                                                     AND data_hora_sessao >= ?
                                                     AND clinica_id = ?"
+                                                              filtro-do-passado)
                                                    recorrencia-id (:data_hora_sessao agendamento-atual) clinica-id])]
 
                ;; Uma transação para a série inteira: ou todas as ocorrências
@@ -679,13 +730,16 @@
           (= mode "all")
           (if-let [recorrencia-id (:recorrencia_id agendamento-atual)]
              (let [novo-duracao (or duracao (:duracao agendamento-atual) 50)
-                   novo-valor (if (= status "cancelado") 0 (or valor_consulta (:valor_consulta agendamento-atual)))
+                   novo-valor (valor-para-a-serie status valor_consulta)
                    fuso (fuso-da-clinica clinica-id)
 
-                   ;; Find ALL appointments in this series
-                   todos-agendamentos (execute-query! ["SELECT id, data_hora_sessao FROM agendamentos
+                   ;; "A série toda" é a série toda que ainda vai acontecer.
+                   ;; Sem o filtro, este SELECT pegava as ocorrências já
+                   ;; realizadas e pagas junto (A-001).
+                   todos-agendamentos (execute-query! [(str "SELECT id, data_hora_sessao FROM agendamentos
                                                     WHERE recorrencia_id = ?
                                                     AND clinica_id = ?"
+                                                            filtro-do-passado)
                                                    recorrencia-id clinica-id])]
 
                ;; Mesma atomicidade do modo "all_future".
