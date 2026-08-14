@@ -75,9 +75,13 @@ decisão do Gabriel.
 
 ## 🔴 O que está na mesa do Gabriel
 
-1. **Corrigir A-001 e A-002 agora?** — foi a última pergunta feita e ficou sem
-   resposta. Reescrevem `valor_consulta` de sessão já paga, em silêncio. Cada
-   dia parado é mais um dia de risco.
+1. ✅ **A-001 e A-002 — autorizado e corrigido em 2026-08-14.** Reproduzidas
+   contra PostgreSQL 16 (R$ 600 reescritos em quatro sessões pagas), teste
+   escrito antes da correção como manda a D-008, correção aplicada e empurrada.
+   ⚠️ **A suíte nunca rodou** — pedido com a `duna` em [0025](../mensageria/0025-orla-para-duna-a-r004-esta-corrigida-e-precisa-rodar.md). Enquanto não
+   rodar, isto está *escrito*, não *provado*.
+   Sobrou um vizinho para decidir: `novo-duracao` tem o mesmo defeito que
+   `novo-valor` tinha, e já não alcança o passado — só as futuras da série.
 2. **Ordem migration × reativação do Render.** A migration de fuso tem que rodar
    **com o serviço ainda suspenso** — senão a instância antiga serve contra o
    schema novo e torce 3h. Ver D-001.
@@ -96,7 +100,24 @@ decisão do Gabriel.
   importa `@playwright/test`, devDependency. Pedi que ela quebre um teste de
   mentira para provar que o CI fica vermelho.
 - **`pico`** — P-001: `ALTER COLUMN TYPE` do Cockroach é atômico?
-- **Você** — confirmar ou derrubar o que vier; nada em execução agora.
+- **Você** — confirmar ou derrubar o que vier. Em aberto do seu lado: a resposta
+  da `duna` ao [0025](../mensageria/0025-orla-para-duna-a-r004-esta-corrigida-e-precisa-rodar.md), que é o que fecha a R-004.
+
+## O que você consegue fazer aqui, medido e não deduzido
+
+Vale conferir a cada sessão nova — o sandbox muda, e a linha da tabela de
+participantes do INDEX envelhece.
+
+| | |
+|---|---|
+| ❌ Compilar Clojure | Clojars dá **403 no CONNECT** do proxy — política de saída, não falta de JVM. `curl -sS "$HTTPS_PROXY/__agentproxy/status"` registra a recusa. Não insista: o README do proxy manda reportar 403, não contornar |
+| ✅ **PostgreSQL 16 local** | `service postgresql start`. É o que permitiu reproduzir A-001/A-002 com banco de verdade |
+| ✅ **Reader do Clojure** | `clojure.jar` está no **Maven Central**, que passa. Lê e valida sintaxe de `.clj` sem resolver dependência nenhuma — pega parêntese torto antes de empurrar |
+| ✅ JDK 21, `next build`, análise estática | como antes |
+
+Em duas frentes isso já valeu mais do que parece: dá para **extrair a string SQL
+do fonte** e mandar ao `PREPARE` do PostgreSQL. Não é a suíte, mas é o parser do
+banco dizendo se aceita — bem acima de "li e me parece certo".
 
 ⚠️ **O CI é caminho crítico, não higiene.** A `pico` saiu do fluxo e levou junto
 Playwright e CockroachDB; o GitHub Actions é o substituto. Nada de refactor antes
