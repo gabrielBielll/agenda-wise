@@ -52,6 +52,14 @@ repassadas. O livro financeiro muda depois de o dinheiro ter andado.
 Não há mensagem, não há confirmação, e a resposta diz "N agendamentos
 atualizados com sucesso".
 
+✅ **Reproduzido em 2026-08-14** contra PostgreSQL 16, com a JVM em UTC:
+[`docs/reproducoes/serie_reescreve_passado.sql`](reproducoes/serie_reescreve_passado.sql).
+Série de seis, quatro já realizadas e pagas a R$350. O usuário muda só o
+horário para 09:00 e escolhe "a série toda" — as quatro passadas saem para
+09:00 valendo R$200. **R$ 600 de diferença em sessões já pagas e repassadas.**
+O que continua sendo leitura de código, e não execução: que `novo-valor` nunca
+é nil. A `orla` não compila Clojure aqui.
+
 ---
 
 ## 🔴 A-002 — "Esta e as seguintes" é relativo à ocorrência, não a hoje
@@ -75,6 +83,17 @@ reescreve o `valor_consulta` de cada uma.
 **Correção das duas:** o corte tem que ser `now()` **e** o status, não a data da
 ocorrência. Ocorrência `realizado` sai do conjunto em qualquer modo — é o que a
 R-004 diz.
+
+✅ **Reproduzido junto com a A-001**, no mesmo arquivo: abrir a ocorrência mais
+antiga da série alcança as seis, quatro delas realizadas.
+
+🧪 **Teste antes da correção, como manda a [D-008](../mensageria/DECISOES.md):**
+`all-nao-reescreve-ocorrencia-ja-realizada` e
+`all-future-corta-em-hoje-nao-na-ocorrencia-aberta`, em
+`test/deep_saude_backend/agendamentos_test.clj`. **Vermelhos de propósito** —
+descrevem a R-004, não o código de hoje. Ficam verdes quando a correção entrar,
+sem ajuste. Escritos sem nunca terem sido executados; a `duna` (GPT local) é
+quem consegue rodar a suíte.
 
 ---
 

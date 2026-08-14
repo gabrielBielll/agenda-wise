@@ -323,6 +323,103 @@
     (testing "valor válido do mesmo campo passa"
       (is (= 200 (:status (atualizar (:id avulsa) {:status_repasse "transferido"})))))))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; R-004 — passado é imutável (A-001 e A-002)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;; 🔴 **Os dois testes desta seção falham de propósito.** Eles descrevem a
+;; R-004, não o que o código faz hoje — a D-008 manda achado confirmado virar
+;; teste ANTES de virar correção, e é este o teste. Ficam vermelhos até a
+;; correção de A-001 e A-002 entrar; quando ela entrar, ficam verdes sem
+;; precisar de ajuste. Se algum dia passarem sem que a correção tenha entrado, é
+;; o teste que está errado.
+;;
+;; Por que os testes que já existiam não pegaram: todos usam série inteiramente
+;; no futuro (2027). Nos três modos, com a série toda no futuro, o
+;; comportamento certo e o errado são indistinguíveis — só ocorrência já
+;; realizada separa um do outro.
+;;
+;; ⚠️ Escritos pela `orla` (Claude na sandbox), que **não compila Clojure** —
+;; Clojars é bloqueado pela política de saída do ambiente. Não foram executados
+;; nem uma vez. O que está afirmado abaixo sobre o comportamento atual vem de
+;; leitura do handler, não de execução.
+
+(def ^:private fuso-sp (java.time.ZoneId/of "America/Sao_Paulo"))
+
+(defn- parede
+  "Horário de parede em São Paulo, `dias` a partir de agora, na hora cheia `hora`.
+
+   Relativo a hoje de propósito. Data fixa no futuro vira data no passado com o
+   tempo, e o teste passaria a exercitar outro caso — calado, e justamente do
+   lado errado da fronteira que ele existe para vigiar."
+  [dias hora]
+  (-> (java.time.ZonedDateTime/now fuso-sp)
+      (.plusDays dias)
+      (.withHour hora) (.withMinute 0) (.withSecond 0) (.withNano 0)
+      (.format (java.time.format.DateTimeFormatter/ofPattern "yyyy-MM-dd'T'HH:mm:ss"))))
+
+(defn- serie-atravessando-hoje!
+  "Série semanal de seis às 14:00, começando 24 dias atrás: quatro já
+   realizadas e pagas, duas por vir. Devolve os ids em ordem cronológica.
+
+   Os deslocamentos (-24, -17, -10, -3, +4, +11) evitam de propósito cair em
+   cima de hoje: ocorrência no dia da execução ficaria de um lado ou do outro
+   de `now()` conforme a hora em que a suíte rodasse.
+
+   As passadas ficam valendo 350 — diferente dos 200 da série — para que
+   reescrita silenciosa apareça na asserção em vez de se confundir com o valor
+   que já estava lá."
+  []
+  (criar (assoc sessao-base :data_hora_sessao (parede -24 14)
+                            :recorrencia_tipo "semanal" :quantidade_recorrencia 6))
+  (db/execute-one! ["UPDATE agendamentos
+                        SET status = 'realizado', status_pagamento = 'pago', valor_consulta = 350
+                      WHERE data_hora_sessao < now()"])
+  (mapv :id (db/execute-query! ["SELECT id FROM agendamentos ORDER BY data_hora_sessao"])))
+
+(defn- ocorrencias []
+  (db/execute-query!
+   ["SELECT to_char(data_hora_sessao AT TIME ZONE 'America/Sao_Paulo',
+                    'YYYY-MM-DD HH24:MI') AS parede,
+            valor_consulta,
+            (data_hora_sessao < now()) AS passada
+       FROM agendamentos ORDER BY data_hora_sessao"]))
+
+(defn- so-o-horario [linhas] (mapv #(subs (:parede %) 11) linhas))
+(defn- passadas [] (filterv :passada (ocorrencias)))
+(defn- futuras  [] (filterv (complement :passada) (ocorrencias)))
+
+(deftest all-nao-reescreve-ocorrencia-ja-realizada
+  ;; A-001. O usuário abre a última sessão da série e escolhe "a série toda"
+  ;; para mudar o horário das próximas. Hoje o handler seleciona por
+  ;; `recorrencia_id` sem filtro de data nem de status, e como `novo-valor`
+  ;; nunca é nil, grava `valor_consulta` em todas — o livro financeiro muda
+  ;; depois de o dinheiro ter andado, e a resposta diz "6 agendamentos
+  ;; atualizados com sucesso".
+  (let [ids  (serie-atravessando-hoje!)
+        resp (atualizar (last ids) {:data_hora_sessao (parede 11 9) :mode "all"})]
+    (is (= 200 (:status resp)))
+    (testing "as quatro que já aconteceram continuam às 14:00"
+      (is (= ["14:00" "14:00" "14:00" "14:00"] (so-o-horario (passadas)))))
+    (testing "e continuam valendo o que valiam quando foram pagas"
+      (is (every? #(== 350M (bigdec (:valor_consulta %))) (passadas))))
+    (testing "as duas por vir adotam o horário novo — é o que o usuário pediu"
+      (is (= ["09:00" "09:00"] (so-o-horario (futuras)))))))
+
+(deftest all-future-corta-em-hoje-nao-na-ocorrencia-aberta
+  ;; A-002. O corte de "esta e as seguintes" é a data da ocorrência aberta, não
+  ;; `now()`. Abrir a sessão de três semanas atrás alcança tudo daquela data em
+  ;; diante — inclusive as realizadas — e reescreve o valor de cada uma pela
+  ;; mesma porta da A-001.
+  (let [ids  (serie-atravessando-hoje!)
+        resp (atualizar (first ids) {:data_hora_sessao (parede -24 9) :mode "all_future"})]
+    (is (= 200 (:status resp)))
+    (testing "abrir a mais antiga não alcança as sessões já realizadas"
+      (is (= ["14:00" "14:00" "14:00" "14:00"] (so-o-horario (passadas))))
+      (is (every? #(== 350M (bigdec (:valor_consulta %))) (passadas))))
+    (testing "de hoje em diante, muda"
+      (is (= ["09:00" "09:00"] (so-o-horario (futuras)))))))
+
 (deftest atualizar-respeita-fronteira-entre-clinicas
   (let [avulsa (:body (criar (assoc sessao-base :data_hora_sessao "2027-03-10T14:00:00")))]
     (testing "clínica B não enxerga nem altera agendamento da clínica A"
