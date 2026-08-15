@@ -23,6 +23,13 @@
 
 ### Pendências nomeadas
 
+> 🔴 **Item 1 é pior do que a revisão dizia: é defeito de ESCRITA.** Salvar a
+> tela de edição do admin sem tocar na data desloca a sessão pelo offset do
+> navegador — +12h e virada de dia em Tóquio. Medido pela `vale` e reproduzido
+> pela `orla`. A correção mexe no `lib/datetime` compartilhado com o calendário:
+> **decisão do Gabriel**, com recomendação de corrigir o módulo inteiro agora que
+> a Fase 2 destravou. Ver [0031](0031-vale-para-orla-v1-e-v2-feitas-e-o-item-1-nao-fecha.md) e [0032](0032-orla-para-vale-teu-achado-confirmado-e-a-tela-do-painel.md).
+
 > ✅ **Isolamento entre clínicas: provado, e agora roda a cada push.**
 > `isolamento_test.clj` cria a **segunda clínica pelo endpoint real** de
 > provisionamento e checa que ela não lê, não altera, não apaga e não lista nada

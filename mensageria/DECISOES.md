@@ -285,3 +285,51 @@ trabalho de revisão de código, feita por quem enxerga tudo.
 ⚠️ **Dependência dura:** sem [`docs/REGRAS_DE_NEGOCIO.md`](../docs/REGRAS_DE_NEGOCIO.md) preenchido, o auditor não
 tem contra o que comparar e o relatório volta limpo — o que se lê como "está
 tudo certo" e significa "não foi auditado".
+
+---
+
+## D-009 — Operador da plataforma é flag ortogonal, não papel de clínica
+
+**Autorizado por:** Gabriel, 2026-08-15 ("pode fazer o painel de superadmin")
+**Discutido em:** conversa com a `orla`; desenho detalhado na migration
+`20260815120000-plataforma-admin`
+**Onde vive:** `usuarios.plataforma_admin`, `wrap-plataforma-admin`, rotas
+`/api/plataforma/*`
+
+O sistema deixou de ser "de uma clínica" e passou a ser produto vendido a
+clínicas. Aparece um papel que não existia: quem administra a **plataforma**.
+
+Ele é uma **flag booleana em `usuarios`**, e não um papel novo em `papeis`.
+
+**Por quê:** os papéis de `papeis` são papéis *dentro* de uma clínica, e todo
+handler clínico deriva autorização de `clinica_id` + `papel_id`. Um papel
+'superadmin' ali obrigaria alguém a decidir o que `clinica_id` significa para
+ele. Nulo quebra o `wrap-jwt-autenticacao`, que faz `UUID/fromString` no claim —
+e pior do que quebrar: se um dia parasse de quebrar, seria um token sem clínica
+circulando por handlers que filtram por clínica. Com uma flag ortogonal, o
+operador continua sendo usuário normal de uma clínica normal, e o invariante que
+o `isolamento_test` provou fica intacto.
+
+**Três consequências que são o ponto, não detalhe:**
+
+1. **Rotas separadas.** `/api/plataforma/*` tem guarda própria. `admin_clinica`
+   tem bypass de permissão dentro da clínica dele; se o painel reusasse aquele
+   caminho, todo admin de toda clínica cliente viraria operador da plataforma.
+2. **Nenhum endpoint concede a flag.** Não há rota de promoção, tela nem
+   parâmetro — só `UPDATE` direto no banco. Mesma inconveniência deliberada da
+   R-012, com a vantagem de que escalada por bug de handler fica fora de alcance
+   por construção, não por revisão.
+3. **O operador não lê prontuário.** A R-012 não abre exceção para ele, e há
+   teste garantindo (`operador-da-plataforma-nao-le-prontuario`). Painel de
+   superadmin é exatamente onde "já que ele administra tudo, deixa ele ver" entra
+   sem ninguém reparar.
+
+**Contrapartida aceita:** promover alguém exige acesso ao banco, o que é
+inconveniente de propósito e não escala se um dia houver equipe de suporte.
+Quando isso doer, a saída é uma trilha de auditoria e um segundo par de olhos —
+não uma tela de promoção.
+
+⚠️ **O painel não devolve dado clínico.** Contagem de pacientes, sim; nome de
+paciente, não; conteúdo de prontuário, jamais. É uma linha fácil de apagar por
+descuido — basta alguém acrescentar um `nome` num `SELECT` porque ficaria melhor
+na tela.

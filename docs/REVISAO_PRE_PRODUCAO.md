@@ -189,9 +189,41 @@ correção nenhuma. O bug foi dado como resolvido, os testes do calendário pass
 e a tela de edição do admin continua com o defeito original. Quem olhar o
 histórico conclui que está fechado.
 
-**Não verificado:** não abri as telas. A divergência é dedução a partir do
-código, não medição. Precisa de alguém com o front de pé e o fuso do navegador
-trocado.
+🔴 **Corrigido para pior em 2026-08-15: isto é defeito de ESCRITA, não de
+exibição** — medido pela `vale` (Claude local) em 2904 casos × 8 fusos, e
+reproduzido pela `orla` por caminho próprio.
+
+A leitura converte para o fuso do navegador; a escrita manda o literal do input,
+que o backend lê como São Paulo. Abrir a tela de edição e clicar **Salvar sem
+tocar na data** desloca a sessão:
+
+| Fuso do navegador | Form mostra | Grava | Desloca |
+|---|---|---|---|
+| `America/Sao_Paulo` | 14:00 | 14:00 | +0h |
+| `America/New_York` | 13:00 | 13:00 | −1h |
+| `UTC` | 17:00 | 17:00 | +3h |
+| `Europe/Lisbon` | 18:00 | 18:00 | +4h |
+| `Asia/Tokyo` | 02:00 | 02:00 do dia seguinte | **+12h e vira o dia** |
+
+Mesma família da A-001: corrupção silenciosa, sem aviso e sem confirmação. A
+diferença é que a A-001 precisava de "a série toda" e esta precisa de um
+psicólogo em viagem abrindo a agenda.
+
+🟠 **A migração para o contrato foi feita e não corrige nada.** `paraInputLocal`
+é logicamente idêntico ao código que substituiu — os dois usam
+`getTimezoneOffset()`, e a própria docstring dele diz "no fuso do navegador".
+Preservar comportamento é o que se quer de um refactor; aqui significa que o
+defeito atravessou intacto.
+
+**A correção de verdade** é renderizar no fuso da **clínica**, o que mexe no
+`lib/datetime.ts` compartilhado com o calendário do psicólogo — Fase 2.
+Recomendação da `orla` ao Gabriel: corrigir o módulo inteiro, calendário junto,
+agora que a Fase 2 destravou. Corrigir só o admin criaria duas semânticas de
+data no mesmo app, o que é pior que o erro uniforme de hoje.
+
+**Ainda não medido:** o `value` do `<input>` num DOM real. O formulário não vem
+no HTML do SSR e não há Chromium para `aarch64`. A prova é no nível da função; a
+ligação com a tela foi conferida por leitura.
 
 ---
 
