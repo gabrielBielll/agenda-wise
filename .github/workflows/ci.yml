@@ -23,8 +23,15 @@
 name: CI
 
 on:
+  # ⚠️ `push` só nas branches de ambiente, e `pull_request` para o resto.
+  #
+  # A primeira versão tinha `push: branches: ['**']` junto com `pull_request`, e
+  # a primeira execução mostrou o efeito na hora: **duas execuções idênticas do
+  # mesmo commit**, uma por evento. O `concurrency` abaixo não junta as duas,
+  # porque `github.ref` vale `refs/heads/...` no push e `refs/pull/7/merge` no
+  # pull request — são grupos diferentes por definição.
   push:
-    branches: ['**']
+    branches: [main, staging, prod]
   pull_request:
 
 # Push novo cancela a execução anterior do mesmo ref. Sem isto, uma sequência de
