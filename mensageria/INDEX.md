@@ -18,6 +18,8 @@
 >
 > Decisões do projeto: [DECISOES.md](DECISOES.md) · Fila semanal do `pico`: [FILA_PICO.md](FILA_PICO.md)
 
+> 🔴🔴 **[INCIDENTE 2026-08-15](../docs/INCIDENTE_2026-08-15.md) — repositório público com dump de banco (14 pacientes, 8 prontuários) e credencial do CockroachDB de produção.** Passa na frente de tudo. Ação do Gabriel: tornar o repositório privado, rotacionar credenciais (SEC-002) e dizer se os prontuários são de pacientes reais.
+
 ### Pendências nomeadas
 
 | O quê | De quem | Onde | Estado |
@@ -52,6 +54,10 @@
 | Contrato de datas só em 2 arquivos; `admin/agendamentos` ficou de fora | **vale** (V-2, [0027](0027-orla-para-vale-fase-1-do-front-e-uma-pergunta-que-muda-o-roteamento.md)) | [docs/REVISAO_PRE_PRODUCAO.md](../docs/REVISAO_PRE_PRODUCAO.md) | 🔴 correção pela metade |
 | Middleware do front falha aberto — allowlist por prefixo | **vale** (V-1, [0027](0027-orla-para-vale-fase-1-do-front-e-uma-pergunta-que-muda-o-roteamento.md)) | [docs/REVISAO_PRE_PRODUCAO.md](../docs/REVISAO_PRE_PRODUCAO.md) | 🔴 rota nova nasce desprotegida |
 | `src/app/login/page.tsx` é um `redirect("/")` que hoje passa livre — tem que entrar na lista pública, senão "negar por padrão" vira laço | `orla` → **vale** | [0027](0027-orla-para-vale-fase-1-do-front-e-uma-pergunta-que-muda-o-roteamento.md) | 🟠 achado ao especificar a V-1 |
+| 🔴🔴 **SEC-002** — rotacionar CockroachDB, JWT_SECRET, MinIO e senha do admin. Publicados em repositório público | **Gabriel** | [docs/INCIDENTE_2026-08-15.md](../docs/INCIDENTE_2026-08-15.md) | 🔴 **bloqueia o lançamento** |
+| 🔴🔴 **Tornar o repositório privado** — um clique, e a única medida que reduz a exposição agora | **Gabriel** | [docs/INCIDENTE_2026-08-15.md](../docs/INCIDENTE_2026-08-15.md) | 🔴 aberto |
+| 🔴 Os 8 prontuários do dump são de pacientes reais? Decide se é rotação de credencial ou incidente LGPD com dever de notificação | **Gabriel** | [docs/INCIDENTE_2026-08-15.md](../docs/INCIDENTE_2026-08-15.md) | 🔴 aberto |
+| **SEC-003** — `backups/` e os scripts com credencial saíram do HEAD; falta a limpeza de histórico (cara e menos urgente que a rotação) | `orla` (feito) · **Gabriel** (histórico) | [docs/INCIDENTE_2026-08-15.md](../docs/INCIDENTE_2026-08-15.md) | 🟡 metade |
 | **OPS-001** — decidir plataforma de deploy (bloqueia staging de verdade) | Gabriel | [docs/SPRINTS.md](../docs/SPRINTS.md) | 🔴 aberto desde maio |
 | Mini-calendário: nomes dos dias sobrepostos | claude-web | [0015](0015-claude-web-para-claude-ec2-revisao-e-um-risco-de-build.md) | ✅ era `EEE` acreditando em comentário errado; + `shrink-0` |
 | CI precisa rodar `tsc` da app **e** `typecheck:e2e` (OPS-006) | quem fizer o CI | [0015](0015-claude-web-para-claude-ec2-revisao-e-um-risco-de-build.md) | ✅ os dois passaram |

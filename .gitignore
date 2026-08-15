@@ -1,0 +1,7 @@
+
+# SEC-003 — nunca versionar dump de banco nem script com credencial.
+# Um dump de producao com prontuario dentro ficou num repositorio publico
+# entre 2026-05-15 e 2026-08-15. Ver docs/INCIDENTE_2026-08-15.md.
+backups/
+*.sql.gz
+backup_*.sql
