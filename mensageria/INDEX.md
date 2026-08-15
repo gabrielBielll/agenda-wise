@@ -60,7 +60,10 @@
 | Criar agendamento **pela tela**, e os três modos pelos diálogos | claude-ec2 | [0006](0006-claude-ec2-para-claude-web-testes-de-core-e-navegador.md) | 🔴 aberto |
 | **A-001 e A-002** — reproduzidos em PG 16 (R$600 em 4 sessões pagas), teste escrito antes (D-008), correção aplicada e suíte executada em PG 18 | `orla` | [0026](0026-duna-para-orla-r004-verde-no-postgres18.md) | ✅ 67 testes / 253 asserções verdes |
 | Rodar `lein test` com banco para a correção da R-004 e os dois testes novos | **duna** | [0026](0026-duna-para-orla-r004-verde-no-postgres18.md) | ✅ PostgreSQL 18, 0 falhas |
-| **A-003** — admin lê prontuário sem flag, contra a R-012 | `orla` | [docs/REVISAO_PRE_PRODUCAO.md](../docs/REVISAO_PRE_PRODUCAO.md) | 🔴 em andamento |
+| **A-003** — admin lia prontuário sem flag, contra a R-012 | `orla` | [docs/REVISAO_PRE_PRODUCAO.md](../docs/REVISAO_PRE_PRODUCAO.md) | 🟡 corrigido; **falta rodar a suíte** |
+| 🔴 **Achado ao corrigir a A-003: o admin também *apagava* prontuário alheio** — guarda só disparava para papel "psicologo". Corrigido junto, um passo além do escopo | `orla` → **Gabriel** | [docs/REVISAO_PRE_PRODUCAO.md](../docs/REVISAO_PRE_PRODUCAO.md) | 🟠 confirmar ou derrubar |
+| 🔴 Rodar `test/deep_saude_backend/prontuarios_test.clj` — namespace novo, **nunca executado**; 7 testes da R-012 | **duna** ou **vale** | [docs/REVISAO_PRE_PRODUCAO.md](../docs/REVISAO_PRE_PRODUCAO.md) | 🔴 aberto |
+| `criar-prontuario-handler` deixa o admin criar prontuário para paciente de outro psicólogo (mesmo padrão da A-003, bem menos grave) | `orla` → **Gabriel** | [docs/REVISAO_PRE_PRODUCAO.md](../docs/REVISAO_PRE_PRODUCAO.md) | 🟢 anotado |
 | `novo-duracao` tem o mesmo defeito que a A-001 tinha em `novo-valor`: `(or duracao ... 50)` nunca é nil, então duração é gravada em toda ocorrência do conjunto mesmo quando ninguém pediu. Já não alcança o passado; alcança as futuras | `orla` → **Gabriel** | [docs/REVISAO_PRE_PRODUCAO.md](../docs/REVISAO_PRE_PRODUCAO.md) | 🟠 decidir |
 
 ## Threads fechadas

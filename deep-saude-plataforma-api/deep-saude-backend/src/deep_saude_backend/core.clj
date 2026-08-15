@@ -1191,19 +1191,51 @@
           (.printStackTrace e)
           {:status 500 :body {:erro "Erro interno."}})))))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; R-012 — prontuário é do psicólogo
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(def ^:private super-admin-le-prontuario?
+  "Saída de emergência da R-012. Ligada **em código**, e é isso que a torna
+   uma saída de emergência.
+
+   ⚠️ Não vire isto em variável de ambiente. A R-012 diz, com todas as letras,
+   \"não por tela, não por configuração que alguém com acesso ao painel possa
+   ligar\": exigir alteração de código e implantação é a inconveniência que dá
+   sentido à regra. Flag que se liga pelo painel do Render vira flag ligada.
+
+   ⚠️ Ligar isto sem registrar quem leu o quê e quando deixa a leitura de
+   prontuário alheio indistinguível de porta dos fundos. Prontuário é sigilo
+   profissional (CFP) e dado sensível de saúde (LGPD). O registro está
+   recomendado e pendente de decisão do Gabriel — ver R-012 em
+   docs/REGRAS_DE_NEGOCIO.md."
+  false)
+
+(defn- pode-ler-prontuarios?
+  "Só o psicólogo do paciente lê. Nem o admin da clínica, nem outro psicólogo —
+   é o que a R-012 diz, e o que a A-003 apontou que o código não fazia.
+
+   O `wrap-checar-permissao` que guarda a rota exige `visualizar_pacientes`, que
+   o admin tem: permissão de tela não é autorização clínica, e era por aí que a
+   leitura passava."
+  [papel usuario-id paciente]
+  (or super-admin-le-prontuario?
+      (and (= papel "psicologo")
+           (= (:psicologo_id paciente) usuario-id))))
+
 (defn listar-prontuarios-handler [request]
   (let [identity (:identity request)
         clinica-id (:clinica_id identity)
         usuario-id (:user_id identity)
         papel (:role identity)
         paciente-id (java.util.UUID/fromString (get-in request [:params :paciente-id]))]
-    
+
     (let [paciente (execute-one! ["SELECT id, psicologo_id FROM pacientes WHERE id = ? AND clinica_id = ?" paciente-id clinica-id])]
       (if-not paciente
         {:status 404 :body {:erro "Paciente não encontrado."}}
-        
-        ;; Verificação: Psicólogo só vê de seus pacientes
-        (if (and (= papel "psicologo") (not= (:psicologo_id paciente) usuario-id))
+
+        ;; R-012: por padrão, só o psicólogo do paciente.
+        (if-not (pode-ler-prontuarios? papel usuario-id paciente)
           {:status 403 :body {:erro "Você não tem permissão para visualizar este prontuário."}}
           
           (let [prontuarios (execute-query! 
@@ -1221,12 +1253,19 @@
   (let [identity (:identity request)
         clinica-id (:clinica_id identity)
         usuario-id (:user_id identity)
-        papel (:role identity)
         prontuario-id (java.util.UUID/fromString (get-in request [:params :id]))]
-    
+
     (if-let [prontuario (execute-one! ["SELECT id, psicologo_id FROM prontuarios WHERE id = ? AND clinica_id = ?" prontuario-id clinica-id])]
-      ;; Verificação de permissão: Apenas o autor ou admin pode excluir
-      (if (and (= papel "psicologo") (not= (:psicologo_id prontuario) usuario-id))
+      ;; Só o autor exclui.
+      ;;
+      ;; ⚠️ Um passo além da A-003, e digo por quê: a A-003 é sobre leitura, e
+      ;; esta guarda só disparava para `papel` "psicologo" — o admin apagava
+      ;; prontuário alheio. Fechar a leitura do admin e deixar a exclusão aberta
+      ;; seria incoerente, e apagar registro clínico é pior do que lê-lo. O
+      ;; handler irmão (`atualizar-prontuario-handler`) já checava autoria sem
+      ;; olhar o papel; esta linha ficou para trás dele, não é regra decidida.
+      ;; Sem alcance de tela: nenhuma página do admin consome prontuário.
+      (if (not= (:psicologo_id prontuario) usuario-id)
         {:status 403 :body {:erro "Você só pode excluir prontuários criados por você."}}
         
         (let [resultado (sql/delete! @datasource :prontuarios {:id prontuario-id :clinica_id clinica-id})]

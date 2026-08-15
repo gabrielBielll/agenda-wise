@@ -126,6 +126,32 @@ Hoje não existe flag — o admin da clínica lê direto.
 A escrita já está certa (`atualizar-prontuario-handler` checa autoria e devolve
 403). É a **leitura** que está aberta.
 
+✅ **Corrigido em 2026-08-15.** `pode-ler-prontuarios?` em `core.clj`: só o
+psicólogo do paciente lê. A saída de emergência da R-012 existe como
+`super-admin-le-prontuario?`, um `def` **em código** — deliberadamente não é
+variável de ambiente, porque a R-012 exclui "configuração que alguém com acesso
+ao painel possa ligar", e o painel do Render é exatamente isso.
+
+**Por onde a leitura passava:** o `wrap-checar-permissao` da rota exige
+`visualizar_pacientes`, que o admin tem. Permissão de tela não é autorização
+clínica — a guarda de papel existia, mas a de autoria não.
+
+🔴 **Achado ao corrigir, e mais grave do que a A-003: o admin também *apagava*
+prontuário alheio.** `remover-prontuario-handler` só disparava a guarda quando
+`papel` era "psicologo"; para qualquer outro papel, passava direto para o
+`DELETE`. O handler irmão de edição já checava autoria sem olhar papel — esta
+linha ficou para trás dele. Corrigido junto, um passo além do escopo da A-003, e
+registrado aqui para o Gabriel poder derrubar: apagar registro clínico é pior do
+que lê-lo, e nenhuma tela do admin consome prontuário, então o alcance é zero.
+
+🧪 Testes em `test/deep_saude_backend/prontuarios_test.clj` — leitura pelo autor,
+pelo colega e pelo admin, exclusão pelos três, e a saída de emergência ligada e
+desligada. **Nunca executados** pela autora; ver o INDEX.
+
+⚠️ Mesmo padrão em `criar-prontuario-handler` (`and (= papel "psicologo")`): o
+admin pode criar prontuário para paciente de outro psicólogo. Menos grave — ele
+fica como autor, e depois da correção só ele mesmo lê. Não mexi; fica anotado.
+
 ---
 
 ## 🔴 1. O contrato de datas foi aplicado pela metade

@@ -78,7 +78,7 @@ sem gastar auditoria.
 - ❓ Paciente pode ser atendido por mais de um psicólogo? Em férias/substituição,
   quem enxerga o quê?
 
-**R-012** — ✅ confirmada, ver abaixo. **O código viola.**
+**R-012** — ✅ confirmada, ver abaixo. **Violação corrigida; falta rodar a suíte.**
 
 **R-013 — Desligar psicólogo**
 - Hoje: ❓ não achei fluxo de desligamento.
@@ -152,7 +152,13 @@ possa ligar. Quando for preciso, o Gabriel entra no código e libera.
 prontuário alheio é a inconveniência que dá sentido à regra. Flag que se liga
 pela interface vira flag ligada.
 
-🔴 **O código viola:** hoje o admin lê prontuário sem flag nenhuma.
+✅ **Corrigido em 2026-08-15.** Só o psicólogo do paciente lê; a saída de
+emergência é `super-admin-le-prontuario?`, um `def` em código — não variável de
+ambiente, porque o painel do Render é "configuração que alguém com acesso ao
+painel possa ligar". Ver A-003 na [revisão](REVISAO_PRE_PRODUCAO.md).
+
+🔴 **E o admin também apagava prontuário alheio** — achado ao corrigir, fora do
+escopo original da A-003, corrigido junto e sinalizado para você poder derrubar.
 
 ⚠️ **Recomendação da `orla`, pendente de decisão:** todo acesso pela flag
 deveria deixar registro — quem, quando, qual prontuário. Prontuário é sigilo
