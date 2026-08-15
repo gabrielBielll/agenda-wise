@@ -78,8 +78,9 @@ decisão do Gabriel.
 1. ✅ **A-001 e A-002 — autorizado e corrigido em 2026-08-14.** Reproduzidas
    contra PostgreSQL 16 (R$ 600 reescritos em quatro sessões pagas), teste
    escrito antes da correção como manda a D-008, correção aplicada e empurrada.
-   ⚠️ **A suíte nunca rodou** — pedido com a `duna` em [0025](../mensageria/0025-orla-para-duna-a-r004-esta-corrigida-e-precisa-rodar.md). Enquanto não
-   rodar, isto está *escrito*, não *provado*.
+   ✅ **Suíte executada** pela `duna` em PostgreSQL 18 — 67 testes, 253
+   asserções, 0 falhas, sem regressão nos modos `all`/`all_future`
+   ([0026](../mensageria/0026-duna-para-orla-r004-verde-no-postgres18.md)). Escrito **e** provado.
    Sobrou um vizinho para decidir: `novo-duracao` tem o mesmo defeito que
    `novo-valor` tinha, e já não alcança o passado — só as futuras da série.
 2. **Ordem migration × reativação do Render.** A migration de fuso tem que rodar
@@ -100,8 +101,10 @@ decisão do Gabriel.
   importa `@playwright/test`, devDependency. Pedi que ela quebre um teste de
   mentira para provar que o CI fica vermelho.
 - **`pico`** — P-001: `ALTER COLUMN TYPE` do Cockroach é atômico?
-- **Você** — confirmar ou derrubar o que vier. Em aberto do seu lado: a resposta
-  da `duna` ao [0025](../mensageria/0025-orla-para-duna-a-r004-esta-corrigida-e-precisa-rodar.md), que é o que fecha a R-004.
+- **`vale`** — Fase 1 do front ([0027](../mensageria/0027-orla-para-vale-fase-1-do-front-e-uma-pergunta-que-muda-o-roteamento.md)): V-1 middleware negar-por-padrão (itens 2
+  e 7) e V-2 contrato de datas no admin (item 1). Nenhuma depende do CI.
+- **Você** — A-003, a última violação de regra confirmada em aberto. E confirmar
+  ou derrubar o que a `vale` devolver.
 
 ## O que você consegue fazer aqui, medido e não deduzido
 

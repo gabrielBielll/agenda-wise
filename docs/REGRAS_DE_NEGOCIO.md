@@ -39,7 +39,7 @@ sem gastar auditoria.
   financeiro por si.
 - ❓ Falta cobra? Repassa ao psicólogo?
 
-**R-004** — ✅ confirmada, ver abaixo. **O código viola.**
+**R-004** — ✅ confirmada, ver abaixo. **Violação corrigida e verde na suíte.**
 
 **R-005 — Limite de recorrência**
 - Hoje: até 120 agendamentos de uma vez; semanal ou quinzenal.
@@ -120,8 +120,8 @@ rascunho.
 passaram a cortar por `now()` **e** por status, e `valor_consulta` só é gravado
 quando alguém pediu mudança de valor. Ver A-001 e A-002 na
 [revisão](REVISAO_PRE_PRODUCAO.md); teste em `agendamentos_test.clj`, seção
-"R-004". ⚠️ A suíte ainda não rodou — ver a pendência da `duna` no
-[INDEX](../mensageria/INDEX.md).
+"R-004". ✅ Suíte executada pela `duna` (GPT local) em PostgreSQL 18: **67
+testes, 253 asserções, 0 falhas** — [0026](../mensageria/0026-duna-para-orla-r004-verde-no-postgres18.md).
 
 ---
 

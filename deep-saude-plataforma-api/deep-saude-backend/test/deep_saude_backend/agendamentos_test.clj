@@ -339,11 +339,11 @@
 ;; hoje, e é a única coisa que não pode ser simplificada nestes testes.
 ;;
 ;; ⚠️ Escritos pela `orla` (Claude na sandbox), que **não compila Clojure** —
-;; Clojars é bloqueado pela política de saída do ambiente. **Nunca foram
-;; executados.** O SQL dos dois modos foi verificado contra PostgreSQL 16
-;; (docs/reproducoes/serie_reescreve_passado.sql); a suíte em si, não. Se algum
-;; falhar por detalhe de escrita do teste, o defeito é do teste — o
-;; comportamento esperado é o que está escrito nos `testing`.
+;; Clojars é bloqueado pela política de saída do ambiente. O SQL dos dois modos
+;; foi verificado aqui contra PostgreSQL 16
+;; (docs/reproducoes/serie_reescreve_passado.sql); a suíte, não.
+;; ✅ A `duna` (GPT local) executou os dois em PostgreSQL 18 — verdes, sem
+;; regressão nos modos `all` e `all_future` (mensageria/0026).
 
 (def ^:private fuso-sp (java.time.ZoneId/of "America/Sao_Paulo"))
 

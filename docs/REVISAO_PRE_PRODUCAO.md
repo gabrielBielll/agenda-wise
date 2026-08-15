@@ -101,15 +101,17 @@ corte de ocorrência.
 Verificado contra PostgreSQL 16, os quatro casos: série atravessando hoje pelos
 dois modos (2 alcançadas, nenhuma realizada) e série toda no futuro (`all_future`
 na 3ª de 4 → 2; `all` → 4). As duas strings de SELECT foram extraídas do fonte e
-aceitas pelo `PREPARE` do PostgreSQL. **A suíte Clojure não rodou** — ver abaixo.
+aceitas pelo `PREPARE` do PostgreSQL. ✅ **A suíte Clojure rodou depois**, pela
+`duna` em PostgreSQL 18: 67 testes, 253 asserções, 0 falhas, sem regressão nos
+modos `all` e `all_future` ([0026](../mensageria/0026-duna-para-orla-r004-verde-no-postgres18.md)).
 
 🧪 **Teste antes da correção, como manda a [D-008](../mensageria/DECISOES.md):**
 `all-nao-reescreve-ocorrencia-ja-realizada` e
 `all-future-corta-em-hoje-nao-na-ocorrencia-aberta`, em
-`test/deep_saude_backend/agendamentos_test.clj`. **Vermelhos de propósito** —
-descrevem a R-004, não o código de hoje. Ficam verdes quando a correção entrar,
-sem ajuste. Escritos sem nunca terem sido executados; a `duna` (GPT local) é
-quem consegue rodar a suíte.
+`test/deep_saude_backend/agendamentos_test.clj`. Nasceram **vermelhos de
+propósito** — descreviam a R-004, não o código de então — e ficaram verdes com a
+correção, sem ajuste nenhum, que é o que a D-008 compra. Foram escritos sem nunca terem sido executados pela autora; a `duna`
+(GPT local) executou os dois em PostgreSQL 18 e ambos passaram.
 
 ---
 
