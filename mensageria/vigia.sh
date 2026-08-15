@@ -62,9 +62,15 @@ vigiar() {
   fi
 
   # Mensagens novas no remoto — o que mudou de contexto, não só de código.
+  #
+  # ⚠️ `git log ... ^HEAD`, e NÃO `git diff HEAD remoto`. O diff de dois pontos é
+  # simétrico: ele lista também a mensagem que VOCÊ escreveu e ainda não
+  # empurrou, e ela apareceria aqui como "não lida". Mandar três instâncias
+  # confiarem num aviso que mente sobre o próprio trabalho delas seria pior do
+  # que não ter aviso. Aqui só entra o que veio do outro lado.
   local msgs_novas
-  msgs_novas=$(git diff --name-only "$local_ref" "$remoto" -- mensageria/ 2>/dev/null \
-               | grep -E 'mensageria/[0-9]{4}-' || true)
+  msgs_novas=$(git log --name-only --format= "$remoto" "^$local_ref" -- mensageria/ 2>/dev/null \
+               | grep -E 'mensageria/[0-9]{4}-' | sort -u || true)
   if [ -n "$msgs_novas" ]; then
     echo
     echo "✉️  Mensagens que você ainda não leu:"
