@@ -124,9 +124,16 @@ banco dizendo se aceita — bem acima de "li e me parece certo".
 três jobs, verde na primeira execução e conferido no log, não no ícone: `Ran 74
 tests containing 265 assertions. 0 failures`. Ele destrava a Fase 2.
 
-⚠️ **Mas ainda não ficou vermelho nenhuma vez, e isso não é detalhe.** CI que
-nunca ficou vermelho não é CI verde, é CI mudo — não se sabe se ele reprova. É a
-única coisa que separa a Fase 0 de fechada, e está com a `duna`.
+✅ **E provado vermelho** em 2026-08-15: a `duna` empurrou uma sonda deliberada e
+o job reprovou com `1 failures`, exit 1, check `failure` no PR — **uma** falha
+só, nenhuma regressão de carona. Sonda removida em seguida.
+
+**A Fase 0 está fechada e a Fase 2 destravada.**
+
+⚠️ Com uma ressalva registrada: a sonda quebrou o passo **sem banco**, o
+primeiro, então o passo **com banco** nem rodou. Está provado que o job reprova,
+não que aquele passo reprove sozinho — do passo com banco só se sabe que executa
+(74 testes contra 42). Não achei que pagasse uma segunda sonda.
 
 ---
 

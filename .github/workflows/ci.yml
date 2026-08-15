@@ -13,9 +13,21 @@
 # `Ran 74 tests containing 265 assertions. 0 failures, 0 errors.` — 74 e não os
 # 67 da véspera, porque o `prontuarios_test` novo entrou e passou.
 #
-# ⚠️ **Falta a metade que importa: provar que ele fica VERMELHO.** CI que nunca
-# ficou vermelho não é CI verde, é CI mudo. Pedido com a `duna` (GPT local) na
-# mensageria/0028.
+# ✅ **E provado VERMELHO** em 2026-08-15 (run 31880253559). A `duna` (GPT local)
+# empurrou uma sonda deliberada — um `(is false)` em `ci_probe_test.clj` — e o
+# job reprovou com `Ran 42 tests containing 183 assertions. 1 failures`, exit 1,
+# check `failure` no PR. **Uma** falha, a da sonda: nenhuma regressão pegou
+# carona. A sonda foi removida em seguida, como o comentário dela previa.
+#
+# Com isso a Fase 0 fecha: o CI é verde no código bom e vermelho no código
+# quebrado. CI que nunca ficou vermelho é CI mudo — este já não é.
+#
+# ⚠️ Uma parte não ficou provada, e vale saber qual: a sonda quebrou o passo
+# **sem banco**, que é o primeiro. Como ele falhou, o passo **com banco** nem
+# chegou a rodar — então o que está provado é que o job reprova, não que o passo
+# com banco reprova por conta própria. O que se sabe dele é que executa de fato
+# (74 testes contra 42, na execução verde). Provar o resto exigiria uma sonda
+# dentro de um teste de banco; não achei que pagasse o custo.
 #
 # O que ainda NÃO está aqui, de propósito:
 #   - CockroachDB (P-001 na FILA_PICO). Entra quando este workflow estiver
