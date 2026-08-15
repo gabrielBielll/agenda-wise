@@ -65,45 +65,74 @@ canal colidiu **quatro** vezes por não fazer isso. Depois,
 
 ## O estado, em um parágrafo
 
-O PR #7 começou como arquitetura de Google Agenda e virou preparação para
-produção: fuso horário explícito (`TIMESTAMPTZ`), índices, pool de conexões, um
-bypass de autenticação no login, validação de domínio, rate limiting, Fases 0 e
-1 do Google. 65 testes / 245 asserções contra banco real, 11 de navegador,
-migrations validadas em PostgreSQL e CockroachDB. **Está sem merge**, esperando
-decisão do Gabriel.
+O PR #7 começou como arquitetura de Google Agenda, virou preparação para
+produção e, em 2026-08-15, virou também **preparação para vender**: o Gabriel
+confirmou que o plano é usar uma clínica e **vender acesso a outras**, isoladas,
+com painel de operador da plataforma. Isso reordenou a fila inteira — ver D-009 e
+D-010.
+
+**91 testes / 312 asserções** contra banco real e 11 de navegador, com CI de três
+jobs verde. **Está sem merge**, esperando decisão do Gabriel.
+
+### O que fechou em 2026-08-15, e é muita coisa
+
+| | |
+|---|---|
+| **A-001, A-002, A-003** | as três violações de regra confirmada — corrigidas e verdes |
+| **Fase 0** | CI no ar, **verde no código bom e vermelho no quebrado**, os dois lidos no log |
+| **Isolamento entre clínicas** | 8 testes; segunda clínica criada pelo endpoint real e cega para a primeira |
+| **Painel do operador da plataforma** | backend completo, 9 testes, incluindo "operador não lê prontuário" |
+| **Itens 1, 2 e 7** | contrato de datas, guarda de rotas negando por padrão, porta de login por papel |
+| **D-3** | 5 consultas que só imprimiam saíram do `listar-psicologos-handler` |
+
+⚠️ E apareceram duas dívidas que ninguém tinha visto de manhã: `criar-prontuario`
+imprime o **corpo do prontuário no log**, e o front virou mono-fuso por constante
+enquanto o backend já é multi-fuso. As duas estão no INDEX.
 
 ---
 
 ## 🔴 O que está na mesa do Gabriel
 
-1. ✅ **A-001 e A-002 — autorizado e corrigido em 2026-08-14.** Reproduzidas
-   contra PostgreSQL 16 (R$ 600 reescritos em quatro sessões pagas), teste
-   escrito antes da correção como manda a D-008, correção aplicada e empurrada.
-   ✅ **Suíte executada** pela `duna` em PostgreSQL 18 — 67 testes, 253
-   asserções, 0 falhas, sem regressão nos modos `all`/`all_future`
-   ([0026](../mensageria/0026-duna-para-orla-r004-verde-no-postgres18.md)). Escrito **e** provado.
-   Sobrou um vizinho para decidir: `novo-duracao` tem o mesmo defeito que
-   `novo-valor` tinha, e já não alcança o passado — só as futuras da série.
+1. 🔴 **Rotacionar o `JWT_SECRET`** e as demais credenciais (SEC-002). Elas
+   estiveram num repositório público; os dados do dump eram sintéticos, mas o
+   segredo do JWT **permite forjar token de qualquer clínica e qualquer papel**,
+   o que anula tanto o isolamento entre clínicas quanto a guarda do painel.
+   **Bloqueia o lançamento** — antes do primeiro dado real. Ver
+   [docs/INCIDENTE_2026-08-15.md](INCIDENTE_2026-08-15.md).
 2. **Ordem migration × reativação do Render.** A migration de fuso tem que rodar
    **com o serviço ainda suspenso** — senão a instância antiga serve contra o
    schema novo e torce 3h. Ver D-001.
 3. **D-003 × D-004.** O Render aponta para `main`, então `main` é produção e a
    branch `prod` é decorativa. O fluxo documentado é circular.
-4. **Registro de acesso pela flag de super-admin** (R-012) — recomendei, não foi
-   decidido.
-5. **12 perguntas do oráculo em aberto.** As quatro seguintes já formuladas:
+4. **Confirmar a D-010 por escrito.** A decisão "a sessão é no horário da
+   clínica, todo mundo vê o mesmo" chegou por relato da `vale`, não pelo canal —
+   e ela contradiz o que um teste do repositório afirmava até então.
+5. **Registro de acesso pela flag de super-admin** (R-012) — recomendei, não foi
+   decidido. Com o painel de plataforma no ar, vale mais do que antes.
+6. **`novo-duracao`** tem o defeito que `novo-valor` tinha; já não alcança o
+   passado, só as futuras da série.
+7. **12 perguntas do oráculo em aberto.** As quatro seguintes já formuladas:
    cancelamento com sessão paga (R-001), falta cobra? (R-003), quem força
    conflito (R-006), comissão por psicólogo ou por clínica (R-009).
 
 ## Quem está com o quê
 
-- **`duna`** — fila de codificação ([0028](../mensageria/0028-orla-para-duna-rascunho-do-ci-e-a-fila-de-codificacao.md)): provar que o CI fica **vermelho**,
-  depois a instrumentação (item 5) e a primeira extração de namespace.
+- **`duna`** — D-4: extração de `prontuarios` do `core.clj`. ⚠️ Aquele módulo
+  tem **três** namespaces de teste apontando para ele agora (`prontuarios_test`,
+  `plataforma_test`, `isolamento_test`); os três têm que continuar verdes **sem
+  edição**, e é isso que prova que a extração não mudou comportamento.
+- **`vale`** — a tela do painel do operador ([0032](../mensageria/0032-orla-para-vale-teu-achado-confirmado-e-a-tela-do-painel.md)). Depois dela, o e2e que
+  falta: abrir a tela de edição, salvar sem tocar em nada, conferir que o
+  horário não andou. É o teste que pegaria o item 1 de frente, e nenhum atual faz.
 - **`pico`** — P-001: `ALTER COLUMN TYPE` do Cockroach é atômico?
-- **`vale`** — Fase 1 do front ([0027](../mensageria/0027-orla-para-vale-fase-1-do-front-e-uma-pergunta-que-muda-o-roteamento.md)): V-1 middleware negar-por-padrão (itens 2
-  e 7) e V-2 contrato de datas no admin (item 1). Nenhuma depende do CI.
-- **Você** — A-003, a última violação de regra confirmada em aberto. E confirmar
-  ou derrubar o que a `vale` devolver.
+- **Você** — revisar o que as duas devolverem. A D-002 vale: quem escreve não
+  aprova.
+
+⚠️ **A `vale` tem JVM, `lein` e `psql`** desde que a `duna` montou o ambiente no
+mesmo aparelho. A linha antiga do INDEX dizia que não, e por acreditar nela eu
+mandei todo Clojure para a `duna`, que virou gargalo à toa. **Pode mandar Clojure
+para as duas.** O que a `vale` não tem é Playwright: `Unsupported platform:
+android`, medido, não é o processador.
 
 ## O que você consegue fazer aqui, medido e não deduzido
 
@@ -150,7 +179,10 @@ Saíram do oráculo em minutos. Detalhe em [REVISAO_PRE_PRODUCAO](REVISAO_PRE_PR
   `now()`. Abrir sessão antiga alcança meses de sessões realizadas.
 - **A-003** — admin lê prontuário sem flag, contra a R-012.
 
-Os dois primeiros **precisam de teste antes da correção** ([D-008](../mensageria/DECISOES.md)).
+✅ **Os três estão corrigidos e verdes desde 2026-08-15.** Ficam aqui porque a
+forma como apareceram é o método que funcionou: saíram do oráculo em minutos,
+depois de o Gabriel confirmar duas regras. Ler `core.clj` inteiro não achou
+nenhum.
 
 ---
 
