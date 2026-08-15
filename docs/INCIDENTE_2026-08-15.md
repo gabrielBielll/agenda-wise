@@ -22,16 +22,18 @@ O dump de 2026-02-07 contém, em blocos `COPY`:
 - **14 pacientes**, **8 prontuários**, **14 usuários com `senha_hash`**,
   36 agendamentos, 6 bloqueios, 1 clínica.
 
-**Não sei dizer se são pacientes reais.** Dos 14 registros de paciente, 6 têm
-marca clara de teste e 8 não têm; há endereços `@gmail.com`. Os prontuários têm
-232 a 261 caracteres cada — texto, não preenchimento. **Só o Gabriel pode
-responder isso, e a resposta muda a natureza do incidente:**
+✅ **Respondido pelo Gabriel em 2026-08-15: os dados são todos sintéticos.**
+Nenhum paciente real, nenhum prontuário real. **Não há vazamento de dado pessoal
+e não existe dever de notificação.** A metade grave do incidente cai aqui.
 
-- **Se forem sintéticos:** é exposição de credencial. Grave, resolvida por
-  rotação.
-- **Se algum for real:** é vazamento de **dado pessoal sensível de saúde**
-  (LGPD art. 5º, II), exposto publicamente por três meses, com dever de
-  avaliação de comunicação à ANPD e aos titulares (art. 48).
+Fica o registro de como a dúvida existiu, porque a lição vale: pela leitura
+automática não dava para decidir — 6 dos 14 pacientes tinham marca de teste e 8
+não, havia endereços `@gmail.com`, e os prontuários tinham 232 a 261 caracteres
+de texto. **Dado de teste que não se anuncia como teste custa uma investigação.**
+Semear com marca explícita é barato e evita a próxima.
+
+O repositório era público **de propósito**, para dar acesso às instâncias de IA
+e ao Render. O Gabriel vai torná-lo privado.
 
 ## O que já foi feito
 
@@ -46,19 +48,41 @@ alívio:** remover do HEAD não remove do histórico. Todo commit antigo continu
 público, e o conteúdo pode já ter sido clonado, indexado ou copiado. **Segredo
 que foi publicado está comprometido — a única correção é trocá-lo.**
 
+## O que continua valendo, com dado sintético e tudo
+
+⚠️ **A exposição de credencial não depende de os dados serem falsos.** São duas
+coisas, e só uma foi resolvida pela resposta acima:
+
+- O **CockroachDB de produção** é um banco real, alcançável pela internet, cujo
+  host e credencial estão publicados. Quem leu aquele arquivo pode conectar
+  hoje. Os dados de lá serem de mentira agora não muda que a porta está aberta
+  **quando os de verdade entrarem**.
+- O **`JWT_SECRET` publicado é o pior dos dois, e o menos óbvio.** Com ele,
+  qualquer pessoa forja um token válido para qualquer `clinica_id` e qualquer
+  papel, sem precisar de senha nenhuma. É desvio total de autenticação, e o
+  isolamento entre clínicas — que é o produto que se pretende vender — passa a
+  não valer nada. Isso independe do conteúdo do banco.
+
+**O prazo dos dois é o mesmo: antes do primeiro dado real entrar.** É exatamente
+o momento de ir ao ar, então rotação e lançamento são a mesma tarefa, não duas.
+
+Sobre tornar privado: pelo que motivou a decisão, provavelmente nada quebra. O
+Render implanta de repositório privado pela integração autorizada do GitHub; a
+`duna` e a `vale` já **empurram** commits, o que exige credencial de escrita e
+portanto não depende de o repositório ser público; e o acesso da `orla` vem da
+integração da sessão, não de leitura anônima. Se algo quebrar, é reversível com
+um clique.
+
 ## O que só o Gabriel pode fazer, em ordem
 
-1. **Tornar o repositório privado.** É um clique e é a única medida que reduz a
-   exposição imediatamente. Não desfaz o que já foi copiado, mas para a
-   hemorragia. Faça antes dos outros passos.
+1. **Tornar o repositório privado** — quando fizer sentido no fluxo dele.
 2. **Rotacionar tudo o que apareceu** (SEC-002, aberto desde maio):
    - usuário/senha do CockroachDB — e conferir no console se há acesso de
      origem desconhecida no período
    - `JWT_SECRET` — trocar invalida todas as sessões, o que é o efeito desejado
    - credencial do MinIO
    - senha do usuário admin
-3. **Responder se os 8 prontuários são de pacientes reais.** É o que decide se
-   isto é rotação de credencial ou incidente com dever de notificação.
+3. ✅ ~~Responder se os prontuários são reais~~ — respondido: são sintéticos.
 
 Depois disso, e só depois, vale discutir reescrita de histórico (`git filter-repo`
 ou equivalente). Ela exige liberar temporariamente a proteção das três branches
@@ -80,10 +104,13 @@ Não foi descuido de uma pessoa. Foi um efeito de arquivo grande:
 
 ## O que muda daqui para frente
 
-⚠️ **Isto entra antes de qualquer coisa no caminho para produção.** Vender
-acesso a outras clínicas significa hospedar dado sensível de saúde **de
-terceiros**; um vazamento deixa de ser problema técnico e vira responsabilidade
-contratual e civil perante a clínica cliente e os pacientes dela.
+Com dado sintético, isto deixa de ser urgência de hoje e vira **pré-requisito
+de lançamento**, que é quase a mesma coisa quando o lançamento é o próximo
+passo. Vender acesso a outras clínicas significa hospedar dado sensível de saúde
+**de terceiros**; a partir daí um vazamento deixa de ser problema técnico e vira
+responsabilidade contratual e civil perante a clínica cliente e os pacientes
+dela.
 
-Concretamente, dois cards do sprint 1 saem de "pendência antiga" para
-**bloqueadores de lançamento**: SEC-002 (rotação) e SEC-003 (remoção e limpeza).
+Concretamente: **SEC-002 (rotação) é bloqueador de lançamento** — nada de dado
+real antes dela. SEC-003 está meio feito (fora do HEAD; falta o histórico, que
+só importa depois da rotação, e depois dela quase não importa).
