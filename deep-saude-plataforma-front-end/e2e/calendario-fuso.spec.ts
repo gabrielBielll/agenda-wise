@@ -68,25 +68,42 @@ test.describe('calendário — fuso horário entre visões', () => {
   });
 });
 
-test.describe('calendário — o fuso do navegador não pode mudar o horário', () => {
-  // Contraprova. O horário de parede vem do backend em UTC e é convertido no
-  // cliente; se algum caminho ainda estivesse cortando o sufixo de fuso na mão,
-  // um navegador em Tóquio mostraria a mesma hora que um em São Paulo — e é
-  // justamente isso que estaria ERRADO. Aqui esperamos que mude.
+test.describe('calendário — o horário exibido é o da clínica, em qualquer fuso', () => {
+  /**
+   * ⚠️ ESTA ASSERÇÃO FOI INVERTIDA EM 2026-08-15, DE PROPÓSITO.
+   *
+   * Até aqui este bloco exigia o OPOSTO: que Tóquio mostrasse um horário
+   * diferente (`not.toContain`). A intenção original era boa — pegar o bug de
+   * tratar o timestamp como texto solto, cortando o sufixo de fuso na mão. Mas
+   * a asserção escolhida para isso fixou, de lambuja, um modelo de produto:
+   * "cada um vê a sessão no seu próprio relógio".
+   *
+   * Esse modelo é o que produzia a corrupção do item 1 da revisão pré-produção:
+   * a leitura convertia para o fuso do navegador e a escrita mandava o literal
+   * do input, que o backend lê como São Paulo. Abrir a tela de edição em Tóquio
+   * e clicar Salvar sem tocar na data movia a sessão 12 horas, para o dia
+   * seguinte, calado. Medido e detalhado na mensageria 0031.
+   *
+   * O Gabriel decidiu em 2026-08-15: uma sessão marcada para as 14:00 é às
+   * 14:00 DA CLÍNICA, e é isso que todo mundo vê. A contrapartida aceita é que
+   * o psicólogo em viagem enxerga o horário da clínica, não o do relógio dele.
+   *
+   * O bug original que este bloco existia para pegar continua coberto — pelo
+   * teste "semana e dia mostram o MESMO horário" e por "o horário exibido é o
+   * horário de parede que foi agendado", ambos acima. O que este aqui prova
+   * agora é a outra metade: que o fuso de quem olha não move a sessão.
+   */
   test.use({ timezoneId: 'Asia/Tokyo' });
 
-  test('navegador em Tóquio mostra a mesma sessão em outro horário local', async ({ page }) => {
+  test('navegador em Tóquio mostra a sessão no mesmo horário da clínica', async ({ page }) => {
     await page.goto('/calendar');
     await trocarVisao(page, 'Semana');
 
     const emToquio = await horariosDeInicio(page);
 
-    // 14:00 em São Paulo (UTC-3) é 02:00 do dia seguinte em Tóquio (UTC+9).
-    // Se aparecesse 14:00 aqui também, significaria que o horário está sendo
-    // tratado como texto solto, sem instante por trás — o bug original.
     expect(
       emToquio,
-      'em Tóquio o horário local tem que ser diferente; igual significaria que o fuso está sendo ignorado'
-    ).not.toContain(HORA_DA_SESSAO);
+      'Tóquio tem que ver 14:00 como São Paulo — horário diferente significa que o fuso do navegador voltou a vazar para a tela'
+    ).toContain(HORA_DA_SESSAO);
   });
 });

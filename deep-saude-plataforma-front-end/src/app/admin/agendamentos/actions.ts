@@ -5,7 +5,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { paraPayloadParede } from "@/lib/datetime";
+import { paraPayloadParede, instanteDeParede } from "@/lib/datetime";
 
 const agendamentoSchema = z.object({
   paciente_id: z.string().uuid({ message: "Selecione um paciente válido." }),
@@ -52,8 +52,10 @@ export async function createAgendamento(prevState: FormState, formData: FormData
 
   let duracao = 50;
   if (validatedFields.data.data_hora_sessao && validatedFields.data.data_hora_sessao_fim) {
-      const start = new Date(validatedFields.data.data_hora_sessao);
-      const end = new Date(validatedFields.data.data_hora_sessao_fim);
+      // Os dois valores são parede da clínica; ler com `new Date` no servidor
+      // usaria o fuso do servidor, que não é o mesmo contrato.
+      const start = instanteDeParede(validatedFields.data.data_hora_sessao);
+      const end = instanteDeParede(validatedFields.data.data_hora_sessao_fim);
       const diffMs = end.getTime() - start.getTime();
       const diffMins = Math.round(diffMs / 60000);
       if (diffMins > 0) duracao = diffMins;
@@ -128,8 +130,10 @@ export async function updateAgendamento(id: string, prevState: FormState, formDa
 
   let duracao = undefined;
   if (validatedFields.data.data_hora_sessao && validatedFields.data.data_hora_sessao_fim) {
-      const start = new Date(validatedFields.data.data_hora_sessao);
-      const end = new Date(validatedFields.data.data_hora_sessao_fim);
+      // Os dois valores são parede da clínica; ler com `new Date` no servidor
+      // usaria o fuso do servidor, que não é o mesmo contrato.
+      const start = instanteDeParede(validatedFields.data.data_hora_sessao);
+      const end = instanteDeParede(validatedFields.data.data_hora_sessao_fim);
       const diffMs = end.getTime() - start.getTime();
       const diffMins = Math.round(diffMs / 60000);
       

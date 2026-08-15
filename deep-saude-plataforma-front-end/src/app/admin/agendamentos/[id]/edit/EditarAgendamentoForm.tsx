@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { updateAgendamento, type FormState } from "../../actions";
-import { paraInputLocal, maisMinutos } from "@/lib/datetime";
+import { paraInputLocal, maisMinutos, paredeMaisMinutos, instanteDeParede } from "@/lib/datetime";
 
 import {
   Dialog,
@@ -107,10 +107,12 @@ export default function EditarAgendamentoForm({
       const newStart = e.target.value;
       setStart(newStart);
       
+      // `start` e `end` são horário de parede da clínica, não instante — por isso
+      // `instanteDeParede` e não `new Date`, que leria no fuso do navegador.
       let durationToKeep = 50;
       if (start && end) {
-          const sDate = new Date(start);
-          const eDate = new Date(end);
+          const sDate = instanteDeParede(start);
+          const eDate = instanteDeParede(end);
           if (!isNaN(sDate.getTime()) && !isNaN(eDate.getTime())) {
               const diff = (eDate.getTime() - sDate.getTime()) / 60000;
               if (diff > 0) durationToKeep = diff;
@@ -118,7 +120,7 @@ export default function EditarAgendamentoForm({
       }
 
       if (newStart) {
-          setEnd(paraInputLocal(maisMinutos(newStart, durationToKeep)));
+          setEnd(paredeMaisMinutos(newStart, durationToKeep));
       }
   };
 

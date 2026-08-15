@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { cn } from "@/lib/utils";
-import { parseInstante } from "@/lib/datetime";
+import { paredeDaClinica, agoraNaClinica } from "@/lib/datetime";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -39,6 +39,12 @@ const HOURS = Array.from({ length: 24 }, (_, i) => i); // 00:00 to 23:00
 // sufixo de fuso na mão, para contornar a coluna TIMESTAMP sem fuso do banco.
 // A coluna agora é TIMESTAMPTZ e a API devolve instante de verdade — remover o
 // fuso passou a ser justamente o que produz o deslocamento.
+//
+// Desde 2026-08-15 a grade inteira trabalha em horário de parede da CLÍNICA:
+// `paredeDaClinica` devolve um Date cujos getters locais já são o relógio da
+// clínica, então todo o `setHours`/`getDate`/`toDateString` daqui continua
+// valendo sem mudar de forma. Com o navegador em São Paulo o valor é idêntico ao
+// de antes; fora dele, deixa de deslocar. Ver o cabeçalho de lib/datetime.ts.
 
 export function WeekView({ date, appointments, bloqueios = [], onAddAppointment, onEditAppointment, onDeleteBloqueio }: WeekViewProps) {
   const scrollContainerRef = React.useRef<HTMLDivElement>(null);
@@ -70,7 +76,7 @@ export function WeekView({ date, appointments, bloqueios = [], onAddAppointment,
 
   const getAppointmentsForDayAndHour = (day: Date, hour: number) => {
     return appointments.filter(app => {
-      const appDate = parseInstante(app.data_hora_sessao);
+      const appDate = paredeDaClinica(app.data_hora_sessao);
       const duration = app.duracao || 50;
       const endDate = new Date(appDate.getTime() + duration * 60000);
 
@@ -95,8 +101,8 @@ export function WeekView({ date, appointments, bloqueios = [], onAddAppointment,
 
   const getBloqueiosForDayAndHour = (day: Date, hour: number) => {
     return bloqueios.filter(block => {
-      const inicio = parseInstante(block.data_inicio);
-      const fim = parseInstante(block.data_fim);
+      const inicio = paredeDaClinica(block.data_inicio);
+      const fim = paredeDaClinica(block.data_fim);
       const slotStart = new Date(day);
       slotStart.setHours(hour, 0, 0, 0);
       const slotEnd = new Date(day);
@@ -127,7 +133,7 @@ export function WeekView({ date, appointments, bloqueios = [], onAddAppointment,
           Hora
         </div>
         {days.map((day, index) => {
-            const isToday = day.toDateString() === new Date().toDateString();
+            const isToday = day.toDateString() === agoraNaClinica().toDateString();
             return (
                 <div key={index} className={cn("p-2 text-center text-sm font-medium", isToday && "bg-accent/20")}>
                     <div className={cn("text-xs uppercase text-muted-foreground", isToday && "text-primary font-bold")}>
@@ -171,8 +177,8 @@ export function WeekView({ date, appointments, bloqueios = [], onAddAppointment,
                 >
                   {/* Render Bloqueios */}
                   {hourBloqueios.map(block => {
-                    const inicio = parseInstante(block.data_inicio);
-                    const fim = parseInstante(block.data_fim);
+                    const inicio = paredeDaClinica(block.data_inicio);
+                    const fim = paredeDaClinica(block.data_fim);
                     const slotStart = new Date(day);
                     slotStart.setHours(hour, 0, 0, 0);
                     const slotEnd = new Date(day);
@@ -214,7 +220,7 @@ export function WeekView({ date, appointments, bloqueios = [], onAddAppointment,
 
                   {/* Render Appointments */}
                   {hourAppointments.map(app => {
-                      const appDate = parseInstante(app.data_hora_sessao);
+                      const appDate = paredeDaClinica(app.data_hora_sessao);
                       const duration = app.duracao || 50;
                       const endDate = new Date(appDate.getTime() + duration * 60000);
 

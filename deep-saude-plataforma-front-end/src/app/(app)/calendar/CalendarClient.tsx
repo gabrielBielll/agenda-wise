@@ -3,7 +3,8 @@
 import { signOut } from "next-auth/react";
 
 import { Button } from "@/components/ui/button";
-import { paraInputLocal, maisMinutos } from "@/lib/datetime";
+import { paraInputLocal, maisMinutos, paredeDaClinica, agoraNaClinica,
+         paredeParaInput, paredeSomada, paredeMaisMinutos, instanteDeParede } from "@/lib/datetime";
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, PlusCircle, Pencil, Trash2, Calendar as CalendarIcon, ChevronLeft, ChevronRight, FileText, ExternalLink } from "lucide-react";
@@ -58,10 +59,9 @@ interface Appointment {
 
 
 
-// Helper function to add minutes to a date
-function addMinutes(date: Date, minutes: number) {
-  return new Date(date.getTime() + minutes * 60000);
-}
+// Datas na grade e nos formulários são horário de parede da CLÍNICA — espelhos
+// de `paredeDaClinica`, não instantes. Ver o cabeçalho de lib/datetime.ts.
+const addMinutes = paredeSomada;
 
 
 interface Paciente {
@@ -93,13 +93,13 @@ function SubmitButton({ isEditing }: { isEditing: boolean }) {
 }
 
 export default function CalendarClient({ appointments, pacientes, bloqueios = [] }: { appointments: Appointment[], pacientes: Paciente[], bloqueios?: Bloqueio[] }) {
-  const [date, setDate] = useState<Date>(new Date());
+  const [date, setDate] = useState<Date>(agoraNaClinica());
   const [view, setView] = useState<'month' | 'week' | 'day'>('week'); // Default to week view potentially
 
   const appointmentDays = useMemo(() => {
     const days = new Set<string>();
     appointments.forEach(app => {
-        days.add(new Date(app.data_hora_sessao).toDateString());
+        days.add(paredeDaClinica(app.data_hora_sessao).toDateString());
     });
     return days;
   }, [appointments]);
@@ -456,7 +456,7 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
   // Filter appointments for the selected date (Only for Month View sidebar)
   const filteredAppointments = appointments.filter(app => {
     if (!date) return false;
-    const appDate = new Date(app.data_hora_sessao);
+    const appDate = paredeDaClinica(app.data_hora_sessao);
     const match = appDate.toDateString() === date.toDateString();
     return match;
   });
@@ -497,8 +497,8 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                 const endStr = formData.get("data_hora_fim") as string;
                 
                 if (startStr && endStr) {
-                    const start = new Date(startStr);
-                    const end = new Date(endStr);
+                    const start = instanteDeParede(startStr);
+                    const end = instanteDeParede(endStr);
                     const diffMs = end.getTime() - start.getTime();
                     const diffMins = Math.round(diffMs / 60000);
                     formData.set("duracao", diffMins.toString());
@@ -548,32 +548,16 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                     required
                     defaultValue={editingAppointment ? (() => {
                       return paraInputLocal(editingAppointment.data_hora_sessao);
-                    })() : (newAppointmentDate ? (() => {
-                        const d = newAppointmentDate;
-                        const year = d.getFullYear();
-                        const month = String(d.getMonth() + 1).padStart(2, '0');
-                        const day = String(d.getDate()).padStart(2, '0');
-                        const hours = String(d.getHours()).padStart(2, '0');
-                        const minutes = String(d.getMinutes()).padStart(2, '0');
-                        return `${year}-${month}-${day}T${hours}:${minutes}`;
-                    })() : "")}
+                    })() : (newAppointmentDate ? paredeParaInput(newAppointmentDate) : "")}
                     onChange={(e) => {
-                        // Auto-update end time when start time changes if this is a new appointment or just for convenience
-                        // For now let's just let user pick
+                        // O valor do input é parede da clínica: somar 50min com
+                        // `new Date` leria no fuso do navegador.
                         const form = e.target.form;
                         if (form) {
-                            const startTime = new Date(e.target.value);
-                            if (!isNaN(startTime.getTime())) {
-                                const endTime = addMinutes(startTime, 50);
-                                const endInput = form.elements.namedItem("data_hora_fim") as HTMLInputElement;
-                                if (endInput && !endInput.value) { // Only set if empty? Or always update to keep 50m gap? Better to update if user didn't manually set a weird duration? Let's just update for now.
-                                     const year = endTime.getFullYear();
-                                      const month = String(endTime.getMonth() + 1).padStart(2, '0');
-                                      const day = String(endTime.getDate()).padStart(2, '0');
-                                      const hours = String(endTime.getHours()).padStart(2, '0');
-                                      const minutes = String(endTime.getMinutes()).padStart(2, '0');
-                                      endInput.value = `${year}-${month}-${day}T${hours}:${minutes}`;
-                                }
+                            const fim = paredeMaisMinutos(e.target.value, 50);
+                            const endInput = form.elements.namedItem("data_hora_fim") as HTMLInputElement;
+                            if (fim && endInput && !endInput.value) {
+                                endInput.value = fim;
                             }
                         }
                     }}
@@ -595,17 +579,7 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                     defaultValue={editingAppointment ? (() => {
                       const duration = editingAppointment.duracao || 50;
                       return paraInputLocal(maisMinutos(editingAppointment.data_hora_sessao, duration));
-                    })() : (newAppointmentDate ? (() => {
-                        const d = newAppointmentDate;
-                        // Calculate default end time (start + 50m)
-                        const end = addMinutes(d, 50);
-                         const year = end.getFullYear();
-                          const month = String(end.getMonth() + 1).padStart(2, '0');
-                          const day = String(end.getDate()).padStart(2, '0');
-                          const hours = String(end.getHours()).padStart(2, '0');
-                          const minutes = String(end.getMinutes()).padStart(2, '0');
-                           return `${year}-${month}-${day}T${hours}:${minutes}`;
-                    })() : "")}
+                    })() : (newAppointmentDate ? paredeParaInput(addMinutes(newAppointmentDate, 50)) : "")}
                     />
                 </div>
               </div>
@@ -656,7 +630,7 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                                     type="button"
                                     className="text-primary hover:underline"
                                     onClick={() => {
-                                        const now = newAppointmentDate || new Date();
+                                        const now = newAppointmentDate || agoraNaClinica();
                                         const currentYear = now.getFullYear();
                                         const endOfYear = new Date(currentYear, 11, 31);
                                         const diffTime = Math.abs(endOfYear.getTime() - now.getTime());
@@ -673,14 +647,14 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                                         if (input) input.value = Math.min(Math.max(count, 1), 120).toString();
                                     }}
                                 >
-                                    Até o fim de {newAppointmentDate?.getFullYear() || new Date().getFullYear()}
+                                    Até o fim de {newAppointmentDate?.getFullYear() || agoraNaClinica().getFullYear()}
                                 </button>
                                 <span className="text-muted-foreground">|</span>
                                 <button 
                                     type="button"
                                     className="text-primary hover:underline"
                                     onClick={() => {
-                                        const now = newAppointmentDate || new Date();
+                                        const now = newAppointmentDate || agoraNaClinica();
                                         const nextYear = now.getFullYear() + 1;
                                         const endOfNextYear = new Date(nextYear, 11, 31);
                                         const diffTime = Math.abs(endOfNextYear.getTime() - now.getTime());
@@ -697,7 +671,7 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                                         if (input) input.value = Math.min(Math.max(count, 1), 120).toString();
                                     }}
                                 >
-                                    Até o fim de {(newAppointmentDate?.getFullYear() || new Date().getFullYear()) + 1}
+                                    Até o fim de {(newAppointmentDate?.getFullYear() || agoraNaClinica().getFullYear()) + 1}
                                 </button>
                              </div>
                         )}
@@ -894,10 +868,7 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                     name="data_inicio"
                     type="datetime-local"
                     required
-                    defaultValue={newAppointmentDate ? (() => {
-                      const d = newAppointmentDate;
-                      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}T${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-                    })() : ""}
+                    defaultValue={newAppointmentDate ? paredeParaInput(newAppointmentDate) : ""}
                   />
                 </div>
               </div>
@@ -909,10 +880,7 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                     name="data_fim"
                     type="datetime-local"
                     required
-                    defaultValue={newAppointmentDate ? (() => {
-                      const d = addMinutes(newAppointmentDate, 60);
-                      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}T${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-                    })() : ""}
+                    defaultValue={newAppointmentDate ? paredeParaInput(addMinutes(newAppointmentDate, 60)) : ""}
                   />
                 </div>
               </div>
@@ -969,7 +937,7 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                                  type="button"
                                  className="text-primary hover:underline"
                                  onClick={() => {
-                                     const now = newAppointmentDate || new Date();
+                                     const now = newAppointmentDate || agoraNaClinica();
                                      const currentYear = now.getFullYear();
                                      const endOfYear = new Date(currentYear, 11, 31);
                                      const diffTime = Math.abs(endOfYear.getTime() - now.getTime());
@@ -985,14 +953,14 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                                      setBlockRecurrenceCount(Math.min(Math.max(count, 1), 120));
                                  }}
                              >
-                                 Até o fim de {newAppointmentDate?.getFullYear() || new Date().getFullYear()}
+                                 Até o fim de {newAppointmentDate?.getFullYear() || agoraNaClinica().getFullYear()}
                              </button>
                              <span className="text-muted-foreground">|</span>
                              <button 
                                  type="button"
                                  className="text-primary hover:underline"
                                  onClick={() => {
-                                     const now = newAppointmentDate || new Date();
+                                     const now = newAppointmentDate || agoraNaClinica();
                                      const nextYear = now.getFullYear() + 1;
                                      const endOfNextYear = new Date(nextYear, 11, 31);
                                      const diffTime = Math.abs(endOfNextYear.getTime() - now.getTime());
@@ -1008,7 +976,7 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                                      setBlockRecurrenceCount(Math.min(Math.max(count, 1), 120));
                                  }}
                              >
-                                 Até o fim de {(newAppointmentDate?.getFullYear() || new Date().getFullYear()) + 1}
+                                 Até o fim de {(newAppointmentDate?.getFullYear() || agoraNaClinica().getFullYear()) + 1}
                              </button>
                           </div>
                      )}
@@ -1205,7 +1173,7 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                 setDate={setDate} 
                 view={view} 
                 setView={setView} 
-                onToday={() => setDate(new Date())}
+                onToday={() => setDate(agoraNaClinica())}
             />
         </div>
         
@@ -1239,12 +1207,12 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                     components={{
                          DayContent: (props) => {
                              const dayDate = props.date;
-                             const dayAppointments = appointments.filter(app => new Date(app.data_hora_sessao).toDateString() === dayDate.toDateString());
+                             const dayAppointments = appointments.filter(app => paredeDaClinica(app.data_hora_sessao).toDateString() === dayDate.toDateString());
                              
                              return (
                                  <div className="w-full h-full flex flex-col gap-1 items-start" onClick={() => handleOpenNew(dayDate)}>
                                      <span className={cn("text-sm font-semibold p-1 rounded-full w-7 h-7 flex items-center justify-center", 
-                                        dayDate.toDateString() === new Date().toDateString() ? "bg-primary text-primary-foreground" : "")}>
+                                        dayDate.toDateString() === agoraNaClinica().toDateString() ? "bg-primary text-primary-foreground" : "")}>
                                         {dayDate.getDate()}
                                      </span>
                                      <div className="flex flex-col gap-1 w-full overflow-hidden">
@@ -1256,7 +1224,7 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                                                     handleOpenEdit(app);
                                                 }}
                                              >
-                                                <span className="font-bold text-foreground">{new Date(app.data_hora_sessao).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}</span> <span className="text-foreground">{app.nome_paciente}</span>
+                                                <span className="font-bold text-foreground">{paredeDaClinica(app.data_hora_sessao).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}</span> <span className="text-foreground">{app.nome_paciente}</span>
                                              </div>
                                          ))}
                                          {dayAppointments.length > 4 && (

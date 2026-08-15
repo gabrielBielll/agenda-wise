@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { createAgendamento, type FormState } from "../actions";
-import { paraInputLocal, maisMinutos } from "@/lib/datetime";
+import { paredeMaisMinutos, instanteDeParede } from "@/lib/datetime";
 import { CalendarIcon, Clock, DollarSign, User, Check, ChevronsUpDown } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -86,9 +86,10 @@ export default function NovoAgendamentoForm({
       let durationToKeep = 50;
       
       // If we already have a valid start/end pair, try to preserve the duration
+      // Parede da clínica, não instante — ver EditarAgendamentoForm.
       if (start && end) {
-          const sDate = new Date(start);
-          const eDate = new Date(end);
+          const sDate = instanteDeParede(start);
+          const eDate = instanteDeParede(end);
           if (!isNaN(sDate.getTime()) && !isNaN(eDate.getTime())) {
               const diff = (eDate.getTime() - sDate.getTime()) / 60000;
               if (diff > 0) durationToKeep = diff;
@@ -96,7 +97,7 @@ export default function NovoAgendamentoForm({
       }
 
       if (newStart) {
-          setEnd(paraInputLocal(maisMinutos(newStart, durationToKeep)));
+          setEnd(paredeMaisMinutos(newStart, durationToKeep));
       } else {
         setEnd("");
       }

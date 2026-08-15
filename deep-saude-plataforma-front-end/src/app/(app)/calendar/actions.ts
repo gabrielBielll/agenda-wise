@@ -4,6 +4,7 @@ import { z } from "zod";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
+import { paraPayloadParede } from "@/lib/datetime";
 
 const agendamentoSchema = z.object({
   paciente_id: z.string().uuid({ message: "Selecione um paciente válido." }),
@@ -54,7 +55,7 @@ export async function createAgendamento(prevState: FormState, formData: FormData
       body: JSON.stringify({
         ...validatedFields.data,
         psicologo_id: userId, // O psicólogo cria para si mesmo
-        data_hora_sessao: validatedFields.data.data_hora_sessao.replace("T", " ") + ":00",
+        data_hora_sessao: paraPayloadParede(validatedFields.data.data_hora_sessao),
         duracao: validatedFields.data.duracao,
         force: validatedFields.data.force
       }),
@@ -104,7 +105,7 @@ export async function updateAgendamento(id: string, prevState: FormState, formDa
       body: JSON.stringify({
         ...validatedFields.data,
         psicologo_id: userId, // Garante que continua vinculado ao psicólogo
-        data_hora_sessao: validatedFields.data.data_hora_sessao.replace("T", " ") + ":00",
+        data_hora_sessao: paraPayloadParede(validatedFields.data.data_hora_sessao),
         duracao: validatedFields.data.duracao,
         mode: mode // Add mode to request body
       }),
@@ -268,8 +269,8 @@ export async function checkBlockConflicts(
         "Authorization": `Bearer ${token}` 
       },
       body: JSON.stringify({
-        data_inicio: dataInicio.replace("T", " ") + ":00",
-        data_fim: dataFim.replace("T", " ") + ":00",
+        data_inicio: paraPayloadParede(dataInicio),
+        data_fim: paraPayloadParede(dataFim),
         recorrencia_tipo: recorrenciaTipo,
         quantidade_recorrencia: quantidadeRecorrencia
       }),
@@ -311,8 +312,8 @@ export async function createBloqueio(
         "Authorization": `Bearer ${token}` 
       },
       body: JSON.stringify({
-        data_inicio: dataInicio.replace("T", " ") + ":00",
-        data_fim: dataFim.replace("T", " ") + ":00",
+        data_inicio: paraPayloadParede(dataInicio),
+        data_fim: paraPayloadParede(dataFim),
         motivo,
         dia_inteiro: diaInteiro || false,
         recorrencia_tipo: recorrenciaTipo,
