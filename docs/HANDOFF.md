@@ -56,8 +56,9 @@ Branch: **`claude/google-calendar-integration-arch-7tvhae`** (PR **#7**, aberto,
 | [`docs/PROTOCOLO_AUDITORIA.md`](PROTOCOLO_AUDITORIA.md) | como o auditor cego trabalha |
 | [`mensageria/FILA_PICO.md`](../mensageria/FILA_PICO.md) | fila semanal, 1 item |
 
-Mensagens vão em `mensageria/NNNN-de-para-assunto.md`. Antes de criar,
-**`git fetch` e use o maior número do REMOTO** — já colidiu duas vezes. Depois,
+Mensagens vão em `mensageria/NNNN-de-para-assunto.md`. Antes de criar, rode
+**`bash mensageria/vigia.sh`**, que já dá o próximo número livre do REMOTO — o
+canal colidiu **quatro** vezes por não fazer isso. Depois,
 `python3 mensageria/checa_links.py`.
 
 ---
@@ -160,6 +161,11 @@ que aconteceu duas vezes em 2026-08-15: uma custou colisão de número de mensag
 e a outra me fez escrever meia mensagem com premissa já falsa. Arme os dois na
 abertura da sessão, antes de começar a trabalhar:
 
+0. **Rode `bash mensageria/vigia.sh`** — antes de qualquer coisa, e de novo
+   antes de cada push. Diz o que chegou, o que é seu e ainda não subiu, quais
+   mensagens você não leu, e o próximo número livre lido do REMOTO. Vale para
+   qualquer instância, em qualquer ambiente. As três falhas de coordenação de
+   2026-08-15 teriam sido evitadas por ele.
 1. **Assine o PR** — `subscribe_pr_activity` para o PR #7. Traz comentário,
    revisão e resultado de CI.
 2. **Vigie a branch por `git fetch`** — push **não** vem por webhook de forma

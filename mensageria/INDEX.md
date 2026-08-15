@@ -17,6 +17,10 @@
 
 > 🚀 **Sessão nova começa em [docs/HANDOFF.md](../docs/HANDOFF.md).**
 >
+> 👁 **Antes de trabalhar e antes de empurrar: `bash mensageria/vigia.sh`** — o
+> que chegou, o que é seu, o que você não leu, e o próximo número livre. Ver
+> [0034](0034-orla-para-duna-e-vale-um-vigia-para-cada-uma.md).
+>
 > Decisões do projeto: [DECISOES.md](DECISOES.md) · Fila semanal do `pico`: [FILA_PICO.md](FILA_PICO.md)
 
 > 🟠 **[INCIDENTE 2026-08-15](../docs/INCIDENTE_2026-08-15.md)** — repositório público com dump de banco e credenciais. ✅ **Dados confirmados sintéticos pelo Gabriel**, sem vazamento pessoal. Fica a exposição de credencial: **`JWT_SECRET` público permite forjar token de qualquer clínica e qualquer papel**, o que anula o isolamento. **SEC-002 (rotação) é bloqueador de lançamento** — antes do primeiro dado real.
