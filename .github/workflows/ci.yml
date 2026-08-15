@@ -1,0 +1,247 @@
+# CI — OPS-006
+#
+# Este workflow não é higiene: ele é o substituto da `pico` (Claude na EC2), que
+# saiu do fluxo diário levando junto as duas únicas capacidades que ninguém mais
+# tinha — Playwright e CockroachDB. Ver D-007 em mensageria/DECISOES.md.
+#
+# Enquanto ele não estiver verde, a Fase 2 (refactor estrutural) não começa:
+# refatorar 1500 linhas sem execução automática da suíte é fazer no escuro, e o
+# custo do erro não aparece no commit, aparece semanas depois.
+#
+# ⚠️ Rascunho escrito pela `orla` (Claude na sandbox), que **não roda GitHub
+# Actions nem compila Clojure** — Clojars é bloqueado pela política de saída do
+# ambiente dela. O YAML foi validado como YAML e os comandos vieram do
+# e2e/README e do project.clj, não de memória. A primeira execução de verdade é
+# a `duna` (GPT local) quem faz. Ver mensageria/0028.
+#
+# O que ainda NÃO está aqui, de propósito:
+#   - CockroachDB (P-001 na FILA_PICO). Entra quando este workflow estiver
+#     verde; é o que tira a pergunta da fila semanal.
+#   - Lint. `next lint` existe, mas nunca foi rodado no projeto e ligar isso
+#     junto misturaria "o CI está quebrado" com "o código sempre esteve assim".
+
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+# Push novo cancela a execução anterior do mesmo ref. Sem isto, uma sequência de
+# commits enfileira execuções que ninguém vai ler.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend — lein test, sem banco e com banco
+    runs-on: ubuntu-24.04
+
+    services:
+      postgres:
+        # Versão pinada (OPS-007). `postgres:16` seguiria o major sozinho.
+        image: postgres:16.13
+        env:
+          POSTGRES_USER: deep
+          POSTGRES_PASSWORD: deep
+          POSTGRES_DB: deep_teste
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U deep"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Instalar Leiningen
+        # Versão pinada na URL, não `stable`: `stable` é alvo móvel e faria o CI
+        # mudar de comportamento sem ninguém ter mexido no repositório.
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/technomancy/leiningen/2.11.2/bin/lein -o "$HOME/lein"
+          chmod +x "$HOME/lein"
+          echo "$HOME" >> "$GITHUB_PATH"
+          "$HOME/lein" version
+
+      - name: Cache do ~/.m2
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2
+          key: m2-${{ runner.os }}-${{ hashFiles('deep-saude-plataforma-api/deep-saude-backend/project.clj') }}
+          restore-keys: m2-${{ runner.os }}-
+
+      # Os dois `lein test` são comandos diferentes, não repetição.
+      #
+      # Sem TEST_DATABASE_URL, os namespaces que precisam de banco se PULAM e a
+      # suíte segue verde — é o que permite rodar em máquina sem Postgres, e é
+      # um comportamento que pode quebrar sozinho. Se este passo ficar vermelho,
+      # alguém acoplou a suíte ao banco sem perceber.
+      - name: lein test — SEM banco (os testes de banco devem ser pulados)
+        working-directory: deep-saude-plataforma-api/deep-saude-backend
+        run: lein test
+
+      # ⚠️ O nome do banco na URL tem que bater com o banco realmente conectado:
+      # `exigir-banco-de-teste!` compara os dois e aborta antes de qualquer
+      # DELETE se divergirem. É a guarda que impede a suíte de apagar dados no
+      # banco errado — se este passo falhar com "ABORTADO", é ela funcionando.
+      - name: lein test — COM banco
+        working-directory: deep-saude-plataforma-api/deep-saude-backend
+        env:
+          TEST_DATABASE_URL: 'jdbc:postgresql://localhost:5432/deep_teste?user=deep&password=deep&sslmode=disable'
+        run: lein test
+
+  frontend:
+    name: Front — typecheck da app, typecheck do e2e e build
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: deep-saude-plataforma-front-end
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: deep-saude-plataforma-front-end/package-lock.json
+
+      - run: npm ci
+
+      - name: typecheck da aplicação
+        run: npm run typecheck
+
+      # ⚠️ Este é o segundo, e é o motivo de a mensagem 0015 existir. O
+      # `tsconfig` da aplicação NÃO cobre `e2e/`, porque os testes importam
+      # `@playwright/test`, que é devDependency. Rodar só o primeiro deixa os
+      # testes de navegador sem verificação de tipo nenhuma — foi assim que um
+      # risco de build passou.
+      - name: typecheck do e2e (tsconfig separado)
+        run: npm run typecheck:e2e
+
+      - name: next build
+        # Segredos de mentira: o build precisa das variáveis existirem, não
+        # valerem alguma coisa. Nenhuma delas é usada em tempo de build para
+        # falar com serviço real.
+        env:
+          NEXTAUTH_SECRET: segredo-de-build-do-ci
+          NEXTAUTH_URL: http://localhost:9002
+        run: npm run build
+
+  navegador:
+    name: Navegador — Playwright (o que a pico levou embora)
+    runs-on: ubuntu-24.04
+    needs: [backend, frontend]
+
+    services:
+      postgres:
+        image: postgres:16.13
+        env:
+          POSTGRES_USER: deep
+          POSTGRES_PASSWORD: deep
+          POSTGRES_DB: deep_e2e
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U deep"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Instalar Leiningen
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/technomancy/leiningen/2.11.2/bin/lein -o "$HOME/lein"
+          chmod +x "$HOME/lein"
+          echo "$HOME" >> "$GITHUB_PATH"
+
+      - name: Cache do ~/.m2
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2
+          key: m2-${{ runner.os }}-${{ hashFiles('deep-saude-plataforma-api/deep-saude-backend/project.clj') }}
+          restore-keys: m2-${{ runner.os }}-
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: deep-saude-plataforma-front-end/package-lock.json
+
+      - name: npm ci
+        working-directory: deep-saude-plataforma-front-end
+        run: npm ci
+
+      # ⚠️ PORTA 3999, e isto não é preferência.
+      #
+      # Os rewrites do next.config.ts tinham `http://localhost:3000` fixo no
+      # destino, e o módulo financeiro depende inteiramente deles. Com o backend
+      # em 3000, a suíte passa sem provar nada — era exatamente a armadilha que
+      # o e2e/README documenta. Não "simplifique" para 3000.
+      - name: Subir o backend na 3999
+        working-directory: deep-saude-plataforma-api/deep-saude-backend
+        env:
+          JWT_SECRET: segredo-e2e
+          PROVISIONING_TOKEN: token-prov-teste
+          PORT: '3999'
+          DATABASE_URL: 'postgresql://deep:deep@localhost:5432/deep_e2e?sslmode=disable'
+        run: |
+          # `nohup` + `disown`: o processo precisa sobreviver ao fim DESTE passo
+          # para atender o passo do Playwright. Sem isso, ele pode levar SIGHUP
+          # quando o shell do passo termina, e a falha aparece lá na frente como
+          # "conexão recusada" — longe da causa.
+          nohup lein run > "$RUNNER_TEMP/backend.log" 2>&1 &
+          disown || true
+          echo "Esperando o backend responder na 3999..."
+          # Não existe healthcheck no backend (OPS-004 em aberto), então a
+          # espera é por "responde alguma coisa HTTP", não por 200: qualquer
+          # código já prova que a porta subiu e o Jetty está atendendo.
+          for i in $(seq 1 90); do
+            codigo=$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:3999/" || true)
+            if [ "$codigo" != "000" ]; then
+              echo "Backend no ar (HTTP $codigo) depois de ${i}s."
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "O backend não subiu em 90s. Log:"
+          cat "$RUNNER_TEMP/backend.log"
+          exit 1
+
+      - name: Instalar o Chromium do Playwright
+        working-directory: deep-saude-plataforma-front-end
+        run: npx playwright install --with-deps chromium
+
+      - name: npm run e2e
+        working-directory: deep-saude-plataforma-front-end
+        env:
+          PROVISIONING_TOKEN: token-prov-teste
+          E2E_BACKEND_URL: http://localhost:3999
+        run: npm run e2e
+
+      # Sem isto, teste de navegador que falha no CI vira adivinhação: o
+      # relatório e o log do backend são a única janela para o que aconteceu.
+      - name: Guardar relatório e log do backend
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: relatorio-playwright
+          path: |
+            deep-saude-plataforma-front-end/playwright-report/
+            deep-saude-plataforma-front-end/test-results/
+            ${{ runner.temp }}/backend.log
+          retention-days: 7
+          if-no-files-found: ignore
