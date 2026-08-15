@@ -64,9 +64,27 @@
   (db/execute-one! ["DELETE FROM agendamentos"])
   (db/execute-one! ["DELETE FROM recorrencias"])
   (db/execute-one! ["DELETE FROM bloqueios_agenda"])
+  ;; As três do Google também apontam para `clinicas` e `usuarios`. Nenhum teste
+  ;; daqui cria linha nelas hoje, então omiti-las passaria despercebido — até a
+  ;; Fase 2 do Google criar a primeira, e aí quem quebra é justamente o teste que
+  ;; guarda o isolamento entre clínicas. Levantadas do schema, não de memória:
+  ;; `SELECT` em information_schema.table_constraints por FK para estas tabelas.
+  (db/execute-one! ["DELETE FROM google_sync_outbox"])
+  (db/execute-one! ["DELETE FROM vinculo_agenda"])
+  (db/execute-one! ["DELETE FROM google_conexao"])
   ;; Só a clínica B e seus usuários: a A é fixa e vem do semear.
-  (db/execute-one! ["DELETE FROM usuarios WHERE clinica_id <> ?" clinica-a])
+  ;;
+  ;; ⚠️ A ordem aqui é a das chaves estrangeiras, não a alfabética nem a que
+  ;; parece natural: `pacientes.psicologo_id` aponta para `usuarios.id`, então
+  ;; paciente sai ANTES do psicólogo. A primeira versão apagava `usuarios`
+  ;; primeiro e o CI reprovou na hora:
+  ;;
+  ;;   ERROR: update or delete on table "usuarios" violates foreign key
+  ;;   constraint "pacientes_psicologo_id_fkey" on table "pacientes"
+  ;;
+  ;; Filho antes de pai, sempre — e aqui o paciente é filho de duas tabelas.
   (db/execute-one! ["DELETE FROM pacientes WHERE clinica_id <> ?" clinica-a])
+  (db/execute-one! ["DELETE FROM usuarios WHERE clinica_id <> ?" clinica-a])
   (db/execute-one! ["DELETE FROM clinicas WHERE id <> ?" clinica-a]))
 
 (defn com-banco-de-teste [f]

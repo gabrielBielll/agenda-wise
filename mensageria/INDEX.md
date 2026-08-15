@@ -22,10 +22,15 @@
 
 ### Pendências nomeadas
 
-> 🟢 **Isolamento entre clínicas deixou de ser amostragem.** `isolamento_test.clj`
-> cria a **segunda clínica pelo endpoint real** de provisionamento e prova que ela
-> não lê, não altera, não apaga e não lista nada da primeira — 8 testes, rodando a
-> cada push. É o teste do produto que se pretende vender.
+> 🟡 **Isolamento entre clínicas: o teste existe, mas ainda não rodou uma vez.**
+> `isolamento_test.clj` cria a **segunda clínica pelo endpoint real** de
+> provisionamento e checa que ela não lê, não altera, não apaga e não lista nada
+> da primeira. São 8 testes — e na primeira execução **nenhum deles chegou a
+> rodar**: a limpeza do fixture apagava `usuarios` antes de `pacientes`, violava
+> a chave estrangeira e derrubava o namespace inteiro (`0 failures, 1 errors`, e
+> a contagem ficou em 74 em vez de subir para 82). Ordem corrigida e verificada
+> contra PostgreSQL 16 real. **Só vira 🟢 quando o CI mostrar os 8 verdes** — até
+> lá é teste escrito, não garantia.
 
 | O quê | De quem | Onde | Estado |
 |---|---|---|---|
