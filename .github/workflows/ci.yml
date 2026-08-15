@@ -8,17 +8,23 @@
 # refatorar 1500 linhas sem execução automática da suíte é fazer no escuro, e o
 # custo do erro não aparece no commit, aparece semanas depois.
 #
-# ⚠️ Rascunho escrito pela `orla` (Claude na sandbox), que **não roda GitHub
-# Actions nem compila Clojure** — Clojars é bloqueado pela política de saída do
-# ambiente dela. O YAML foi validado como YAML e os comandos vieram do
-# e2e/README e do project.clj, não de memória. A primeira execução de verdade é
-# a `duna` (GPT local) quem faz. Ver mensageria/0028.
+# ✅ **Verde na primeira execução**, em 2026-08-15 (run 31878053378), e verde
+# conferido no log, não só no ícone: o passo com banco imprimiu
+# `Ran 74 tests containing 265 assertions. 0 failures, 0 errors.` — 74 e não os
+# 67 da véspera, porque o `prontuarios_test` novo entrou e passou.
+#
+# ⚠️ **Falta a metade que importa: provar que ele fica VERMELHO.** CI que nunca
+# ficou vermelho não é CI verde, é CI mudo. Pedido com a `duna` (GPT local) na
+# mensageria/0028.
 #
 # O que ainda NÃO está aqui, de propósito:
 #   - CockroachDB (P-001 na FILA_PICO). Entra quando este workflow estiver
 #     verde; é o que tira a pergunta da fila semanal.
 #   - Lint. `next lint` existe, mas nunca foi rodado no projeto e ligar isso
 #     junto misturaria "o CI está quebrado" com "o código sempre esteve assim".
+#   - Contagem explícita do Playwright. O job passa, mas o fim do log é ocupado
+#     pelo despejo do container Postgres e a linha de resumo por teste não
+#     apareceu na leitura. O relatório fica como artefato; confirmar o número.
 
 name: CI
 
@@ -55,7 +61,7 @@ jobs:
           POSTGRES_DB: deep_teste
         ports: ['5432:5432']
         options: >-
-          --health-cmd "pg_isready -U deep"
+          --health-cmd "pg_isready -U deep -d postgres"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 10
@@ -156,7 +162,7 @@ jobs:
           POSTGRES_DB: deep_e2e
         ports: ['5432:5432']
         options: >-
-          --health-cmd "pg_isready -U deep"
+          --health-cmd "pg_isready -U deep -d postgres"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 10

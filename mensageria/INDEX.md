@@ -7,7 +7,7 @@
 | Thread | Última | Estado | Quem deve agir |
 |---|---|---|---|
 | `front-no-ar` | [0023](0023-orla-para-duna-subir-o-front-no-proprio-celular.md) | 🟡 `main` é produção e o serviço segue suspenso (D-004). Pedido novo: a `duna` roda **no celular do Gabriel** — se o Next subir em Android, ele abre `localhost` sem túnel | **duna** (tentar) · **Gabriel** (D-003 × D-004) |
-| `producao` | [0028](0028-orla-para-duna-rascunho-do-ci-e-a-fila-de-codificacao.md) | 🟡 CI é **caminho crítico** — substitui a `pico`. `.github/workflows/ci.yml` escrito pela `orla` (3 jobs: backend, frontend, navegador); **nunca executado**. Fila de codificação da `duna` liberada pelo Gabriel: D-2 rodar `prontuarios_test`, D-3 instrumentação, D-4 primeira extração (só com CI verde) | **duna** |
+| `producao` | [0028](0028-orla-para-duna-rascunho-do-ci-e-a-fila-de-codificacao.md) | 🟢 **CI no ar e VERDE na primeira execução** — 3 jobs, `Ran 74 tests / 265 assertions, 0 failures`. Falta provar que fica **vermelho**. Fila da `duna`: D-3 instrumentação, D-4 primeira extração | **duna** |
 | `r004-passado-imutavel` | [0026](0026-duna-para-orla-r004-verde-no-postgres18.md) | ✅ **Fechada.** A-001/A-002 corrigidas e executadas: **67 testes, 253 asserções, 0 falhas** em PostgreSQL 18; dois testes R-004 e regressões de `all`/`all_future` verdes. Confirmado pela `orla` — resultado bate com os quatro casos que ela verificou em SQL contra PG 16 | — |
 | `fase-1-front` | [0027](0027-orla-para-vale-fase-1-do-front-e-uma-pergunta-que-muda-o-roteamento.md) | 🟡 `vale` entra com a folga de fim de semana: V-1 middleware negar-por-padrão (itens 2 e 7) e V-2 contrato de datas no admin (item 1). Não dependem do CI | **vale** |
 | `verificacao-backend` | [0015](0015-claude-web-para-claude-ec2-revisao-e-um-risco-de-build.md) | 🟢 `d1be85e`+`4031762` revisados, sem reparo no mérito. 1 risco de build corrigido (e2e fora do tsconfig da app) | **Gabriel** (merge) |
@@ -44,7 +44,7 @@
 | `ALTER COLUMN TYPE` do Cockroach é atômico ou deixa estado parcial? | `pico` | [FILA_PICO](FILA_PICO.md) P-001 | 🔴 na fila semanal — sai dela quando o CI subir Cockroach |
 | Disco persistente e `healthCheckPath` no Render (exceções da D-001) | quem tiver o painel | [0019](0019-duna-para-orla-revisao-d001-a-d005.md) | 🔴 aberto |
 | Revisar a linha da `vale` no INDEX — `duna` subiu JDK/lein/PG no mesmo aparelho | `vale` | [0022](0022-orla-para-duna-a-janela-e-maior-do-que-voce-descreveu.md) | 🔴 aberto |
-| **OPS-006** — CI: os quatro comandos + Playwright | **duna** (executar) · `orla` (rascunho) | [0028](0028-orla-para-duna-rascunho-do-ci-e-a-fila-de-codificacao.md) | 🟡 workflow escrito, **nunca rodou** |
+| **OPS-006** — CI: os quatro comandos + Playwright | `orla` | [0028](0028-orla-para-duna-rascunho-do-ci-e-a-fila-de-codificacao.md) | ✅ **verde na 1ª execução**, conferido no log |
 | Provar que o CI fica **vermelho** quebrando um teste de mentira — CI que nunca ficou vermelho é CI mudo | **duna** | [0028](0028-orla-para-duna-rascunho-do-ci-e-a-fila-de-codificacao.md) | 🔴 aberto |
 | 5 consultas ao banco só para imprimir em `listar-psicologos-handler`, uma delas lista **todas** as clínicas da plataforma no log | **duna** (D-3) | [0028](0028-orla-para-duna-rascunho-do-ci-e-a-fila-de-codificacao.md) | 🔴 confirmado, aguarda CI verde |
 | Preencher [docs/REGRAS_DE_NEGOCIO.md](../docs/REGRAS_DE_NEGOCIO.md) — sem oráculo não há auditoria cega | **Gabriel** | [D-008](DECISOES.md) | 🔴 bloqueia a auditoria |
@@ -53,7 +53,7 @@
 | `src/app/login/page.tsx` é um `redirect("/")` que hoje passa livre — tem que entrar na lista pública, senão "negar por padrão" vira laço | `orla` → **vale** | [0027](0027-orla-para-vale-fase-1-do-front-e-uma-pergunta-que-muda-o-roteamento.md) | 🟠 achado ao especificar a V-1 |
 | **OPS-001** — decidir plataforma de deploy (bloqueia staging de verdade) | Gabriel | [docs/SPRINTS.md](../docs/SPRINTS.md) | 🔴 aberto desde maio |
 | Mini-calendário: nomes dos dias sobrepostos | claude-web | [0015](0015-claude-web-para-claude-ec2-revisao-e-um-risco-de-build.md) | ✅ era `EEE` acreditando em comentário errado; + `shrink-0` |
-| CI precisa rodar `tsc` da app **e** `typecheck:e2e` (OPS-006) | quem fizer o CI | [0015](0015-claude-web-para-claude-ec2-revisao-e-um-risco-de-build.md) | 🟡 os dois estão no workflow, falta rodar |
+| CI precisa rodar `tsc` da app **e** `typecheck:e2e` (OPS-006) | quem fizer o CI | [0015](0015-claude-web-para-claude-ec2-revisao-e-um-risco-de-build.md) | ✅ os dois passaram |
 | Corpo do PR #7 diz "backend nunca compilado" — Gates 0-4 fechados desde então | **pico** | [0018](0018-vale-para-orla-o-que-eu-nao-consigo-e-um-choque-de-nomes.md) | 🔴 aberto |
 | Parâmetros da proteção de branch não lidos (token sem admin) — só `protected: true` provado | quem tiver admin | [0018](0018-vale-para-orla-o-que-eu-nao-consigo-e-um-choque-de-nomes.md) | 🟠 confirmar |
 | 🔴 D-006 × esquema `dev-*`: dois vocabulários de nome autorizados no mesmo dia | **Gabriel** | [0018](0018-vale-para-orla-o-que-eu-nao-consigo-e-um-choque-de-nomes.md) | 🔴 decisão |
@@ -62,9 +62,9 @@
 | Criar agendamento **pela tela**, e os três modos pelos diálogos | claude-ec2 | [0006](0006-claude-ec2-para-claude-web-testes-de-core-e-navegador.md) | 🔴 aberto |
 | **A-001 e A-002** — reproduzidos em PG 16 (R$600 em 4 sessões pagas), teste escrito antes (D-008), correção aplicada e suíte executada em PG 18 | `orla` | [0026](0026-duna-para-orla-r004-verde-no-postgres18.md) | ✅ 67 testes / 253 asserções verdes |
 | Rodar `lein test` com banco para a correção da R-004 e os dois testes novos | **duna** | [0026](0026-duna-para-orla-r004-verde-no-postgres18.md) | ✅ PostgreSQL 18, 0 falhas |
-| **A-003** — admin lia prontuário sem flag, contra a R-012 | `orla` | [docs/REVISAO_PRE_PRODUCAO.md](../docs/REVISAO_PRE_PRODUCAO.md) | 🟡 corrigido; **falta rodar a suíte** |
+| **A-003** — admin lia prontuário sem flag, contra a R-012 | `orla` | [docs/REVISAO_PRE_PRODUCAO.md](../docs/REVISAO_PRE_PRODUCAO.md) | ✅ corrigido e **provado no CI** |
 | 🔴 **Achado ao corrigir a A-003: o admin também *apagava* prontuário alheio** — guarda só disparava para papel "psicologo". Corrigido junto, um passo além do escopo | `orla` → **Gabriel** | [docs/REVISAO_PRE_PRODUCAO.md](../docs/REVISAO_PRE_PRODUCAO.md) | 🟠 confirmar ou derrubar |
-| 🔴 Rodar `test/deep_saude_backend/prontuarios_test.clj` — namespace novo, **nunca executado**; 7 testes da R-012 | **duna** (D-2) | [0028](0028-orla-para-duna-rascunho-do-ci-e-a-fila-de-codificacao.md) | 🔴 aberto |
+| Rodar `prontuarios_test.clj` — 7 testes da R-012 | CI | [0028](0028-orla-para-duna-rascunho-do-ci-e-a-fila-de-codificacao.md) | ✅ **verdes no CI**: 74 testes contra 67 da véspera |
 | `criar-prontuario-handler` deixa o admin criar prontuário para paciente de outro psicólogo (mesmo padrão da A-003, bem menos grave) | `orla` → **Gabriel** | [docs/REVISAO_PRE_PRODUCAO.md](../docs/REVISAO_PRE_PRODUCAO.md) | 🟢 anotado |
 | `novo-duracao` tem o mesmo defeito que a A-001 tinha em `novo-valor`: `(or duracao ... 50)` nunca é nil, então duração é gravada em toda ocorrência do conjunto mesmo quando ninguém pediu. Já não alcança o passado; alcança as futuras | `orla` → **Gabriel** | [docs/REVISAO_PRE_PRODUCAO.md](../docs/REVISAO_PRE_PRODUCAO.md) | 🟠 decidir |
 

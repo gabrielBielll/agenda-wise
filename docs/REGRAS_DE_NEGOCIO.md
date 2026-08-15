@@ -78,7 +78,7 @@ sem gastar auditoria.
 - ❓ Paciente pode ser atendido por mais de um psicólogo? Em férias/substituição,
   quem enxerga o quê?
 
-**R-012** — ✅ confirmada, ver abaixo. **Violação corrigida; falta rodar a suíte.**
+**R-012** — ✅ confirmada, ver abaixo. **Violação corrigida e provada no CI.**
 
 **R-013 — Desligar psicólogo**
 - Hoje: ❓ não achei fluxo de desligamento.

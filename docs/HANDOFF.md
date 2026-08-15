@@ -96,10 +96,8 @@ decisão do Gabriel.
 
 ## Quem está com o quê
 
-- **`duna`** — o **CI** (mensagem [0024](../mensageria/0024-orla-para-duna-papeis-novos-e-o-ci-virou-critico.md)). Quatro comandos, e `typecheck` e
-  `typecheck:e2e` são **dois** — o e2e ficou fora do tsconfig da app porque
-  importa `@playwright/test`, devDependency. Pedi que ela quebre um teste de
-  mentira para provar que o CI fica vermelho.
+- **`duna`** — fila de codificação ([0028](../mensageria/0028-orla-para-duna-rascunho-do-ci-e-a-fila-de-codificacao.md)): provar que o CI fica **vermelho**,
+  depois a instrumentação (item 5) e a primeira extração de namespace.
 - **`pico`** — P-001: `ALTER COLUMN TYPE` do Cockroach é atômico?
 - **`vale`** — Fase 1 do front ([0027](../mensageria/0027-orla-para-vale-fase-1-do-front-e-uma-pergunta-que-muda-o-roteamento.md)): V-1 middleware negar-por-padrão (itens 2
   e 7) e V-2 contrato de datas no admin (item 1). Nenhuma depende do CI.
@@ -122,9 +120,13 @@ Em duas frentes isso já valeu mais do que parece: dá para **extrair a string S
 do fonte** e mandar ao `PREPARE` do PostgreSQL. Não é a suíte, mas é o parser do
 banco dizendo se aceita — bem acima de "li e me parece certo".
 
-⚠️ **O CI é caminho crítico, não higiene.** A `pico` saiu do fluxo e levou junto
-Playwright e CockroachDB; o GitHub Actions é o substituto. Nada de refactor antes
-de ele estar verde.
+✅ **O CI existe e está verde** desde 2026-08-15 — `.github/workflows/ci.yml`,
+três jobs, verde na primeira execução e conferido no log, não no ícone: `Ran 74
+tests containing 265 assertions. 0 failures`. Ele destrava a Fase 2.
+
+⚠️ **Mas ainda não ficou vermelho nenhuma vez, e isso não é detalhe.** CI que
+nunca ficou vermelho não é CI verde, é CI mudo — não se sabe se ele reprova. É a
+única coisa que separa a Fase 0 de fechada, e está com a `duna`.
 
 ---
 

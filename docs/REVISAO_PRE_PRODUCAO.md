@@ -146,7 +146,9 @@ que lê-lo, e nenhuma tela do admin consome prontuário, então o alcance é zer
 
 🧪 Testes em `test/deep_saude_backend/prontuarios_test.clj` — leitura pelo autor,
 pelo colega e pelo admin, exclusão pelos três, e a saída de emergência ligada e
-desligada. **Nunca executados** pela autora; ver o INDEX.
+desligada. ✅ **Verdes na primeira execução do CI**: a suíte saiu de 67 para 74
+testes e de 253 para 265 asserções, sem falha. Escritos sem nunca terem sido
+executados pela autora — quem os rodou foi o CI, minutos depois de existir.
 
 ⚠️ Mesmo padrão em `criar-prontuario-handler` (`and (= papel "psicologo")`): o
 admin pode criar prontuário para paciente de outro psicólogo. Menos grave — ele
