@@ -106,6 +106,32 @@
             (handler (assoc request :identity (:identity auth-data)))
             {:status 401 :body {:erro "Token inválido ou expirado."}}))))))
 
+(defn wrap-plataforma-admin
+  "Guarda das rotas `/api/plataforma/*` — o painel do operador da plataforma.
+
+   Autentica pelo mesmo JWT e depois exige a flag `plataforma_admin`. Papel de
+   clínica não conta: `admin_clinica` é o administrador de UMA clínica, e o
+   `wrap-checar-permissao` já lhe dá bypass dentro dela. Se o painel reusasse
+   aquele caminho, todo admin de toda clínica cliente viraria operador da
+   plataforma — que é o oposto do produto.
+
+   ⚠️ A flag não se concede por endpoint nenhum. Ver a migration
+   `20260815120000-plataforma-admin`.
+
+   ⚠️ E ela **não** abre prontuário: `pode-ler-prontuarios?` não a consulta, e
+   há teste garantindo. Operar o negócio e ler o registro clínico de um paciente
+   de outra clínica são coisas diferentes, e a R-012 só permite a segunda ao
+   psicólogo autor."
+  [handler]
+  (wrap-jwt-autenticacao
+   (fn [request]
+     (if (true? (get-in request [:identity :plataforma_admin]))
+       (handler request)
+       (do
+         (println "PLATAFORMA: acesso negado para usuário" (str (get-in request [:identity :user_id])))
+         {:status 403 :body {:erro "Acesso restrito ao operador da plataforma."
+                             :code "nao_e_operador_da_plataforma"}})))))
+
 (defn wrap-checar-permissao [handler nome-permissao-requerida]
   (fn [request]
     (let [papel-id (get-in request [:identity :papel_id])
@@ -170,25 +196,30 @@
           (.getBytes ^String esperado "UTF-8")
           (.getBytes ^String recebido "UTF-8")))))
 
-(defn provisionar-clinica-handler [request]
-  (let [{:keys [nome_clinica limite_psicologos nome_admin email_admin senha_admin]} (:body request)]
-    (cond
-      (not (provisionamento-autorizado? request))
-      (do
-        (println "PROVISIONAMENTO: tentativa não autorizada.")
-        {:status 403 :body {:erro "Provisionamento não autorizado."
-                            :code "provisionamento_nao_autorizado"}})
+(defn- criar-clinica-e-admin!
+  "Validação e criação de clínica + admin. Devolve resposta HTTP pronta.
 
-      (or (str/blank? nome_clinica) (str/blank? nome_admin) (str/blank? email_admin) (str/blank? senha_admin))
-      {:status 400, :body {:erro "Nome da clínica, nome do admin, email e senha são obrigatórios."}}
+   ⚠️ A autorização fica **fora** daqui de propósito, porque há dois caminhos
+   legítimos e eles não se parecem: o endpoint público usa segredo no header —
+   precisa funcionar antes de existir qualquer usuário para autenticar — e o
+   painel da plataforma usa a flag do token de quem já está logado. Quem chama
+   já decidiu que pode; esta função não decide nada sobre permissão.
 
-      (< (count (str senha_admin)) 8)
-      {:status 400, :body {:erro "A senha do administrador deve ter ao menos 8 caracteres."}}
+   Extraída quando o painel de superadmin apareceu. Antes era o corpo do
+   `provisionar-clinica-handler`, e duplicá-la significaria manter duas
+   validações de senha e dois tratamentos de email repetido."
+  [{:keys [nome_clinica limite_psicologos nome_admin email_admin senha_admin]}]
+  (cond
+    (or (str/blank? nome_clinica) (str/blank? nome_admin) (str/blank? email_admin) (str/blank? senha_admin))
+    {:status 400, :body {:erro "Nome da clínica, nome do admin, email e senha são obrigatórios."}}
 
-      (execute-one! ["SELECT id FROM usuarios WHERE email = ?" email_admin])
-      {:status 409, :body {:erro "Email do administrador já cadastrado no sistema."}}
+    (< (count (str senha_admin)) 8)
+    {:status 400, :body {:erro "A senha do administrador deve ter ao menos 8 caracteres."}}
 
-      :else
+    (execute-one! ["SELECT id FROM usuarios WHERE email = ?" email_admin])
+    {:status 409, :body {:erro "Email do administrador já cadastrado no sistema."}}
+
+    :else
       ;; Clínica e admin na mesma transação: uma clínica sem admin é um tenant
       ;; órfão que ninguém consegue acessar nem remover pela aplicação.
       (if-let [papel-admin-id (:id (execute-one! ["SELECT id FROM papeis WHERE nome_papel = 'admin_clinica'"]))]
@@ -206,7 +237,59 @@
             {:status 201 :body {:message "Clínica e usuário administrador criados com sucesso."
                                 :clinica nova-clinica
                                 :usuario_admin novo-admin}}))
-        {:status 500 :body {:erro "Papel 'admin_clinica' não encontrado. Rode as migrations."}}))))
+      {:status 500 :body {:erro "Papel 'admin_clinica' não encontrado. Rode as migrations."}})))
+
+(defn provisionar-clinica-handler
+  "Provisionamento público, autorizado por segredo compartilhado no header."
+  [request]
+  (if-not (provisionamento-autorizado? request)
+    (do
+      (println "PROVISIONAMENTO: tentativa não autorizada.")
+      {:status 403 :body {:erro "Provisionamento não autorizado."
+                          :code "provisionamento_nao_autorizado"}})
+    (criar-clinica-e-admin! (:body request))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Painel do operador da plataforma
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;; ⚠️ **Nada aqui devolve dado clínico.** Contagem de pacientes, sim; nome de
+;; paciente, não; conteúdo de prontuário, jamais. Quem opera a plataforma
+;; precisa saber quanto uma clínica usa para cobrar e para dimensionar — não
+;; precisa saber quem ela atende, e a R-012 diz que não pode.
+;;
+;; É a linha que separa este painel de uma chave-mestra, e ela é fácil de
+;; apagar por descuido: basta alguém acrescentar um `nome` num SELECT destes
+;; porque "ficaria melhor na tela".
+
+(defn plataforma-listar-clinicas-handler
+  "Uma linha por clínica, com o quanto ela usa. Sem nome de paciente."
+  [_request]
+  {:status 200
+   :body (execute-query!
+          ["SELECT c.id, c.nome_da_clinica, c.limite_psicologos, c.timezone,
+                   (SELECT count(*) FROM usuarios u WHERE u.clinica_id = c.id) AS usuarios,
+                   (SELECT count(*) FROM pacientes p WHERE p.clinica_id = c.id) AS pacientes,
+                   (SELECT count(*) FROM agendamentos a WHERE a.clinica_id = c.id) AS agendamentos
+              FROM clinicas c
+             ORDER BY c.nome_da_clinica"])})
+
+(defn plataforma-metricas-handler
+  "Totais da plataforma, para a primeira dobra do painel."
+  [_request]
+  {:status 200
+   :body (execute-one!
+          ["SELECT (SELECT count(*) FROM clinicas)     AS clinicas,
+                   (SELECT count(*) FROM usuarios)     AS usuarios,
+                   (SELECT count(*) FROM pacientes)    AS pacientes,
+                   (SELECT count(*) FROM agendamentos) AS agendamentos,
+                   (SELECT count(*) FROM usuarios WHERE plataforma_admin) AS operadores"])})
+
+(defn plataforma-criar-clinica-handler
+  "Cria clínica pelo painel. Mesma criação do endpoint público — o que muda é
+   quem autorizou: aqui é a flag do token, lá é o segredo no header."
+  [request]
+  (criar-clinica-e-admin! (:body request)))
 
 (defn senha-confere?
   "Verifica a senha contra o hash armazenado.
@@ -249,6 +332,12 @@
                               :clinica_id (:clinica_id usuario)
                               :papel_id   (:papel_id usuario)
                               :role       (:nome_papel papel)
+                              ;; Operador da plataforma. Eixo separado do papel:
+                              ;; o superadmin continua sendo usuário de uma
+                              ;; clínica, e esta flag só abre /api/plataforma/*.
+                              ;; `boolean` porque a coluna pode vir nil de linha
+                              ;; criada antes da migration.
+                              :plataforma_admin (boolean (:plataforma_admin usuario))
                               :exp        (-> (java.time.Instant/now) (.plusSeconds 3600) .getEpochSecond)}
                       token (jwt/sign claims jwt-secret)]
                   {:status 200 :body {:message "Usuário autenticado com sucesso."
@@ -1394,8 +1483,21 @@
 
   (context "/api/google" [] google-routes))
 
+(defroutes plataforma-routes
+  ;; Painel do operador da plataforma. Conjunto SEPARADO das rotas clínicas de
+  ;; propósito: aqui a autorização é a flag `plataforma_admin`, lá é
+  ;; `clinica_id` + papel. Misturar os dois eixos foi o que este desenho evitou.
+  (context "/api/plataforma" []
+    (GET  "/metricas" request (wrap-plataforma-admin plataforma-metricas-handler))
+    (GET  "/clinicas" request (wrap-plataforma-admin plataforma-listar-clinicas-handler))
+    (POST "/clinicas" request (wrap-plataforma-admin plataforma-criar-clinica-handler))))
+
 (defroutes app-routes
   public-routes
+  ;; Antes de `protected-routes`: aquele bloco autentica ANTES de casar o
+  ;; caminho, então uma requisição sem token para /api/plataforma pararia lá com
+  ;; 401 genérico em vez de chegar à sua própria guarda.
+  plataforma-routes
   (wrap-jwt-autenticacao protected-routes)
   (route/not-found "Recurso não encontrado"))
 
