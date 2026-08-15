@@ -23,15 +23,25 @@
 
 ### Pendências nomeadas
 
-> 🟡 **Isolamento entre clínicas: o teste existe, mas ainda não rodou uma vez.**
+> ✅ **Isolamento entre clínicas: provado, e agora roda a cada push.**
 > `isolamento_test.clj` cria a **segunda clínica pelo endpoint real** de
 > provisionamento e checa que ela não lê, não altera, não apaga e não lista nada
 > da primeira. São 8 testes — e na primeira execução **nenhum deles chegou a
 > rodar**: a limpeza do fixture apagava `usuarios` antes de `pacientes`, violava
 > a chave estrangeira e derrubava o namespace inteiro (`0 failures, 1 errors`, e
 > a contagem ficou em 74 em vez de subir para 82). Ordem corrigida e verificada
-> contra PostgreSQL 16 real. **Só vira 🟢 quando o CI mostrar os 8 verdes** — até
-> lá é teste escrito, não garantia.
+> contra PostgreSQL 16 real.
+>
+> Na segunda execução os 8 rodaram e **5 falharam, todas pela mesma causa e
+> nenhuma no isolamento**: `clojure.test` percorre `ns-interns`, que é um mapa, e
+> o teste de criação assumia rodar primeiro — quando não rodava, recebia 409 e
+> ainda zerava os atoms compartilhados. Email único resolveu.
+>
+> ✅ **Run 31881556054, lido no log e não no ícone: `Ran 82 tests containing 292
+> assertions. 0 failures, 0 errors.`** 82 contra os 74 da manhã — os 8 entraram e
+> passaram. Nas três execuções vermelhas do caminho, o código de produção nunca
+> foi contestado: os defeitos eram todos do andaime de teste, e nenhum deles
+> seria pego por leitura.
 
 | O quê | De quem | Onde | Estado |
 |---|---|---|---|
