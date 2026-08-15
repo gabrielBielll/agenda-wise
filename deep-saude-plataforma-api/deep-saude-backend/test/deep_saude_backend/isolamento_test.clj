@@ -133,17 +133,29 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (deftest criar-a-segunda-clinica
+  ;; ⚠️ Email único, e isso não é detalhe de estilo.
+  ;;
+  ;; A primeira versão reusava o email da clínica B compartilhada e assumia que
+  ;; rodava antes dos testes de isolamento. `clojure.test` **não garante ordem**
+  ;; — `test-all-vars` percorre `ns-interns`, que é um mapa. Quando outro teste
+  ;; rodava primeiro e já criava a B, este recebia 409 ("email já cadastrado") e
+  ;; ainda fazia `reset!` dos atoms com o nil de uma resposta de erro, deixando
+  ;; `clinica_id` nil na identidade dos demais. Cinco falhas no CI, uma causa só.
+  ;;
+  ;; Agora este teste prova o caminho de criação com dados próprios e não
+  ;; encosta no estado compartilhado.
   (with-redefs [environ.core/env (assoc env :provisioning-token token-de-teste)]
-    (let [resp (provisionar! "Clinica B" "admin-b@teste.local")]
-      (is (= 201 (:status resp)) "provisionar a segunda clínica tem que funcionar")
-      (reset! clinica-b (get-in resp [:body :clinica :id]))
-      (reset! admin-b   (get-in resp [:body :usuario_admin :id]))
+    (let [email (str "admin-" (java.util.UUID/randomUUID) "@teste.local")
+          resp  (provisionar! "Clinica Nova" email)
+          cid   (get-in resp [:body :clinica :id])
+          uid   (get-in resp [:body :usuario_admin :id])]
+      (is (= 201 (:status resp)) "provisionar uma clínica nova tem que funcionar")
       (testing "clínica e admin nascem juntos — clínica sem admin é tenant órfão"
-        (is (some? @clinica-b))
-        (is (some? @admin-b)))
-      (testing "o admin da B pertence à B, não à A"
-        (is (= @clinica-b (:clinica_id (db/execute-one!
-                                        ["SELECT clinica_id FROM usuarios WHERE id = ?" @admin-b]))))))))
+        (is (some? cid))
+        (is (some? uid)))
+      (testing "o admin nasce na clínica que acabou de ser criada"
+        (is (= cid (:clinica_id (db/execute-one!
+                                 ["SELECT clinica_id FROM usuarios WHERE id = ?" uid]))))))))
 
 (deftest provisionamento-exige-o-token
   (with-redefs [environ.core/env (assoc env :provisioning-token token-de-teste)]
@@ -163,7 +175,10 @@
 ;; 2. A clínica B não alcança nada da A
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn- garantir-clinica-b! []
+(defn- garantir-clinica-b!
+  "Cria a clínica B uma vez, sob demanda. Cada teste chama: como a ordem não é
+   garantida, quem chegar primeiro cria e os outros reaproveitam."
+  []
   (when (nil? @clinica-b)
     (with-redefs [environ.core/env (assoc env :provisioning-token token-de-teste)]
       (let [resp (provisionar! "Clinica B" "admin-b@teste.local")]
