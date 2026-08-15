@@ -5,6 +5,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { paraPayloadParede } from "@/lib/datetime";
 
 const agendamentoSchema = z.object({
   paciente_id: z.string().uuid({ message: "Selecione um paciente válido." }),
@@ -67,7 +68,7 @@ export async function createAgendamento(prevState: FormState, formData: FormData
       body: JSON.stringify({
         ...validatedFields.data,
         duracao,
-        data_hora_sessao: validatedFields.data.data_hora_sessao.replace("T", " ") + ":00",
+        data_hora_sessao: paraPayloadParede(validatedFields.data.data_hora_sessao),
         // Only include recurrence if type is valid and not 'none'
         ...(validatedFields.data.recorrencia_tipo && validatedFields.data.recorrencia_tipo !== 'none' ? {
             recorrencia_tipo: validatedFields.data.recorrencia_tipo,
@@ -147,7 +148,7 @@ export async function updateAgendamento(id: string, prevState: FormState, formDa
       body: JSON.stringify({
         ...validatedFields.data,
         ...(duracao ? { duracao } : {}),
-        data_hora_sessao: validatedFields.data.data_hora_sessao.replace("T", " ") + ":00",
+        data_hora_sessao: paraPayloadParede(validatedFields.data.data_hora_sessao),
         mode: mode || (formData.get('mode') as string | undefined) // Support passing mode via arg or formData
       }),
     });
@@ -215,8 +216,8 @@ export async function checkBlockConflictsAdmin(
         "Authorization": `Bearer ${token}` 
       },
       body: JSON.stringify({
-        data_inicio: dataInicio.replace("T", " ") + ":00",
-        data_fim: dataFim.replace("T", " ") + ":00",
+        data_inicio: paraPayloadParede(dataInicio),
+        data_fim: paraPayloadParede(dataFim),
         recorrencia_tipo: recorrenciaTipo,
         quantidade_recorrencia: quantidadeRecorrencia,
         psicologo_id: psicologoId
@@ -260,8 +261,8 @@ export async function createBloqueioAdmin(
         "Authorization": `Bearer ${token}` 
       },
       body: JSON.stringify({
-        data_inicio: dataInicio.replace("T", " ") + ":00",
-        data_fim: dataFim.replace("T", " ") + ":00",
+        data_inicio: paraPayloadParede(dataInicio),
+        data_fim: paraPayloadParede(dataFim),
         motivo,
         dia_inteiro: diaInteiro || false,
         recorrencia_tipo: recorrenciaTipo,

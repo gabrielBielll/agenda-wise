@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { createAgendamento, type FormState } from "../actions";
+import { paraInputLocal, maisMinutos } from "@/lib/datetime";
 import { CalendarIcon, Clock, DollarSign, User, Check, ChevronsUpDown } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -63,19 +64,6 @@ export default function NovoAgendamentoForm({
   const { toast } = useToast();
   const [state, formAction] = useFormState(createAgendamento, initialState);
 
-  // Time formatting helpers
-  const calculateEndDate = (startDateString: string, durationMinutes: number) => {
-      try {
-        const date = new Date(startDateString);
-        if (isNaN(date.getTime())) return "";
-        const endDate = new Date(date.getTime() + durationMinutes * 60000);
-        const offset = endDate.getTimezoneOffset() * 60000;
-        return (new Date(endDate.getTime() - offset)).toISOString().slice(0, 16);
-      } catch (e) {
-        return "";
-      }
-  };
-
   // State
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
@@ -108,7 +96,7 @@ export default function NovoAgendamentoForm({
       }
 
       if (newStart) {
-          setEnd(calculateEndDate(newStart, durationToKeep));
+          setEnd(paraInputLocal(maisMinutos(newStart, durationToKeep)));
       } else {
         setEnd("");
       }
