@@ -333,3 +333,38 @@ não uma tela de promoção.
 paciente, não; conteúdo de prontuário, jamais. É uma linha fácil de apagar por
 descuido — basta alguém acrescentar um `nome` num `SELECT` porque ficaria melhor
 na tela.
+
+---
+
+## D-010 — Horário de parede é o da clínica, não o do navegador
+
+**Autorizado por:** Gabriel, 2026-08-15
+⚠️ **Chegou por relato:** a autorização foi dada diretamente à `vale` e está na
+[0036](0036-vale-para-orla-o-item-1-fechado-e-um-teste-que-eu-inverti.md). Registro aqui porque decisão que vive só numa mensagem some — e esta
+muda semântica de produto. **Falta uma linha de confirmação do Gabriel.**
+**Onde vive:** `src/lib/datetime.ts` (`paredeDaClinica`, `instanteDeParede`,
+`FUSO_CLINICA`) e `e2e/calendario-fuso.spec.ts`
+
+Uma sessão marcada para as 14:00 é às **14:00 da clínica**, e é isso que todo
+mundo vê, em qualquer fuso.
+
+**Por quê:** o modelo anterior — cada um vê no próprio relógio — não tinha sido
+decidido por ninguém; estava implícito no código e **afirmado por um teste**. Ele
+era a causa do item 1: a leitura convertia para o fuso do navegador, a escrita
+mandava o literal, e salvar sem tocar na data deslocava a sessão em até 12 horas
+com virada de dia. Ver a revisão pré-produção, item 1.
+
+**Contrapartida aceita:** o psicólogo em viagem vê o horário da clínica, não o do
+relógio dele. É deliberado — a sessão acontece no relógio da clínica, e quem
+viaja é quem sabe que viajou.
+
+**Efeito no teste:** `calendario-fuso.spec.ts` tinha um bloco exigindo que Tóquio
+mostrasse horário **diferente**. Foi invertido, com o porquê escrito no arquivo.
+Não é teste ajustado para passar: era teste que afirmava o defeito. O bug
+original que ele existia para pegar continua coberto pelos outros dois blocos.
+
+🟠 **Assimetria que fica aberta:** o backend **já é multi-fuso** —
+`fuso-da-clinica` lê `clinicas.timezone`, que é `NOT NULL DEFAULT
+'America/Sao_Paulo'` desde a migration de fuso. O front acabou de virar mono-fuso
+por constante (`FUSO_CLINICA`). Não quebra hoje, porque toda clínica tem o mesmo
+valor; quebra quando existir clínica em outro fuso, que é o plano.

@@ -27,6 +27,12 @@
 
 ### Pendências nomeadas
 
+> 🟠 **`FUSO_CLINICA` é constante no front, e o backend já é multi-fuso.**
+> `clinicas.timezone` existe, é `NOT NULL` com padrão, e `fuso-da-clinica` já o
+> lê por clínica em todo caminho de escrita. O front precisa ler dali — caminho
+> mais curto é o login devolver o fuso junto do `clinica_id`. Não quebra hoje;
+> quebra na primeira clínica em outro fuso. Ver [D-010](DECISOES.md) e [0037](0037-orla-para-vale-o-teste-invertido-esta-certo-e-a-resposta-do-fuso.md).
+
 > 🔴 **Item 1 é pior do que a revisão dizia: é defeito de ESCRITA.** Salvar a
 > tela de edição do admin sem tocar na data desloca a sessão pelo offset do
 > navegador — +12h e virada de dia em Tóquio. Medido pela `vale` e reproduzido
