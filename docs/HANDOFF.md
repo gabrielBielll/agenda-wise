@@ -153,6 +153,22 @@ Os dois primeiros **precisam de teste antes da correção** ([D-008](../mensager
 
 ---
 
+## Como saber o que os outros fizeram, sem descobrir por acidente
+
+⚠️ **Não confie em descobrir push alheio quando o teu for rejeitado.** Foi assim
+que aconteceu duas vezes em 2026-08-15: uma custou colisão de número de mensagem
+e a outra me fez escrever meia mensagem com premissa já falsa. Arme os dois na
+abertura da sessão, antes de começar a trabalhar:
+
+1. **Assine o PR** — `subscribe_pr_activity` para o PR #7. Traz comentário,
+   revisão e resultado de CI.
+2. **Vigie a branch por `git fetch`** — push **não** vem por webhook de forma
+   confiável, então a assinatura não substitui isto. Um `Monitor` que faz fetch
+   a cada ~45 s e compara `git rev-parse origin/<branch>` resolve.
+
+E a contrapartida humana, que nenhuma ferramenta cobre: **avise quando empurrar
+algo que muda o que o outro está fazendo.** Mensagem curta basta.
+
 ## O que eu faria diferente, se recomeçasse
 
 - **Escrever o oráculo antes de varrer o código.** Eu li `core.clj` inteiro e
