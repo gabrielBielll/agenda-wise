@@ -1,4 +1,23 @@
 (ns deep-saude-backend.prontuarios
+  "CRUD de prontuário — o módulo mais sensível do sistema.
+
+   A **R-012** governa este arquivo inteiro: prontuário é do psicólogo autor.
+   Nem o admin da clínica, nem outro psicólogo da mesma clínica, nem o operador
+   da plataforma. Ver `docs/REGRAS_DE_NEGOCIO.md`.
+
+   ⚠️ Três guardas moram aqui, e as três já foram violadas pelo código antes de
+   alguém reparar (achados A-003 e o vizinho dele, em
+   `docs/REVISAO_PRE_PRODUCAO.md`):
+
+   - **leitura** — `pode-ler?`, e só o autor passa;
+   - **edição** — `atualizar-handler` checa autoria sem olhar papel;
+   - **exclusão** — `remover-handler` idem. Esta era a que faltava: a guarda só
+     disparava quando o papel era \"psicologo\", então o admin apagava registro
+     clínico alheio.
+
+   Cobertura em `prontuarios_test`, `plataforma_test` e `isolamento_test` — três
+   namespaces apontam para cá. Se uma mudança aqui exigir editar qualquer um
+   deles, pare: ou a mudança alterou comportamento, ou o teste estava errado."
   (:require [clojure.string :as str]
             [next.jdbc.result-set :as rs]
             [next.jdbc.sql :as sql]
@@ -60,6 +79,24 @@
            (= (:psicologo_id paciente) usuario-id))))
 
 (defn listar-handler
+  "Lista os prontuários de um paciente. A aridade de 1 é a segura, e é a que
+   qualquer chamador novo deve usar.
+
+   ⚠️ **A aridade de 2 é a saída de emergência da R-012, e ela é perigosa por
+   ser fácil de escrever.** Passar `true` ali libera a leitura de prontuário
+   alheio, e o call site fica com cara de detalhe de implementação — muito mais
+   fácil de aprovar numa revisão do que a alternativa, que é ligar a flag
+   documentada em `core.clj`.
+
+   Hoje existe **um único** chamador legítimo com dois argumentos:
+   `core/listar-prontuarios-handler`, que passa `super-admin-le-prontuario?` —
+   um `def` privado, `false`, com o aviso da R-012 ao lado e um teste que o
+   fixa desligado.
+
+   **Se você está prestes a escrever `(listar-handler req true)` em qualquer
+   outro lugar, não escreva.** A R-012 diz que ler prontuário alheio exige
+   alteração de código e implantação, e é a inconveniência que dá sentido à
+   regra; um argumento booleano não é inconveniência nenhuma."
   ([request] (listar-handler request false))
   ([request super-admin-le?]
    (let [identity (:identity request)
