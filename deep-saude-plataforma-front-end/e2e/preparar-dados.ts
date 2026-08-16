@@ -22,6 +22,8 @@ export const CONTA = {
   senha: 'SenhaE2E123',
   clinica: 'Clinica E2E',
   psicologoEmail: 'e2e-psi@teste.local',
+  /** Nome exibido — os testes que escolhem o psicólogo numa lista precisam dele. */
+  psicologoNome: 'Psi E2E',
   paciente: 'Paciente E2E',
 };
 
@@ -107,7 +109,7 @@ async function criarPsicologo(token: string): Promise<string> {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
     body: JSON.stringify({
-      nome: 'Psi E2E',
+      nome: CONTA.psicologoNome,
       email: CONTA.psicologoEmail,
       senha: 'SenhaPsi123',
       papel: 'psicologo',
