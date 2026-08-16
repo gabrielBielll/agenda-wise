@@ -24,11 +24,23 @@ export const CONTA = {
   psicologoEmail: 'e2e-psi@teste.local',
   /** Nome exibido — os testes que escolhem o psicólogo numa lista precisam dele. */
   psicologoNome: 'Psi E2E',
+  /** Do lado do e-mail, como a do admin — o teste do 403 loga como psicólogo. */
+  psicologoSenha: 'SenhaPsi123',
   paciente: 'Paciente E2E',
 };
 
 /** Horário de parede usado pelos testes de fuso. Ver calendario-fuso.spec.ts. */
 export const HORA_DA_SESSAO = '14:00';
+
+/**
+ * Duração da sessão semeada, em minutos.
+ *
+ * Exportada porque os testes precisam calcular o horário de FIM que a tela
+ * mostra. Repetir o `50` lá faria o teste falhar dizendo que a tela errou o
+ * intervalo quando quem mudou foi o semeador — a duplicata mente justamente
+ * na hora em que quebra.
+ */
+export const DURACAO_DA_SESSAO = 50;
 
 /** "Hoje" no fuso da clínica — não no fuso da máquina que roda o teste. */
 export function hojeEmSaoPaulo(): string {
@@ -111,7 +123,7 @@ async function criarPsicologo(token: string): Promise<string> {
     body: JSON.stringify({
       nome: CONTA.psicologoNome,
       email: CONTA.psicologoEmail,
-      senha: 'SenhaPsi123',
+      senha: CONTA.psicologoSenha,
       papel: 'psicologo',
     }),
   });
@@ -158,7 +170,7 @@ async function garantirSessaoDeHoje(token: string, pacienteId: string, psicologo
       psicologo_id: psicologoId,
       data_hora_sessao: quando,
       valor_consulta: 200,
-      duracao: 50,
+      duracao: DURACAO_DA_SESSAO,
     }),
   });
   // 409 = já existe sessão nesse horário (rodada anterior). Serve igual.

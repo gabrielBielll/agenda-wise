@@ -1,6 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
-import { dadosSemeados } from './apoio';
-import { CONTA, HORA_DA_SESSAO } from './preparar-dados';
+import { contarNoBackend, dadosSemeados } from './apoio';
+import { CONTA, DURACAO_DA_SESSAO, HORA_DA_SESSAO } from './preparar-dados';
 
 /**
  * O único teste que atravessa a fronteira inteira da R-014.
@@ -23,12 +23,16 @@ import { CONTA, HORA_DA_SESSAO } from './preparar-dados';
  * toast dizendo "falha ao criar bloqueio" — que cumpre a letra e perde o ponto.
  * Por isso a asserção é sobre o horário da sessão aparecer na tela.
  *
- * ## Se este teste falhar criando um bloqueio
+ * ## Se a guarda regredir, a falha aparece AQUI
  *
- * O caminho feliz dele é o backend **recusar**, então nada é criado e o banco
- * semeado não muda. Se a guarda regredir, o bloqueio é criado de verdade e pode
- * atrapalhar os testes seguintes da mesma execução — o que é aceitável, porque
- * nesse cenário o CI tem que ficar vermelho de qualquer forma.
+ * O caminho feliz é o backend **recusar**, então nada é criado. Se a guarda cair,
+ * o bloqueio é criado de verdade — e o estrago não fica neste arquivo: com
+ * `workers: 1`, o próximo teste a abrir a edição daquela sessão leva 409 do
+ * `bloqueio-existente`, não redireciona, e estoura o `waitForURL` acusando um
+ * arquivo inocente.
+ *
+ * Por isso o teste conta os bloqueios antes e depois. A regressão falha onde
+ * nasceu, com o nome certo — em vez de derrubar o vizinho.
  */
 
 /** Janela que engloba a sessão semeada (14:00–14:50) com folga dos dois lados. */
@@ -79,15 +83,16 @@ async function tentarBloquearPorCimaDaSessao(page: Page) {
 /** A sessão semeada, como a tela deve escrevê-la: "16/08" e "14:00 – 14:50". */
 function comoATelaEscreve(dia: string) {
   const [h, m] = HORA_DA_SESSAO.split(':').map(Number);
-  const fimMin = h * 60 + m + 50; // duração semeada
+  const fimMin = h * 60 + m + DURACAO_DA_SESSAO;
   const fim = `${String(Math.floor(fimMin / 60)).padStart(2, '0')}:${String(fimMin % 60).padStart(2, '0')}`;
   return { dia: diaEMes(dia), intervalo: `${HORA_DA_SESSAO} – ${fim}` };
 }
 
 test.describe('bloqueio sobre sessão marcada — a recusa mostra dia e hora', () => {
-  test('a tela lista a sessão atingida, não só "deu erro"', async ({ page }) => {
+  test('a tela lista a sessão atingida, não só "deu erro"', async ({ page, request }) => {
     const { dia } = dadosSemeados();
     const esperado = comoATelaEscreve(dia);
+    const antes = await contarNoBackend(request, '/api/bloqueios');
 
     const recusa = await tentarBloquearPorCimaDaSessao(page);
 
@@ -105,6 +110,14 @@ test.describe('bloqueio sobre sessão marcada — a recusa mostra dia e hora', (
       recusa,
       'e a hora de início e fim, que é o que a R-014 pede por escrito'
     ).toContainText(esperado.intervalo);
+
+    // A recusa tem que ser recusa: nada criado. Ver o comentário de
+    // `contarNoBackend` — sem isto, a regressão derruba o arquivo vizinho e
+    // esconde o próprio nome.
+    expect(
+      await contarNoBackend(request, '/api/bloqueios'),
+      'o backend recusou na tela mas criou o bloqueio — a guarda da R-014 caiu, e é aqui que isso tem que aparecer'
+    ).toBe(antes);
   });
 });
 

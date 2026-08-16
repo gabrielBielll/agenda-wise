@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { expect, type Page } from '@playwright/test';
+import { expect, type APIRequestContext, type Page } from '@playwright/test';
 
 export type DadosSemeados = {
   email: string;
@@ -78,4 +78,43 @@ export async function horariosVisiveis(page: Page): Promise<string[]> {
 /** Só o horário de início, que é o que o usuário lê como "a sessão é às X". */
 export async function horariosDeInicio(page: Page): Promise<string[]> {
   return (await horariosVisiveis(page)).map((t) => t.split(' - ')[0]).sort();
+}
+
+const BACKEND = process.env.E2E_BACKEND_URL ?? 'http://localhost:3999';
+
+/**
+ * Quantos registros existem de um recurso, perguntando ao backend direto.
+ *
+ * Serve a uma disciplina só: **a recusa tem que ser recusa.** Quando um teste
+ * exercita uma guarda, ele precisa provar que nada foi criado — senão a
+ * regressão cria o registro, o teste falha por outro motivo, e o estrago
+ * aparece no arquivo seguinte.
+ *
+ * Com `workers: 1` e um banco semeado compartilhado, esse "arquivo seguinte" é
+ * inocente e a mensagem de falha aponta para ele. Contar aqui faz a regressão
+ * falhar onde nasceu. Diagnóstico da `orla` na mensageria 0055.
+ *
+ * O token é de módulo de propósito: o login é limitado a 10 tentativas por 5
+ * minutos por e-mail (`core.clj`), e gastar uma por asserção é gastar orçamento
+ * que não é do teste.
+ */
+let tokenDoAdmin: string | null = null;
+
+export async function contarNoBackend(
+  request: APIRequestContext,
+  caminho: '/api/bloqueios' | '/api/agendamentos'
+): Promise<number> {
+  if (!tokenDoAdmin) {
+    const { email, senha } = dadosSemeados();
+    const login = await request.post(`${BACKEND}/api/auth/login`, { data: { email, senha } });
+    expect(login.ok(), 'não consegui autenticar para contar no backend').toBeTruthy();
+    tokenDoAdmin = (await login.json()).token;
+  }
+
+  const resposta = await request.get(`${BACKEND}${caminho}`, {
+    headers: { Authorization: `Bearer ${tokenDoAdmin}` },
+  });
+  expect(resposta.ok(), `${caminho} não respondeu`).toBeTruthy();
+  const lista = await resposta.json();
+  return Array.isArray(lista) ? lista.length : 0;
 }
