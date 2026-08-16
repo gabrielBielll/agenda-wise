@@ -24,42 +24,29 @@ sem gastar auditoria.
 
 ## Sessões e recorrência
 
-**R-001 — Cancelamento com sessão já paga**
-- Hoje: cancelar não desfaz o pagamento nem o repasse.
-- ❓ Certo? Se o paciente cancela e já pagou, o dinheiro fica com a clínica? E o
-  repasse ao psicólogo, sai igual?
+**R-001** — ✅ confirmada, ver abaixo. **Exige tela nova (modal de cancelamento).**
 
-**R-002 — Prazo de cancelamento**
-- Hoje: **não existe prazo.** Cancelar 5 minutos antes é igual a cancelar com um
-  mês.
-- ❓ Deveria ter prazo? Qual, e o que muda ao ultrapassar?
+**R-002** — ✅ confirmada, ver abaixo. **24h, e vale para o paciente.**
 
-**R-003 — Falta (paciente não apareceu)**
-- Hoje: `falta` é um estado ao lado de `cancelado`, e não muda nada no
-  financeiro por si.
-- ❓ Falta cobra? Repassa ao psicólogo?
+**R-003** — ✅ confirmada, ver abaixo. **Mesmo modal da R-001, e assíncrono por causa do Google.**
 
 **R-004** — ✅ confirmada, ver abaixo. **Violação corrigida e verde na suíte.**
 
-**R-005 — Limite de recorrência**
-- Hoje: até 120 agendamentos de uma vez; semanal ou quinzenal.
-- ❓ 120 é o número certo? Falta mensal?
+**R-005** — ✅ confirmada: 120 está bom. ⚠️ **Falta checar o limite da API do Google Agenda.**
 
-**R-006 — Conflito de horário**
-- Hoje: detecta sobreposição e deixa **forçar** (`force`).
-- ❓ Quem pode forçar? Admin e psicólogo, ou só admin? Sobrepor com bloqueio de
-  agenda também é permitido?
+**R-006** — ✅ confirmada, ver abaixo. **O código viola: hoje qualquer um força.**
 
 ---
 
 ## Dinheiro
 
-**R-007 — Quem marca como pago**
-- Hoje: admin marca; psicólogo ❓.
-- ❓ O psicólogo pode marcar que recebeu, ou é só a clínica?
+**R-007** — ✅ confirmada: **só o admin.** O comportamento de hoje está correto.
 
 **R-008** — ✅ confirmada, ver abaixo.
 
+**R-009** — ✅ confirmada, ver abaixo. **Modelo novo: percentual, fixo ou bonificação.**
+
+<!-- pergunta original, mantida pelo diagnóstico que ela produziu:
 **R-009 — Comissão**
 - Hoje: ⚠️ **não existe comissão no banco.** A linha anterior aqui dizia que
   existiam colunas, e estava errada — conferido em migrations, backend e front.
@@ -69,37 +56,27 @@ sem gastar auditoria.
   [revisão](REVISAO_PRE_PRODUCAO.md).
 - ❓ Qual é a regra? Taxa fixa? Por psicólogo, por clínica, ou negociada por
   sessão? E quando mudar, as sessões antigas mantêm a antiga?
+-->
 
-**R-010 — Transferência em lote**
-- Hoje: marca várias sessões como transferidas de uma vez.
-- ❓ Precisa de confirmação? Dá para desfazer?
+**R-010** — ✅ confirmada, ver abaixo. **Exige histórico de ações auditável e reversível.**
 
 ---
 
 ## Pacientes e acesso
 
-**R-011 — Paciente de qual psicólogo**
-- Hoje: paciente tem um `psicologo_id`; psicólogo só vê os seus, admin vê todos.
-- ❓ Paciente pode ser atendido por mais de um psicólogo? Em férias/substituição,
-  quem enxerga o quê?
+**R-011** — ✅ confirmada, ver abaixo. **Muda o modelo: paciente pode ter mais de um psicólogo.**
 
 **R-012** — ✅ confirmada, ver abaixo. **Violação corrigida e provada no CI.**
 
-**R-013 — Desligar psicólogo**
-- Hoje: ❓ não achei fluxo de desligamento.
-- ❓ O que acontece com as sessões futuras, os pacientes e os prontuários dele?
+**R-013** — ✅ confirmada, ver abaixo. **Não existe hoje; é funcionalidade nova.**
 
 ---
 
 ## Agenda
 
-**R-014 — Bloqueio de agenda**
-- Hoje: bloqueio impede agendar naquele intervalo.
-- ❓ Quem cria? Bloqueio pode cair em cima de sessão já marcada?
+**R-014** — ✅ confirmada, ver abaixo. **O código viola, e é o achado mais perigoso do dia.**
 
-**R-015 — Horário de atendimento**
-- Hoje: **não existe.** Dá para marcar 3h da manhã de domingo.
-- ❓ Deveria existir grade de horário por psicólogo?
+**R-015** — ✅ confirmada: **fica como está.** Sem grade de horário nesta versão.
 
 ---
 
@@ -111,7 +88,7 @@ sem gastar auditoria.
 
 ## Regras confirmadas
 
-Confirmadas pelo Gabriel em 2026-08-13.
+Confirmadas pelo Gabriel em 2026-08-13 e **2026-08-15** (as doze restantes).
 
 ---
 
@@ -190,3 +167,166 @@ Consequências, e são duas de tamanhos diferentes:
    atributo de **pessoa**, e a pergunta "que horas é a sessão" tem duas respostas
    legítimas ao mesmo tempo. Isso é modelagem, não conserto — precisa entrar no
    desenho antes de abrir para fora, não depois.
+
+---
+
+### R-001 — Cancelamento pergunta se foi pago; o repasse é decisão da clínica
+
+Cancelar **abre um modal** perguntando se a sessão foi paga. É a resposta desse
+modal que decide para onde o dinheiro vai.
+
+O que acontece com o **repasse** de sessão cancelada é configurado **no painel da
+clínica**: a clínica decide se repassa ao psicólogo ou não. Não é regra fixa do
+sistema — é parâmetro por clínica.
+
+⚠️ **Não existe hoje.** Cancelar zera o `valor_consulta` e não pergunta nada.
+
+---
+
+### R-002 — Prazo de cancelamento: 24 horas, e é do paciente
+
+**24 horas**, e o prazo vale para o **cancelamento feito pelo paciente**.
+
+**O problema real que o prazo esbarra:** hoje o paciente cancela pelo WhatsApp e
+a psicóloga muda o status depois. **O instante em que a psicóloga cancela não é
+o instante em que o paciente cancelou**, então um prazo medido pelo clique
+mediria a coisa errada. O modal da R-001 resolve, porque quem cancela informa o
+que aconteceu.
+
+🟠 **Escopo em aberto:** um login/visão para o **paciente** cancelar sozinho pela
+plataforma. O Gabriel acha interessante e **não decidiu** se entra nesta versão.
+
+---
+
+### R-003 — Falta usa o mesmo modal, e ele precisa ser assíncrono
+
+Falta segue a mesma lógica da R-001: **modal perguntando se a sessão foi paga**.
+As regras de falta e de repasse mudam com frequência, então o sistema pergunta em
+vez de assumir.
+
+⚠️ **E aqui aparece uma exigência de arquitetura, não de tela.** O plano é
+**consumir do Google Agenda**, onde a psicóloga sinaliza o que aconteceu
+**mudando a cor do card** e o nome do evento. Então:
+
+1. a plataforma precisa **detectar** que a cor/nome mudou e traduzir isso em
+   mudança de status;
+2. a pergunta "foi paga?" **não pode ser um modal síncrono** — ninguém está na
+   tela naquele momento. Ela vira **notificação assíncrona**, que a psicóloga
+   responde depois, ou que o admin responde pelo painel da clínica.
+
+Isso liga a R-003 diretamente às Fases seguintes da integração com o Google.
+
+---
+
+### R-006 — Só a clínica força conflito
+
+**Só a clínica** (admin) pode forçar um agendamento sobre conflito.
+
+Para a **psicóloga**, aparece um modal explicando o que aconteceu e pedindo que
+ela entre em contato com a gestão da clínica. E **chega notificação no painel da
+clínica** — no sininho — para que a gestão resolva.
+
+🔴 **O código viola:** `force` é um campo do corpo da requisição, sem checagem de
+papel. Qualquer um que possa criar agendamento pode mandar `force: true`. Ver
+A-005 na [revisão](REVISAO_PRE_PRODUCAO.md).
+
+---
+
+### R-009 — Remuneração é por psicólogo, e tem três formas
+
+Não existe "a comissão". Existem **formas de remuneração, por psicólogo**:
+
+- **percentual** sobre o valor da sessão;
+- **valor fixo** por sessão;
+- **bonificação** (no futuro).
+
+Tudo isso é ajustado **no painel** e **não pode ficar visível para os
+psicólogos** — cada um vê o que recebe, não a régua dos outros.
+
+🔴 O código de hoje não tem nada disso: a taxa é `useState(50)` no navegador. Ver
+A-004 na [revisão](REVISAO_PRE_PRODUCAO.md).
+
+❓ **Uma pergunta que sobrou:** o Gabriel disse "painel do escritório". Como a
+remuneração é assunto de cada clínica com os psicólogos dela, o lugar natural é o
+**painel da clínica** (admin), não o painel do operador da plataforma. Confirmar
+antes de implementar — os dois painéis existem agora e a escolha muda quem
+enxerga.
+
+---
+
+### R-010 — Histórico de ações: auditável e reversível
+
+Toda ação relevante entra num **histórico**: **quem** fez, **o que** fez e
+**quando**. O histórico é lido no **painel administrativo** e serve para três
+coisas:
+
+1. **desfazer** — transferência em lote marcada errado tem que ter volta;
+2. **auditar** — o que cada psicólogo e cada operador fez;
+3. **responder reclamação** — mostrar a ação que a pessoa fez, com autoria.
+
+⚠️ **Isto não é funcionalidade de uma tela; é uma camada.** E ela responde, de
+uma vez, três coisas que estavam abertas em lugares diferentes: o registro de
+acesso pela flag da R-012, a reversão da R-010, e a autoria exigida pela R-014.
+
+---
+
+### R-011 — Paciente pode ter mais de um psicólogo, com liberação nominal
+
+Um paciente **pode ser atendido por mais de um psicólogo** — férias e
+substituição fazem isso acontecer de verdade.
+
+A regra de visibilidade continua a mesma: **a clínica vê tudo; cada psicólogo vê
+só o que lhe compete.** O que muda é que o **admin da clínica pode liberar**, caso
+a caso, que um psicólogo veja os dados de um paciente de outro — **desde que o
+paciente seja atendido pelos dois** — e o admin decide **o que** o outro
+psicólogo pode ver.
+
+O consentimento do outro psicólogo é combinado fora do sistema.
+
+❓ **Pergunta que precisa de resposta antes de implementar:** essa liberação
+alcança o **prontuário**? A R-012 diz que prontuário é do psicólogo autor, e essa
+guarda está implementada e testada. "Ver os dados do paciente" pode significar
+cadastro e agenda **sem** prontuário — que é o que eu suporia — ou incluir o
+prontuário. As duas leituras levam a códigos diferentes.
+
+---
+
+### R-013 — Desligar e pausar psicólogo, sem perder nada
+
+Tem que existir **desligar** e **pausar** (férias). Reativar mantém **histórico e
+dados intactos**, para continuar de onde parou.
+
+Ao desligar, **todas as sessões futuras dele são canceladas**. Ao reativar,
+**um modal pergunta** se as sessões futuras devem ser reativadas ou se ficam
+canceladas.
+
+⚠️ **Não existe fluxo nenhum hoje.** É funcionalidade nova.
+
+---
+
+### R-014 — Bloqueio não cai em cima de sessão marcada
+
+**Quem cria:** psicólogo **e** clínica.
+
+**Bloqueio não pode cair em cima de sessão já marcada.** Quando houver
+sobreposição, o sistema **avisa** — dizendo o dia e a hora de cada sessão
+atingida — e a pessoa decide se cancela.
+
+Se for **cancelamento em massa**, o aviso é alarmante e exige **duas
+confirmações**, porque a ação é perigosa e arriscada.
+
+**Toda ação dessas entra no histórico**, com o identificador de quem fez —
+psicóloga ou operador —, para poder ser verificada depois se houver reclamação.
+
+🔴 **O código viola, e este é o achado mais perigoso do dia:** `cancelar_conflitos`
+é um booleano do corpo da requisição que cancela as sessões em massa **e zera o
+`valor_consulta` delas**, sem confirmação, sem aviso, sem histórico e **sem filtro
+de data** — então alcança sessão passada e já paga. Ver A-006 na
+[revisão](REVISAO_PRE_PRODUCAO.md).
+
+---
+
+### R-015 — Sem grade de horário nesta versão
+
+Fica como está: **não existe** horário de atendimento por psicólogo, e dá para
+marcar em qualquer horário. Decidido explicitamente, não por omissão.

@@ -212,6 +212,80 @@ recalculado a cada clique.
 
 ---
 
+## 🔴 A-005 — Qualquer um força agendamento sobre conflito
+
+**Viola:** [R-006](REGRAS_DE_NEGOCIO.md), confirmada em 2026-08-15
+**Onde:** `core.clj`, `criar-agendamento-handler` — `force` no corpo, linha ~606
+
+```clojure
+{:keys [... force ...]} (:body request)
+...
+agendamento-conflitante (when (not force) ...)
+```
+
+`force` é um campo do corpo da requisição e **não há checagem de papel nenhuma**.
+Quem pode criar agendamento pode mandar `force: true` e passar por cima do
+conflito — psicólogo, secretário, qualquer um.
+
+A R-006 diz que **só a clínica força**. Para o psicólogo, o desenho é outro:
+modal explicando o conflito e pedindo contato com a gestão, mais notificação no
+painel da clínica.
+
+**Correção:** a guarda é de papel, no backend — o `force` de quem não é
+`admin_clinica` deve ser ignorado (ou recusado com 403), não obedecido. Tela que
+esconde o botão não resolve: o campo está no corpo.
+
+---
+
+## 🔴 A-006 — Um bloqueio cancela sessões em massa, zera o valor delas e alcança o passado
+
+**Viola:** [R-014](REGRAS_DE_NEGOCIO.md), confirmada em 2026-08-15 — e o
+princípio da [R-004](REGRAS_DE_NEGOCIO.md), que já era confirmada
+**Onde:** `core.clj`, `criar-bloqueio-handler`, ~linha 1123
+
+```clojure
+(when cancelar_conflitos
+  (doseq [{start-ts :start end-ts :end} intervalos]
+    (sql/update! tx :agendamentos
+                 {:status "cancelado" :valor_consulta 0}      ; <- zera o valor
+                 ["clinica_id = ? AND psicologo_id = ? AND status != 'cancelado'
+                   AND data_hora_sessao < ?
+                   AND (data_hora_sessao + (COALESCE(duracao, 50) * interval '1 minute')) > ?"
+                  clinica-id target-psicologo-id end-ts start-ts])))
+```
+
+**Quatro problemas, e eles se somam:**
+
+1. **É um booleano do corpo da requisição.** `cancelar_conflitos: true` e pronto —
+   sem confirmação, sem as duas confirmações que a R-014 exige, sem aviso listando
+   dia e hora das sessões atingidas.
+2. **Zera `valor_consulta`.** Não é só cancelar: apaga o valor. É a mesma família
+   da A-001 — dinheiro reescrito em silêncio.
+3. **Não tem filtro de data.** O `WHERE` casa qualquer sobreposição, futura ou
+   passada. Bloqueio criado sobre um intervalo já vivido **cancela e zera sessão
+   já realizada e já paga** — exatamente o que a R-004 proíbe, e o mesmo defeito
+   da A-002, que era a falta de corte em `now()`.
+4. **É em massa por construção.** O handler aceita `recorrencia_tipo` e
+   `quantidade_recorrencia`, então **um** request gera N intervalos e cancela em
+   todos. Com o limite de 120 da R-005, um clique alcança 120 janelas.
+
+E nada disso deixa rastro: não há histórico, não há autoria registrada, não há
+como desfazer. A R-014 pede as três coisas explicitamente.
+
+**Por que ninguém viu antes:** o caminho é legítimo e o nome do campo é honesto —
+"cancelar conflitos" é o que a pessoa quer quando marca férias. O que não está
+escrito em lugar nenhum é que ele também apaga o valor e que não olha a data.
+
+**Correção, e ela tem duas metades:**
+
+- **Backend, agora:** cortar por `now()` e por status, exatamente como
+  `filtro-do-passado` já faz nos dois modos de edição de série — a função existe e
+  resolve o item 3. Parar de zerar `valor_consulta` de sessão passada.
+- **Produto, com a R-014:** o aviso com dia e hora, as duas confirmações, e o
+  histórico com autoria. Isso é tela e é a camada da R-010.
+
+---
+
 ## 🔴 1. O contrato de datas foi aplicado pela metade
 
 **Onde:** `src/app/admin/agendamentos/**` (4 arquivos)
