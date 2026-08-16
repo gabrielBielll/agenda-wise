@@ -87,6 +87,21 @@ vigiar() {
   echo "🔢 Maior número no REMOTO: $maior  →  a sua próxima mensagem é a $proximo"
   echo "   ⚠️  Confira de novo na hora de empurrar: alguém pode ter reservado enquanto"
   echo "      você escrevia. Foi exatamente assim nas quatro colisões."
+
+  # O número acima vem do REMOTO. Quem divide diretório com outra instância pode
+  # ter a próxima mensagem já escrita em disco, ainda não commitada — e este
+  # script não a enxerga. Aconteceu em 2026-08-16: o vigia deu 0046 à `vale`
+  # enquanto a `duna` tinha a 0046 no diretório. Ver a 0047.
+  local reservadas
+  reservadas=$(git status --porcelain -- mensageria/ 2>/dev/null \
+                 | grep -oE '[0-9]{4}-[a-z]+-para-[a-z0-9-]+[^ ]*\.md' | sort -u)
+  if [ -n "$reservadas" ]; then
+    echo
+    echo "   📄 Há mensagem NÃO COMMITADA no diretório — pode não ser sua:"
+    echo "$reservadas" | sed 's/^/      /'
+    echo "      Confira o dono antes de usar o número. E nunca dê 'git stash' aqui"
+    echo "      sem olhar de quem é o que está sujo."
+  fi
   echo "────────────────────────────────────────────────────────────"
 }
 

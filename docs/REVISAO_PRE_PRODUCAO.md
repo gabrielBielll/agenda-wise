@@ -247,6 +247,15 @@ meia notificação seria pior do que nenhuma.
 🔧 **Designada em 2026-08-16** à `duna`, com teste antes da correção (D-008) —
 ver [0042](../mensageria/0042-orla-para-duna-a-005-e-a-006-o-teste-antes-da-correcao.md). Contrato: `403 {"code": "force_requires_admin"}`.
 
+✅ **Corrigida em 2026-08-16** ([0046](../mensageria/0046-duna-para-orla-a005-a006-vermelhas-e-corrigidas.md)), com falha reproduzida antes: psicólogo com
+conflito real e `force: true` recebia **201** e gravava o segundo agendamento.
+Agora papel diferente de `admin_clinica` recebe 403; o admin segue podendo
+forçar, e o ramo do bloqueio não foi tocado. Revisado pela `orla` em [0049](../mensageria/0049-orla-para-duna-e-vale-eu-errei-o-mecanismo-e-achei-a-007.md).
+
+⚠️ **Conferido na revisão:** `force` **não existe** no caminho de atualização —
+não há porta dos fundos por ali. Mas aquele caminho tem outro buraco, achado na
+mesma leitura: ver **A-007**.
+
 ---
 
 ## 🔴 A-006 — Um bloqueio cancela sessões em massa, zera o valor delas e alcança o passado
@@ -332,6 +341,62 @@ contra a mesma forma:
 
 Só dia, hora e duração — é o que a R-014 pede. Sem nome de paciente: quem cria o
 bloqueio pode ser um secretário mexendo na agenda de outro psicólogo.
+
+✅ **Corrigida em 2026-08-16 pela `duna`** ([0046](../mensageria/0046-duna-para-orla-a005-a006-vermelhas-e-corrigidas.md)), com falha reproduzida antes:
+sessão futura sobreposta dava 201 e criava o bloqueio; sessão passada e
+`realizado` virava `cancelado` com `valor_consulta = 0.00`. Agora recusa com 409,
+e o booleano `cancelar_conflitos` saiu do handler — não cancela mais nada.
+Revisado pela `orla` em [0049](../mensageria/0049-orla-para-duna-e-vale-eu-errei-o-mecanismo-e-achei-a-007.md): aprovado, com dois limites a documentar
+(a checagem roda fora da transação, então não sobrevive a corrida; e o caminho
+feliz passou a fazer uma consulta por intervalo).
+
+---
+
+## 🔴 A-007 — Mudar duração ou psicólogo cria conflito sem passar por checagem
+
+**Viola:** [R-006](REGRAS_DE_NEGOCIO.md), confirmada em 2026-08-15
+**Onde:** `core.clj:871`, `atualizar-agendamento-handler`, no ramo de update simples
+**Achado em:** 2026-08-16, pela `orla`, revisando a correção da A-005. **É
+anterior a ela** — não foi introduzido pela correção.
+
+```clojure
+agendamento-conflitante (when (some? data_hora_sessao) ;; Só checa se estiver mudando horário/data
+                          (execute-one! [...]))
+```
+
+A checagem de conflito **só roda quando o corpo traz `data_hora_sessao`**. Mas o
+fim da sessão é calculado com os valores novos, venham eles de onde vierem:
+
+```clojure
+novo-duracao        (or duracao (:duracao agendamento-atual) 50)
+novo-psicologo-uuid (if psicologo_id (java.util.UUID/fromString psicologo_id) …)
+```
+
+Duas formas de criar sobreposição sem checagem nenhuma:
+
+- **esticar a `duracao`** de 50 para 180 sem tocar na data — a sessão invade a
+  seguinte;
+- **remanejar para outro psicólogo** que já tem sessão naquele horário.
+
+⚠️ Repare que o `bloqueio-existente`, calculado logo acima, **roda sempre**. Só a
+checagem de agendamento tem a condição — e o comentário ao lado dela diz *"por
+segurança checamos sempre que possível conflito"*, que é justamente o que ela não
+faz.
+
+**Alcance, conferido e não suposto:** o formulário do admin manda
+`data_hora_sessao` em toda submissão (o schema `zod` exige, e o e2e
+`edicao-nao-move-a-sessao` exercita esse caminho), então **pela tela de hoje não
+se alcança**. Pela API se alcança com um `PUT` de dois campos.
+
+**Por que isso não reduz a gravidade:** é o mesmo argumento da A-005 — *tela não
+é guarda, o campo está no corpo*. E o efeito é pior do que forçar conflito,
+porque **nem exige `force`**: a sobreposição nasce sem que ninguém peça permissão
+para criá-la, e a R-006 diz que criar conflito é privilégio da clínica.
+
+**Correção:** calcular `agendamento-conflitante` sempre, como já se faz com
+`bloqueio-existente` — a condição `when` é a única diferença entre os dois, e não
+há razão para ela. Teste antes, pela D-008: `PUT` só com `duracao` maior sobre
+sessão vizinha deve dar 409, e hoje dá 200.
 
 ---
 
