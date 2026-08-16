@@ -288,32 +288,86 @@ silencioso e troca um estado por outro.
 
 ### 🔴 Quatro buracos nessa convenção, e todos aparecem na sincronização
 
-**1. `falta` não tem cor.** A R-003 confirma que falta é estado ao lado de
-cancelado, com regra financeira própria. Mas a convenção não tem cor para "o
-paciente não apareceu" — na prática a psicóloga usaria Tomate, que é
-cancelamento. Isso **funde dois estados que têm regras de dinheiro diferentes**,
-e é justamente a distinção que o modal da R-001 existe para capturar.
+**1. `falta` não tem cor** — ✅ **resolvido em 2026-08-15, e a solução é melhor
+que uma cor nova.**
 
-**2. `[PAUSA]` é estado do PACIENTE, não da sessão.** O vocabulário do sistema é
-`agendado / realizado / cancelado / falta`, e não tem pausa. Uma pausa é o
-paciente inativo por um tempo — provavelmente cancela as sessões futuras **e**
-marca algo no cadastro do paciente. Como isso entra no modelo é decisão
-pendente.
+Cancelamento **pede um motivo**, escolhido de uma lista, e **falta é um dos
+motivos**. A cor continua sendo Tomate para tudo que não aconteceu; a distinção
+mora na plataforma, não no Google.
 
-**3. Agendada e confirmada só se distinguem pela COR.** As duas têm o mesmo
-título — o nome do paciente. Isso quebra a propriedade que torna a convenção do
-`[DISPONÍVEL]` robusta: lá, título e cor são dois canais que precisam concordar,
-então mudar a cor por engano não faz nada. Aqui, **trocar Tangerina por Sálvia
-sem querer promove a sessão de agendada para confirmada** — e confirmada/ocorrida
-é o que dispara a cadeia financeira da R-008. Cor sozinha decidindo dinheiro é o
-ponto único de falha desta convenção.
+Fluxo completo: a psicóloga muda a cor para Tomate na agenda → a plataforma
+detecta → **notificação pedindo que ela discrimine o motivo** → o motivo decide a
+regra financeira.
 
-**4. Grafite pode cair em cima de sessão marcada, e o Google não recusa.** A
-R-014 diz que bloqueio não pode sobrepor sessão — e a plataforma consegue impor
-isso na tela dela. **No Google, não.** A psicóloga cria um evento cinza em cima
-de uma sessão e o Google aceita, porque ele não conhece a regra. A sincronização
-vai encontrar exatamente o caso que a R-014 proíbe, e precisa de uma resposta
-que não seja "recusar" — porque o fato já aconteceu do outro lado.
+Isso evita gastar uma das 11 cores do Google numa distinção que o Google não
+precisa conhecer, e mantém a decisão de dinheiro na plataforma, que é a dona
+dela.
+
+⚠️ **Uma pergunta de modelagem que isso abre:** hoje `falta` é um `status` ao
+lado de `cancelado` no vocabulário do domínio. Com motivo, ou `falta` continua
+sendo status próprio (e o motivo "falta" o produz), ou tudo vira
+`cancelado` + `motivo`. **Recomendação da `orla`: manter `falta` como status** —
+ele já existe, já é validado pelo `dominio.clj`, e a R-003 dá a ele regra
+financeira própria. O motivo passa a ser um campo a mais, e "falta" é o motivo
+que também muda o status.
+
+**2. `[PAUSA]` é estado do PACIENTE, não da sessão** — ✅ **confirmado em
+2026-08-15, e é maior do que eu tinha entendido.**
+
+Pausa existe em **três níveis**, e cada um pertence a um dono diferente:
+
+| Pausa de | Quem pausa | Onde |
+|---|---|---|
+| **paciente** | psicóloga ou clínica | agenda / cadastro do paciente |
+| **psicóloga** | clínica | painel da clínica — é a "pausa" da R-013, ao lado do desligamento |
+| **clínica** | **operador da plataforma** | painel de superadmin (D-009) |
+
+⚠️ A terceira é nova e não estava em lugar nenhum: **pausar uma clínica cliente**
+é ação do operador da plataforma — o caso óbvio é inadimplência. Ela precisa
+entrar no desenho do painel da D-009, e a pergunta que vem junto é o que uma
+clínica pausada consegue fazer: ninguém entra? só leitura? os psicólogos dela
+continuam atendendo e só o admin perde acesso?
+
+O `[PAUSA]` do Google é o primeiro nível — o do paciente.
+
+**3. Agendada e confirmada só se distinguem pela COR** — 🟡 **em decisão.** As
+duas têm o mesmo título, o nome do paciente. Isso quebra a propriedade que torna
+a convenção do `[DISPONÍVEL]` robusta: lá, título e cor são dois canais que
+precisam concordar, então mudar a cor por engano não faz nada.
+
+⚠️ **Mas o risco é menor do que eu pintei da primeira vez, e vale corrigir o
+registro.** Verde num evento **futuro** significa "confirmada" e não move
+dinheiro. Só verde numa data **passada** significa "realizada", que é o que
+dispara a cadeia da R-008. Então a cor sozinha não decide dinheiro — **a cor mais
+a passagem do tempo é que decidem**, e uma troca acidental de cor numa sessão
+futura é inofensiva até a data chegar.
+
+**Recomendação da `orla`, e ela mudou depois da resposta ao item 4:** não
+acrescentar prefixo. Já que neste produto **notificação é serviço e não ruído**,
+o desenho consistente com o resto é **a cor propor e a plataforma perguntar** —
+igual ao motivo de cancelamento do item 1. A sessão passa a `realizada` quando a
+data passa e a cor está verde, e é aí que a plataforma notifica para confirmar o
+que aconteceu com o dinheiro.
+
+Se ainda assim for desejado um segundo canal, o prefixo sugerido é
+**`[CONFIRMADO] Nome do paciente`**, marcando a **confirmação** e não o
+agendamento. O raciocínio: o marcador explícito deve ficar no estado que **move
+dinheiro**, para que esquecer de digitá-lo deixe a sessão no estado seguro
+(apenas agendada) em vez de promovê-la sem querer. E o custo de digitação cai no
+mesmo instante em que a psicóloga já está editando o evento para trocar a cor.
+
+**4. Grafite pode cair em cima de sessão marcada, e o Google não recusa** —
+✅ **resolvido em 2026-08-15: aceita e notifica conflito.**
+
+A R-014 continua valendo **dentro da plataforma** (lá o bloqueio é recusado). Do
+lado do Google o fato já aconteceu, então o caminho é **aceitar, marcar conflito
+e notificar**.
+
+💡 **E o Gabriel acrescentou o contexto que muda como pensar nas notificações em
+geral:** hoje muitas psicólogas **esquecem de registrar coisas**, e a notificação
+ajuda a se organizar. Ou seja, neste produto **notificação não é ruído — é
+serviço.** Isso baixa o custo de desenhos que perguntam em vez de assumir, e é o
+que sustenta a resposta do item 1 acima e a do item 3.
 
 ### O que a convenção **não** carrega, e é bom que não carregue
 
