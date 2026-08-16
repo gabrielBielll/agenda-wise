@@ -6,6 +6,7 @@ import { authOptions } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { paraPayloadParede, instanteDeParede } from "@/lib/datetime";
+import { lerRecusaDeBloqueio, type ResultadoDeBloqueio } from "@/lib/conflitos";
 
 const agendamentoSchema = z.object({
   paciente_id: z.string().uuid({ message: "Selecione um paciente válido." }),
@@ -198,47 +199,12 @@ export async function deleteAgendamento(id: string, mode?: 'single' | 'all_futur
 
 // ============ BLOQUEIOS DE AGENDA ADMIN ============
 
-export async function checkBlockConflictsAdmin(
-  dataInicio: string, 
-  dataFim: string, 
-  psicologoId: string,
-  recorrenciaTipo?: string, 
-  quantidadeRecorrencia?: number
-): Promise<{ conflitos: any[]; total: number; error?: string }> {
-  const session = await getServerSession(authOptions);
-  const token = (session as any)?.backendToken;
-
-  if (!token) return { conflitos: [], total: 0, error: "Erro de autenticação." };
-
-  const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/bloqueios/verificar-conflitos`;
-
-  try {
-    const response = await fetch(apiUrl, {
-      method: "POST",
-      headers: { 
-        "Content-Type": "application/json", 
-        "Authorization": `Bearer ${token}` 
-      },
-      body: JSON.stringify({
-        data_inicio: paraPayloadParede(dataInicio),
-        data_fim: paraPayloadParede(dataFim),
-        recorrencia_tipo: recorrenciaTipo,
-        quantidade_recorrencia: quantidadeRecorrencia,
-        psicologo_id: psicologoId
-      }),
-      cache: "no-store",
-    });
-
-    if (response.ok) {
-      return await response.json();
-    } else {
-        return { conflitos: [], total: 0, error: "Erro ao verificar conflitos." };
-    }
-  } catch (error) {
-    console.error("Erro ao verificar conflitos:", error);
-    return { conflitos: [], total: 0, error: "Erro de conexão." };
-  }
-}
+/*
+ * `checkBlockConflictsAdmin` foi removida em 2026-08-16, pelo mesmo motivo da
+ * `checkBlockConflicts` do calendário: ela alimentava o diálogo que oferecia
+ * cancelar os agendamentos em conflito, e a R-014 tirou essa opção do fluxo.
+ * A recusa do backend (`session_conflict`) já traz a lista de sessões atingidas.
+ */
 
 export async function createBloqueioAdmin(
   dataInicio: string, 
@@ -247,9 +213,8 @@ export async function createBloqueioAdmin(
   motivo?: string,
   diaInteiro?: boolean,
   recorrenciaTipo?: string,
-  quantidadeRecorrencia?: number,
-  cancelarConflitos?: boolean
-): Promise<{ message: string; success: boolean }> {
+  quantidadeRecorrencia?: number
+): Promise<ResultadoDeBloqueio> {
   const session = await getServerSession(authOptions);
   const token = (session as any)?.backendToken;
 
@@ -271,14 +236,14 @@ export async function createBloqueioAdmin(
         dia_inteiro: diaInteiro || false,
         recorrencia_tipo: recorrenciaTipo,
         quantidade_recorrencia: quantidadeRecorrencia,
-        cancelar_conflitos: cancelarConflitos,
+        // `cancelar_conflitos` saiu: R-014. Ver o calendário, mesmo motivo.
         psicologo_id: psicologoId
       }),
     });
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      return { message: errorData.erro || "Falha ao criar bloqueio.", success: false };
+      return lerRecusaDeBloqueio(response.status, errorData);
     }
   } catch (error) {
     return { message: "Erro de conexão com o servidor.", success: false };
