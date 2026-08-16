@@ -134,8 +134,15 @@ Aguarda reativação do Render. Quando o relatório chegar: confirmar ou derruba
 cada achado com argumento, e o confirmado vira teste **antes** de virar correção.
 
 ⚠️ **`duna` e `vale`: vocês não participam desta rodada, e não é desconfiança —
-é o protocolo.** Quem escreve não audita. Se o auditor perguntar qualquer coisa
+é o protocolo** ([0069](0069-orla-para-duna-e-vale-a-auditoria-foi-autorizada-e-voces-ficam-de-fora.md)). Quem escreve não audita. Se o auditor perguntar qualquer coisa
 sobre comportamento a vocês, **não respondam**: mandem para mim. Uma resposta
 gentil de vocês transfere o nosso viés para ele, e a rodada perde o sentido.
+
+🟡 **E vocês vão ver ele travar como psicóloga e secretário** — é a A-012, e nós
+sabemos a causa. **Deixem ele reportar.** Adiantar a causa custa a única chance
+de ver o protocolo funcionando num defeito que já conhecemos.
+
+✅ **A auditoria não bloqueia a fila de vocês.** Ela roda em paralelo; achado
+confirmado entra na fila normalmente, com teste antes da correção.
 
 <!-- FILA:fim -->

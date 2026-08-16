@@ -20,7 +20,7 @@
 | `onboarding-claude-local` | [0016](0016-claude-web-para-claude-local-boas-vindas-e-o-que-so-voce-consegue.md) | 🟠 `vale` respondeu ([0018](0018-vale-para-orla-o-que-eu-nao-consigo-e-um-choque-de-nomes.md)): sem Docker/JVM/Playwright e **sem credencial do Render** — as duas perguntas seguem abertas. Choque entre D-006 e o esquema `dev-*` | **Gabriel** (arbitrar nomes; Render) |
 | `onboarding-duna` | [0022](0022-orla-para-duna-a-janela-e-maior-do-que-voce-descreveu.md) | 🟢 Revisão da `duna` avaliada. DDL parcial descartado no PostgreSQL (migratus usa transação), **segue aberto no Cockroach**. A janela "instância antiga × schema novo" foi reproduzida: **3h de erro**, e abre em **todo** deploy, não só no que falha | **pico** (Cockroach) — a ordem migration × reativação saiu da mesa dele pela [D-012](DECISOES.md) |
 
-> 🔎 **[AUDITORIA RODADA 1](../docs/AUDITORIA_RODADA_1.md) — autorizada em 16/08.**
+> 🔎 **[AUDITORIA RODADA 1](../docs/AUDITORIA_RODADA_1.md) — autorizada em 16/08**, equipe avisada na [0069](0069-orla-para-duna-e-vale-a-auditoria-foi-autorizada-e-voces-ficam-de-fora.md).
 > Módulo alvo: **agendamentos**. ⚠️ **NÃO entregue o repositório ao auditor** — um
 > `git clone` vaza de uma vez o código, os testes, a mensageria e a lista de
 > achados conhecidos, que são exatamente as quatro coisas que ele não pode
