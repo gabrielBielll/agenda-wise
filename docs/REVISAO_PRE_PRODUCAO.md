@@ -156,6 +156,62 @@ fica como autor, e depois da correção só ele mesmo lê. Não mexi; fica anota
 
 ---
 
+## 🔴 A-004 — A comissão é estado de navegador, e o repasse gravado depende dela
+
+**Achado em:** 2026-08-15, preparando as perguntas do oráculo — não por varredura
+de código, e sim por tentar descrever ao Gabriel o que o sistema faz hoje.
+**Onde:** `src/app/admin/financeiro/FinanceiroClient.tsx`
+**Regra:** R-009, ainda **em aberto** — por isso não é violação de regra
+confirmada como A-001 a A-003. É defeito de outra natureza: o sistema não tem
+resposta, e improvisa uma diferente a cada carregamento de página.
+
+O documento do oráculo afirmava que "existem colunas de comissão no banco".
+**Não existem.** Não há coluna, campo, configuração nem endpoint de comissão —
+procurado em migrations, backend e front.
+
+O que existe é isto:
+
+```ts
+const [commissionRate, setCommissionRate] = useState<number>(50);   // linha 111
+```
+
+**50% nasce fixo a cada abertura da página**, mora só na memória do navegador e
+nunca é persistido nem lido de lugar nenhum. E ele decide dinheiro:
+
+```ts
+// linha 320 — ao marcar/desmarcar repasse
+const repasseValue = valorConsulta * (commissionRate / 100);
+
+// linha 324 — o que a TELA passa a mostrar: preserva o valor que já existia
+ag.valor_repasse ?? repasseValue
+
+// linhas 333-334 — o que vai para a API: SEMPRE o recalculado
+body: JSON.stringify({ status_repasse: newStatus, valor_repasse: repasseValue })
+```
+
+**Três consequências, e a terceira é a pior:**
+
+1. **Não é determinístico.** A mesma sessão gera repasses diferentes conforme
+   quem abriu a tela e se mexeu no controle antes de clicar.
+2. **Não é auditável.** Nada registra qual taxa produziu qual valor, porque a
+   taxa não é gravada em lugar nenhum.
+3. **Tela e banco discordam.** A atualização otimista preserva o
+   `valor_repasse` que já existia (`?? repasseValue`), mas o corpo enviado à API
+   manda o recalculado **sem condição**. O admin vê o valor antigo e o banco
+   guarda o novo. É a mesma família do item 1 — leitura e escrita discordando —
+   e da A-001 — dinheiro reescrito em silêncio.
+
+E alternar "transferido" → "disponível" → "transferido" recalcula a cada volta.
+
+**Não corrigir antes da R-009.** A correção depende de qual é a regra: taxa fixa,
+por psicólogo, por clínica ou negociada por sessão; e se sessões antigas mantêm a
+taxa da época. Escolher no código seria inventar regra de negócio, que é
+exatamente o que a [D-008](../mensageria/DECISOES.md) proíbe. O que dá para dizer sem a regra é que **a
+taxa precisa estar no banco e o `valor_repasse` precisa ser gravado uma vez**, não
+recalculado a cada clique.
+
+---
+
 ## 🔴 1. O contrato de datas foi aplicado pela metade
 
 **Onde:** `src/app/admin/agendamentos/**` (4 arquivos)

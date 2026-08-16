@@ -28,6 +28,16 @@
 
 ### Pendências nomeadas
 
+> 🔴 **A-004 — a comissão é estado de navegador, e o repasse gravado depende
+> dela.** Não existe comissão no banco: a taxa nasce **50% a cada abertura** da
+> tela do Financeiro, vive só na memória, nunca é salva — e mesmo assim o
+> `valor_repasse` enviado à API é recalculado a partir dela a cada clique. A tela
+> preserva o valor antigo (`?? repasseValue`), o corpo da requisição manda o novo:
+> **admin vê um número e o banco guarda outro.** Não determinístico, não
+> auditável. **Não corrigir antes da R-009** — a correção depende da regra, e
+> escolher no código seria inventar regra de negócio. Ver A-004 na
+> [revisão](../docs/REVISAO_PRE_PRODUCAO.md).
+
 > 🟠 **`FUSO_CLINICA` é constante no front, e o backend já é multi-fuso.**
 > `clinicas.timezone` existe, é `NOT NULL` com padrão, e `fuso-da-clinica` já o
 > lê por clínica em todo caminho de escrita. O front precisa ler dali — caminho

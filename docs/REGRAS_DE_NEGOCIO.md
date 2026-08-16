@@ -61,9 +61,14 @@ sem gastar auditoria.
 **R-008** — ✅ confirmada, ver abaixo.
 
 **R-009 — Comissão**
-- Hoje: existem colunas de comissão no banco.
-- ❓ A porcentagem é por psicólogo, por clínica ou por sessão? Muda com o tempo —
-  e se mudar, as sessões antigas mantêm a antiga?
+- Hoje: ⚠️ **não existe comissão no banco.** A linha anterior aqui dizia que
+  existiam colunas, e estava errada — conferido em migrations, backend e front.
+  O que existe é uma taxa que **nasce 50% a cada abertura da tela do
+  Financeiro**, vive só na memória do navegador, nunca é salva — e mesmo assim
+  decide o `valor_repasse` que é **gravado** no banco. Ver A-004 na
+  [revisão](REVISAO_PRE_PRODUCAO.md).
+- ❓ Qual é a regra? Taxa fixa? Por psicólogo, por clínica, ou negociada por
+  sessão? E quando mudar, as sessões antigas mantêm a antiga?
 
 **R-010 — Transferência em lote**
 - Hoje: marca várias sessões como transferidas de uma vez.
