@@ -92,9 +92,15 @@ sem gastar auditoria.
 
 **R-018** — ✅ confirmada: do lado do Google a plataforma **aceita o fato e pergunta a consequência**, nunca deduz.
 
-⚠️ Estas duas nasceram como prosa em 2026-08-15 e só viraram regra numerada
-depois. O texto longo delas segue no meio da lista abaixo, entre a R-003 e a
-R-006, porque é lá que está o raciocínio inteiro.
+**R-019** — ✅ confirmada, ver abaixo: **os dois caminhos funcionam** — dá para trabalhar pela plataforma ou pelo Google. ⚠️ **E abre três perguntas que só você responde.**
+
+⚠️ As duas primeiras nasceram como prosa em 2026-08-15 e só viraram regra
+numerada depois. O texto longo delas segue no meio da lista abaixo, entre a R-003
+e a R-006, porque é lá que está o raciocínio inteiro.
+
+📏 Os limites reais do Google Agenda estão levantados em
+[GOOGLE_LIMITES](GOOGLE_LIMITES.md) — foi o outro pedido do Gabriel no mesmo dia,
+e ele fecha a pergunta que estava aberta na R-005.
 
 ---
 
@@ -490,6 +496,73 @@ ela aceita o fato e pergunta a consequência:
 produto **notificação é serviço, não ruído** — o que baixa o custo de desenhos
 que perguntam em vez de assumir. Antes de trocar qualquer uma dessas notificações
 por uma dedução automática "para não incomodar", releia esta linha.
+
+---
+
+### R-019 — Os dois caminhos são de primeira classe
+
+Confirmada em **2026-08-16**, nas palavras dele: *"seria interessante ter os 2
+caminhos funcionando, tanto fazer pela plataforma quanto fazer pelo Google, com
+todo cuidado ali pra que não venha haver conflitos"*.
+
+**Trabalhar pelo Google não é caminho degradado.** A psicóloga que mexe na agenda
+dela está usando o produto, não contornando ele.
+
+⚠️ **Isto NÃO revoga a [D-011](../mensageria/DECISOES.md), e a distinção é fina o
+bastante para alguém errar:**
+
+| | |
+|---|---|
+| **Capacidade** — o que dá para fazer de cada lado | **igual nos dois**, e é isto que a R-019 manda |
+| **Autoridade** — quem está certo quando os dois discordam | **da plataforma**, e é isto que a D-011 manda |
+
+"O Google propõe" nunca foi sobre o Google poder menos. É sobre **quem decide
+quando há divergência** — e a resposta é a plataforma, porque é ela que guarda
+dinheiro e prontuário. Quem ler a D-011 como "o caminho do Google é de segunda"
+leu errado, e agora está escrito nos dois lugares.
+
+### A fronteira que não é escolha nossa
+
+Os dois caminhos são de primeira classe **para aquilo que a agenda sabe dizer**.
+A convenção da R-017 carrega **quando**, **com quem** e **em que estado** — e
+nada mais. Não há cor nem campo para valor, pagamento, comissão, motivo de
+cancelamento, prontuário ou histórico.
+
+Para essas coisas o caminho é **um só**, e é a plataforma. Isso não é limitação a
+resolver: é a fronteira. Ver [GOOGLE_LIMITES](GOOGLE_LIMITES.md), seção 4.
+
+### 🔴 Três perguntas que esta regra abre, e são suas
+
+**1. Quando os dois lados mudam a mesma sessão, quem ganha?** (a mais urgente)
+
+A psicóloga move a sessão das 14h para as 15h no Google. A secretária move a
+mesma sessão para as 16h na plataforma. As duas antes da próxima sincronização.
+
+Alternativas, e nenhuma é obviamente certa: **a plataforma sempre ganha** (mas aí
+o caminho do Google é de segunda, contra esta regra); **a mudança mais recente
+ganha** (mas relógios de lados diferentes, e o perdedor não fica sabendo); ou
+**ninguém ganha e a plataforma pergunta** — que é a forma da R-018 e é a que eu
+recomendo, mas custa uma notificação e uma tela.
+
+**2. Apagar o evento no Google significa o quê?**
+
+Pela R-017, cancelar é **Tomate + `[CANCELADO]`**. Apagar é outro gesto, e ele
+não tem significado definido. Ele cancela a sessão? Se cancelar, cancela também
+uma sessão **já realizada e paga** — e aí é a A-001 pela porta dos fundos. Minha
+recomendação: **apagar não cancela nada**; a plataforma nota o sumiço, recria o
+evento e avisa. Mas é decisão sua.
+
+**3. A psicóloga pode CRIAR sessão direto no Google?**
+
+Esta é a maior das três. Uma sessão criada no Google chega sem paciente
+cadastrado, sem valor, sem vínculo — e a R-007, a R-008 e a R-009 todas dependem
+dessas três coisas. As saídas: **não dá para criar por lá** (e a paridade da
+R-019 vale só para editar e mudar estado); ou **dá, e vira rascunho** que a
+plataforma pergunta antes de virar sessão de verdade.
+
+⚠️ Nenhuma destas três pode ser respondida por dedução. **Enquanto elas
+estiverem abertas, ninguém escreve o sincronizador de entrada** — é exatamente o
+tipo de buraco que vira decisão implícita no código, que é como a A-001 nasceu.
 
 ---
 
