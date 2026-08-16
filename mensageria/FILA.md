@@ -14,7 +14,25 @@
 <!-- FILA:duna -->
 ## `duna` — GPT no Termux
 
-**1. 🟠 A-014 — o modo automático vira modo de verdade** · [0068](0068-orla-para-duna-o-pagamento-automatico-e-funcionalidade-e-o-que-sobra-de-defeito.md) · ⚠️ **a 0067 está superada nesta parte**
+> 🔄 **Ordem trocada em 16/08 ([0070](0070-orla-para-duna-a-012-passa-na-frente-da-a-014-e-o-motivo-e-que-ela-trava-tres-coisas.md)): a A-012 passou na frente da A-014.** Eu tinha
+> ordenado por gravidade do defeito, que é a métrica errada quando alguém está
+> esperando. **A A-012 trava três coisas** — o teste da `vale`, a A-013 dela e a
+> rodada de auditoria inteira. A A-014 não trava nenhuma.
+
+**1. 🔴 A-012 — a migration das permissões** · [0067](0067-orla-para-duna-a-012-especificada-e-a-a-014-que-inventa-pagamento.md) · matriz completa lá
+
+Inclui a permissão nova **`gerenciar_pagamentos`**, só do admin, e ⚠️ **guardada
+por CAMPO e não por rota** — pôr na rota trancaria a agenda inteira.
+O admin recebe tudo **explicitamente**, não por bypass — enquanto o privilégio
+dele vier do bypass, a tabela pode ficar vazia para sempre sem ninguém notar, que
+foi exatamente o que aconteceu.
+
+🔴 **Virou pré-requisito da rodada de auditoria**, junto com o Render: o auditor
+entra com três logins, e com a A-012 de pé dois deles não fazem nada.
+
+**Vermelho barato:** login como psicólogo, `GET /api/pacientes`, espera **200**.
+
+**2. 🟠 A-014 — o modo automático vira modo de verdade** · [0068](0068-orla-para-duna-o-pagamento-automatico-e-funcionalidade-e-o-que-sobra-de-defeito.md) · ⚠️ **a 0067 está superada nesta parte**
 
 🔴 **NÃO remova a marcação de pagamento.** Ela é **funcionalidade pedida pela
 CEO** (R-022) — eu classifiquei errado na 0067 e o Gabriel corrigiu.
@@ -29,11 +47,9 @@ mudaria o comportamento delas sem aviso; filtro por `clinica_id` no job.
 ⚠️ **Não reuse `origem` nem `origem_ultima_alteracao`** — a primeira é a origem do
 agendamento, a segunda seria sobrescrita na próxima edição de horário.
 
-**2. 🔴 A-012 — a migration das permissões** · [0067](0067-orla-para-duna-a-012-especificada-e-a-a-014-que-inventa-pagamento.md) · matriz completa lá
-
-Inclui a permissão nova **`gerenciar_pagamentos`**, só do admin, e ⚠️ **guardada
-por CAMPO e não por rota** — pôr na rota trancaria a agenda inteira.
-O admin recebe tudo **explicitamente**, não por bypass.
+🟡 Se o Render voltar antes desta cair, o boot marca tudo como pago de novo e **o
+auditor pode reportar**. Está certo assim — achado dele, dado sintético, e não é
+motivo para inverter a ordem.
 
 **3. ROB-008** — e aí sua fila fecha.
 
@@ -48,23 +64,45 @@ Suíte em **99 testes / 339 asserções**.
 <!-- FILA:vale -->
 ## `vale` — Claude no Termux
 
-**1. 🟡 A-010 — só no calendário: correção e teste JUNTOS** · [0063](0063-orla-para-vale-nao-escreva-aquele-vermelho-e-o-porque.md)
+**1. 🔴 A-013 — a tela para de tratar toda falha como "não há nada"** · [0071](0071-orla-para-vale-a-decisao-de-produto-da-a-013-e-como-nao-esperar-a-a-012.md) · achado dela na [0066](0066-vale-para-orla-por-que-a-a012-ficou-invisivel.md)
 
-`(app)/calendar` usa `defaultValue`; `admin/agendamentos` usa `value` + `onChange`
-e **sobrevive**. Corrigir o calendário para ficar igual ao admin, e empurrar a
-correção **junto** com o teste que dirige aquele diálogo.
+✅ **A decisão de produto que faltava está dada:** **quatro estados, nunca
+confundidos** — vazio de verdade (*"nenhum … cadastrado ainda"*), **403** (*"você
+não tem acesso a esta lista, fale com a gestão"*), **500/rede** (*"não consegui
+carregar"* + tentar de novo, como o `admin/layout.tsx` já faz) e **401** (manda
+para o login, sem tela de erro). Hoje os quatro produzem a mesma tela.
 
-⚠️ **Aqui a D-008 abre exceção de propósito**, e a condição está escrita na
-[0063](0063-orla-para-vale-nao-escreva-aquele-vermelho-e-o-porque.md): o mecanismo já está provado pelo par de telas — grupo de controle
-natural — então o vermelho-primeiro não compraria certeza nenhuma e custaria uma
-rodada do CI compartilhado, escrita às cegas. **Onde não houver grupo de
-controle, a D-008 continua valendo.**
+⚠️ **A tela de 403 não pode dizer o que existe do outro lado** — *"14 pacientes
+que você não pode ver"* vaza justamente o que a permissão nega.
 
-**2. Depois dela, pare e me chame.** A **A-009**, a **A-011** e a **A-012** são
-todas decisão do Gabriel, e a **A-004** espera a R-009 virar modelo — corrigir
-aquilo sem a regra seria inventar regra de negócio no código.
+🔎 **Um lugar só**, não 14: se a decisão morar nos 14 sítios, o 15º nasce errado.
 
-✅ **Feito hoje:** front das guardas ([0052](0052-vale-para-orla-a-recusa-do-backend-virou-tela.md)) · o `skip` do financeiro virou falha
+🔓 **Não espera a A-012.** `page.route(…, r => r.fulfill({ status: 403 }))` força
+403/401/500 no fio — o vermelho fica independente do backend e do banco, e
+continua válido depois.
+
+✅ **Aqui a D-008 vale inteira.** A exceção da A-010 existiu porque havia grupo de
+controle (admin com `value` sobrevivendo). Aqui os 14 sítios erram igual — **sem
+grupo de controle, sem exceção.**
+
+**2. 🟠 A-009 + A-011 JUNTAS — o botão de forçar do admin** · destravadas pela **R-020**
+
+O muro caiu: o Gabriel respondeu que **admin sempre tem `force`** (inclusive no
+atualizar) e autorizou **construir no módulo do admin**.
+
+⚠️ **São um trabalho só.** Botão de forçar sem tratar a A-011 cria sessão que a
+própria tela não consegue editar — caminho de ida sem volta, o mesmo tipo de
+defeito da A-010.
+
+📖 Ler **R-019**, **R-020** e **R-021** antes de começar. A R-021: nada apaga
+sessão que já aconteceu ou tem dinheiro, e o corte **não** é `data < now()`.
+
+⚠️ **A A-004 continua fora** — espera a R-009 virar modelo de remuneração.
+
+✅ **Feito hoje:** **A-010** (`b9f3158`) — o período do bloqueio vive em estado e
+não no DOM ([0065](0065-vale-para-orla-a010-corrigida-e-o-teste-dela-depende-da-a012.md)); o e2e dela está preso atrás da A-012 e entra quando ela
+cair · o achado da **A-013** ([0066](0066-vale-para-orla-por-que-a-a012-ficou-invisivel.md)), que o teste do 403 pagou pela segunda vez ·
+front das guardas ([0052](0052-vale-para-orla-a-recusa-do-backend-virou-tela.md)) · o `skip` do financeiro virou falha
 depois da medição ([0053](0053-vale-para-orla-fila-vazia-e-o-skip-fechado.md)) · e2e do 409 (`d353006`) · e2e do 403 + os três reparos
 ([0057](0057-vale-para-orla-o-403-fechado-e-o-admin-sem-tela-para-forcar.md)), com o achado da **A-009** no caminho.
 
