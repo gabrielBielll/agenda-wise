@@ -44,7 +44,7 @@ sem gastar auditoria.
 
 **R-008** — ✅ confirmada, ver abaixo.
 
-**R-009** — ✅ confirmada, ver abaixo. **Modelo novo: percentual, fixo ou bonificação.**
+**R-009** — ✅ confirmada, ver abaixo. **Modelo novo: percentual, fixo ou bonificação.** ✅ **A taxa é gravada por sessão** — mudar a régua não reescreve o passado (2026-08-16). ✅ **`gerenciar_pagamentos` é permissão própria, só do admin.**
 
 <!-- pergunta original, mantida pelo diagnóstico que ela produziu:
 **R-009 — Comissão**
@@ -740,6 +740,35 @@ psicólogos** — cada um vê o que recebe, não a régua dos outros.
 
 🔴 O código de hoje não tem nada disso: a taxa é `useState(50)` no navegador. Ver
 A-004 na [revisão](REVISAO_PRE_PRODUCAO.md).
+
+### ✅ A retroatividade, respondida em 2026-08-16: **a taxa é gravada por sessão**
+
+Quando a forma de remuneração de um psicólogo muda, **as sessões antigas mantêm a
+que valia quando elas aconteceram.** A régua aplicada fica registrada **na própria
+sessão**, não é consultada na hora de exibir.
+
+**Por que isso importa mais do que parece:** taxa consultada na hora significa que
+mudar a régua hoje **reescreve o histórico financeiro de ontem** — o mesmo
+formato da A-001, onde uma edição de horário reescrevia o valor de sessões já
+pagas. Gravar por sessão é a R-004 aplicada ao dinheiro: o passado é registro.
+
+⚠️ **Consequência para quem for implementar:** a sessão passa a carregar o que foi
+aplicado (forma e valor), e o cadastro do psicólogo carrega o que vale **de agora
+em diante**. São dois lugares de propósito, e não é duplicação — um é histórico,
+o outro é configuração.
+
+### ✅ E marcar pagamento ganha permissão própria (2026-08-16)
+
+Autorizada a permissão **`gerenciar_pagamentos`**, concedida **só ao admin**.
+
+Ela nasceu de um conflito real: a resposta da A-012 diz que o secretário opera a
+agenda de todos e **não mexe em dinheiro** — mas `status_pagamento` é escrito
+pelo mesmo handler e sob a mesma permissão que mexer na agenda. Sem uma permissão
+própria, conceder a agenda concederia o pagamento junto, contra a R-007.
+
+⚠️ **A guarda é por campo, não por rota** — a rota é a mesma para as duas coisas.
+Quem tocar `status_pagamento`, `valor_repasse` ou `status_repasse` precisa de
+`gerenciar_pagamentos`; quem só mexe em horário, não.
 
 ✅ **Confirmado em 2026-08-15: "painel do escritório" é o painel da CLÍNICA.**
 Palavra do Gabriel: *"se eu falar de escritório é clínica"*. Vale para todo o

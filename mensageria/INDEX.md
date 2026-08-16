@@ -37,6 +37,16 @@
 >
 > Decisões do projeto: [DECISOES.md](DECISOES.md) · Fila semanal do `pico`: [FILA_PICO.md](FILA_PICO.md)
 
+> 🔴 **A-014 — um job de boot marca TODAS as sessões passadas como PAGAS, em
+> todas as clínicas.** `sincronizar-status-global!` roda no boot, logo depois da
+> migration, e faz `UPDATE agendamentos SET status_pagamento = 'pago'` **sem
+> `clinica_id`**. O sistema inventa que o paciente pagou só porque a data passou —
+> viola a R-007 (só o admin marca), destrava repasse de dinheiro que nunca entrou
+> (R-008), reescreve o passado a cada deploy (R-004) e atravessa clínicas. Os 99
+> testes não pegaram porque sobem o **handler**, não a aplicação: o `-main` nunca
+> roda na suíte. **O pior achado do projeto.** Ver [0067](0067-orla-para-duna-a-012-especificada-e-a-a-014-que-inventa-pagamento.md) e A-014 na
+> [revisão](../docs/REVISAO_PRE_PRODUCAO.md).
+
 > 🔴 **A-012 — `papel_permissoes` tem UMA linha, e psicóloga não usa o sistema.**
 > A baseline cria as sete permissões e os três papéis e **não concede nenhuma a
 > ninguém**; o provisionamento também não. Como o `wrap-checar-permissao` só tem

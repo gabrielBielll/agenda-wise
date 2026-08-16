@@ -551,6 +551,77 @@ período tem que continuar lá.
 
 ---
 
+## 🔴 A-014 — Um job de boot marca TODAS as sessões passadas como pagas, em todas as clínicas
+
+**Achado em:** 2026-08-16, pela `orla`, procurando os caminhos que escrevem dinheiro
+para especificar a permissão `gerenciar_pagamentos`
+**Viola:** [R-007](REGRAS_DE_NEGOCIO.md), [R-008](REGRAS_DE_NEGOCIO.md), [R-004](REGRAS_DE_NEGOCIO.md) e o isolamento entre clínicas
+**Gravidade:** 🔴 **o pior achado do projeto até aqui**
+
+`core.clj`, `sincronizar-status-global!` — chamada no **boot**, logo depois de
+`migrar!`:
+
+```clojure
+;; 1) toda sessão passada vira "realizado"
+UPDATE agendamentos SET status = 'realizado'
+ WHERE data_hora_sessao < ? AND (status IS NULL OR status = 'agendado')
+
+;; 2) toda sessão passada não cancelada vira "pago"
+UPDATE agendamentos SET status_pagamento = 'pago'
+ WHERE data_hora_sessao < ? AND status != 'cancelado'
+   AND (status_pagamento IS NULL OR status_pagamento = 'pendente')
+```
+
+### Quatro coisas erradas, e cada uma sozinha já seria achado
+
+**1. 🔴 Ninguém pagou nada.** A R-007 diz que **só o admin marca pagamento**. Aqui
+não é nem o admin: é um job, sem clique, sem tela, sem autor. O sistema **inventa
+que o paciente pagou** pelo único motivo de a data ter passado.
+
+**2. 🔴 E isso destrava repasse.** A R-008 é uma cadeia estrita — *sessão
+realizada → paciente paga → repasse fica disponível*. Marcando "pago"
+automaticamente, o job **libera repasse de dinheiro que nunca entrou**. A clínica
+passa a dever ao psicólogo por sessões que ninguém pagou.
+
+**3. 🔴 Não há `clinica_id` em nenhum dos dois `UPDATE`.** Isto atravessa **todas
+as clínicas** de uma vez. É a mesma invariante que o `isolamento_test` prova para
+os handlers — provada onde o código passa pela porta, e furada por um job que
+entra pela janela.
+
+**4. 🔴 Roda a cada boot, e escreve no passado.** A R-004 diz que passado é
+registro, não rascunho. Este job reescreve passado **em todo deploy** — e pela
+[D-012](../mensageria/DECISOES.md) o Render implanta `main` continuamente.
+
+### Por que ninguém viu
+
+Ele não tem tela, não tem rota e não aparece em teste: **os 99 testes de backend
+sobem o handler, não a aplicação.** O `-main` nunca roda na suíte. E o efeito é
+invisível na interface — o financeiro simplesmente mostra tudo pago, que é o que
+alguém esperaria ver de um mês encerrado.
+
+💡 É a terceira vez hoje que o mesmo padrão aparece: **o sistema deduzindo onde a
+regra manda perguntar.** A R-017 recusa deduzir estado a partir da cor; a R-018
+manda aceitar o fato e perguntar a consequência; e aqui o código deduz o fato
+mais caro de todos — que o dinheiro entrou.
+
+### Correção
+
+**Imediata, e não precisa de decisão de ninguém:** a metade do pagamento sai. Não
+há leitura legítima dela — nenhuma regra diz que tempo passado paga conta.
+
+**A metade do `realizado` também deduz**, e merece conversa em vez de bisturi:
+sessão que ninguém confirmou pode ter sido **falta**, e a R-003 diz que falta é
+uma **decisão**, com motivo escolhido num modal. O caminho consistente com a
+R-018 é notificar e perguntar. Enquanto isso não existir, no mínimo: filtrar por
+`clinica_id` e não tocar em sessão que não esteja `agendado`.
+
+⚠️ **Ao corrigir, alguém tem que olhar o dado que já existe.** O job rodou em
+todo boot até hoje: pode haver sessão marcada `pago` no banco que nunca foi paga,
+e não dá para distinguir das legítimas pelo próprio registro. **É pergunta para o
+Gabriel**, não para o código.
+
+---
+
 ## 🔴 A-012 — `papel_permissoes` tem UMA linha, e psicóloga não usa o sistema
 
 **Achado em:** 2026-08-16, pela `orla`, investigando o CI vermelho de `e508ef4`

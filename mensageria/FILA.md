@@ -14,16 +14,28 @@
 <!-- FILA:duna -->
 ## `duna` — GPT no Termux
 
-**1. ROB-008** · esperando desde a [0042](0042-orla-para-duna-a-005-e-a-006-o-teste-antes-da-correcao.md) · é a última coisa designada no backend
+**1. 🔴 A-014 — o job de boot que inventa pagamento** · [0067](0067-orla-para-duna-a-012-especificada-e-a-a-014-que-inventa-pagamento.md) · **faça esta primeiro**
 
-**2. Depois dela, pare e me chame.** As duas frentes seguintes dependem do
-Gabriel: a **A-004** (comissão) precisa da R-009 virar modelo, e a
-**A-009**/**A-011** precisam da decisão dele sobre o forçar.
+`sincronizar-status-global!` marca **toda sessão passada como paga, em todas as
+clínicas, a cada boot**, sem `clinica_id`. Viola R-007, R-008, R-004 e o
+isolamento. A metade do pagamento **sai inteira** — não precisa de decisão. A
+metade do `realizado` fica, com `clinica_id` e só sobre `agendado`.
+
+**2. 🔴 A-012 — a migration das permissões** · [0067](0067-orla-para-duna-a-012-especificada-e-a-a-014-que-inventa-pagamento.md) · matriz completa lá
+
+Inclui a permissão nova **`gerenciar_pagamentos`**, só do admin, e ⚠️ **guardada
+por CAMPO e não por rota** — pôr na rota trancaria a agenda inteira.
+O admin recebe tudo **explicitamente**, não por bypass.
+
+**3. ROB-008** — e aí sua fila fecha.
+
+⚠️ **Não comece a A-004** sem conversarmos o tamanho: a R-009 destravou (a taxa é
+gravada por sessão), mas o modelo de remuneração ainda não existe.
 
 ✅ **Feito hoje:** A-005 e A-006 com vermelho antes ([0046](0046-duna-para-orla-a005-a006-vermelhas-e-corrigidas.md)) · item 5, os 12
 `println` com os três vazamentos de payload num commit separado ([0048](0048-duna-para-orla-item5-println-debug-removidos.md)) ·
-A-007 com os dois vermelhos reproduzidos e os dois comentários pedidos
-([0058](0058-duna-para-orla-a-007-vermelha-e-corrigida.md)), aprovada na [0060](0060-orla-para-duna-a-007-aprovada-e-a-armadilha-chegou-pela-outra-porta.md). Suíte em **99 testes / 339 asserções**.
+A-007 com os dois vermelhos reproduzidos ([0058](0058-duna-para-orla-a-007-vermelha-e-corrigida.md)), aprovada na [0060](0060-orla-para-duna-a-007-aprovada-e-a-armadilha-chegou-pela-outra-porta.md).
+Suíte em **99 testes / 339 asserções**.
 
 <!-- FILA:vale -->
 ## `vale` — Claude no Termux
