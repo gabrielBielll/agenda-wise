@@ -99,28 +99,25 @@ test.describe('financeiro', () => {
       .getByRole('button', { name: /transferido|disponível|marcar/i })
       .first();
 
-    if ((await botao.count()) === 0) {
-      // ⚠️ ESTE SKIP É TEMPORÁRIO E TEM PRAZO.
-      //
-      // A mensagem antiga dizia "sem transações no mês corrente", que era o
-      // sintoma. A causa é outra: a coluna de repasse só vira botão quando o
-      // pagamento está 'pago' (`FinanceiroClient.tsx`, ~1090); pendente
-      // renderiza `🔒 Bloqueado`, que é um span e não casa com
-      // `getByRole('button')`. O `preparar-dados.ts` passou a marcar a sessão
-      // semeada como paga justamente para este teste sair do limbo.
-      //
-      // O skip fica só até o CI mostrar que o teste roda de fato — a correção
-      // do fixture foi conferida por leitura do componente, não medida, porque
-      // não há Playwright no aparelho de quem a escreveu. **Assim que houver
-      // uma execução com este teste passando, troque isto por uma falha**, como
-      // já está em `edicao-nao-move-a-sessao.spec.ts`: teste que pula em
-      // silêncio fica verde para sempre provando nada, e este aqui é sobre
-      // dinheiro que muda de mão.
-      test.skip(
-        true,
-        'botão de repasse ausente: pagamento não está "pago". Ver preparar-dados.ts/marcarSessaoComoPaga'
-      );
-    }
+    // Fixture quebrado FALHA, não pula.
+    //
+    // Este bloco era um `test.skip` permanente. A mensagem dele culpava "sem
+    // transações no mês corrente", que era o sintoma; a causa é que a coluna de
+    // repasse só vira botão quando o pagamento está 'pago' (`FinanceiroClient`,
+    // ~1090) — pendente é um `<span>🔒 Bloqueado</span>`, que `getByRole('button')`
+    // não acha. O `preparar-dados.ts` passou a semear o pagamento.
+    //
+    // A troca de `skip` por falha tinha um prazo escrito: só depois de uma
+    // execução mostrar o teste rodando de fato. Cumprido — run 31948206914,
+    // `✓ 10 › financeiro › marcar repasse como transferido persiste (2.0s)`,
+    // e `13 passed` contra os `12 passed, 1 skipped` da véspera.
+    //
+    // Volta a pular em silêncio? Não. Este teste é sobre dinheiro mudando de
+    // mão, e teste que pula sozinho fica verde para sempre provando nada.
+    expect(
+      await botao.count(),
+      'botão de repasse ausente: o fixture parou de semear o pagamento, ou a coluna mudou. Ver preparar-dados.ts/marcarSessaoComoPaga'
+    ).toBeGreaterThan(0);
 
     const respostaDaApi = page.waitForResponse(
       (r) => r.url().includes('/api/agendamentos/') && r.request().method() === 'PUT'
