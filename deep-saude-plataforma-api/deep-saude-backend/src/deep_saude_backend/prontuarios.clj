@@ -32,9 +32,6 @@
                 observacoes_estado_mental encaminhamentos_tarefas
                 agendamento_id humor]} (:body request)]
 
-    (println "DEBUG: criar-prontuario recebido:" (:body request))
-    (println "DEBUG: Humor value:" humor " Type:" (type humor))
-
     (if (str/blank? conteudo)
       {:status 400 :body {:erro "Conteúdo da evolução é obrigatório."}}
 
@@ -60,7 +57,6 @@
                                                   :observacoes_estado_mental observacoes_estado_mental
                                                   :encaminhamentos_tarefas encaminhamentos_tarefas
                                                   :agendamento_id (when (not (str/blank? agendamento_id))
-                                                                    (println "DEBUG: Salvando agendamento_id:" agendamento_id)
                                                                     (java.util.UUID/fromString agendamento_id))}
                                                  {:builder-fn rs/as-unqualified-lower-maps :return-keys true})]
                 {:status 201 :body novo-prontuario}))))
@@ -119,7 +115,6 @@
                               WHERE p.paciente_id = ? AND p.clinica_id = ?
                               ORDER BY p.data_registro DESC"
                              paciente-id clinica-id])]
-           (println "DEBUG: Listar Prontuarios - Encontrados:" (count prontuarios))
            {:status 200 :body prontuarios}))))))
 
 (defn remover-handler [request]
@@ -148,8 +143,6 @@
         {:keys [conteudo tipo queixa_principal resumo_tecnico
                 observacoes_estado_mental encaminhamentos_tarefas
                 agendamento_id humor]} (:body request)]
-
-    (println "DEBUG: atualizar-prontuario recebido. Humor:" humor)
 
     (if (str/blank? conteudo)
       {:status 400 :body {:erro "Conteúdo é obrigatório."}}

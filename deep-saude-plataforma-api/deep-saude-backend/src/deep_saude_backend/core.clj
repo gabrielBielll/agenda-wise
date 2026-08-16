@@ -90,7 +90,6 @@
 (defn wrap-jwt-autenticacao [handler]
   (fn [request]
     (let [token (extract-token request)]
-      (println "DEBUG: Middleware JWT. Token presente?" (boolean token))
       (if-not token
         {:status 401 :body {:erro "Token de autorização não fornecido."}}
         (let [auth-data (try
@@ -137,14 +136,11 @@
   (fn [request]
     (let [papel-id (get-in request [:identity :papel_id])
           role     (get-in request [:identity :role])]
-      (println "DEBUG PERMISSAO: role=" role ", requer=" nome-permissao-requerida)
       (if-not papel-id
         {:status 403 :body {:erro "Identidade do usuário ou papel não encontrado na requisição."}}
         ;; Admin bypassa TODAS as permissões
         (if (= role "admin_clinica")
-          (do
-            (println "DEBUG PERMISSAO: Admin bypass concedido.")
-            (handler request))
+          (handler request)
           ;; Outros papéis: checa na tabela papel_permissoes
           (let [permissao (execute-one!
                            ["SELECT pp.permissao_id
@@ -572,7 +568,6 @@
     (let [clinica-id (get-in request [:identity :clinica_id])
           papel (get-in request [:identity :role])
           {:keys [paciente_id psicologo_id data_hora_sessao valor_consulta duracao recorrencia_tipo quantidade_recorrencia force observacoes]} (:body request)]
-      (println "DEBUG: Handler iniciado. Payload:" (:body request))
       (cond
         (or (nil? paciente_id) (nil? psicologo_id) (nil? data_hora_sessao))
         {:status 400, :body {:erro "paciente_id, psicologo_id e data_hora_sessao são obrigatórios."}}
@@ -614,16 +609,13 @@
 
               agendamento-conflitante (when (not force)
                                         (let [conflicts (doall (map (fn [{:keys [start end]}]
-                                                (println "DEBUG: Verificando conflito para" start "até" end "Psico:" psicologo-uuid)
-                                                (let [found (execute-one! ["SELECT id, data_hora_sessao, duracao FROM agendamentos 
+                                                (execute-one! ["SELECT id, data_hora_sessao, duracao FROM agendamentos
                                                                 WHERE clinica_id = ? 
                                                                 AND psicologo_id = ?
                                                                 AND status != 'cancelado'
                                                                 AND data_hora_sessao < ?::timestamp
                                                                 AND (data_hora_sessao + (COALESCE(duracao, 50) * interval '1 minute')) > ?::timestamp"
-                                                               clinica-id psicologo-uuid end start])]
-                                                  (when found (println "DEBUG: CONFLITO ENCONTRADO!" found))
-                                                  found))
+                                                               clinica-id psicologo-uuid end start]))
                                               sessoes-para-criar))]
                                           (some identity conflicts)))
               
@@ -848,8 +840,7 @@
              {:status 400 :body {:erro "Agendamento não é recorrente."}})
 
           :else ;; Default: Single update (existing logic)
-        (let [_ (println "DEBUG: Atualizando agendamento. Body:" (:body request))
-              fuso (fuso-da-clinica clinica-id)
+        (let [fuso (fuso-da-clinica clinica-id)
               ;; Determinar dados finais para validação de bloqueio
               novo-data-zdt (tempo/->zdt (or data_hora_sessao (:data_hora_sessao agendamento-atual)) fuso)
               novo-data (tempo/->sql novo-data-zdt)
