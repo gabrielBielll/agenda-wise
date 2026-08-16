@@ -37,6 +37,16 @@
 >
 > Decisões do projeto: [DECISOES.md](DECISOES.md) · Fila semanal do `pico`: [FILA_PICO.md](FILA_PICO.md)
 
+> 🔴 **A-012 — `papel_permissoes` tem UMA linha, e psicóloga não usa o sistema.**
+> A baseline cria as sete permissões e os três papéis e **não concede nenhuma a
+> ninguém**; o provisionamento também não. Como o `wrap-checar-permissao` só tem
+> bypass para `admin_clinica`, `psicologo` e `secretario` levam **403 em toda
+> rota clínica** — pacientes, agendamentos, prontuários. **Toda clínica nova
+> nasce quebrada**, e quando o SEC-006 remover o bypass o admin cai junto.
+> **Bloqueador de lançamento.** Quatro perguntas na mesa do Gabriel — quais
+> permissões cada papel recebe é regra de negócio. Ver [0061](0061-orla-para-todas-o-ci-vermelho-achou-o-maior-defeito-do-dia.md) e A-012 na
+> [revisão](../docs/REVISAO_PRE_PRODUCAO.md).
+>
 > 🟠 **[INCIDENTE 2026-08-15](../docs/INCIDENTE_2026-08-15.md)** — repositório público com dump de banco e credenciais. ✅ **Dados confirmados sintéticos pelo Gabriel**, sem vazamento pessoal. Fica a exposição de credencial: **`JWT_SECRET` público permite forjar token de qualquer clínica e qualquer papel**, o que anula o isolamento. **SEC-002 (rotação) é bloqueador de lançamento** — antes do primeiro dado real.
 
 ### Pendências nomeadas

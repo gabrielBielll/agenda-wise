@@ -534,6 +534,99 @@ período tem que continuar lá.
 
 ---
 
+## 🔴 A-012 — `papel_permissoes` tem UMA linha, e psicóloga não usa o sistema
+
+**Achado em:** 2026-08-16, pela `orla`, investigando o CI vermelho de `e508ef4`
+**Descoberto por:** o e2e do 403 da `vale`, na **primeira execução** dele
+**Gravidade:** 🔴 **bloqueador de lançamento**, e maior do que os outros achados
+do dia — os outros são caminhos que falham; este é o produto não funcionando.
+
+### O que o CI mostrou
+
+```
+✘ e2e/forcar-e-privilegio-da-clinica.spec.ts › forçar como psicóloga …
+  Test timeout of 120000ms exceeded.
+  waiting for getByRole('option', { name: 'Paciente E2E' })
+```
+
+O teste trava **antes** do 403 que ele queria provar: a psicóloga abre o
+formulário e **não há paciente nenhum para escolher**.
+
+### A causa, medida nas migrations
+
+`papel_permissoes` recebe **uma única linha em todo o schema**:
+
+```sql
+-- 20260811100200-google-integracao.up.sql
+INSERT INTO papel_permissoes (papel_id, permissao_id)
+SELECT p.id, per.id FROM papeis p, permissoes per
+ WHERE p.nome_papel = 'admin_clinica'
+   AND per.nome_permissao = 'gerenciar_integracao_google'
+```
+
+A baseline **cria** as sete permissões e os três papéis, e **não concede nenhuma
+a ninguém**. O provisionamento de clínica também não — ele cria clínica e admin,
+e só.
+
+E o `wrap-checar-permissao` só perdoa um papel:
+
+```clojure
+(if (= role "admin_clinica")
+  (handler request)          ;; bypass
+  ;; qualquer outro papel: consulta papel_permissoes, que está vazia
+  … {:status 403 …})
+```
+
+### O alcance é o produto inteiro
+
+**Toda** rota clínica é checada por permissão. Para `psicologo` e `secretario`,
+todas devolvem **403**:
+
+| Rota | Permissão exigida |
+|---|---|
+| `GET/POST/PUT/DELETE /api/pacientes*` | `visualizar_pacientes`, `gerenciar_pacientes` |
+| `POST/PUT/DELETE /api/agendamentos*` | `gerenciar_agendamentos_clinica` |
+| `/api/pacientes/:id/prontuarios*` | `visualizar_pacientes`, `gerenciar_prontuarios` |
+| `/api/usuarios*` | `gerenciar_usuarios` |
+| `/api/psicologos` | `visualizar_todos_agendamentos` |
+
+**Numa base recém-migrada, psicóloga não lista paciente, não cria sessão e não
+escreve prontuário.** O sistema só responde ao admin, e só pelo bypass.
+
+🔴 **E o bypass é temporário por decisão nossa.** O comentário da própria
+migration do Google diz: *"Não depender do bypass global de admin, que SEC-006
+vai remover."* No dia em que o SEC-006 rodar, **o admin cai junto** e ninguém
+entra.
+
+⚠️ **Por que isso não aparece hoje:** o banco de produção foi criado antes e pode
+ter grants inseridos à mão — não temos acesso para conferir. Mas o plano do
+produto é **vender para várias clínicas**, e cada clínica nova nasce de
+`migrate` + provisionamento. Toda clínica nova nasce quebrada.
+
+### Por que a correção não é minha
+
+Quais permissões cada papel recebe é **regra de negócio**, não detalhe de
+implementação — e já há regra confirmada mexendo nisso: a **R-007** diz que só o
+admin marca pagamento, a **R-012** diz que prontuário é do autor. Escolher o
+resto no código seria inventar regra, que é o que este projeto existe para não
+fazer.
+
+**Perguntas que só o Gabriel responde:**
+
+1. A psicóloga cria e edita **paciente**, ou só a clínica cadastra?
+2. A psicóloga marca e desmarca sessão na própria agenda? (o nome da permissão é
+   `gerenciar_agendamentos_clinica`, o que sugere que não era para ela)
+3. O que o **secretário** faz? Ele aparece na D-009 e na R-006 e nunca teve
+   permissão nenhuma.
+4. O `visualizar_todos_agendamentos` — quem vê a agenda dos outros?
+
+🧪 **A guarda já está no lugar, e ela se apaga sozinha.** O teste da `vale` ficou
+marcado com `test.fail()`: continua rodando a cada push, e **no dia em que as
+permissões forem concedidas ele passa e o CI fica vermelho**, avisando que a
+marcação deve sair. Não é `skip`: não há silêncio.
+
+---
+
 ## 🔴 A-011 — A guarda da A-007 protege a API e não protege a tela
 
 **Achado em:** 2026-08-16, pela `orla`, revisando a correção da A-007 ([0060](../mensageria/0060-orla-para-duna-a-007-aprovada-e-a-armadilha-chegou-pela-outra-porta.md))

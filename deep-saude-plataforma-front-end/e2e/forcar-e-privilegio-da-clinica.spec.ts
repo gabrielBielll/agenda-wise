@@ -79,7 +79,38 @@ test.describe('R-006 — a psicóloga é recusada, e a recusa ensina o caminho',
   // objeto do teste é justamente o outro papel.
   test.use({ storageState: { cookies: [], origins: [] } });
 
+  /**
+   * 🔴 **Falha esperada, e a falha É o achado — não mexa sem ler a A-012.**
+   *
+   * Este teste não chega ao 403 que ele existe para provar: ele trava antes,
+   * escolhendo o paciente, porque a psicóloga **não recebe paciente nenhum**.
+   *
+   * A causa não é a tela nem este arquivo. É que `papel_permissoes` tem **uma
+   * linha em todo o schema** — `admin_clinica` → `gerenciar_integracao_google`.
+   * Não existe grant nenhum para `psicologo` nem para `secretario`. Como
+   * `wrap-checar-permissao` só tem bypass para `admin_clinica`, a psicóloga leva
+   * **403 em toda rota clínica**: pacientes, agendamentos e prontuários.
+   *
+   * Ou seja: numa base recém-migrada, **psicóloga não usa o sistema.** O admin
+   * só funciona pelo bypass — que o SEC-006 vai remover, e aí ele cai junto.
+   *
+   * ⚠️ **`test.fail()` e não `test.skip()`, e a diferença é o ponto:** ele
+   * continua rodando e continua sendo executado a cada push. No dia em que
+   * alguém conceder as permissões, este teste **passa** e o `test.fail()` faz o
+   * CI ficar **vermelho** — que é o aviso de que a linha abaixo deve sair.
+   * Guarda que se apaga sozinha quando não for mais necessária.
+   *
+   * Não é decisão de código quais permissões cada papel recebe: é regra de
+   * negócio, e está com o Gabriel. Ver A-012 em `docs/REVISAO_PRE_PRODUCAO.md`
+   * e a mensageria 0061.
+   *
+   * O timeout curto é de propósito — falha esperada não deve custar 2 minutos
+   * de CI por tentativa.
+   */
+  test.fail();
+
   test('forçar como psicóloga leva modal pedindo contato com a gestão', async ({ page, request }) => {
+    test.setTimeout(45_000);
     const antes = await contarNoBackend(request, '/api/agendamentos');
 
     await page.goto('/');
