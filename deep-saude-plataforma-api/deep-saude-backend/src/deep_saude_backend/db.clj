@@ -19,7 +19,14 @@
             usuario (first auth)
             senha (second auth)
             host (.getHost uri)
-            port (or (.getPort uri) 5432)
+            ;; ⚠️ `.getPort` devolve **int**, e -1 quando a URL não traz porta.
+            ;; Em Clojure só `nil` e `false` são falsos, então o `(or ... 5432)`
+            ;; que estava aqui NUNCA caía no padrão: o -1 seguia para o driver,
+            ;; que respondia `JDBC URL port: -1 not valid (1:65535)` e depois
+            ;; `No suitable driver` — mensagem que não menciona porta nenhuma.
+            ;; Achado pela `vale` ao subir o backend com DATABASE_URL sem porta;
+            ;; confirmado com `java.net.URI` puro antes da correção.
+            port (let [p (.getPort uri)] (if (pos? p) p 5432))
             path (.getPath uri)
             dbname (if (seq path) (subs path 1) "defaultdb")
             query (.getQuery uri)

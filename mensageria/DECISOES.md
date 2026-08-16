@@ -334,6 +334,21 @@ paciente, não; conteúdo de prontuário, jamais. É uma linha fácil de apagar 
 descuido — basta alguém acrescentar um `nome` num `SELECT` porque ficaria melhor
 na tela.
 
+⚠️ **Conceder a flag exige sair e entrar de novo.** Ela viaja no JWT, então quem
+já estava logado continua sem o painel até renovar a sessão. Medido pela `vale`:
+com o token antigo, 403; depois de novo login, 200. É consequência correta do
+desenho — mas quem rodar o `UPDATE` e só recarregar a página vai concluir que
+não funcionou.
+
+⚠️ **O painel é de outro eixo, e o middleware do front não pode opinar sobre
+ele.** A primeira versão da guarda de rotas exigia papel `psicologo` ou
+`admin_clinica` fora de `/admin`, e com isso **trancava o operador cujo papel
+clínico fosse `secretario`** — o front negava o que a API autorizava, com o mesmo
+token. Achado e corrigido pela `vale` ao medir de ponta a ponta ([0039](0039-vale-para-orla-painel-da-plataforma-medido-de-ponta-a-ponta.md)):
+`/plataforma` continua exigindo sessão e `backendToken` válido, e deixa de exigir
+papel clínico. É o mesmo argumento desta decisão visto do outro lado — papel de
+clínica e `plataforma_admin` são ortogonais, e quem mistura os dois erra.
+
 ---
 
 ## D-010 — Horário de parede é o da clínica, não o do navegador
