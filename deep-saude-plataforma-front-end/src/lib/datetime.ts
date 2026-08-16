@@ -48,9 +48,22 @@
  * ⚠️ DÍVIDA CONHECIDA: constante, e deveria ser dado da clínica.
  *
  * O escopo virou produto multi-clínica (mensageria 0030), então clínicas em
- * fusos diferentes deixam de ser hipótese. Não há coluna de fuso em `clinicas`
- * hoje; quando houver, isto vira parâmetro e o backend precisa concordar — ele
- * também interpreta horário de parede como São Paulo.
+ * fusos diferentes deixam de ser hipótese.
+ *
+ * ⚠️ Eu escrevi aqui que "não há coluna de fuso em `clinicas`". **Está errado**,
+ * e a `orla` corrigiu na 0037: a coluna existe desde a migration
+ * `20260811100100-fuso-horario`, é `NOT NULL DEFAULT 'America/Sao_Paulo'` — logo
+ * toda clínica já tem fuso preenchido — e o backend **já resolve por clínica**,
+ * em `fuso-da-clinica`, em todo caminho de escrita de agendamento.
+ *
+ * Ou seja, a assimetria é o contrário do que este comentário dizia: o backend é
+ * multi-fuso e é o FRONT que ficou mono-fuso, por esta constante. Não quebra
+ * hoje porque toda clínica tem o mesmo valor; quebra na primeira clínica
+ * vendida em outro fuso, que é o plano declarado.
+ *
+ * O caminho mais curto é o backend devolver o fuso da clínica no login, junto
+ * do `clinica_id`, para não custar mais uma chamada. Está registrado como
+ * pendência nomeada no INDEX e merece desenho, não remendo.
  *
  * Está exportado de propósito: é o único lugar a mudar, e é greppável.
  */

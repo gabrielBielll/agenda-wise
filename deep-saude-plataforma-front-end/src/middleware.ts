@@ -25,6 +25,29 @@ import { getToken } from 'next-auth/jwt';
  */
 const ROTAS_PUBLICAS = new Set(['/', '/login', '/admin/login']);
 
+/**
+ * Rotas cuja autorização NÃO é o papel clínico — exigem sessão e mais nada aqui.
+ *
+ * O painel do operador da plataforma (`/plataforma`) é de outro eixo: quem
+ * autoriza é a flag `plataforma_admin` do token, conferida no backend em
+ * `wrap-plataforma-admin`. O papel clínico é ortogonal a isso — pela D-009 o
+ * operador é um usuário normal de uma clínica normal, e "normal" inclui
+ * `secretario`.
+ *
+ * ⚠️ Sem esta exceção o front tranca o operador antes de o backend decidir.
+ * Medido em 2026-08-15: sessão de operador com papel `secretario` levava
+ * 307 → `/`, enquanto a mesma sessão recebia 200 em `/api/plataforma/metricas`.
+ * O front negava o que a API autorizava.
+ *
+ * Isto NÃO afrouxa o negar-por-padrão: rota daqui continua exigindo sessão e
+ * `backendToken` válido. O que ela não faz é opinar sobre um eixo de
+ * autorização que não é dela — e essa opinião, aqui, só sabia errar.
+ */
+const ROTAS_SEM_PAPEL_CLINICO = ['/plataforma'];
+
+const ehRotaSemPapelClinico = (pathname: string) =>
+  ROTAS_SEM_PAPEL_CLINICO.some((r) => pathname === r || pathname.startsWith(`${r}/`));
+
 /** A porta de login da área que o visitante tentou abrir. */
 function portaDeLogin(pathname: string): string {
   return pathname.startsWith('/admin') ? '/admin/login' : '/';
@@ -83,6 +106,11 @@ export async function middleware(request: NextRequest) {
     // O ideal aqui seria limpar o cookie de sessão, mas o middleware tem
     // limitações. O redirecionamento força o usuário a logar novamente.
     return NextResponse.redirect(loginUrl);
+  }
+
+  // Autorização de outro eixo: sessão basta, o backend decide o resto.
+  if (ehRotaSemPapelClinico(pathname)) {
+    return NextResponse.next();
   }
 
   // 1. Área administrativa (/admin/*) — só admin_clinica.
