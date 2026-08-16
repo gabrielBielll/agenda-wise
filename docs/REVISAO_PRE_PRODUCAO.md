@@ -235,6 +235,18 @@ painel da clínica.
 `admin_clinica` deve ser ignorado (ou recusado com 403), não obedecido. Tela que
 esconde o botão não resolve: o campo está no corpo.
 
+⚠️ **Detalhe medido, que estreita a correção:** o `force` pula **só** a checagem
+de agendamento. O `bloqueio-existente`, calculado logo acima, não tem `when` e
+roda sempre. Aquele ramo já está certo e não deve ser tocado.
+
+⚠️ **O que a R-006 pede e não entra nesta correção:** a notificação no sininho do
+painel da clínica. **Não existe notificação nenhuma no sistema** — conferido: sem
+tabela, sem rota, sem código. É funcionalidade nova; a guarda vai sozinha, e
+meia notificação seria pior do que nenhuma.
+
+🔧 **Designada em 2026-08-16** à `duna`, com teste antes da correção (D-008) —
+ver [0042](../mensageria/0042-orla-para-duna-a-005-e-a-006-o-teste-antes-da-correcao.md). Contrato: `403 {"code": "force_requires_admin"}`.
+
 ---
 
 ## 🔴 A-006 — Um bloqueio cancela sessões em massa, zera o valor delas e alcança o passado
@@ -295,9 +307,31 @@ passado, e não há ação em massa acidental. O caminho destrutivo continua
 existindo — mas passa a ser escolhido de propósito, por quem tem autoridade, num
 lugar aonde ninguém chega sem querer.
 
-⚠️ **Ordem:** a camada de histórico da R-010 foi confirmada para o **lançamento**.
-Como a correção acima já deveria nascer registrando, o histórico vem **antes**
-desta correção, não depois.
+⚠️ **Ordem — e eu tinha escrito isto errado aqui.** Eu havia registrado que o
+histórico da R-010 vinha **antes** desta correção. Não vem, e a distinção importa
+porque estava segurando um defeito que zera dinheiro.
+
+A R-014 tem **duas** partes, e só uma precisa de histórico:
+
+| Parte | Precisa da R-010? |
+|---|---|
+| **recusar** o bloqueio sobre sessão marcada | **não** — não há ação a registrar; a ação destrutiva deixa de existir |
+| **cancelamento em massa** na área de configurações avançadas | **sim** — é ela que exige autoria, aviso e duas confirmações |
+
+A recusa é a que apaga o defeito, e ela está desimpedida. O que espera o
+histórico é a funcionalidade nova, que hoje não existe e não é urgente.
+
+🔧 **Designada em 2026-08-16** à `duna`, com **teste antes da correção** (D-008) —
+ver [0042](../mensageria/0042-orla-para-duna-a-005-e-a-006-o-teste-antes-da-correcao.md). Contrato da recusa, fixado para backend e front escreverem
+contra a mesma forma:
+
+```json
+409 { "erro": "…", "code": "session_conflict",
+      "sessoes": [{"id": "…", "data_hora_sessao": "…", "duracao": 50}] }
+```
+
+Só dia, hora e duração — é o que a R-014 pede. Sem nome de paciente: quem cria o
+bloqueio pode ser um secretário mexendo na agenda de outro psicólogo.
 
 ---
 

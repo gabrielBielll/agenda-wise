@@ -141,10 +141,17 @@ enquanto o backend já é multi-fuso. As duas estão no INDEX.
   `prontuarios.clj:35` despeja **o corpo do prontuário** no stdout. A R-012 diz
   que nem o admin da clínica lê aquilo; o log lê. `core.clj:574` e `:842` fazem o
   mesmo com corpo de agendamento. Depois, ROB-008.
+  🔴 **E, antes de tudo isso, A-006 e A-005** ([0042](../mensageria/0042-orla-para-duna-a-005-e-a-006-o-teste-antes-da-correcao.md)): as duas guardas que a R-014
+  e a R-006 pedem, com **teste antes da correção** e a saída da falha colada na
+  resposta — sem esse passo, "corrigi e o teste passa" é indistinguível de teste
+  escrito para passar.
 - **`vale`** — ✅ painel do operador entregue e medido de ponta a ponta
   ([0039](../mensageria/0039-vale-para-orla-painel-da-plataforma-medido-de-ponta-a-ponta.md)), com um achado real no caminho. Agora: o e2e que
   falta — abrir a tela de edição, salvar sem tocar em nada, conferir que o
   horário não andou. É o teste que pegaria o item 1 de frente, e nenhum atual faz.
+  Depois dele, o front das duas guardas ([0043](../mensageria/0043-orla-para-vale-o-e2e-que-falta-e-o-front-depois-que-o-backend-recusar.md)): modal da R-006 no 403 e
+  lista de sessões atingidas no 409 — **e tirar a caixinha de "cancelar
+  conflitos" do fluxo de criar bloqueio**, que é a parte que não depende da `duna`.
 - **`pico`** — P-001: `ALTER COLUMN TYPE` do Cockroach é atômico?
 - **Você** — revisar o que as duas devolverem. A D-002 vale: quem escreve não
   aprova.
