@@ -322,11 +322,19 @@ Pausa existe em **três níveis**, e cada um pertence a um dono diferente:
 | **psicóloga** | clínica | painel da clínica — é a "pausa" da R-013, ao lado do desligamento |
 | **clínica** | **operador da plataforma** | painel de superadmin (D-009) |
 
-⚠️ A terceira é nova e não estava em lugar nenhum: **pausar uma clínica cliente**
-é ação do operador da plataforma — o caso óbvio é inadimplência. Ela precisa
-entrar no desenho do painel da D-009, e a pergunta que vem junto é o que uma
-clínica pausada consegue fazer: ninguém entra? só leitura? os psicólogos dela
-continuam atendendo e só o admin perde acesso?
+⏸️ **A terceira fica para depois, e isso é decisão, não lacuna.** Pausar uma
+clínica cliente é ação do operador da plataforma — o caso óbvio é inadimplência —
+e o Gabriel adiou explicitamente em 2026-08-15: **não há necessidade da
+funcionalidade hoje**, e como o problema é essencialmente *revogar acessos*, é
+tranquilo de decidir depois.
+
+⚠️ **Registrado como adiado de propósito para que ninguém a reabra como
+pergunta** — nem implemente metade dela junto com o painel. Quando voltar, a
+pergunta é o que uma clínica pausada consegue fazer: ninguém entra, só leitura,
+ou os psicólogos seguem atendendo e só o admin perde acesso.
+
+Os dois primeiros níveis — paciente e psicóloga — seguem valendo e são de agora:
+o `[PAUSA]` do Google é o do paciente, e a pausa da psicóloga é a da R-013.
 
 O `[PAUSA]` do Google é o primeiro nível — o do paciente.
 
