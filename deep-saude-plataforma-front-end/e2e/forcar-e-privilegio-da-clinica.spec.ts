@@ -107,9 +107,16 @@ test.describe('R-006 — a psicóloga é recusada, e a recusa ensina o caminho',
    * O timeout curto é de propósito — falha esperada não deve custar 2 minutos
    * de CI por tentativa.
    */
-  test.fail();
-
   test('forçar como psicóloga leva modal pedindo contato com a gestão', async ({ page, request }) => {
+    // ⚠️ `test.fail()` sem argumento SÓ funciona dentro do corpo do teste.
+    //
+    // Na primeira tentativa esta chamada estava no corpo do `describe`, logo
+    // acima — que é onde `test.skip()` funciona como modificador de grupo. Para
+    // `test.fail()` a forma de grupo não existe: a chamada não anotou nada, o
+    // teste seguiu contando como falha comum, e o CI ficou vermelho igual.
+    //
+    // Descoberto lendo o log (`16 passed, 1 failed`), não relendo o código.
+    test.fail();
     test.setTimeout(45_000);
     const antes = await contarNoBackend(request, '/api/agendamentos');
 
