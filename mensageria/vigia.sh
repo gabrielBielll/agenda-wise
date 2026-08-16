@@ -102,6 +102,33 @@ vigiar() {
     echo "      Confira o dono antes de usar o número. E nunca dê 'git stash' aqui"
     echo "      sem olhar de quem é o que está sujo."
   fi
+  # A FILA. Em 2026-08-16 as duas instâncias ficaram paradas com trabalho
+  # designado, porque a designação morava em mensagem — e mensagem se lê uma vez.
+  # O vigia dizia o que MUDOU e não dizia o que É SEU. Agora diz.
+  local eu
+  eu="${VIGIA_EU:-}"
+  if [ -f mensageria/FILA.md ]; then
+    echo
+    if [ -n "$eu" ]; then
+      echo "🎯 Sua fila (\`$eu\`) — de mensageria/FILA.md:"
+      awk -v eu="$eu" '
+        $0 ~ "<!-- FILA:" eu " -->" {p=1; next}
+        p && /<!-- FILA:/ {exit}
+        p {print "   " $0}
+      ' mensageria/FILA.md | sed '/^   *$/d'
+      echo
+      echo "   Se não apareceu nada acima, ou a fila está vazia ou o nome está"
+      echo "   errado. Rode com: VIGIA_EU=duna bash mensageria/vigia.sh"
+    else
+      echo "🎯 Quem tem o quê agora (resumo de mensageria/FILA.md):"
+      grep -E '^\*\*[0-9]+\.|^## `' mensageria/FILA.md | sed 's/^/   /'
+      echo
+      echo "   Para ver só a sua: VIGIA_EU=duna bash mensageria/vigia.sh"
+    fi
+    echo
+    echo "   📭 Fila vazia para você? **Avise, não espere.** Ficar parada com"
+    echo "      trabalho na mesa de outra pessoa custa mais do que perguntar."
+  fi
   echo "────────────────────────────────────────────────────────────"
 }
 
