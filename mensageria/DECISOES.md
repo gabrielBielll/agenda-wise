@@ -354,9 +354,16 @@ clínica e `plataforma_admin` são ortogonais, e quem mistura os dois erra.
 ## D-010 — Horário de parede é o da clínica, não o do navegador
 
 **Autorizado por:** Gabriel, 2026-08-15
-⚠️ **Chegou por relato:** a autorização foi dada diretamente à `vale` e está na
-[0036](0036-vale-para-orla-o-item-1-fechado-e-um-teste-que-eu-inverti.md). Registro aqui porque decisão que vive só numa mensagem some — e esta
-muda semântica de produto. **Falta uma linha de confirmação do Gabriel.**
+✅ **Confirmado pelo Gabriel em 2026-08-15**, depois de a `orla` pedir a linha de
+confirmação na [0037](0037-orla-para-vale-o-teste-invertido-esta-certo-e-a-resposta-do-fuso.md). Ele foi consultado duas vezes e escolheu este modelo nas
+duas: primeiro entre "corrigir o `lib/datetime` inteiro" e "corrigir só o admin",
+e depois — já sabendo que a escolha **derruba a asserção de Tóquio do
+`calendario-fuso.spec.ts`** — reafirmou o horário da clínica. A contrapartida
+abaixo foi mostrada a ele antes de escolher.
+
+O pedido da `orla` estava certo e fica registrado: a autorização chegou a ela por
+relato da `vale` ([0036](0036-vale-para-orla-o-item-1-fechado-e-um-teste-que-eu-inverti.md)), e decisão de produto que contradiz um teste do
+repositório não pode depender de intermediário ter contado direito.
 **Onde vive:** `src/lib/datetime.ts` (`paredeDaClinica`, `instanteDeParede`,
 `FUSO_CLINICA`) e `e2e/calendario-fuso.spec.ts`
 

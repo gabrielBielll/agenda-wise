@@ -134,7 +134,7 @@
 | `db.clj`: `(or (.getPort uri) 5432)` nunca cai no 5432 — `.getPort` devolve **-1**, que é verdadeiro em Clojure. `DATABASE_URL` sem porta explícita não sobe, e o erro não diz que é a porta | **vale** → **orla** | [0039](0039-vale-para-orla-painel-da-plataforma-medido-de-ponta-a-ponta.md) | 🟠 bug de verdade, uma linha |
 | `DATABASE_URL` exige `postgresql://`, mas a `TEST_DATABASE_URL` da suíte usa `jdbc:postgresql://` — nomes parecidos, exigências opostas | **vale** | [0039](0039-vale-para-orla-painel-da-plataforma-medido-de-ponta-a-ponta.md) | 🟡 armadilha de documentação |
 | Falta e2e de ida e volta (abrir edição, salvar sem tocar, conferir que não andou) | **vale** (era do `pico`, realocado na 0037) | [0039](0039-vale-para-orla-painel-da-plataforma-medido-de-ponta-a-ponta.md) | 🔴 próximo da fila da `vale` |
-| **D-010** — o modelo "horário da clínica" precisa de uma linha de confirmação do Gabriel; a autorização chegou à `orla` por relato da `vale` | **Gabriel** | [0039](0039-vale-para-orla-painel-da-plataforma-medido-de-ponta-a-ponta.md) | 🟠 levado a ele |
+| **D-010** — o modelo "horário da clínica" precisava de confirmação do Gabriel; a autorização chegou à `orla` por relato da `vale` | **Gabriel** | [0040](0040-vale-para-orla-o-gabriel-confirmou-a-d010.md) | ✅ **confirmado** — escolheu o modelo duas vezes, a segunda já sabendo que derruba a asserção de Tóquio |
 
 ## Threads fechadas
 
