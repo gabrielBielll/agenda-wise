@@ -8,6 +8,18 @@ o código pode ser justamente o defeito. Onde estiver `❓`, ninguém audita.
 
 ---
 
+📄 **Existe uma versão deste conteúdo para os sócios**, em linguagem de negócio e
+sem o maquinário interno:
+<https://claude.ai/code/artifact/3a13bc7c-78c8-424d-8d80-53fc785fc361>
+Publicada em 2026-08-16, refletindo as 22 regras confirmadas até aquela data.
+
+⚠️ **Ela é derivada, não paralela.** Este arquivo continua sendo a fonte —
+**quem mudar uma regra aqui precisa atualizar a página lá**, senão as duas
+versões divergem e a que os sócios leem passa a estar errada. Não copie regra
+nova para lá sem ela existir aqui primeiro.
+
+---
+
 ## Como isto vai ser preenchido
 
 Abaixo estão as perguntas, com **o que o sistema faz hoje** ao lado. Isso não é
