@@ -112,6 +112,21 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
   const [sessoesEmConflito, setSessoesEmConflito] = useState<SessaoEmConflito[] | null>(null);
   // R-006: psicólogo tentou forçar e o backend recusou (403).
   const [isForcaNegadaOpen, setIsForcaNegadaOpen] = useState(false);
+  /**
+   * A-010 — o período do bloqueio vive em estado, não no DOM.
+   *
+   * Eram campos não controlados (`defaultValue`) dentro de um `Dialog` do Radix
+   * sem `forceMount`. O Radix desmonta o conteúdo ao fechar, os nós morrem, e
+   * reabrir remontava a partir do slot original — então o botão "Voltar e
+   * ajustar" da recusa por conflito devolvia **formulário em branco**, numa tela
+   * cujo assunto é justamente não perder o caminho de volta.
+   *
+   * O módulo do admin já fazia assim (`AgendamentosClient`, `value={blockStart}`)
+   * e não perdia nada. Era o grupo de controle que provou o mecanismo sem
+   * precisar de teste vermelho antes — ver mensageria 0062 e 0063.
+   */
+  const [blockStart, setBlockStart] = useState("");
+  const [blockEnd, setBlockEnd] = useState("");
   const [blockToDelete, setBlockToDelete] = useState<{ id: string, recorrencia_id?: string } | null>(null);
   const [isConfirmDeleteApptOpen, setIsConfirmDeleteApptOpen] = useState(false);
   const [apptToDelete, setApptToDelete] = useState<{ id: string, recorrencia_id?: string } | null>(null);
@@ -297,6 +312,10 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
   const handleOpenBlock = () => {
     if (slotAction) {
       setNewAppointmentDate(slotAction.date);
+      // Semeia o período com o slot clicado — o que o `defaultValue` fazia, só
+      // que agora num lugar que sobrevive ao diálogo fechar.
+      setBlockStart(paredeParaInput(slotAction.date));
+      setBlockEnd(paredeParaInput(addMinutes(slotAction.date, 60)));
     }
     setBlockRecurrenceType("none");
     setBlockRecurrenceCount(1);
@@ -860,7 +879,8 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                     name="data_inicio"
                     type="datetime-local"
                     required
-                    defaultValue={newAppointmentDate ? paredeParaInput(newAppointmentDate) : ""}
+                    value={blockStart}
+                    onChange={(e) => setBlockStart(e.target.value)}
                   />
                 </div>
               </div>
@@ -872,7 +892,8 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                     name="data_fim"
                     type="datetime-local"
                     required
-                    defaultValue={newAppointmentDate ? paredeParaInput(addMinutes(newAppointmentDate, 60)) : ""}
+                    value={blockEnd}
+                    onChange={(e) => setBlockEnd(e.target.value)}
                   />
                 </div>
               </div>
