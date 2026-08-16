@@ -65,7 +65,30 @@ async function tentarAgendarEmCimaDaSessao(page: import('@playwright/test').Page
   }).toPass({ timeout: 60_000 });
 
   await dialogo.getByRole('combobox').first().click();
-  await page.getByRole('option', { name: paciente }).first().click();
+
+  // ⚠️ Asserção explícita, e ela existe por um motivo de mecânica, não de estilo.
+  //
+  // Enquanto a A-012 estiver aberta, a psicóloga não recebe paciente nenhum e
+  // este é o ponto onde o teste morre. Um `.click()` direto morre por **timeout
+  // do teste** — e `test.fail()` NÃO absorve timeout: o Playwright não consegue
+  // distinguir "falhou como esperado" de "travou", então reporta falha e o CI
+  // fica vermelho mesmo com a anotação.
+  //
+  // Medido duas vezes: com `test.fail()` no corpo do `describe` e depois no
+  // corpo do teste, sempre `1 failed, 16 passed`. Só na terceira leitura do log
+  // ficou claro que a marcação estava certa e o modo de morte é que era
+  // incompatível com ela.
+  //
+  // Com a asserção abaixo a morte vira **falha de asserção**, que o `test.fail()`
+  // absorve — e de quebra a mensagem diz a causa, em vez de "esperei um seletor".
+  const opcaoDoPaciente = page.getByRole('option', { name: paciente }).first();
+  await expect(
+    opcaoDoPaciente,
+    'a psicóloga não recebeu paciente nenhum. É a A-012: `papel_permissoes` está ' +
+      'vazia para o papel dela, então GET /api/pacientes devolve 403 e a lista ' +
+      'chega vazia. Ver docs/REVISAO_PRE_PRODUCAO.md e a mensageria 0061.'
+  ).toBeVisible({ timeout: 10_000 });
+  await opcaoDoPaciente.click();
 
   await dialogo.locator('#data_hora_sessao').fill(quando.inicio);
   await dialogo.locator('#data_hora_fim').fill(quando.fim);
