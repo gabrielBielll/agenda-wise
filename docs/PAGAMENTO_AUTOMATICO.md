@@ -89,6 +89,26 @@ comissão. Quem já tem, continua tendo; quem nasce, escolhe.
 
 E o job passa a filtrar: `... AND clinica_id IN (as que têm a flag ligada)`.
 
+### ✅ Onde fica o interruptor — confirmado em 2026-08-16
+
+*"Pode deixar desligado sim; se precisar vamos na configuração e ligamos."*
+
+Então clínica nova nasce desligada e liga por tela. Duas coisas seguem daí, e
+nenhuma é escolha nova — as duas caem de regras já confirmadas:
+
+1. **O interruptor mora nas configurações da CLÍNICA, e é do admin.** Pela
+   [R-020](REGRAS_DE_NEGOCIO.md), a área de configurações avançadas é só do
+   admin — e esta é uma configuração que move dinheiro, então é exatamente o
+   tipo de coisa que ela cobre.
+2. ⚠️ **Não é do painel da plataforma.** Existe um painel de operador
+   ([D-009](../mensageria/DECISOES.md)) e seria natural alguém pôr o interruptor
+   lá, já que ele lista clínicas. **Não ponha:** quem decide como a clínica fecha
+   o mês é a clínica, não quem opera a plataforma. O painel de operador não
+   devolve dado clínico nem decide regra de negócio de cliente.
+
+💡 **E isso fecha o desenho.** O modo passa a ter as três coisas que faltavam:
+alguém que liga, um registro do que ele fez, e uma tela onde a exceção aparece.
+
 ---
 
 ## 3. A tela — é aqui que "rápido" vira "fácil"

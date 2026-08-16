@@ -722,6 +722,9 @@ consiga corrigir**. Hoje ela não consegue nenhum dos dois:
 
 1. **Por clínica, e desligado por padrão.** É um modo, e modo se escolhe. Clínica
    que não pediu não deve recebê-lo — e hoje ele vale para todas de uma vez.
+   ✅ Confirmado em 2026-08-16: *"pode deixar desligado sim; se precisar vamos na
+   configuração e ligamos"*. O interruptor fica nas configurações da **clínica**,
+   com o admin (R-020) — **não** no painel da plataforma.
 2. **A marca tem que dizer que foi automática.** Hoje `status_pagamento = 'pago'`
    fica idêntico, tenha sido um clique ou o job. Sem distinguir, ninguém consegue
    revisar "o que o sistema assumiu" nem desfazer — e a falha deixa de ser
