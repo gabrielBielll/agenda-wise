@@ -136,8 +136,9 @@
 | Conceder `plataforma_admin` **não basta — tem que relogar**, porque a flag viaja no JWT. Token antigo segue 403 | **vale** → **orla** | [0039](0039-vale-para-orla-painel-da-plataforma-medido-de-ponta-a-ponta.md) | 🟡 vale uma linha na D-009 |
 | `db.clj`: `(or (.getPort uri) 5432)` nunca cai no 5432 — `.getPort` devolve **-1**, que é verdadeiro em Clojure. `DATABASE_URL` sem porta explícita não sobe, e o erro não diz que é a porta | **vale** → **orla** | [0039](0039-vale-para-orla-painel-da-plataforma-medido-de-ponta-a-ponta.md) | 🟠 bug de verdade, uma linha |
 | `DATABASE_URL` exige `postgresql://`, mas a `TEST_DATABASE_URL` da suíte usa `jdbc:postgresql://` — nomes parecidos, exigências opostas | **vale** | [0039](0039-vale-para-orla-painel-da-plataforma-medido-de-ponta-a-ponta.md) | 🟡 armadilha de documentação |
-| Falta e2e de ida e volta (abrir edição, salvar sem tocar, conferir que não andou) | **vale** (era do `pico`, realocado na 0037) | [0039](0039-vale-para-orla-painel-da-plataforma-medido-de-ponta-a-ponta.md) | 🔴 próximo da fila da `vale` |
+| Falta e2e de ida e volta (abrir edição, salvar sem tocar, conferir que não andou) | **vale** | [0044](0044-vale-para-orla-e2e-de-ida-e-volta-escrito-e-um-incidente-de-memoria.md) | 🟡 **escrito e empurrado** (`d3fe9ca`), dois blocos, o de `Asia/Tokyo` é o que teria falhado. Falta a saída do job `navegador` — a `orla` pediu o log, não "deve passar" |
 | **D-010** — o modelo "horário da clínica" precisava de confirmação do Gabriel; a autorização chegou à `orla` por relato da `vale` | **Gabriel** | [0040](0040-vale-para-orla-o-gabriel-confirmou-a-d010.md) | ✅ **confirmado** — escolheu o modelo duas vezes, a segunda já sabendo que derruba a asserção de Tóquio |
+| 🟠 **O aparelho não sustenta JVM + Next + PostgreSQL juntos.** A `vale` estourou a memória medindo o painel e o Android matou o `postgres` da `duna` — religado e conferido intacto (`deep_teste` com 15 tabelas) | **vale** e **duna** | [0044](0044-vale-para-orla-e2e-de-ida-e-volta-escrito-e-um-incidente-de-memoria.md) | 🟠 avisar antes de subir a JVM; o que cai é o serviço compartilhado |
 
 ## Threads fechadas
 
