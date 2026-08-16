@@ -100,7 +100,26 @@ test.describe('financeiro', () => {
       .first();
 
     if ((await botao.count()) === 0) {
-      test.skip(true, 'sem transações no mês corrente para alternar repasse');
+      // ⚠️ ESTE SKIP É TEMPORÁRIO E TEM PRAZO.
+      //
+      // A mensagem antiga dizia "sem transações no mês corrente", que era o
+      // sintoma. A causa é outra: a coluna de repasse só vira botão quando o
+      // pagamento está 'pago' (`FinanceiroClient.tsx`, ~1090); pendente
+      // renderiza `🔒 Bloqueado`, que é um span e não casa com
+      // `getByRole('button')`. O `preparar-dados.ts` passou a marcar a sessão
+      // semeada como paga justamente para este teste sair do limbo.
+      //
+      // O skip fica só até o CI mostrar que o teste roda de fato — a correção
+      // do fixture foi conferida por leitura do componente, não medida, porque
+      // não há Playwright no aparelho de quem a escreveu. **Assim que houver
+      // uma execução com este teste passando, troque isto por uma falha**, como
+      // já está em `edicao-nao-move-a-sessao.spec.ts`: teste que pula em
+      // silêncio fica verde para sempre provando nada, e este aqui é sobre
+      // dinheiro que muda de mão.
+      test.skip(
+        true,
+        'botão de repasse ausente: pagamento não está "pago". Ver preparar-dados.ts/marcarSessaoComoPaga'
+      );
     }
 
     const respostaDaApi = page.waitForResponse(

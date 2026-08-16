@@ -81,6 +81,12 @@ test.describe('edição do admin — salvar sem tocar não move a sessão', () =
 
     const { antes, depois } = await antesEDepoisDeSalvar(page, agendamentoId!);
 
+    // ⚠️ NÃO APAGUE A ÂNCORA ABAIXO por parecer redundante com a asserção
+    // seguinte. Ela é o que amarra este teste à D-010, e não uma conferência de
+    // leitura "a mais": sem ela, uma correção que mantivesse a leitura no fuso
+    // do NAVEGADOR e convertesse na escrita deixaria a ida e volta
+    // auto-consistente — `depois === antes` passaria — com a tela mostrando
+    // 02:00 para uma sessão que a clínica marcou às 14:00. Medido.
     expect(antes, 'o formulário tem que abrir no horário de parede que foi agendado').toBe(
       esperado(dia)
     );
@@ -106,6 +112,12 @@ test.describe('edição do admin — em outro fuso, salvar continua não movendo
 
     const { antes, depois } = await antesEDepoisDeSalvar(page, agendamentoId!);
 
+    // ⚠️ NÃO APAGUE A ÂNCORA ABAIXO por parecer redundante com a asserção
+    // seguinte. Ela é o que amarra este teste à D-010, e não uma conferência de
+    // leitura "a mais": sem ela, uma correção que mantivesse a leitura no fuso
+    // do NAVEGADOR e convertesse na escrita deixaria a ida e volta
+    // auto-consistente — `depois === antes` passaria — com a tela mostrando
+    // 02:00 para uma sessão que a clínica marcou às 14:00. Medido.
     expect(
       antes,
       'o formulário mostra o horário da CLÍNICA; 02:00 aqui significa que o fuso do navegador voltou a vazar para a leitura'

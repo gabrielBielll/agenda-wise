@@ -230,6 +230,29 @@ async function marcarUmRepasseTransferido(token: string) {
 }
 
 /**
+ * Marca a sessão semeada como PAGA.
+ *
+ * Sem isto, `marcar repasse como transferido persiste` pula **sempre**: a coluna
+ * de repasse do financeiro só vira botão quando `getEffectivePagamento(ag) ===
+ * 'pago'` (`FinanceiroClient.tsx`, ~1090); com pagamento pendente ela renderiza
+ * um `<span>🔒 Bloqueado</span>`, e o `getByRole('button', ...)` do teste não
+ * acha nada. O `test.skip` dizia "sem transações no mês corrente", que é o
+ * sintoma e não a causa — a transação existia, faltava estar paga.
+ *
+ * Conferido por leitura do componente, não medido: não há Playwright neste
+ * aparelho. Se o teste continuar pulando depois disto, a causa é outra e o
+ * `skip` de lá precisa virar falha.
+ */
+async function marcarSessaoComoPaga(token: string, agendamentoId: string | null) {
+  if (!agendamentoId) return;
+  await fetch(`${BACKEND}/api/agendamentos/${agendamentoId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ status_pagamento: 'pago' }),
+  });
+}
+
+/**
  * Autentica uma vez e guarda a sessão para todos os specs reusarem.
  *
  * Sem isto cada teste refazia o login pela tela, e em `next dev` — que compila
@@ -269,6 +292,7 @@ export default async function prepararDados(config: FullConfig) {
   const quando = await garantirSessaoDeHoje(token, pacienteId, psicologoId);
   const dia = hojeEmSaoPaulo();
   const agendamentoId = await idDaSessaoSemeada(token, pacienteId, dia);
+  await marcarSessaoComoPaga(token, agendamentoId);
   await marcarUmRepasseTransferido(token);
 
   writeFileSync(
