@@ -14,55 +14,38 @@
 <!-- FILA:duna -->
 ## `duna` — GPT no Termux
 
-**1. 🔴 A-007 — conflito sem checagem no `atualizar`** · [0050](0050-orla-para-duna-a-007-autorizada-e-a-correcao-obvia-quebra-outra-coisa.md) · autorizada pelo Gabriel
+**1. ROB-008** · esperando desde a [0042](0042-orla-para-duna-a-005-e-a-006-o-teste-antes-da-correcao.md) · é a última coisa designada no backend
 
-`core.clj:871`. A checagem só roda `when (some? data_hora_sessao)`, mas o
-intervalo é calculado com `duracao` e `psicologo_id` novos — então esticar a
-duração ou remanejar o psicólogo cria sobreposição sem checagem, e sem `force`.
+**2. Depois dela, pare e me chame.** As duas frentes seguintes dependem do
+Gabriel: a **A-004** (comissão) precisa da R-009 virar modelo, e a
+**A-009**/**A-011** precisam da decisão dele sobre o forçar.
 
-- corrigir checando quando mudam **`data_hora_sessao`, `duracao` ou
-  `psicologo_id`** — **não** "checar sempre", que trava sessão forçada;
-- 🔴 **teste-guarda obrigatório:** `PUT` só com `status_pagamento` numa sessão
-  que o admin forçou sobre outra **tem que continuar 200**;
-- vermelho antes, saída da falha colada na resposta, tudo num push só (D-008).
-
-**2. Dois comentários na correção da A-006** · [0049](0049-orla-para-duna-e-vale-eu-errei-o-mecanismo-e-achei-a-007.md) · cabe no mesmo push
-
-Que a guarda roda fora da transação e não sobrevive a corrida; e que o caminho
-feliz virou uma consulta por intervalo, até 120 pela R-005. **Nota, não correção.**
-
-**3. ROB-008** — depois das duas acima.
+✅ **Feito hoje:** A-005 e A-006 com vermelho antes ([0046](0046-duna-para-orla-a005-a006-vermelhas-e-corrigidas.md)) · item 5, os 12
+`println` com os três vazamentos de payload num commit separado ([0048](0048-duna-para-orla-item5-println-debug-removidos.md)) ·
+A-007 com os dois vermelhos reproduzidos e os dois comentários pedidos
+([0058](0058-duna-para-orla-a-007-vermelha-e-corrigida.md)), aprovada na [0060](0060-orla-para-duna-a-007-aprovada-e-a-armadilha-chegou-pela-outra-porta.md). Suíte em **99 testes / 339 asserções**.
 
 <!-- FILA:vale -->
 ## `vale` — Claude no Termux
 
-**1. 🔴 e2e do 403 — o par que falta** · [0055](0055-orla-para-vale-o-e2e-fecha-a-fronteira-e-o-403-nao-esta-bloqueado.md)
+**1. 🟡 A-010 — "Voltar e ajustar" devolve o formulário zerado** · [0059](0059-orla-para-vale-o-achado-e-maior-do-que-um-botao-faltando.md)
 
-**Não depende de fixture nova**: o `preparar-dados.ts` já cria o psicólogo com
-senha (`'SenhaPsi123'`, literal dentro de `criarPsicologo`). Falta subir a senha
-para o `CONTA` e um login com esse par.
+Os campos de data do formulário de bloqueio são **não controlados**
+(`defaultValue`) dentro de um `Dialog` do Radix **sem `forceMount`** — fechar
+desmonta, reabrir remonta do slot original. O botão promete continuar de onde
+parou e entrega folha em branco.
 
-Por que importa além de completar o par: o 403 é a única guarda que **um papel
-encontra e o outro não**. Nada prova hoje que o **admin continua passando** — e é
-o lado permitido que quebra sem ninguém notar, porque o teste que existe é o do
-lado negado.
+Teste antes, e a asserção agora é exata: digitar um período, levar o 409, clicar
+em **"Voltar e ajustar"**, e o período tem que continuar lá. Correção: controlar
+os dois inputs por estado, ou `forceMount` no conteúdo.
 
-**Junto, três reparos pequenos da [0055](0055-orla-para-vale-o-e2e-fecha-a-fronteira-e-o-403-nao-esta-bloqueado.md):** exportar `DURACAO_DA_SESSAO` em vez
-do `50` duplicado; assertar que **nada foi criado** no `bloqueio-sobre-sessao`
-(senão a regressão derruba o vizinho com mensagem de timeout e o dedo aponta para
-o arquivo errado); e conferir se a recusa **preserva o formulário** — se limpa,
-me avise antes de consertar.
+**2. Depois dela, pare e me chame.** A A-009 é decisão do Gabriel, e a A-004 (a
+comissão) **não pode começar antes da R-009 virar modelo** — corrigir aquilo sem
+a regra seria inventar regra de negócio no código.
 
-✅ **Feito:** o e2e do 409 (`d353006`) — atravessa contrato, guarda e tela, com
-asserção sobre **o dia e a hora**, não sobre "deu erro".
-
-✅ **Feito:** front das guardas ([0052](0052-vale-para-orla-a-recusa-do-backend-virou-tela.md)) — modal da R-006 no 403, lista da R-014 no
-409, e a pré-checagem removida junto, aprovado na [0054](0054-orla-para-vale-remocao-aprovada-e-um-limite-de-horario-de-verao.md).
-
-✅ **Feito:** o `skip` do `financeiro-proxy` virou falha ([0053](0053-vale-para-orla-fila-vazia-e-o-skip-fechado.md)) — **depois** de a
-execução 31948206914 mostrar o teste rodando (`13 passed` contra `12 passed, 1
-skipped`). O prazo estava escrito dentro do arquivo e foi cumprido, não
-antecipado.
+✅ **Feito hoje:** front das guardas ([0052](0052-vale-para-orla-a-recusa-do-backend-virou-tela.md)) · o `skip` do financeiro virou falha
+depois da medição ([0053](0053-vale-para-orla-fila-vazia-e-o-skip-fechado.md)) · e2e do 409 (`d353006`) · e2e do 403 + os três reparos
+([0057](0057-vale-para-orla-o-403-fechado-e-o-admin-sem-tela-para-forcar.md)), com o achado da **A-009** no caminho.
 
 <!-- FILA:em-voo -->
 ## 🚧 Árvore compartilhada ocupada? Não espere — use worktree

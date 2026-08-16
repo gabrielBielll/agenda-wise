@@ -438,6 +438,14 @@ que o admin forçou sobre outra tem que continuar 200**.
 🔧 **Designada em 2026-08-16** à `duna`, autorizada pelo Gabriel — ver
 [0050](../mensageria/0050-orla-para-duna-a-007-autorizada-e-a-correcao-obvia-quebra-outra-coisa.md).
 
+✅ **Corrigida no mesmo dia** ([0058](../mensageria/0058-duna-para-orla-a-007-vermelha-e-corrigida.md)), com os dois vermelhos reproduzidos antes —
+`PUT` só com `duracao` maior e `PUT` só com `psicologo_id` davam **200**. A
+condição virou `(or data_hora_sessao duracao psicologo_id)`, e os dois testes de
+regressão **já passavam no vermelho**, que é a prova de que o 409 não foi comprado
+estragando o lado permitido. 99 testes / 339 asserções. Revisada em [0060](../mensageria/0060-orla-para-duna-a-007-aprovada-e-a-armadilha-chegou-pela-outra-porta.md).
+
+⚠️ **Mas o teste-guarda que a `orla` especificou não alcança a tela — ver A-011.**
+
 ⚠️ **Duas coisas ficam de fora, e são do Gabriel, não da correção:**
 
 1. Depois disto o admin poderá **criar** sobre conflito e não poderá **mover**
@@ -446,6 +454,128 @@ que o admin forçou sobre outra tem que continuar 200**.
 2. O `bloqueio-existente` roda sempre e tem a mesma armadilha em teoria — sessão
    nascida dentro de bloqueio antigo ficaria travada. Com a A-006 corrigida o
    caso só existe em dado legado.
+
+---
+
+## 🔴 A-009 — A R-006 descreve três passos, e o terceiro não existe na interface
+
+**Relacionado a:** [R-006](REGRAS_DE_NEGOCIO.md), confirmada em 2026-08-15
+**Achado em:** 2026-08-16, pela `vale`, escrevendo o e2e do 403 ([0057](../mensageria/0057-vale-para-orla-o-403-fechado-e-o-admin-sem-tela-para-forcar.md))
+**Conferido pela `orla`** ([0059](../mensageria/0059-orla-para-vale-o-achado-e-maior-do-que-um-botao-faltando.md)), lendo os dois `actions.ts`
+
+A R-006 descreve um fluxo de três passos: a psicóloga tenta, é recusada com um
+modal pedindo que procure a gestão, **e a gestão força**. O terceiro passo não
+tem tela.
+
+| Arquivo | Manda `force`? | Escolhe o psicólogo? |
+|---|---|---|
+| `src/app/(app)/calendar/actions.ts` | **sim** | **não** — `psicologo_id: userId`, linhas 64 e 121 |
+| `src/app/admin/agendamentos/actions.ts` | **não** — nenhuma ocorrência | **sim** — o schema exige `psicologo_id` |
+
+> **O botão de forçar existe na tela de quem não pode, e falta na tela de quem
+> pode.**
+
+O admin escolhe de quem é a sessão mas não tem como forçar; a psicóloga tem o
+botão de forçar mas só alcança a própria agenda — e, depois da A-005, leva 403.
+
+⚠️ **Não foi a correção da A-005 que quebrou isto.** Antes dela o `force`
+funcionava para qualquer um: a capacidade existia, nas mãos erradas. A correção
+pôs nas mãos certas e revelou que as mãos certas nunca tiveram alavanca.
+
+🔴 **Decisão do Gabriel, não de código.** As saídas: (a) construir o forçar no
+módulo do admin — o menor caminho e o que casa com a regra como ele a confirmou;
+(b) aceitar que ninguém força, o que contradiz a R-006; (c) revogar o conceito de
+forçar e a psicóloga sempre remarca.
+
+✅ **O que já está coberto:** `somente-admin-pode-forcar-conflito`, em
+`agendamentos_test.clj`, assere os dois lados no mesmo teste — 403 com contagem
+intacta para o psicólogo, 201 com contagem+1 para o admin. A autorização está
+certa e provada; o que falta é o caminho da tela.
+
+⚠️ **Vizinho anotado, de outra natureza:** `psicologo-valido?` em `core.clj` só
+confere que o usuário existe **na clínica**, não que ele tem papel `psicologo`.
+Uma sessão pode acabar atribuída a um admin ou secretário. Latente e de baixa
+gravidade hoje; entra na conversa se a saída (a) for escolhida.
+
+---
+
+## 🟡 A-010 — "Voltar e ajustar" devolve o formulário zerado
+
+**Achado em:** 2026-08-16, pela `orla`, respondendo a uma pergunta da `vale` ([0057](../mensageria/0057-vale-para-orla-o-403-fechado-e-o-admin-sem-tela-para-forcar.md))
+**Onde:** `src/app/(app)/calendar/CalendarClient.tsx`, formulário de bloqueio
+
+```tsx
+<Dialog open={isBlockDialogOpen} …>
+  <form action={handleCreateBlock}>
+    <input name="data_inicio" type="datetime-local"
+           defaultValue={newAppointmentDate ? paredeParaInput(newAppointmentDate) : ""} />
+```
+
+Os campos de data são **não controlados** (`defaultValue`, não `value`), dentro
+de um `Dialog` do Radix **sem `forceMount`**. Fechar o diálogo desmonta o
+conteúdo; reabrir remonta a partir do `defaultValue`, que vem do slot original —
+não do que a pessoa digitou.
+
+O botão da recusa diz **"Voltar e ajustar"** e reabre o diálogo de bloqueio. Ele
+promete continuar de onde parou e entrega folha em branco.
+
+⚠️ **Isto é leitura de código, não clique** — coerente com o padrão do Radix, mas
+não foi medido.
+
+**Por que é defeito e não violação da R-014:** a regra manda mostrar as sessões
+"para a pessoa resolver **antes**", e resolver é sair dali, remarcar as sessões e
+voltar depois — nesse caminho perder o formulário é irrelevante. **O defeito é a
+promessa do botão**, numa tela cujo assunto é justamente não perder o caminho de
+volta.
+
+**Correção:** controlar os dois inputs por estado, ou `forceMount` no conteúdo.
+Teste antes: digitar um período, levar o 409, clicar em "Voltar e ajustar", e o
+período tem que continuar lá.
+
+---
+
+## 🔴 A-011 — A guarda da A-007 protege a API e não protege a tela
+
+**Achado em:** 2026-08-16, pela `orla`, revisando a correção da A-007 ([0060](../mensageria/0060-orla-para-duna-a-007-aprovada-e-a-armadilha-chegou-pela-outra-porta.md))
+**Amarrada à:** **A-009** — as duas não podem ser resolvidas separadas
+
+O teste-guarda que a `orla` exigiu na [0050](../mensageria/0050-orla-para-duna-a-007-autorizada-e-a-correcao-obvia-quebra-outra-coisa.md) manda **um campo só**:
+
+```clojure
+(atualizar (:id forcada) {:status_pagamento "pago"})   ;; -> 200 ✅
+```
+
+Mas o formulário do admin manda tudo, sempre. O `agendamentoSchema` de
+`src/app/admin/agendamentos/actions.ts` **exige** os dois campos que disparam a
+checagem:
+
+```ts
+psicologo_id:      z.string().uuid({ … }),
+data_hora_sessao:  z.string().min(1, { … }),
+```
+
+Então, para duas sessões que um admin sobrepôs com `force`, **editar qualquer uma
+delas pela tela dá 409** — inclusive para marcar pagamento, que é exatamente o
+caso que o teste jurava proteger. A guarda passa no backend e a pessoa bate na
+parede na interface.
+
+⚠️ **É anterior à correção da A-007.** Antes dela a checagem já rodava
+`when (some? data_hora_sessao)` e a tela já mandava sempre a data. Nada foi
+introduzido; o que houve foi a `orla` declarar protegido o que não estava.
+
+🟡 **Latente hoje, e por um motivo que não é conforto:** pela **A-009** o admin
+não tem tela para forçar. Sem tela para criar a sobreposição, não existe par de
+sessões forçadas para ficar preso.
+
+🔴 **E é por isso que as duas andam juntas:** no dia em que o botão de forçar for
+construído para o admin — a saída (a) recomendada na A-009 —, as sessões que ele
+criar nascem **impossíveis de editar pela tela**. O botão novo produziria
+registros travados.
+
+**Correção, quando a A-009 for decidida:** a tela do admin mandar só o que mudou,
+ou o backend comparar o valor recebido com o gravado e só checar quando houver
+diferença de fato. A segunda é mais robusta — não depende de disciplina do
+cliente, que é o argumento da A-005 outra vez.
 
 ---
 
