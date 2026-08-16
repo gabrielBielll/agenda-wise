@@ -393,10 +393,59 @@ se alcança**. Pela API se alcança com um `PUT` de dois campos.
 porque **nem exige `force`**: a sobreposição nasce sem que ninguém peça permissão
 para criá-la, e a R-006 diz que criar conflito é privilégio da clínica.
 
-**Correção:** calcular `agendamento-conflitante` sempre, como já se faz com
-`bloqueio-existente` — a condição `when` é a única diferença entre os dois, e não
-há razão para ela. Teste antes, pela D-008: `PUT` só com `duracao` maior sobre
-sessão vizinha deve dar 409, e hoje dá 200.
+🔴 **A correção que estava escrita aqui era "calcular sempre, como já se faz com
+`bloqueio-existente`". Está errada, e eu troquei antes de mandar para a `duna`.**
+
+A R-006 **permite** que o admin force um conflito. Quando ele força, ficam duas
+sessões sobrepostas legitimamente, e a consulta de conflito exclui a própria
+(`id != ?`) — então cada uma enxerga a outra. Checar em **toda** atualização faria
+isto:
+
+| Ação nessas duas sessões | Hoje | Com "calcular sempre" |
+|---|---|---|
+| marcar como paga | 200 | **409** |
+| marcar como realizada | 200 | **409** |
+| cancelar uma delas | 200 | **409** |
+
+A sessão que o admin forçou de propósito viraria registro **impossível de
+editar**, inclusive para desfazer o conflito — e o 409 diria "já existe um
+agendamento neste horário", que é verdade e não ajuda, porque ninguém está
+mexendo no horário. **Seria pior do que a A-007:** trocaria uma porta que quase
+ninguém acha por um travamento no caminho do dinheiro (R-007), disparado por um
+recurso que a regra permite.
+
+**Correção certa — checar quando o intervalo ou o dono mudam:**
+
+```clojure
+agendamento-conflitante (when (or (some? data_hora_sessao)
+                                  (some? duracao)
+                                  (some? psicologo_id))
+                          (execute-one! [...]))
+```
+
+São exatamente os três campos que entram em `novo-data`, `novo-fim` e
+`novo-psicologo-uuid`. Pagamento, repasse, observação e status não mexem em
+ocupação de agenda e não devem ser barrados por conflito que já existia.
+
+**Regra em uma frase:** a checagem guarda **quem ocupa qual intervalo** — dispara
+quando o intervalo ou o dono mudam, nunca quando muda o dinheiro.
+
+🧪 **Teste antes, pela D-008 — e um deles é o guarda da regressão acima:**
+`PUT` só com `duracao` maior sobre sessão vizinha deve dar 409 (hoje dá 200);
+idem trocando só `psicologo_id`; e **`PUT` só com `status_pagamento` numa sessão
+que o admin forçou sobre outra tem que continuar 200**.
+
+🔧 **Designada em 2026-08-16** à `duna`, autorizada pelo Gabriel — ver
+[0050](../mensageria/0050-orla-para-duna-a-007-autorizada-e-a-correcao-obvia-quebra-outra-coisa.md).
+
+⚠️ **Duas coisas ficam de fora, e são do Gabriel, não da correção:**
+
+1. Depois disto o admin poderá **criar** sobre conflito e não poderá **mover**
+   para cima de um — `force` não existe no caminho de atualização. Assimetria
+   real; acrescentar `force` ao update é comportamento novo.
+2. O `bloqueio-existente` roda sempre e tem a mesma armadilha em teoria — sessão
+   nascida dentro de bloqueio antigo ficaria travada. Com a A-006 corrigida o
+   caso só existe em dado legado.
 
 ---
 
