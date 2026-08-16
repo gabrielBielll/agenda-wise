@@ -15,6 +15,7 @@
             [deep-saude-backend.tempo :as tempo]
             [deep-saude-backend.dominio :as dominio]
             [deep-saude-backend.limites :as limites]
+            [deep-saude-backend.prontuarios :as prontuarios]
             [deep-saude-backend.google.rrule :as rrule]
             [deep-saude-backend.google.handlers :as google]
             [ring.middleware.cors :refer [wrap-cors]]
@@ -1218,168 +1219,21 @@
         {:status 404 :body {:erro "Bloqueio não encontrado ou você não tem permissão."}}))))
 
 ;; --- Handlers de Prontuários ---
-(defn criar-prontuario-handler [request]
-        (let [identity (:identity request)
-        clinica-id (:clinica_id identity)
-        usuario-id (:user_id identity)
-        papel (:role identity)
-        {:keys [paciente_id conteudo tipo queixa_principal resumo_tecnico observacoes_estado_mental encaminhamentos_tarefas agendamento_id humor]} (:body request)]
-    
-    (println "DEBUG: criar-prontuario recebido:" (:body request)) 
-    (println "DEBUG: Humor value:" humor " Type:" (type humor))
-
-    (if (str/blank? conteudo)
-      {:status 400 :body {:erro "Conteúdo da evolução é obrigatório."}}
-      
-      (try
-        (let [paciente-uuid (java.util.UUID/fromString paciente_id)
-              paciente (execute-one! ["SELECT id, psicologo_id FROM pacientes WHERE id = ? AND clinica_id = ?" paciente-uuid clinica-id])]
-          (if-not paciente
-            {:status 404 :body {:erro "Paciente não encontrado."}}
-            
-            ;; Verificação de permissão: Psicólogo só cria para seus pacientes
-            (if (and (= papel "psicologo") (not= (:psicologo_id paciente) usuario-id))
-              {:status 403 :body {:erro "Você só pode registrar prontuários para seus pacientes."}}
-              
-              (let [novo-prontuario (sql/insert! @datasource :prontuarios
-                                                {:clinica_id clinica-id
-                                                 :paciente_id paciente-uuid
-                                                 :psicologo_id usuario-id
-                                                 :conteudo conteudo
-                                                 :tipo (or tipo "sessao")
-                                                 :humor humor  ;; Salvando humor
-                                                 :queixa_principal queixa_principal
-                                                 :resumo_tecnico resumo_tecnico
-                                                 :observacoes_estado_mental observacoes_estado_mental
-                                                 :encaminhamentos_tarefas encaminhamentos_tarefas
-                                                 :agendamento_id (when (not (str/blank? agendamento_id)) 
-                                                                   (println "DEBUG: Salvando agendamento_id:" agendamento_id)
-                                                                   (java.util.UUID/fromString agendamento_id))}
-                                                {:builder-fn rs/as-unqualified-lower-maps :return-keys true})]
-                {:status 201 :body novo-prontuario}))))
-        (catch Exception e
-          (println "ERRO CRIAR PRONTUARIO:" (.getMessage e))
-          (.printStackTrace e)
-          {:status 500 :body {:erro "Erro interno."}})))))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; R-012 — prontuário é do psicólogo
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;; O CRUD mora em deep-saude-backend.prontuarios. Estes nomes permanecem como
+;; compatibilidade para as rotas e para consumidores que ainda requerem core.
+(def criar-prontuario-handler prontuarios/criar-handler)
+(def remover-prontuario-handler prontuarios/remover-handler)
+(def atualizar-prontuario-handler prontuarios/atualizar-handler)
 
 (def ^:private super-admin-le-prontuario?
-  "Saída de emergência da R-012. Ligada **em código**, e é isso que a torna
-   uma saída de emergência.
-
-   ⚠️ Não vire isto em variável de ambiente. A R-012 diz, com todas as letras,
-   \"não por tela, não por configuração que alguém com acesso ao painel possa
-   ligar\": exigir alteração de código e implantação é a inconveniência que dá
-   sentido à regra. Flag que se liga pelo painel do Render vira flag ligada.
-
-   ⚠️ Ligar isto sem registrar quem leu o quê e quando deixa a leitura de
-   prontuário alheio indistinguível de porta dos fundos. Prontuário é sigilo
-   profissional (CFP) e dado sensível de saúde (LGPD). O registro está
-   recomendado e pendente de decisão do Gabriel — ver R-012 em
-   docs/REGRAS_DE_NEGOCIO.md."
+  "Saída de emergência da R-012. Ligada em código de propósito: não transformar
+   em variável de ambiente nem em configuração de painel. Ligar sem registrar
+   quem leu o quê deixa a leitura indistinguível de uma porta dos fundos."
   false)
 
-(defn- pode-ler-prontuarios?
-  "Só o psicólogo do paciente lê. Nem o admin da clínica, nem outro psicólogo —
-   é o que a R-012 diz, e o que a A-003 apontou que o código não fazia.
-
-   O `wrap-checar-permissao` que guarda a rota exige `visualizar_pacientes`, que
-   o admin tem: permissão de tela não é autorização clínica, e era por aí que a
-   leitura passava."
-  [papel usuario-id paciente]
-  (or super-admin-le-prontuario?
-      (and (= papel "psicologo")
-           (= (:psicologo_id paciente) usuario-id))))
-
 (defn listar-prontuarios-handler [request]
-  (let [identity (:identity request)
-        clinica-id (:clinica_id identity)
-        usuario-id (:user_id identity)
-        papel (:role identity)
-        paciente-id (java.util.UUID/fromString (get-in request [:params :paciente-id]))]
-
-    (let [paciente (execute-one! ["SELECT id, psicologo_id FROM pacientes WHERE id = ? AND clinica_id = ?" paciente-id clinica-id])]
-      (if-not paciente
-        {:status 404 :body {:erro "Paciente não encontrado."}}
-
-        ;; R-012: por padrão, só o psicólogo do paciente.
-        (if-not (pode-ler-prontuarios? papel usuario-id paciente)
-          {:status 403 :body {:erro "Você não tem permissão para visualizar este prontuário."}}
-          
-          (let [prontuarios (execute-query! 
-                              ["SELECT p.*, u.nome as nome_psicologo, a.data_hora_sessao as data_sessao
-                                FROM prontuarios p
-                                JOIN usuarios u ON p.psicologo_id = u.id
-                                LEFT JOIN agendamentos a ON p.agendamento_id = a.id
-                                WHERE p.paciente_id = ? AND p.clinica_id = ?
-                                ORDER BY p.data_registro DESC" 
-                               paciente-id clinica-id])]
-            (println "DEBUG: Listar Prontuarios - Encontrados:" (count prontuarios))
-            {:status 200 :body prontuarios}))))))
-
-(defn remover-prontuario-handler [request]
-  (let [identity (:identity request)
-        clinica-id (:clinica_id identity)
-        usuario-id (:user_id identity)
-        prontuario-id (java.util.UUID/fromString (get-in request [:params :id]))]
-
-    (if-let [prontuario (execute-one! ["SELECT id, psicologo_id FROM prontuarios WHERE id = ? AND clinica_id = ?" prontuario-id clinica-id])]
-      ;; Só o autor exclui.
-      ;;
-      ;; ⚠️ Um passo além da A-003, e digo por quê: a A-003 é sobre leitura, e
-      ;; esta guarda só disparava para `papel` "psicologo" — o admin apagava
-      ;; prontuário alheio. Fechar a leitura do admin e deixar a exclusão aberta
-      ;; seria incoerente, e apagar registro clínico é pior do que lê-lo. O
-      ;; handler irmão (`atualizar-prontuario-handler`) já checava autoria sem
-      ;; olhar o papel; esta linha ficou para trás dele, não é regra decidida.
-      ;; Sem alcance de tela: nenhuma página do admin consome prontuário.
-      (if (not= (:psicologo_id prontuario) usuario-id)
-        {:status 403 :body {:erro "Você só pode excluir prontuários criados por você."}}
-        
-        (let [resultado (sql/delete! @datasource :prontuarios {:id prontuario-id :clinica_id clinica-id})]
-          (if (zero? (:next.jdbc/update-count resultado))
-            {:status 500 :body {:erro "Erro ao excluir prontuário."}}
-            {:status 204 :body ""})))
-      {:status 404 :body {:erro "Prontuário não encontrado."}})))
-
-(defn atualizar-prontuario-handler [request]
-  (let [identity (:identity request)
-        clinica-id (:clinica_id identity)
-        usuario-id (:user_id identity)
-        papel (:role identity)
-        prontuario-id (java.util.UUID/fromString (get-in request [:params :id]))
-        {:keys [conteudo tipo queixa_principal resumo_tecnico observacoes_estado_mental encaminhamentos_tarefas agendamento_id humor]} (:body request)]
-    
-    (println "DEBUG: atualizar-prontuario recebido. Humor:" humor)
-    
-    (if (str/blank? conteudo)
-      {:status 400 :body {:erro "Conteúdo é obrigatório."}}
-      
-      (if-let [prontuario (execute-one! ["SELECT id, psicologo_id FROM prontuarios WHERE id = ? AND clinica_id = ?" prontuario-id clinica-id])]
-        ;; Verificação de permissão: Apenas o autor pode editar
-        (if (not= (:psicologo_id prontuario) usuario-id)
-          {:status 403 :body {:erro "Você só pode editar prontuários criados por você."}}
-          
-          (let [update-map (cond-> {:conteudo conteudo
-                                    :tipo (or tipo "sessao")
-                                    :queixa_principal queixa_principal
-                                    :resumo_tecnico resumo_tecnico
-                                    :observacoes_estado_mental observacoes_estado_mental
-                                    :encaminhamentos_tarefas encaminhamentos_tarefas
-                                    :humor humor}
-                             (some? agendamento_id) (assoc :agendamento_id (when (not (str/blank? agendamento_id)) (java.util.UUID/fromString agendamento_id))))
-                resultado (sql/update! @datasource :prontuarios update-map {:id prontuario-id :clinica_id clinica-id})]
-            
-            (if (zero? (:next.jdbc/update-count resultado))
-              {:status 500 :body {:erro "Erro ao atualizar prontuário."}}
-              (let [prontuario-atualizado (execute-one! ["SELECT * FROM prontuarios WHERE id = ?" prontuario-id])]
-                {:status 200 :body prontuario-atualizado}))))
-        {:status 404 :body {:erro "Prontuário não encontrado."}}))))
-
-
+  (prontuarios/listar-handler request super-admin-le-prontuario?))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Definição das Rotas e Aplicação Principal
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
