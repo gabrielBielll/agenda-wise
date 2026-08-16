@@ -570,10 +570,19 @@
 (defn criar-agendamento-handler [request]
   (try
     (let [clinica-id (get-in request [:identity :clinica_id])
+          papel (get-in request [:identity :role])
           {:keys [paciente_id psicologo_id data_hora_sessao valor_consulta duracao recorrencia_tipo quantidade_recorrencia force observacoes]} (:body request)]
       (println "DEBUG: Handler iniciado. Payload:" (:body request))
-      (if (or (nil? paciente_id) (nil? psicologo_id) (nil? data_hora_sessao))
+      (cond
+        (or (nil? paciente_id) (nil? psicologo_id) (nil? data_hora_sessao))
         {:status 400, :body {:erro "paciente_id, psicologo_id e data_hora_sessao são obrigatórios."}}
+
+        (and force (not= papel "admin_clinica"))
+        {:status 403
+         :body {:erro "Apenas o administrador da clínica pode forçar um agendamento com conflito."
+                :code "force_requires_admin"}}
+
+        :else
         (let [paciente-uuid (java.util.UUID/fromString paciente_id)
               psicologo-uuid (java.util.UUID/fromString psicologo_id)
               fuso (fuso-da-clinica clinica-id)
@@ -1101,7 +1110,7 @@
     (let [clinica-id (get-in request [:identity :clinica_id])
           usuario-id (get-in request [:identity :user_id])
           papel (get-in request [:identity :role])
-          {:keys [data_inicio data_fim motivo dia_inteiro recorrencia_tipo quantidade_recorrencia cancelar_conflitos psicologo_id]} (:body request)
+          {:keys [data_inicio data_fim motivo dia_inteiro recorrencia_tipo quantidade_recorrencia psicologo_id]} (:body request)
           
           target-psicologo-id (if (and (or (= papel "admin_clinica") (= papel "secretario")) 
                                        (not (str/blank? psicologo_id)))
@@ -1110,37 +1119,49 @@
                                 
       (if (or (nil? data_inicio) (nil? data_fim))
         {:status 400 :body {:erro "data_inicio e data_fim são obrigatórios."}}
-        (let [intervalos (gerar-intervalos-bloqueio data_inicio data_fim recorrencia_tipo
-                                                   quantidade_recorrencia (fuso-da-clinica clinica-id))
+        (let [fuso (fuso-da-clinica clinica-id)
+              intervalos (gerar-intervalos-bloqueio data_inicio data_fim recorrencia_tipo
+                                                   quantidade_recorrencia fuso)
+              conflitos (reduce (fn [acc {:keys [start end]}]
+                                  (into acc
+                                        (execute-query!
+                                         ["SELECT id, data_hora_sessao, COALESCE(duracao, 50) AS duracao
+                                             FROM agendamentos
+                                            WHERE clinica_id = ?
+                                              AND psicologo_id = ?
+                                              AND status != 'cancelado'
+                                              AND data_hora_sessao < ?
+                                              AND (data_hora_sessao + (COALESCE(duracao, 50) * interval '1 minute')) > ?"
+                                          clinica-id target-psicologo-id end start])))
+                                []
+                                intervalos)
               recorrencia-uuid (when (and recorrencia_tipo (not= recorrencia_tipo "none"))
                                  (java.util.UUID/randomUUID))]
 
-          ;; Cancelamento de conflitos + criação dos bloqueios numa transação só.
-          ;; Falhar no meio aqui era especialmente ruim: cancelava sessões de
-          ;; pacientes e depois não criava o bloqueio que justificava o cancelamento.
-          (jdbc/with-transaction [tx @datasource]
-            ;; (start/end já vêm como OffsetDateTime, prontos para o JDBC)
-            (when cancelar_conflitos
-              (doseq [{start-ts :start end-ts :end} intervalos]
-                (sql/update! tx :agendamentos
-                             {:status "cancelado" :valor_consulta 0}
-                             ["clinica_id = ? AND psicologo_id = ? AND status != 'cancelado'
-                               AND data_hora_sessao < ?
-                               AND (data_hora_sessao + (COALESCE(duracao, 50) * interval '1 minute')) > ?"
-                              clinica-id target-psicologo-id end-ts start-ts])))
-
-            (let [novos-bloqueios (doall (map (fn [{:keys [start end]}]
-                                                (sql/insert! tx :bloqueios_agenda
-                                                             {:clinica_id    clinica-id
-                                                              :psicologo_id  target-psicologo-id
-                                                              :data_inicio   start
-                                                              :data_fim      end
-                                                              :motivo        motivo
-                                                              :dia_inteiro   (or dia_inteiro false)
-                                                              :recorrencia_id recorrencia-uuid}
-                                                             {:builder-fn rs/as-unqualified-lower-maps :return-keys true}))
-                                              intervalos))]
-              {:status 201 :body (first novos-bloqueios)})))))
+          (if (seq conflitos)
+            {:status 409
+             :body {:erro "Não é possível criar o bloqueio: há sessões marcadas no período."
+                    :code "session_conflict"
+                    :sessoes (mapv (fn [{:keys [id data_hora_sessao duracao]}]
+                                     {:id id
+                                      :data_hora_sessao
+                                      (.format (tempo/->zdt data_hora_sessao fuso)
+                                               java.time.format.DateTimeFormatter/ISO_OFFSET_DATE_TIME)
+                                      :duracao duracao})
+                                   conflitos)}}
+            (jdbc/with-transaction [tx @datasource]
+              (let [novos-bloqueios (doall (map (fn [{:keys [start end]}]
+                                                  (sql/insert! tx :bloqueios_agenda
+                                                               {:clinica_id    clinica-id
+                                                                :psicologo_id  target-psicologo-id
+                                                                :data_inicio   start
+                                                                :data_fim      end
+                                                                :motivo        motivo
+                                                                :dia_inteiro   (or dia_inteiro false)
+                                                                :recorrencia_id recorrencia-uuid}
+                                                               {:builder-fn rs/as-unqualified-lower-maps :return-keys true}))
+                                                intervalos))]
+                {:status 201 :body (first novos-bloqueios)}))))))
     (catch Exception e
       (println "ERRO ao criar bloqueio:" (.getMessage e))
       {:status 500 :body {:erro "Erro interno."}})))

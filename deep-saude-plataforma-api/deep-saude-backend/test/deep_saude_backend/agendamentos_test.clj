@@ -121,6 +121,13 @@
 (defn- criar [body & {:keys [clinica] :or {clinica clinica-a}}]
   (core/criar-agendamento-handler {:identity {:clinica_id clinica} :body body}))
 
+(defn- criar-como [papel body]
+  (core/criar-agendamento-handler
+   {:identity {:clinica_id clinica-a
+               :user_id psicologo-a
+               :role papel}
+    :body body}))
+
 (defn- atualizar [id body & {:keys [clinica] :or {clinica clinica-a}}]
   (core/atualizar-agendamento-handler
    {:identity {:clinica_id clinica} :params {:id (str id)} :body body}))
@@ -129,6 +136,13 @@
   (core/remover-agendamento-handler
    (cond-> {:identity {:clinica_id clinica} :params {:id (str id)}}
      mode (assoc :query-params {"mode" mode}))))
+
+(defn- criar-bloqueio [body]
+  (core/criar-bloqueio-handler
+   {:identity {:clinica_id clinica-a
+               :user_id psicologo-a
+               :role "psicologo"}
+    :body body}))
 
 (defn- horarios-de-parede
   "Horário como o usuário vê, em São Paulo. É esta a leitura que importa: o
@@ -234,6 +248,19 @@
       (is (= "appointment_conflict" (:code (:body resp))))))
   (testing "o conflito não deixou lixo no banco"
     (is (= 1 (conta "agendamentos")))))
+
+(deftest somente-admin-pode-forcar-conflito
+  (criar (assoc sessao-base :data_hora_sessao "2027-03-10T14:00:00" :duracao 50))
+  (let [sobreposto (assoc sessao-base :data_hora_sessao "2027-03-10T14:30:00"
+                                      :duracao 50 :force true)
+        psicologo (criar-como "psicologo" sobreposto)]
+    (is (= 403 (:status psicologo)))
+    (is (= "force_requires_admin" (:code (:body psicologo))))
+    (is (= 1 (conta "agendamentos"))
+        "a tentativa negada não grava uma segunda sessão")
+    (testing "a clínica pode forçar o mesmo conflito"
+      (is (= 201 (:status (criar-como "admin_clinica" sobreposto))))
+      (is (= 2 (conta "agendamentos"))))))
 
 (deftest criar-exige-campos-obrigatorios
   (is (= 400 (:status (criar (dissoc sessao-base :paciente_id)))))
@@ -465,3 +492,48 @@
 
 (deftest remover-agendamento-inexistente-da-404
   (is (= 404 (:status (remover (java.util.UUID/randomUUID) nil)))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; R-014 — bloqueio nunca cancela sessão (A-006)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(deftest bloqueio-recusa-sessao-futura-sem-alterar-agendamento
+  (let [inicio (parede 4 14)
+        fim (parede 4 15)
+        sessao (:body (criar (assoc sessao-base :data_hora_sessao inicio)))
+        resp (criar-bloqueio {:data_inicio inicio :data_fim fim
+                              :cancelar_conflitos false})
+        gravada (db/execute-one! ["SELECT status, valor_consulta FROM agendamentos WHERE id = ?"
+                                  (:id sessao)])]
+    (is (= 409 (:status resp)))
+    (is (= "session_conflict" (:code (:body resp))))
+    (is (= 1 (count (:sessoes (:body resp)))))
+    (is (= #{:id :data_hora_sessao :duracao}
+           (set (keys (first (:sessoes (:body resp)))))))
+    (is (= "agendado" (:status gravada)))
+    (is (== 200M (bigdec (:valor_consulta gravada))))
+    (is (zero? (conta "bloqueios_agenda")))))
+
+(deftest cancelar-conflitos-nao-cancela-sessao-passada-realizada
+  (let [inicio (parede -4 14)
+        fim (parede -4 15)
+        sessao (:body (criar (assoc sessao-base :data_hora_sessao inicio)))]
+    (db/execute-one! ["UPDATE agendamentos
+                          SET status = 'realizado', valor_consulta = 350
+                        WHERE id = ?" (:id sessao)])
+    (let [resp (criar-bloqueio {:data_inicio inicio :data_fim fim
+                                :cancelar_conflitos true})
+          gravada (db/execute-one! ["SELECT status, valor_consulta FROM agendamentos WHERE id = ?"
+                                    (:id sessao)])]
+      (is (= 409 (:status resp)))
+      (is (= "session_conflict" (:code (:body resp))))
+      (is (= "realizado" (:status gravada)))
+      (is (== 350M (bigdec (:valor_consulta gravada))))
+      (is (zero? (conta "bloqueios_agenda"))))))
+
+(deftest bloqueio-sem-sobreposicao-continua-sendo-criado
+  (let [resp (criar-bloqueio {:data_inicio (parede 6 14)
+                              :data_fim (parede 6 15)
+                              :cancelar_conflitos true})]
+    (is (= 201 (:status resp)))
+    (is (= 1 (conta "bloqueios_agenda")))))
