@@ -9,6 +9,8 @@ export type DadosSemeados = {
   paciente: string;
   psicologoId: string;
   pacienteId: string;
+  /** null quando o semeador não conseguiu identificar a sessão. */
+  agendamentoId: string | null;
   quando: string;
   dia: string;
 };

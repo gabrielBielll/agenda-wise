@@ -7,10 +7,23 @@ import { defineConfig, devices } from '@playwright/test';
  * teste, e mexer nelas invalida a suíte:
  *
  * 1. `timezoneId: 'America/Sao_Paulo'`
- *    O calendário renderiza com `new Date(...).getHours()`, ou seja, no fuso do
- *    NAVEGADOR. Sem fixar o fuso, o mesmo teste passa na máquina de quem está
- *    em São Paulo e falha no CI em UTC — e pior, o contrário também: passaria
- *    por coincidência e não estaria verificando nada.
+ *    Fixar o fuso do navegador é o que torna a suíte determinística: sem isso o
+ *    mesmo teste passa na máquina de quem está em São Paulo e falha no CI em
+ *    UTC — e pior, o contrário também: passaria por coincidência e não estaria
+ *    verificando nada.
+ *
+ *    ⚠️ O motivo mudou em 2026-08-15, e o comentário anterior aqui virou
+ *    mentira. Ele dizia que "o calendário renderiza com `new Date(...).getHours()`,
+ *    ou seja, no fuso do NAVEGADOR". Não renderiza mais: pela D-010, horário de
+ *    parede é o da CLÍNICA, e `lib/datetime` converte com `Intl`. Fixar São
+ *    Paulo aqui deixou de ser "o fuso que o app usa" e passou a ser "o fuso em
+ *    que app e clínica coincidem" — ou seja, o caminho comum.
+ *
+ *    Por isso os blocos que exercitam fuso divergente **sobrescrevem** este
+ *    valor com `test.use({ timezoneId: 'Asia/Tokyo' })`, em
+ *    `calendario-fuso.spec.ts` e `edicao-nao-move-a-sessao.spec.ts`. São eles
+ *    que provam que o fuso de quem olha não muda nem o que aparece nem o que é
+ *    gravado.
  *
  * 2. O backend NÃO fica em `localhost:3000`.
  *    Os rewrites do `next.config.ts` tinham `http://localhost:3000` fixo no

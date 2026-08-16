@@ -166,6 +166,47 @@ async function garantirSessaoDeHoje(token: string, pacienteId: string, psicologo
   return quando;
 }
 
+/** Horário de parede em São Paulo de um instante devolvido pela API. */
+function paredeEmSaoPaulo(iso: string): string {
+  const p: Record<string, string> = {};
+  const fmt = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Sao_Paulo',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', hour12: false,
+  });
+  for (const parte of fmt.formatToParts(new Date(iso))) p[parte.type] = parte.value;
+  return `${p.year}-${p.month}-${p.day}T${String(Number(p.hour) % 24).padStart(2, '0')}:${p.minute}`;
+}
+
+/**
+ * O id da sessão semeada.
+ *
+ * `garantirSessaoDeHoje` trata 409 como sucesso e por isso nem sempre tem o id
+ * na mão. Quem precisa dele é o teste de ida e volta, que abre
+ * `/admin/agendamentos/<id>/edit` direto em vez de caçar a linha na listagem —
+ * clicar pela tabela acoplaria o teste ao `AgendamentosClient`, que é de 709
+ * linhas e não é o objeto aqui.
+ *
+ * A busca é pelo horário de PAREDE em São Paulo, não pelo prefixo da string: a
+ * API devolve instante com fuso, e comparar texto daria certo por coincidência
+ * às 14:00 e erraria perto da meia-noite.
+ */
+async function idDaSessaoSemeada(
+  token: string,
+  pacienteId: string,
+  dia: string
+): Promise<string | null> {
+  const lista = await (
+    await fetch(`${BACKEND}/api/agendamentos`, { headers: { Authorization: `Bearer ${token}` } })
+  ).json();
+  const alvo = (lista as any[]).find(
+    (a) =>
+      a.paciente_id === pacienteId &&
+      paredeEmSaoPaulo(a.data_hora_sessao) === `${dia}T${HORA_DA_SESSAO}`
+  );
+  return alvo?.id ?? null;
+}
+
 /**
  * Deixa ao menos um repasse como 'transferido'.
  *
@@ -226,11 +267,17 @@ export default async function prepararDados(config: FullConfig) {
   const psicologoId = await criarPsicologo(token);
   const pacienteId = await garantirPaciente(token, psicologoId);
   const quando = await garantirSessaoDeHoje(token, pacienteId, psicologoId);
+  const dia = hojeEmSaoPaulo();
+  const agendamentoId = await idDaSessaoSemeada(token, pacienteId, dia);
   await marcarUmRepasseTransferido(token);
 
   writeFileSync(
     join(__dirname, '.dados-semeados.json'),
-    JSON.stringify({ ...CONTA, psicologoId, pacienteId, quando, dia: hojeEmSaoPaulo() }, null, 2)
+    JSON.stringify(
+      { ...CONTA, psicologoId, pacienteId, agendamentoId, quando, dia },
+      null,
+      2
+    )
   );
 
   const baseURL = config.projects[0]?.use?.baseURL ?? 'http://localhost:9002';
@@ -238,5 +285,10 @@ export default async function prepararDados(config: FullConfig) {
 
   console.log(`\n  [e2e] backend em ${BACKEND}`);
   console.log(`  [e2e] sessão semeada para ${quando} (horário de parede em São Paulo)`);
-  console.log(`  [e2e] sessão autenticada salva; rotas aquecidas\n`);
+  console.log(`  [e2e] sessão autenticada salva; rotas aquecidas`);
+  console.log(
+    agendamentoId
+      ? `  [e2e] id da sessão: ${agendamentoId}\n`
+      : `  [e2e] ⚠️  não achei o id da sessão semeada — o teste de ida e volta vai pular\n`
+  );
 }
