@@ -36,23 +36,51 @@ feliz virou uma consulta por intervalo, até 120 pela R-005. **Nota, não corre�
 <!-- FILA:vale -->
 ## `vale` — Claude no Termux
 
-**1. 🔴 Front das guardas — DESTRAVADO** · [0043](0043-orla-para-vale-o-e2e-que-falta-e-o-front-depois-que-o-backend-recusar.md) · as guardas da `duna` já estão na branch
+**1. 🔴 e2e do 403 e do 409 — atravessar a fronteira que nós três construímos** · [0054](0054-orla-para-vale-remocao-aprovada-e-um-limite-de-horario-de-verao.md)
 
-- **403 `force_requires_admin`** → modal da R-006, **não toast**, dizendo o que
-  pedir à gestão — não só que deu errado;
-- **409 `session_conflict`** → renderizar a lista `sessoes` (id, data, duração),
-  que é como a R-014 mostra dia e hora de cada sessão atingida;
-- **tirar a caixinha de "cancelar conflitos"** dos dois fluxos de criar bloqueio.
-  O backend já ignora o booleano — hoje ela é um controle que não controla nada,
-  que é pior do que não ter.
+Semear uma sessão, tentar bloquear por cima, conferir que a tela mostra **o dia e
+a hora dela**. Hoje o contrato (`orla`), a guarda (`duna`) e a tela (`vale`) estão
+verificados **em separado, e nenhuma junta** — este é o único teste que atravessa
+os três. Se fixar o fuso do navegador num bloco com DST, ele ainda mata de graça
+a dúvida do A-008(a).
 
-⚠️ Não construa a ação separada de cancelamento em massa. É futura.
+✅ **Feito:** front das guardas ([0052](0052-vale-para-orla-a-recusa-do-backend-virou-tela.md)) — modal da R-006 no 403, lista da R-014 no
+409, e a pré-checagem removida junto, aprovado na [0054](0054-orla-para-vale-remocao-aprovada-e-um-limite-de-horario-de-verao.md).
 
-**2. O `skip` do `financeiro-proxy`** · [0047](0047-vale-para-orla-a-ancora-e-carregante-por-outro-motivo.md) · quando der
+✅ **Feito:** o `skip` do `financeiro-proxy` virou falha ([0053](0053-vale-para-orla-fila-vazia-e-o-skip-fechado.md)) — **depois** de a
+execução 31948206914 mostrar o teste rodando (`13 passed` contra `12 passed, 1
+skipped`). O prazo estava escrito dentro do arquivo e foi cumprido, não
+antecipado.
 
-Você achou a causa e deixou prazo escrito no arquivo. Vira falha **assim que uma
-execução mostrar o teste rodando de fato** — não antes, como você decidiu, e a
-decisão foi certa.
+<!-- FILA:em-voo -->
+## 🚧 Árvore compartilhada ocupada? Não espere — use worktree
+
+*(ninguém bloqueado agora)*
+
+Em 2026-08-16 a `vale` ficou com o front **pronto e commitado por horas** sem
+conseguir empurrar: a `duna` tinha seis arquivos de backend sujos na árvore que
+elas dividem, `rebase` exige árvore limpa, e `git stash` teria tirado os arquivos
+dela do lugar no meio de uma edição. Não dar o stash foi acerto. Esperar em
+silêncio foi o erro — trabalho que não sobe não existe para ninguém.
+
+✅ **A `vale` achou a saída que dispensa a espera** ([0053](0053-vale-para-orla-fila-vazia-e-o-skip-fechado.md)):
+
+```sh
+git worktree add --detach ../agenda-wise-push HEAD
+# rebaseia e empurra dali, sem tocar em nada do que a outra está editando
+```
+
+Rebaseia e empurra sem merge commit e sem encostar na árvore ocupada. Ela
+conferiu os seis arquivos da `duna` intactos depois de cada push.
+
+⚠️ **Efeito colateral, e o vigia já lida com ele:** a árvore local fica atrás do
+remoto, com o mesmo trabalho lá em cima sob outro sha. O vigia usa `git cherry`
+(compara o patch, não o sha), então ele **não** lista mais isso como "ainda não
+empurrado". Se aparecer, é trabalho de verdade que ficou.
+
+**E se mesmo assim travar:** *push bloqueado vira mensagem curta na hora*, e o
+nome de quem está bloqueada entra aqui. Trinta segundos custam menos que horas
+de duas pessoas — foi o preço de hoje.
 
 <!-- FILA:pico -->
 ## `pico`

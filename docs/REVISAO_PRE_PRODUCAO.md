@@ -449,6 +449,57 @@ que o admin forçou sobre outra tem que continuar 200**.
 
 ---
 
+## 🟡 A-008 — Horário de verão do espectador fura o truque da parede
+
+**Relacionado a:** [D-010](../mensageria/DECISOES.md) e [R-016](REGRAS_DE_NEGOCIO.md)
+**Achado em:** 2026-08-16, pela `orla`, revisando o front das guardas ([0054](../mensageria/0054-orla-para-vale-remocao-aprovada-e-um-limite-de-horario-de-verao.md))
+
+⚠️ **Latente, não alcançável hoje.** As duas dependem de o **espectador** estar
+num fuso com horário de verão. O Brasil não tem DST desde 2019 e toda a clínica
+está no Rio. A **R-016** diz que psicólogo em outro país é plano — é aí que
+acordam.
+
+### (a) Somar duração em milissegundos sobre um `Date` de parede
+
+`src/lib/conflitos.ts`, `descreveSessaoEmConflito`:
+
+```ts
+const fim = new Date(inicio.getTime() + (sessao.duracao ?? 50) * 60 * 1000);
+```
+
+`inicio` é um `Date` **local** carregando os componentes de parede da clínica —
+é assim que o `paredeDaClinica` funciona, e os getters locais devolvem a parede
+certa. Mas somar tempo **real** e ler getters locais só dá "parede + duração" se
+o relógio local não virar no meio. Com transição de DST dentro da janela da
+sessão, a tela mostra a sessão terminando uma hora depois do que ela termina.
+
+**Correção preferida:** o backend manda o fim junto, em vez de o front derivá-lo.
+Mexe no contrato `session_conflict`, que tem teste fixando o conjunto exato de
+chaves — então as duas coisas mudam na mesma conversa, não uma agora e outra
+depois.
+
+### (b) O próprio `paredeDaClinica`, e este é o do modelo
+
+`src/lib/datetime.ts`:
+
+```ts
+return new Date(c.ano, c.mes - 1, c.dia, c.hora, c.min, c.seg);
+```
+
+Quando a parede da clínica cai numa hora que **não existe** no fuso de quem olha
+— a hora que o DST pula — o JavaScript normaliza para frente em silêncio e
+`getHours()` devolve outra hora. Quando cai na hora **repetida**, escolhe uma das
+duas.
+
+**Isto é limite da técnica que a D-010 adotou**, não defeito de quem a escreveu:
+uma zona cega de uma hora por ano, por fuso de espectador. Está registrado aqui
+para não ser redescoberto por alguém em Lisboa daqui a um ano.
+
+💡 O e2e do 403/409 que está na fila da `vale` mata a dúvida de (a) de graça, se
+o bloco fixar o fuso do navegador num que tenha DST.
+
+---
+
 ## 🔴 1. O contrato de datas foi aplicado pela metade
 
 **Onde:** `src/app/admin/agendamentos/**` (4 arquivos)

@@ -42,7 +42,16 @@ vigiar() {
   # Commits que estão no remoto e não em mim: o trabalho das outras.
   atras=$(git log --format='  %h  %s' "$remoto" "^$local_ref" 2>/dev/null)
   # Commits meus que ainda não subiram.
-  adiante=$(git log --format='  %h  %s' "$local_ref" "^$remoto" 2>/dev/null)
+  #
+  # `git cherry` e não `git log ^remoto`: quem empurra de um worktree separado —
+  # a técnica que a `vale` passou a usar para não travar na árvore compartilhada
+  # da `duna` — fica com a árvore local atrás do remoto. O MESMO trabalho está lá
+  # em cima com outro sha, e o `git log` o listava como "ainda não empurrado".
+  # Ler aquilo como trabalho perdido é o erro que isto evita: o `cherry` compara
+  # o patch, não o sha, e marca com `-` o que já existe equivalente no remoto.
+  adiante=$(git cherry "$remoto" "$local_ref" 2>/dev/null \
+              | awk '$1=="+" {print $2}' \
+              | while read -r sha; do git log --format='  %h  %s' -1 "$sha"; done)
 
   echo "── vigia do canal ──────────────────────────────────────────"
 
