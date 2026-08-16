@@ -522,6 +522,23 @@ promete continuar de onde parou e entrega folha em branco.
 ⚠️ **Isto é leitura de código, não clique** — coerente com o padrão do Radix, mas
 não foi medido.
 
+✅ **E o alcance é menor do que a primeira redação sugeria — correção da `vale`,
+2026-08-16.** O diálogo equivalente do **admin** faz a mesma coisa e **sobrevive**:
+
+| Tela | Campo | Controlado? | Sobrevive ao fechar? |
+|---|---|---|---|
+| `admin/agendamentos` | `value={blockStart} onChange={…}` | **sim** | **sim** — o estado mora no componente pai, não no DOM que o Radix desmonta |
+| `(app)/calendar` | `defaultValue={…}` | não | **não** |
+
+**A A-010 é só do calendário.** E a diferença entre as duas telas é o melhor
+argumento que existe de que o diagnóstico está certo: é o mesmo diálogo, fazendo
+o mesmo trabalho, com e sem controle — **grupo de controle natural**, mais forte
+do que um e2e teria sido.
+
+🧪 O lado do admin ganhou **guarda** em `bloqueio-sobre-sessao.spec.ts`: trocar
+`value` por `defaultValue` "para simplificar" é uma linha, e sem a asserção
+ninguém veria.
+
 **Por que é defeito e não violação da R-014:** a regra manda mostrar as sessões
 "para a pessoa resolver **antes**", e resolver é sair dali, remarcar as sessões e
 voltar depois — nesse caminho perder o formulário é irrelevante. **O defeito é a

@@ -28,20 +28,21 @@ A-007 com os dois vermelhos reproduzidos e os dois comentários pedidos
 <!-- FILA:vale -->
 ## `vale` — Claude no Termux
 
-**1. 🟡 A-010 — "Voltar e ajustar" devolve o formulário zerado** · [0059](0059-orla-para-vale-o-achado-e-maior-do-que-um-botao-faltando.md)
+**1. 🟡 A-010 — só no calendário: correção e teste JUNTOS** · [0063](0063-orla-para-vale-nao-escreva-aquele-vermelho-e-o-porque.md)
 
-Os campos de data do formulário de bloqueio são **não controlados**
-(`defaultValue`) dentro de um `Dialog` do Radix **sem `forceMount`** — fechar
-desmonta, reabrir remonta do slot original. O botão promete continuar de onde
-parou e entrega folha em branco.
+`(app)/calendar` usa `defaultValue`; `admin/agendamentos` usa `value` + `onChange`
+e **sobrevive**. Corrigir o calendário para ficar igual ao admin, e empurrar a
+correção **junto** com o teste que dirige aquele diálogo.
 
-Teste antes, e a asserção agora é exata: digitar um período, levar o 409, clicar
-em **"Voltar e ajustar"**, e o período tem que continuar lá. Correção: controlar
-os dois inputs por estado, ou `forceMount` no conteúdo.
+⚠️ **Aqui a D-008 abre exceção de propósito**, e a condição está escrita na
+[0063](0063-orla-para-vale-nao-escreva-aquele-vermelho-e-o-porque.md): o mecanismo já está provado pelo par de telas — grupo de controle
+natural — então o vermelho-primeiro não compraria certeza nenhuma e custaria uma
+rodada do CI compartilhado, escrita às cegas. **Onde não houver grupo de
+controle, a D-008 continua valendo.**
 
-**2. Depois dela, pare e me chame.** A A-009 é decisão do Gabriel, e a A-004 (a
-comissão) **não pode começar antes da R-009 virar modelo** — corrigir aquilo sem
-a regra seria inventar regra de negócio no código.
+**2. Depois dela, pare e me chame.** A **A-009**, a **A-011** e a **A-012** são
+todas decisão do Gabriel, e a **A-004** espera a R-009 virar modelo — corrigir
+aquilo sem a regra seria inventar regra de negócio no código.
 
 ✅ **Feito hoje:** front das guardas ([0052](0052-vale-para-orla-a-recusa-do-backend-virou-tela.md)) · o `skip` do financeiro virou falha
 depois da medição ([0053](0053-vale-para-orla-fila-vazia-e-o-skip-fechado.md)) · e2e do 409 (`d353006`) · e2e do 403 + os três reparos
