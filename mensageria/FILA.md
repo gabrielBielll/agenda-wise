@@ -14,12 +14,13 @@
 <!-- FILA:duna -->
 ## `duna` — GPT no Termux
 
-**1. 🔴 A-014 — o job de boot que inventa pagamento** · [0067](0067-orla-para-duna-a-012-especificada-e-a-a-014-que-inventa-pagamento.md) · **faça esta primeiro**
+**1. 🟠 A-014 — o modo automático vira modo de verdade** · [0068](0068-orla-para-duna-o-pagamento-automatico-e-funcionalidade-e-o-que-sobra-de-defeito.md) · ⚠️ **a 0067 está superada nesta parte**
 
-`sincronizar-status-global!` marca **toda sessão passada como paga, em todas as
-clínicas, a cada boot**, sem `clinica_id`. Viola R-007, R-008, R-004 e o
-isolamento. A metade do pagamento **sai inteira** — não precisa de decisão. A
-metade do `realizado` fica, com `clinica_id` e só sobre `agendado`.
+🔴 **NÃO remova a marcação de pagamento.** Ela é **funcionalidade pedida pela
+CEO** (R-022) — eu classifiquei errado na 0067 e o Gabriel corrigiu.
+
+O que muda: `clinicas.pagamento_automatico` (desligado por padrão), o job filtra
+por clínica, e a marca automática passa a ser **distinguível da manual**.
 
 **2. 🔴 A-012 — a migration das permissões** · [0067](0067-orla-para-duna-a-012-especificada-e-a-a-014-que-inventa-pagamento.md) · matriz completa lá
 

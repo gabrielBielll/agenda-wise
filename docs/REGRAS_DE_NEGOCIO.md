@@ -96,6 +96,8 @@ sem gastar auditoria.
 
 **R-021** — ✅ confirmada, ver abaixo: **nada apaga sessão que já aconteceu ou que tem dinheiro**, de nenhum dos dois lados.
 
+**R-022** — ✅ confirmada, ver abaixo: **modo de pagamento automático**, pedido da CEO. Sessão passada é considerada paga e a equipe cuida só das exceções. ⚠️ **Por clínica, desligado por padrão, e a marca automática tem que ser distinguível da manual.**
+
 **R-020** — ✅ confirmada, ver abaixo: **o admin sempre tem força**; **editar e excluir bloqueio é só da clínica**; **configurações avançadas é só do admin**.
 
 ⚠️ As duas primeiras nasceram como prosa em 2026-08-15 e só viraram regra
@@ -685,6 +687,59 @@ financeiro em silêncio, e não é recuperável.
 💡 **E o mesmo vale na direção de dentro para fora:** a plataforma também não
 deixa apagar sessão realizada ou paga — é o que a A-006 já corrigiu para o
 caminho do bloqueio. A R-021 fecha o círculo em vez de abrir uma exceção.
+
+---
+
+### R-022 — Modo de pagamento automático (pedido da CEO)
+
+Confirmada em **2026-08-16**, e é **funcionalidade pedida**, não defeito.
+
+Nas palavras do Gabriel: *"é um modo automático. Dessa forma eles só ficam
+atentos nas que não aconteceram. É um modo mais fácil para se tiver muita demanda
+e poucas pessoas ajudando. Essa funcionalidade foi um pedido da CEO. Se der
+falha, é falha humana."*
+
+**O que o modo faz:** sessão que passou é considerada realizada e paga, sem
+ninguém clicar. A operação inverte — em vez de marcar uma a uma o que aconteceu,
+a equipe só cuida das **exceções**: o que não aconteceu.
+
+### Como isto convive com a R-007, que diz que só o admin marca pagamento
+
+Não são contraditórias, e vale escrever por quê, senão o auditor cego vai apontar
+conflito:
+
+> **Ligar o modo É o admin marcando** — de uma vez, adiantado, para o que vier.
+> A autorização acontece no momento de ligar, não em cada sessão.
+
+A R-007 continua valendo integralmente para quem **não** ligou o modo, e continua
+valendo para a marcação manual dentro dele.
+
+### 🔑 O que o modo precisa ter para que "se der falha é falha humana" seja verdade
+
+Esta é a parte que a `orla` acrescenta, e ela **não discute o pedido** — ela faz o
+pedido funcionar. Responsabilizar a pessoa exige que a pessoa **consiga ver e
+consiga corrigir**. Hoje ela não consegue nenhum dos dois:
+
+1. **Por clínica, e desligado por padrão.** É um modo, e modo se escolhe. Clínica
+   que não pediu não deve recebê-lo — e hoje ele vale para todas de uma vez.
+2. **A marca tem que dizer que foi automática.** Hoje `status_pagamento = 'pago'`
+   fica idêntico, tenha sido um clique ou o job. Sem distinguir, ninguém consegue
+   revisar "o que o sistema assumiu" nem desfazer — e a falha deixa de ser
+   corrigível, o que a torna injusta de atribuir a alguém.
+3. **A tela precisa mostrar a diferença.** "Ficar atento no que não aconteceu"
+   só é possível se a lista separar *pago porque alguém disse* de *pago porque o
+   sistema assumiu*.
+4. **Cada passagem deixa registro** — quantas sessões, quando, em qual clínica.
+   É a R-010, e aqui ela não é luxo: é o que permite auditar um mês.
+
+⚠️ **Sem os quatro, o modo não é "mais fácil": é mais rápido e cego.** Com os
+quatro, ele é exatamente o que a CEO pediu — a equipe cuida da exceção, e a
+exceção é visível.
+
+💡 **E uma observação de operação, não de regra:** hoje o job roda **no boot**.
+Isso significa que o fechamento do mês acontece quando alguém faz deploy. Sem
+deploy numa semana, nada é marcado; com três deploys num dia, roda três vezes.
+Recomendação: horário fixo diário. Não muda a regra, muda a previsibilidade.
 
 ---
 
