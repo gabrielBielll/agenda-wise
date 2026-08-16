@@ -39,6 +39,7 @@
 (def clinica-a   #uuid "aaaaaaaa-0000-0000-0000-00000000000a")
 (def clinica-b   #uuid "bbbbbbbb-0000-0000-0000-00000000000b")
 (def psicologo-a #uuid "aaaaaaaa-0000-0000-0000-0000000000c1")
+(def psicologo-a2 #uuid "aaaaaaaa-0000-0000-0000-0000000000c3")
 (def psicologo-b #uuid "bbbbbbbb-0000-0000-0000-0000000000c2")
 (def paciente-a  #uuid "aaaaaaaa-0000-0000-0000-0000000000d1")
 (def paciente-b  #uuid "bbbbbbbb-0000-0000-0000-0000000000d2")
@@ -54,7 +55,12 @@
                         psi cli papel (str "Psi " nome) (str "psi-" (str/lower-case nome) "@teste.local")])
       (db/execute-one! ["INSERT INTO pacientes (id, clinica_id, nome, psicologo_id)
                          VALUES (?, ?, ?, ?) ON CONFLICT (id) DO NOTHING"
-                        pac cli (str "Paciente " nome) psi]))))
+                        pac cli (str "Paciente " nome) psi])))
+  (let [papel (:id (db/execute-one! ["SELECT id FROM papeis WHERE nome_papel = 'admin_clinica'"]))]
+    (db/execute-one! ["INSERT INTO usuarios (id, clinica_id, papel_id, nome, email, senha_hash)
+                       VALUES (?, ?, ?, 'Psi A2', 'psi-a2@teste.local', 'x')
+                       ON CONFLICT (id) DO NOTHING"
+                      psicologo-a2 clinica-a papel])))
 
 (defn- nome-do-banco-na-url
   "Nome do banco na JDBC URL. nil quando não dá para determinar."
@@ -457,6 +463,48 @@
 
 (deftest atualizar-agendamento-inexistente-da-404
   (is (= 404 (:status (atualizar (java.util.UUID/randomUUID) {:status "cancelado"})))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; R-006 — conflito ao mudar ocupação da agenda (A-007)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(deftest atualizar-duracao-recusa-invasao-sem-mandar-data
+  (let [primeira (:body (criar (assoc sessao-base :data_hora_sessao "2027-06-10T14:00:00"
+                                                   :duracao 50)))]
+    (criar (assoc sessao-base :data_hora_sessao "2027-06-10T15:00:00" :duracao 50))
+    (let [resp (atualizar (:id primeira) {:duracao 90})]
+      (is (= 409 (:status resp)))
+      (is (= 50 (:duracao (db/execute-one! ["SELECT duracao FROM agendamentos WHERE id = ?"
+                                            (:id primeira)])))))))
+
+(deftest atualizar-psicologo-recusa-agenda-ocupada-sem-mandar-data
+  (let [a-mover (:body (criar (assoc sessao-base :data_hora_sessao "2027-06-11T14:00:00"
+                                                  :duracao 50)))
+        ocupada (assoc sessao-base :data_hora_sessao "2027-06-11T14:00:00"
+                                    :psicologo_id (str psicologo-a2) :duracao 50)]
+    (criar ocupada)
+    (let [resp (atualizar (:id a-mover) {:psicologo_id (str psicologo-a2)})]
+      (is (= 409 (:status resp)))
+      (is (= psicologo-a
+             (:psicologo_id (db/execute-one! ["SELECT psicologo_id FROM agendamentos WHERE id = ?"
+                                              (:id a-mover)])))))))
+
+(deftest atualizar-dinheiro-de-sessao-forcada-continua-permitido
+  (criar-como "admin_clinica"
+              (assoc sessao-base :data_hora_sessao "2027-06-12T14:00:00" :duracao 50))
+  (let [forcada (:body (criar-como "admin_clinica"
+                                   (assoc sessao-base :data_hora_sessao "2027-06-12T14:30:00"
+                                                       :duracao 50 :force true)))
+        resp (atualizar (:id forcada) {:status_pagamento "pago"})]
+    (is (= 200 (:status resp)))
+    (is (= "pago" (:status_pagamento (:body resp))))))
+
+(deftest atualizar-duracao-menor-sem-sobreposicao-continua-permitido
+  (let [sessao (:body (criar (assoc sessao-base :data_hora_sessao "2027-06-13T14:00:00"
+                                                 :duracao 50)))
+        resp (atualizar (:id sessao) {:duracao 30})]
+    (is (= 200 (:status resp)))
+    (is (= 30 (:duracao (:body resp))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Remoção — os três modos

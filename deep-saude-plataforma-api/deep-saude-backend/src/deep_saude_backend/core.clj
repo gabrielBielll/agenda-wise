@@ -858,8 +858,13 @@
                                                   AND data_fim > ?::timestamp"
                                                  clinica-id novo-psicologo-uuid novo-fim novo-data])
 
-              ;; Verificar se há agendamento conflitante (igual criação)
-              agendamento-conflitante (when (some? data_hora_sessao) ;; Só checa se estiver mudando horário/data
+              ;; A checagem guarda quem ocupa qual intervalo: dispara quando o
+              ;; intervalo ou o dono mudam, não quando muda o dinheiro/status.
+              ;; Checar sempre travaria até o pagamento de sessões que um admin
+              ;; sobrepôs legitimamente com `force` na criação.
+              agendamento-conflitante (when (or (some? data_hora_sessao)
+                                                (some? duracao)
+                                                (some? psicologo_id))
                                        (execute-one! ["SELECT id FROM agendamentos 
                                                        WHERE clinica_id = ? 
                                                        AND psicologo_id = ?
@@ -1113,6 +1118,16 @@
         (let [fuso (fuso-da-clinica clinica-id)
               intervalos (gerar-intervalos-bloqueio data_inicio data_fim recorrencia_tipo
                                                    quantidade_recorrencia fuso)
+              ;; Limite conhecido: esta guarda é sequencial. O SELECT e os
+              ;; INSERTs abaixo não se protegem de uma sessão concorrente; um
+              ;; SELECT comum em READ COMMITTED dentro da transação também não
+              ;; fecharia essa corrida. A correção real exige trava ou
+              ;; restrição no banco.
+              ;;
+              ;; Custo conhecido: há uma consulta por intervalo, inclusive no
+              ;; caminho sem conflito. Uma recorrência no limite da R-005 pode
+              ;; chegar a 120 consultas; agrupar intervalos numa única query é
+              ;; otimização futura, não mudança silenciosa desta guarda.
               conflitos (reduce (fn [acc {:keys [start end]}]
                                   (into acc
                                         (execute-query!
