@@ -271,6 +271,57 @@ manual (`disponivel: true/false`) que sobrepõe o que veio do Google. A ideia de
 plataforma ter a última palavra já está lá; aqui ela deixa de ser exceção e vira
 a regra.
 
+### A convenção completa, como o Gabriel a passou às psicólogas (2026-08-15)
+
+| # | Estado | Cor | `colorId` | Título |
+|---|---|---|---|---|
+| 1 | **Sessão agendada** — ainda não confirmada | 🟠 Tangerina | 6 | nome do paciente |
+| 2 | **Sessão confirmada** — ou já ocorrida | 🟢 Sálvia | 2 | nome do paciente |
+| 3 | **Cancelada ou pausa** | 🔴 Tomate | 11 | `[CANCELADO] Nome` / `[PAUSA] Nome` |
+| 4 | **Horário disponível** | 🔵 Pavão ou azul padrão | 7 / 9 / ausente | `[DISPONÍVEL]` |
+| 5 | **Indisponível / bloqueio pessoal** | ⚫ Grafite | 8 | o motivo (ex.: `Almoço`) |
+
+⚠️ Os `colorId` das linhas 4 estão **confirmados no código** do `lista-psis`
+(7 e 9). Os das linhas 1, 2, 3 e 5 vêm do mapa de cores do Google e **precisam
+ser conferidos contra a API** antes de virar código — errar um id aqui é
+silencioso e troca um estado por outro.
+
+### 🔴 Quatro buracos nessa convenção, e todos aparecem na sincronização
+
+**1. `falta` não tem cor.** A R-003 confirma que falta é estado ao lado de
+cancelado, com regra financeira própria. Mas a convenção não tem cor para "o
+paciente não apareceu" — na prática a psicóloga usaria Tomate, que é
+cancelamento. Isso **funde dois estados que têm regras de dinheiro diferentes**,
+e é justamente a distinção que o modal da R-001 existe para capturar.
+
+**2. `[PAUSA]` é estado do PACIENTE, não da sessão.** O vocabulário do sistema é
+`agendado / realizado / cancelado / falta`, e não tem pausa. Uma pausa é o
+paciente inativo por um tempo — provavelmente cancela as sessões futuras **e**
+marca algo no cadastro do paciente. Como isso entra no modelo é decisão
+pendente.
+
+**3. Agendada e confirmada só se distinguem pela COR.** As duas têm o mesmo
+título — o nome do paciente. Isso quebra a propriedade que torna a convenção do
+`[DISPONÍVEL]` robusta: lá, título e cor são dois canais que precisam concordar,
+então mudar a cor por engano não faz nada. Aqui, **trocar Tangerina por Sálvia
+sem querer promove a sessão de agendada para confirmada** — e confirmada/ocorrida
+é o que dispara a cadeia financeira da R-008. Cor sozinha decidindo dinheiro é o
+ponto único de falha desta convenção.
+
+**4. Grafite pode cair em cima de sessão marcada, e o Google não recusa.** A
+R-014 diz que bloqueio não pode sobrepor sessão — e a plataforma consegue impor
+isso na tela dela. **No Google, não.** A psicóloga cria um evento cinza em cima
+de uma sessão e o Google aceita, porque ele não conhece a regra. A sincronização
+vai encontrar exatamente o caso que a R-014 proíbe, e precisa de uma resposta
+que não seja "recusar" — porque o fato já aconteceu do outro lado.
+
+### O que a convenção **não** carrega, e é bom que não carregue
+
+Nenhuma cor significa "paga". Isso confirma o desenho da R-003: a cor conta que a
+sessão **aconteceu ou não**, e o dinheiro é perguntado depois, pela notificação
+assíncrona. Os dois canais não competem — um informa o fato, o outro pergunta a
+consequência.
+
 ---
 
 ### R-006 — Só a clínica força conflito
