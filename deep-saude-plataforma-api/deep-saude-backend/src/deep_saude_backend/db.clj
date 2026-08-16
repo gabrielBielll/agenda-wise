@@ -3,7 +3,30 @@
 
    Extraído de core.clj para quebrar a dependência circular que apareceria com
    os handlers do Google: eles precisam do banco, e core.clj precisa deles para
-   montar as rotas. Aqui não há regra de negócio nenhuma."
+   montar as rotas. Aqui não há regra de negócio nenhuma.
+
+   ## ⚠️ Dois formatos de URL, parecidos e incompatíveis
+
+   O projeto tem duas variáveis de banco, com nomes irmãos e exigências
+   **opostas**. Trocá-las custa um boot e um bom tempo de investigação, porque a
+   mensagem de erro não menciona a URL:
+
+   | Variável | Formato | Quem lê |
+   |---|---|---|
+   | `DATABASE_URL` | `postgresql://usuario:senha@host:porta/banco` | este namespace, via `java.net.URI` |
+   | `TEST_DATABASE_URL` | `jdbc:postgresql://host:porta/banco?user=...` | a suíte, via `jdbc/get-datasource` |
+
+   Com o prefixo `jdbc:` numa `DATABASE_URL`, o `URI` lê o esquema como `jdbc`,
+   `getHost` devolve **nil** e nada funciona.
+
+   E informe a **porta explicitamente**: sem ela `.getPort` devolve -1, e o
+   driver responde `JDBC URL port: -1 not valid` seguido de `No suitable
+   driver` — ver o comentário no `db-spec`. Exemplo que sobe:
+
+       DATABASE_URL='postgresql://usuario@127.0.0.1:55432/banco?sslmode=disable'
+
+   Custou um boot à `vale` em 2026-08-15; documentado aqui porque é onde quem
+   está depurando conexão vai olhar."
   (:require [clojure.string :as str]
             [environ.core :refer [env]]
             [next.jdbc :as jdbc]

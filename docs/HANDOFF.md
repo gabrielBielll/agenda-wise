@@ -50,9 +50,9 @@ Branch: **`claude/google-calendar-integration-arch-7tvhae`** (PR **#7**, aberto,
 | Arquivo | O que é |
 |---|---|
 | [`mensageria/INDEX.md`](../mensageria/INDEX.md) | threads abertas e pendências nomeadas — **o painel** |
-| [`mensageria/DECISOES.md`](../mensageria/DECISOES.md) | D-001 a D-008, com o porquê e a contrapartida |
-| [`docs/REVISAO_PRE_PRODUCAO.md`](REVISAO_PRE_PRODUCAO.md) | a varredura: 3 violações + 7 achados + plano em 5 fases |
-| [`docs/REGRAS_DE_NEGOCIO.md`](REGRAS_DE_NEGOCIO.md) | **o oráculo** — 4 regras confirmadas, 12 perguntas abertas |
+| [`mensageria/DECISOES.md`](../mensageria/DECISOES.md) | D-001 a D-010, com o porquê e a contrapartida |
+| [`docs/REVISAO_PRE_PRODUCAO.md`](REVISAO_PRE_PRODUCAO.md) | a varredura: A-001 a A-006 + 7 achados + plano em 5 fases |
+| [`docs/REGRAS_DE_NEGOCIO.md`](REGRAS_DE_NEGOCIO.md) | **o oráculo** — ✅ **as 16 regras confirmadas**; 6 perguntas de segunda ordem |
 | [`docs/PROTOCOLO_AUDITORIA.md`](PROTOCOLO_AUDITORIA.md) | como o auditor cego trabalha |
 | [`mensageria/FILA_PICO.md`](../mensageria/FILA_PICO.md) | fila semanal, 1 item |
 
@@ -104,16 +104,22 @@ enquanto o backend já é multi-fuso. As duas estão no INDEX.
    schema novo e torce 3h. Ver D-001.
 3. **D-003 × D-004.** O Render aponta para `main`, então `main` é produção e a
    branch `prod` é decorativa. O fluxo documentado é circular.
-4. **Confirmar a D-010 por escrito.** A decisão "a sessão é no horário da
-   clínica, todo mundo vê o mesmo" chegou por relato da `vale`, não pelo canal —
-   e ela contradiz o que um teste do repositório afirmava até então.
+4. ✅ ~~Confirmar a D-010~~ — confirmada em 2026-08-15. Ele foi consultado duas
+   vezes e escolheu o horário da clínica nas duas, a segunda já sabendo que a
+   escolha derrubava a asserção de Tóquio do teste.
 5. **Registro de acesso pela flag de super-admin** (R-012) — recomendei, não foi
    decidido. Com o painel de plataforma no ar, vale mais do que antes.
 6. **`novo-duracao`** tem o defeito que `novo-valor` tinha; já não alcança o
    passado, só as futuras da série.
-7. **12 perguntas do oráculo em aberto.** As quatro seguintes já formuladas:
-   cancelamento com sessão paga (R-001), falta cobra? (R-003), quem força
-   conflito (R-006), comissão por psicólogo ou por clínica (R-009).
+7. ✅ ~~12 perguntas do oráculo~~ — **todas respondidas em 2026-08-15.** As doze
+   estão escritas como regras confirmadas. Elas expuseram A-004, A-005 e A-006, e
+   abriram seis perguntas novas de segunda ordem, listadas no oráculo.
+   ⚠️ **O oráculo está completo pela primeira vez** — a auditoria adversarial
+   (D-008), que estava bloqueada por isso, agora pode rodar.
+8. 🆕 **Seis perguntas de segunda ordem**, abertas pelas próprias respostas dele.
+   A que mais trava: a R-014 tem duas regras contraditórias dentro — "bloqueio
+   não pode cair em cima de sessão marcada" e "avisa e a pessoa decide se
+   cancela". Isso decide como a A-006 é corrigida. Todas listadas no oráculo.
 
 ## Quem está com o quê
 
