@@ -30,7 +30,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { createBloqueioAdmin, checkBlockConflictsAdmin, deleteBloqueioAdmin, deleteAgendamento } from "./actions";
+import { createBloqueioAdmin, deleteBloqueioAdmin, deleteAgendamento } from "./actions";
+import { descreveSessaoEmConflito, type SessaoEmConflito } from "@/lib/conflitos";
 import { Check, ChevronsUpDown, Lock, Trash2 } from "lucide-react";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -102,7 +103,8 @@ export default function AgendamentosClient({
   const [openPsicologoBlock, setOpenPsicologoBlock] = useState(false);
 
   // Conflict State
-  const [conflictData, setConflictData] = useState<{ count: number, start: string, end: string, motivo: string, diaInteiro: boolean, psicologoId: string } | null>(null);
+  // R-014: a recusa mostra QUAIS sessões impedem o bloqueio, não só quantas.
+  const [sessoesEmConflito, setSessoesEmConflito] = useState<SessaoEmConflito[] | null>(null);
   const [isConflictDialogOpen, setIsConflictDialogOpen] = useState(false);
 
   // Delete Block Dialog State
@@ -122,25 +124,10 @@ export default function AgendamentosClient({
         return;
     }
 
-    // Check conflicts
-    const conflictResult = await checkBlockConflictsAdmin(blockStart, blockEnd, blockPsicologoId, blockRecurrenceType, blockRecurrenceCount);
-
-    if (conflictResult.total > 0) {
-        setConflictData({ 
-            count: conflictResult.total, 
-            start: blockStart, 
-            end: blockEnd, 
-            motivo: blockMotivo, 
-            diaInteiro: false, 
-            psicologoId: blockPsicologoId 
-        });
-        setIsBlockDialogOpen(false);
-        setIsConflictDialogOpen(true);
-        return;
-    }
-
+    // Sem pré-checagem: o backend recusa e devolve as sessões atingidas na
+    // própria recusa (R-014). Ver o mesmo raciocínio no CalendarClient.
     const result = await createBloqueioAdmin(blockStart, blockEnd, blockPsicologoId, blockMotivo, false, blockRecurrenceType, blockRecurrenceCount);
-    
+
     if (result.success) {
         toast({ title: "Sucesso", description: result.message, className: "bg-green-500 text-white" });
         setIsBlockDialogOpen(false);
@@ -148,33 +135,22 @@ export default function AgendamentosClient({
         setBlockStart("");
         setBlockEnd("");
         setBlockMotivo("");
-    } else {
-        toast({ title: "Erro", description: result.message, variant: "destructive" });
+        return;
     }
+
+    if (result.sessoes) {
+        setSessoesEmConflito(result.sessoes);
+        setIsBlockDialogOpen(false);
+        setIsConflictDialogOpen(true);
+        return;
+    }
+
+    toast({ title: "Erro", description: result.message, variant: "destructive" });
   };
 
-  const confirmBlockCreation = async (cancelConflicts: boolean) => {
-    if (!conflictData) return;
-
-    const result = await createBloqueioAdmin(
-      conflictData.start, 
-      conflictData.end, 
-      conflictData.psicologoId,
-      conflictData.motivo, 
-      conflictData.diaInteiro, 
-      blockRecurrenceType, 
-      blockRecurrenceCount,
-      cancelConflicts
-    );
-
-    if (result && result.success) {
-      toast({ title: "Sucesso", description: result.message, className: "bg-green-500 text-white" });
-      setIsConflictDialogOpen(false);
-      setConflictData(null);
-    } else {
-      toast({ title: "Erro", description: result?.message || "Erro ao criar bloqueio.", variant: "destructive" });
-    }
-  };
+  // `confirmBlockCreation` removida em 2026-08-16 — R-014. As duas saídas que
+  // ela oferecia deixaram de existir: cancelar agendamentos em massa saiu do
+  // fluxo de criar bloqueio, e criar por cima da sessão o backend recusa.
 
   const handleDeleteBloqueio = (id: string, recorrencia_id?: string) => {
       setDeleteData({ id, recorrencia_id });
@@ -450,17 +426,29 @@ export default function AgendamentosClient({
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle className="text-destructive flex items-center gap-2">
-                            <AlertTriangle className="h-5 w-5" /> Conflito de Horários
+                            <AlertTriangle className="h-5 w-5" /> Não dá para bloquear esse período
                         </DialogTitle>
                         <DialogDescription>
-                            Existem {conflictData?.count} agendamento(s) no intervalo deste bloqueio.
-                            Deseja cancelar esses agendamentos automaticamente?
+                            Há {sessoesEmConflito?.length === 1 ? 'uma sessão marcada' : `${sessoesEmConflito?.length ?? 0} sessões marcadas`} dentro dele.
+                            Remarque ou cancele {sessoesEmConflito?.length === 1 ? 'a sessão' : 'as sessões'} antes de bloquear.
                         </DialogDescription>
                     </DialogHeader>
-                    <DialogFooter className="gap-2 sm:gap-0">
-                        <Button variant="outline" onClick={() => setIsConflictDialogOpen(false)}>Cancelar Operação</Button>
-                        <Button variant="destructive" onClick={() => confirmBlockCreation(true)}>Sim, Cancelar Agendamentos e Bloquear</Button>
-                        <Button variant="secondary" onClick={() => confirmBlockCreation(false)}>Criar Bloqueio Mesmo Assim (Manter Agendamentos)</Button>
+
+                    {/* R-014: dia e hora de cada sessão atingida, para dar o que resolver. */}
+                    <ul className="max-h-56 overflow-y-auto rounded-md border bg-muted/30 p-3 text-sm">
+                        {(sessoesEmConflito ?? []).map((sessao) => (
+                            <li key={sessao.id} className="py-0.5 font-medium tabular-nums">
+                                {descreveSessaoEmConflito(sessao)}
+                            </li>
+                        ))}
+                    </ul>
+
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => {
+                            setIsConflictDialogOpen(false);
+                            setSessoesEmConflito(null);
+                            setIsBlockDialogOpen(true);
+                        }}>Voltar e ajustar</Button>
                     </DialogFooter>
                 </DialogContent>
              </Dialog>

@@ -3,6 +3,7 @@
 import { signOut } from "next-auth/react";
 
 import { Button } from "@/components/ui/button";
+import { descreveSessaoEmConflito, type SessaoEmConflito } from "@/lib/conflitos";
 import { paraInputLocal, maisMinutos, paredeDaClinica, agoraNaClinica,
          paredeParaInput, paredeSomada, paredeMaisMinutos, instanteDeParede } from "@/lib/datetime";
 import { Calendar } from "@/components/ui/calendar";
@@ -36,7 +37,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useFormStatus } from "react-dom";
 import { useActionState } from "react";
-import { createAgendamento, updateAgendamento, deleteAgendamento, cancelAgendamento, reactivateAgendamento, createBloqueio, deleteBloqueio, checkBlockConflicts, FormState, type Bloqueio } from "./actions";
+import { createAgendamento, updateAgendamento, deleteAgendamento, cancelAgendamento, reactivateAgendamento, createBloqueio, deleteBloqueio, FormState, type Bloqueio } from "./actions";
 import { useToast } from "@/hooks/use-toast";
 import { useLoading } from "@/components/LoadingOverlay";
 import { CalendarHeader } from "./CalendarHeader";
@@ -107,7 +108,10 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
   const [isBlockDialogOpen, setIsBlockDialogOpen] = useState(false);
   const [isConfirmDeleteBlockOpen, setIsConfirmDeleteBlockOpen] = useState(false);
   const [isConflictDialogOpen, setIsConflictDialogOpen] = useState(false);
-  const [conflictData, setConflictData] = useState<{ count: number, start: string, end: string, motivo: string, diaInteiro: boolean } | null>(null);
+  // R-014: a recusa mostra QUAIS sessões impedem o bloqueio, não só quantas.
+  const [sessoesEmConflito, setSessoesEmConflito] = useState<SessaoEmConflito[] | null>(null);
+  // R-006: psicólogo tentou forçar e o backend recusou (403).
+  const [isForcaNegadaOpen, setIsForcaNegadaOpen] = useState(false);
   const [blockToDelete, setBlockToDelete] = useState<{ id: string, recorrencia_id?: string } | null>(null);
   const [isConfirmDeleteApptOpen, setIsConfirmDeleteApptOpen] = useState(false);
   const [apptToDelete, setApptToDelete] = useState<{ id: string, recorrencia_id?: string } | null>(null);
@@ -229,6 +233,13 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
         }, 300);
       } else if (state.conflict) {
         setIsConflictOpen(true);
+      } else if (state.forcaNegada) {
+        // R-006: forçar sobre conflito é do admin da clínica. A recusa pede uma
+        // AÇÃO de quem recebeu — falar com a gestão — então é modal, não toast:
+        // toast some sozinho e leva a instrução junto.
+        setIsConflictOpen(false);
+        setForceSubmission(false);
+        setIsForcaNegadaOpen(true);
       } else {
         // Check for session expiration
         if (state.message.toLowerCase().includes("token") || 
@@ -299,53 +310,34 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
     const motivo = formData.get('motivo') as string;
     const diaInteiro = formData.get('dia_inteiro') === 'on';
 
-    showLoading("Verificando conflitos...");
-    const conflictResult = await checkBlockConflicts(dataInicio, dataFim, blockRecurrenceType, blockRecurrenceCount);
+    // Sem pré-checagem: o backend recusa e devolve as sessões atingidas na
+    // própria recusa (R-014). Perguntar antes seria uma ida a mais que responde
+    // o que a criação já responde — e que pode discordar dela entre as duas.
+    showLoading("Criando bloqueio...");
+    const result = await createBloqueio(dataInicio, dataFim, motivo, diaInteiro, blockRecurrenceType, blockRecurrenceCount);
+    hideLoading();
 
-    if (conflictResult.total > 0) {
-      hideLoading();
-      setConflictData({ count: conflictResult.total, start: dataInicio, end: dataFim, motivo, diaInteiro });
+    if (result?.success) {
+      toast({ title: "Sucesso", description: result.message, className: "bg-green-500 text-white" });
+      setIsBlockDialogOpen(false);
+      setNewAppointmentDate(null);
+      return;
+    }
+
+    if (result?.sessoes) {
+      setSessoesEmConflito(result.sessoes);
       setIsBlockDialogOpen(false);
       setIsConflictDialogOpen(true);
       return;
     }
 
-    showLoading("Criando bloqueio...");
-    const result = await createBloqueio(dataInicio, dataFim, motivo, diaInteiro, blockRecurrenceType, blockRecurrenceCount);
-    hideLoading();
-    if (result && result.success) {
-      toast({ title: "Sucesso", description: result.message, className: "bg-green-500 text-white" });
-      setIsBlockDialogOpen(false);
-      setNewAppointmentDate(null);
-    } else {
-      toast({ title: "Erro", description: result?.message || "Erro desconhecido ao criar bloqueio.", variant: "destructive" });
-    }
+    toast({ title: "Erro", description: result?.message || "Erro desconhecido ao criar bloqueio.", variant: "destructive" });
   };
 
-  const confirmBlockCreation = async (cancelConflicts: boolean) => {
-    if (!conflictData) return;
-
-    showLoading("Criando bloqueio...");
-    const result = await createBloqueio(
-      conflictData.start,
-      conflictData.end,
-      conflictData.motivo,
-      conflictData.diaInteiro,
-      blockRecurrenceType,
-      blockRecurrenceCount,
-      cancelConflicts
-    );
-    hideLoading();
-
-    if (result && result.success) {
-      toast({ title: "Sucesso", description: result.message, className: "bg-green-500 text-white" });
-      setIsConflictDialogOpen(false);
-      setConflictData(null);
-      setNewAppointmentDate(null);
-    } else {
-      toast({ title: "Erro", description: result?.message || "Erro ao criar bloqueio com resolução de conflitos.", variant: "destructive" });
-    }
-  };
+  // `confirmBlockCreation` foi removida em 2026-08-16. Ela oferecia duas saídas
+  // e a R-014 fechou as duas: "Cancelar Agendamentos" era cancelamento em massa
+  // escondido dentro de criar bloqueio, e "Manter Agendamentos" mandava criar o
+  // bloqueio por cima da sessão — que o backend agora recusa de qualquer forma.
 
   const handleDeleteBlock = async (id: string, mode?: 'single' | 'all_future') => {
     showLoading("Excluindo bloqueio...");
@@ -990,33 +982,56 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
           </DialogContent>
         </Dialog>
 
+        {/* R-006 — o psicólogo não força agendamento sobre conflito */}
+        <AlertDialog open={isForcaNegadaOpen} onOpenChange={setIsForcaNegadaOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Esse horário já tem sessão marcada</AlertDialogTitle>
+              <AlertDialogDescription>
+                Só a administração da clínica pode marcar duas sessões no mesmo
+                horário. <b>Entre em contato com a gestão da clínica</b> para
+                resolver — informando o dia e a hora que você estava tentando
+                agendar.
+                <br /><br />
+                Nada foi agendado.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setIsForcaNegadaOpen(false)}>
+                Entendi
+              </AlertDialogCancel>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
         {/* Conflict Resolution Dialog */}
         <AlertDialog open={isConflictDialogOpen} onOpenChange={setIsConflictDialogOpen}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>⚠️ Conflito de Agendamento</AlertDialogTitle>
+              <AlertDialogTitle>Não dá para bloquear esse período</AlertDialogTitle>
               <AlertDialogDescription>
-                Existem <b>{conflictData?.count}</b> agendamento(s) no período que você está tentando bloquear.
-                <br /><br />
-                O que deseja fazer com os agendamentos existentes?
+                Há {sessoesEmConflito?.length === 1 ? 'uma sessão marcada' : `${sessoesEmConflito?.length ?? 0} sessões marcadas`} dentro dele.
+                Remarque ou cancele {sessoesEmConflito?.length === 1 ? 'a sessão' : 'as sessões'} antes de bloquear.
               </AlertDialogDescription>
             </AlertDialogHeader>
-            <AlertDialogFooter className="flex-col sm:justify-end gap-2 sm:flex-row">
+
+            {/* R-014: mostrar dia e hora de cada sessão atingida, para dar o que resolver. */}
+            <ul className="max-h-56 overflow-y-auto rounded-md border bg-muted/30 p-3 text-sm">
+              {(sessoesEmConflito ?? []).map((sessao) => (
+                <li key={sessao.id} className="py-0.5 font-medium tabular-nums">
+                  {descreveSessaoEmConflito(sessao)}
+                </li>
+              ))}
+            </ul>
+
+            <AlertDialogFooter>
               <AlertDialogCancel onClick={() => {
                 setIsConflictDialogOpen(false);
-                setConflictData(null);
-                setIsBlockDialogOpen(true); // Re-open block dialog to adjust if needed
+                setSessoesEmConflito(null);
+                setIsBlockDialogOpen(true); // volta para ajustar o período
               }}>
-                Cancelar Operação
+                Voltar e ajustar
               </AlertDialogCancel>
-              
-              <Button variant="outline" onClick={() => confirmBlockCreation(false)}>
-                Manter Agendamentos
-              </Button>
-              
-              <Button variant="destructive" onClick={() => confirmBlockCreation(true)}>
-                Cancelar Agendamentos
-              </Button>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
