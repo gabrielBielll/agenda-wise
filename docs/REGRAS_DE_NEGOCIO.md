@@ -179,6 +179,11 @@ O que acontece com o **repasse** de sessão cancelada é configurado **no painel
 clínica**: a clínica decide se repassa ao psicólogo ou não. Não é regra fixa do
 sistema — é parâmetro por clínica.
 
+✅ **E vale igual para todos os psicólogos da clínica**, confirmado em
+2026-08-15, independentemente da forma de remuneração de cada um (R-009). A
+decisão "repassa ou não em sessão cancelada" é da clínica, não do contrato
+individual.
+
 ⚠️ **Não existe hoje.** Cancelar zera o `valor_consulta` e não pergunta nada.
 
 ---
@@ -216,6 +221,17 @@ vez de assumir.
 
 Isso liga a R-003 diretamente às Fases seguintes da integração com o Google.
 
+✅ **Sobre a paleta acabar (2026-08-15):** não é preocupação. Se as cores não
+bastarem, o sistema ganha **estados próprios que não dependem de cor**. A cor é
+conveniência de visualização — e há outros serviços que já consomem esse mesmo
+padrão de cores, o que é parte do motivo de adotá-lo.
+
+**Leitura que a `orla` tira disso, e que precisa ser confirmada quando a
+sincronização for desenhada:** o modelo de estados é da **plataforma**; a cor é
+um **canal de entrada**, não a fonte da verdade. Isso responde metade da pergunta
+"quem ganha quando os dois discordam" — falta a outra metade, que é o que fazer
+quando a plataforma já mudou o estado e a cor vem contradizendo.
+
 ---
 
 ### R-006 — Só a clínica força conflito
@@ -246,11 +262,9 @@ psicólogos** — cada um vê o que recebe, não a régua dos outros.
 🔴 O código de hoje não tem nada disso: a taxa é `useState(50)` no navegador. Ver
 A-004 na [revisão](REVISAO_PRE_PRODUCAO.md).
 
-❓ **Uma pergunta que sobrou:** o Gabriel disse "painel do escritório". Como a
-remuneração é assunto de cada clínica com os psicólogos dela, o lugar natural é o
-**painel da clínica** (admin), não o painel do operador da plataforma. Confirmar
-antes de implementar — os dois painéis existem agora e a escolha muda quem
-enxerga.
+✅ **Confirmado em 2026-08-15: "painel do escritório" é o painel da CLÍNICA.**
+Palavra do Gabriel: *"se eu falar de escritório é clínica"*. Vale para todo o
+oráculo — onde ele disser escritório, leia clínica.
 
 ---
 
@@ -265,8 +279,27 @@ coisas:
 3. **responder reclamação** — mostrar a ação que a pessoa fez, com autoria.
 
 ⚠️ **Isto não é funcionalidade de uma tela; é uma camada.** E ela responde, de
-uma vez, três coisas que estavam abertas em lugares diferentes: o registro de
-acesso pela flag da R-012, a reversão da R-010, e a autoria exigida pela R-014.
+uma vez, **quatro** coisas que estavam abertas em lugares diferentes: o registro
+de acesso pela flag da R-012, a reversão da R-010, a autoria exigida pela R-014 e
+o registro das liberações da R-011.
+
+🔴 **Confirmado em 2026-08-15: entra no LANÇAMENTO**, não depois. Razão do
+Gabriel, e ela é boa: é justamente quando a plataforma começa que há mais chance
+de erro, e é aí que poder ver o que foi feito — e desfazer — vale mais.
+
+⚠️ **Registrar e desfazer têm custos muito diferentes**, e vale separar antes de
+prometer as duas coisas no mesmo prazo:
+
+- **Registrar** quem fez o quê e quando é barato e uniforme: uma tabela
+  append-only e um ponto de escrita nos handlers que mudam estado.
+- **Desfazer qualquer ação** é outra ordem de grandeza — exige guardar o estado
+  anterior de cada mudança, ou transformar toda escrita em evento.
+
+**Recomendação da `orla`:** registrar **tudo** no lançamento, e oferecer
+**desfazer só para a lista curta de ações destrutivas** — cancelamento em massa,
+transferência de repasse em lote, desligamento de psicólogo, e liberação de
+acesso da R-011. São as que doem, e são poucas o bastante para guardar o estado
+anterior sem reescrever o sistema.
 
 ---
 
@@ -278,16 +311,35 @@ substituição fazem isso acontecer de verdade.
 A regra de visibilidade continua a mesma: **a clínica vê tudo; cada psicólogo vê
 só o que lhe compete.** O que muda é que o **admin da clínica pode liberar**, caso
 a caso, que um psicólogo veja os dados de um paciente de outro — **desde que o
-paciente seja atendido pelos dois** — e o admin decide **o que** o outro
-psicólogo pode ver.
+paciente seja atendido pelos dois**.
+
+**A liberação é por caixas de seleção**, confirmado em 2026-08-15: o admin marca
+item a item o que está liberando. Pode ser **parcial** ou **geral**, e
+**prontuário é uma das caixas**.
 
 O consentimento do outro psicólogo é combinado fora do sistema.
 
-❓ **Pergunta que precisa de resposta antes de implementar:** essa liberação
-alcança o **prontuário**? A R-012 diz que prontuário é do psicólogo autor, e essa
-guarda está implementada e testada. "Ver os dados do paciente" pode significar
-cadastro e agenda **sem** prontuário — que é o que eu suporia — ou incluir o
-prontuário. As duas leituras levam a códigos diferentes.
+⚠️ **Isto cria uma segunda porta para o prontuário, e a R-012 precisa ser lida
+junto.** A R-012 diz "só o autor, com saída de emergência por flag em código", e o
+argumento dela era literalmente *"flag que se liga pela interface vira flag
+ligada"*. A liberação da R-011 **é** interface.
+
+O que as reconcilia é o escopo, e ele é muito mais estreito: a liberação da R-011
+é **de um paciente específico**, para **um psicólogo que também atende esse
+paciente**, decidida pelo **admin da clínica**. Não é uma chave-mestra; é uma
+autorização nominal, que é como sigilo profissional costuma ser tratado fora do
+software.
+
+🔴 **Duas condições que a `orla` considera não-negociáveis para isso ser
+defensável**, e que precisam de confirmação:
+
+1. **Toda liberação entra no histórico da R-010** — quem liberou, para quem, de
+   qual paciente, o que exatamente, e quando. Sem isso, é indistinguível de
+   acesso irrestrito quando um conselho profissional perguntar.
+2. **A liberação tem que ser revogável, e alguém tem que revogar.** Férias
+   acabam. Se a liberação não expira nem é revisada, elas se acumulam em
+   silêncio e em dois anos todo mundo enxerga todo mundo — sem que ninguém tenha
+   decidido isso.
 
 ---
 
@@ -308,12 +360,18 @@ canceladas.
 
 **Quem cria:** psicólogo **e** clínica.
 
-**Bloqueio não pode cair em cima de sessão já marcada.** Quando houver
-sobreposição, o sistema **avisa** — dizendo o dia e a hora de cada sessão
-atingida — e a pessoa decide se cancela.
+**Bloqueio não pode cair em cima de sessão já marcada — proibição, não aviso.**
+Confirmado em 2026-08-15: criar bloqueio **nunca** cancela sessão. Quando houver
+sobreposição, o sistema recusa e mostra o dia e a hora de cada sessão atingida,
+para a pessoa resolver antes.
 
-Se for **cancelamento em massa**, o aviso é alarmante e exige **duas
-confirmações**, porque a ação é perigosa e arriscada.
+**Cancelar as sessões é ação separada, e mora fundo.** Cancelamento em massa fica
+com a **administração da clínica**, numa área de **configurações avançadas** —
+não no fluxo de criar bloqueio. O raciocínio é do Gabriel e é bom: usuário comum
+não navega até um nível profundo de configuração por acidente, então a
+profundidade é parte da proteção.
+
+Lá, a ação exige o aviso alarmante e **duas confirmações**.
 
 **Toda ação dessas entra no histórico**, com o identificador de quem fez —
 psicóloga ou operador —, para poder ser verificada depois se houver reclamação.

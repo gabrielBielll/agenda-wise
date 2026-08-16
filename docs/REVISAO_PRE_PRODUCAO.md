@@ -276,13 +276,28 @@ como desfazer. A R-014 pede as três coisas explicitamente.
 "cancelar conflitos" é o que a pessoa quer quando marca férias. O que não está
 escrito em lugar nenhum é que ele também apaga o valor e que não olha a data.
 
-**Correção, e ela tem duas metades:**
+**Correção — decidida em 2026-08-15, e é mais simples do que eu supunha.**
 
-- **Backend, agora:** cortar por `now()` e por status, exatamente como
-  `filtro-do-passado` já faz nos dois modos de edição de série — a função existe e
-  resolve o item 3. Parar de zerar `valor_consulta` de sessão passada.
-- **Produto, com a R-014:** o aviso com dia e hora, as duas confirmações, e o
-  histórico com autoria. Isso é tela e é a camada da R-010.
+A R-014 foi confirmada como **proibição**, não como aviso: criar bloqueio
+**nunca** cancela sessão. Isso muda o conserto de "cortar por `now()`" para
+**tirar o cancelamento de dentro do handler de bloqueio**:
+
+- `criar-bloqueio-handler` **recusa** quando há sobreposição, e devolve o dia e a
+  hora de cada sessão atingida para a pessoa resolver antes. O parâmetro
+  `cancelar_conflitos` deixa de existir nesse caminho.
+- **Cancelar sessões em massa vira ação separada**, da administração da clínica,
+  numa área de configurações avançadas — e essa sim exige as duas confirmações,
+  o corte por `now()`, e registro no histórico com autoria.
+
+Note que a proibição resolve os quatro problemas de uma vez, e por construção:
+sem cancelamento no caminho, não há zeramento de valor, não há alcance ao
+passado, e não há ação em massa acidental. O caminho destrutivo continua
+existindo — mas passa a ser escolhido de propósito, por quem tem autoridade, num
+lugar aonde ninguém chega sem querer.
+
+⚠️ **Ordem:** a camada de histórico da R-010 foi confirmada para o **lançamento**.
+Como a correção acima já deveria nascer registrando, o histórico vem **antes**
+desta correção, não depois.
 
 ---
 
