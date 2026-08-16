@@ -613,19 +613,43 @@ Em aberto:
 
 Este documento tem **zero** menção a cores, e a cor é o canal de entrada inteiro
 do status vindo do Google. A convenção existe, está em uso pelas psicólogas e
-está registrada na **R-003** de [REGRAS_DE_NEGOCIO](REGRAS_DE_NEGOCIO.md), com o
-mapa completo e quatro buracos. Quem for escrever o sincronizador de status
-**precisa ler aquela seção antes**, e as quatro perguntas precisam estar
-respondidas antes de virar código — senão a convenção vira implícita na
-implementação, que é exatamente como a A-001 nasceu.
+agora é regra numerada: **R-017** (a cor confirma o estado, o título carrega a
+intenção) e **R-018** (do lado do Google a plataforma aceita o fato e pergunta a
+consequência), em [REGRAS_DE_NEGOCIO](REGRAS_DE_NEGOCIO.md). Quem for escrever o
+sincronizador de status **precisa ler as duas antes** — senão a convenção vira
+implícita na implementação, que é exatamente como a A-001 nasceu.
 
-⚠️ **E há uma armadilha de arquitetura, não de código.** O `lista-psis` já
-consome essas cores em produção e sincroniza assim: consulta a janela futura,
-**apaga o cache do calendário e reinsere**. Lá está certo — o dado é
-disponibilidade, e ela é da psicóloga. **Aqui a direção da propriedade é
-oposta:** o dado é status de sessão, com dinheiro associado, e o dono é a
-plataforma. Copiar o modelo de sync de lá para cá é a A-001 em escala maior.
-Aqui o Google **propõe**; quem registra é a plataforma.
+Dos quatro buracos que a convenção tinha, **três estão fechados** pelas R-017 e
+R-018 (motivo de cancelamento, os três níveis de pausa, e grafite sobre sessão
+marcada). O que sobra é a distinção agendada × confirmada, que hoje só existe na
+cor — 🟡 em decisão, com recomendação registrada de **não** acrescentar prefixo.
+
+### D-011 — O Google propõe, a plataforma registra
+
+📌 Registrada por inteiro em [`mensageria/DECISOES.md`](../mensageria/DECISOES.md).
+O resumo abaixo existe para quem estiver lendo o sincronizador e não o log de
+decisões.
+
+⚠️ **É decisão de arquitetura, não regra de negócio** — dedução a partir da A-001
+e do modelo do `lista-psis`, e por isso não mora no oráculo.
+
+O `lista-psis` já consome essas cores em produção e sincroniza assim: consulta a
+janela futura, **apaga o cache do calendário e reinsere**. Lá está certo — o dado
+é disponibilidade, e ela é da psicóloga.
+
+**Aqui a direção da propriedade é oposta:** o dado é status de sessão, com
+dinheiro associado, e o dono é a plataforma. Copiar o modelo de sync de lá para
+cá é a A-001 em escala maior — apagar-e-reconstruir passaria por cima de sessão
+realizada e de valor já registrado, sem que ninguém visse.
+
+**Decisão:** o Google é **canal de entrada que propõe mudanças**; quem registra é
+a plataforma. Toda leitura inbound vira proposta, nunca escrita direta em estado
+financeiro. Isso é a mesma forma da R-018, mas o caminho até ela é meu, não do
+Gabriel — se algum dia ele disser o contrário, é a R-018 que manda.
+
+💡 Há precedente disso no próprio `lista-psis`: a camada de exceção manual
+(`disponivel: true/false`) que sobrepõe o que veio do Google. Lá é exceção; aqui
+é a regra.
 
 Novas, deste documento:
 
@@ -659,11 +683,15 @@ Além do checklist da spec (seção 11), específico daqui:
 - [ ] `colorId` de Tangerina, Sálvia, Tomate e Grafite **conferidos contra a
       API** antes de virar constante (só Pavão=7 e Blueberry=9 estão confirmados
       em código, no `lista-psis`)
-- [ ] Mudança de cor sozinha **não** promove sessão de agendada para confirmada
-      sem um segundo sinal — confirmada dispara a cadeia financeira da R-008
-- [ ] Evento cinza (bloqueio) sobre sessão marcada tem resposta definida: a
-      R-014 proíbe, mas o Google já aceitou — não dá para "recusar" o que já
-      aconteceu do outro lado
+- [ ] Nenhum caminho lê "pago" da cor — **nenhuma cor significa paga** (R-017);
+      pagamento só entra pela pergunta da R-003
+- [ ] Promoção para `realizada` exige **cor verde E data passada**, nunca só a
+      cor (R-017) — verde em evento futuro é "confirmada" e é inofensivo
+- [ ] Tomate inbound **não** decide sozinho a regra financeira: notifica pedindo
+      o motivo, e o motivo decide (R-018) — falta é um dos motivos
+- [ ] Grafite sobre sessão marcada: **aceita, marca conflito e notifica**
+      (R-018). A R-014 segue recusando isso dentro da plataforma; fora dela o
+      fato já aconteceu e não dá para "recusar" o que já é
 - [ ] `google.*` em namespaces novos, nada em `core.clj`
 - [ ] `src/app/api/calendar/events/route.ts` deletado
 - [ ] `GoogleProvider` do NextAuth restrito a `openid email profile`

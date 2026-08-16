@@ -32,7 +32,7 @@ sem gastar auditoria.
 
 **R-004** — ✅ confirmada, ver abaixo. **Violação corrigida e verde na suíte.**
 
-**R-005** — ✅ confirmada: 120 está bom. ⚠️ **Falta checar o limite da API do Google Agenda.**
+**R-005** — ✅ confirmada, ver abaixo: 120 está bom. ⚠️ **Falta checar o limite da API do Google Agenda.**
 
 **R-006** — ✅ confirmada, ver abaixo. **O código viola: hoje qualquer um força.**
 
@@ -40,7 +40,7 @@ sem gastar auditoria.
 
 ## Dinheiro
 
-**R-007** — ✅ confirmada: **só o admin.** O comportamento de hoje está correto.
+**R-007** — ✅ confirmada, ver abaixo: **só o admin.** O comportamento de hoje está correto.
 
 **R-008** — ✅ confirmada, ver abaixo.
 
@@ -86,9 +86,22 @@ sem gastar auditoria.
 
 ---
 
+## Google Agenda
+
+**R-017** — ✅ confirmada: a convenção de cores em uso hoje. **A cor sozinha não move dinheiro — cor mais data passada é que move.**
+
+**R-018** — ✅ confirmada: do lado do Google a plataforma **aceita o fato e pergunta a consequência**, nunca deduz.
+
+⚠️ Estas duas nasceram como prosa em 2026-08-15 e só viraram regra numerada
+depois. O texto longo delas segue no meio da lista abaixo, entre a R-003 e a
+R-006, porque é lá que está o raciocínio inteiro.
+
+---
+
 ## Regras confirmadas
 
-Confirmadas pelo Gabriel em 2026-08-13 e **2026-08-15** (as doze restantes).
+Confirmadas pelo Gabriel em 2026-08-13 e **2026-08-15** (as doze restantes, mais
+a convenção do Google, que virou R-017 e R-018).
 
 ---
 
@@ -104,6 +117,37 @@ quando alguém pediu mudança de valor. Ver A-001 e A-002 na
 [revisão](REVISAO_PRE_PRODUCAO.md); teste em `agendamentos_test.clj`, seção
 "R-004". ✅ Suíte executada pela `duna` (GPT local) em PostgreSQL 18: **67
 testes, 253 asserções, 0 falhas** — [0026](../mensageria/0026-duna-para-orla-r004-verde-no-postgres18.md).
+
+---
+
+### R-005 — Recorrência para no limite de 120
+
+Série recorrente materializa até **120 ocorrências**. O Gabriel confirmou que
+120 está bom — o número que já existe no código está certo.
+
+⚠️ **O que não está conferido é o outro lado.** Quando a integração existir, cada
+ocorrência vira evento no Google, e **o limite da API do Google Agenda não foi
+verificado**. Um limite menor lá transforma "criar série" numa operação que
+funciona na plataforma e falha pela metade na agenda — o pior formato possível,
+porque os dois lados ficam discordando sem ninguém ver.
+
+💡 Efeito colateral que já apareceu na varredura: com 120 como teto, **um clique
+alcança 120 janelas**. É o que dá peso à A-006 e à R-014 — ver
+[revisão](REVISAO_PRE_PRODUCAO.md).
+
+---
+
+### R-007 — Só o admin marca pagamento
+
+Marcar sessão como paga é ação de **admin da clínica**. Psicólogo não marca o
+próprio recebimento, e secretário não marca sozinho.
+
+✅ **O comportamento de hoje já está correto** — esta regra confirma o código em
+vez de corrigi-lo, e é por isso que ela é curta.
+
+⚠️ Ela é a porta de entrada da cadeia da R-008: se um dia alguém afrouxar quem
+marca pagamento, o repasse anda atrás. Quem for mexer em permissão de dinheiro
+lê as duas juntas.
 
 ---
 
@@ -383,6 +427,69 @@ Nenhuma cor significa "paga". Isso confirma o desenho da R-003: a cor conta que 
 sessão **aconteceu ou não**, e o dinheiro é perguntado depois, pela notificação
 assíncrona. Os dois canais não competem — um informa o fato, o outro pergunta a
 consequência.
+
+---
+
+## A convenção virando regra numerada
+
+Tudo acima é resposta do Gabriel, e estava correto — mas estava em **prosa, no
+meio da lista de regras, sem número.** Isso tem dois custos concretos, e nenhum
+deles é estético:
+
+1. **código não consegue citar prosa.** As outras dezesseis regras aparecem em
+   docstring, em nome de teste e em mensagem de commit porque têm identificador.
+2. **o auditor cego recebe as regras e não recebe o código** (`PROTOCOLO_AUDITORIA.md`).
+   Uma tabela de cores no meio de seis páginas de raciocínio não é testável;
+   uma regra numerada é.
+
+As duas regras abaixo são **do Gabriel** — a convenção que ele passou às
+psicólogas e as respostas dele aos quatro buracos. O raciocínio acima continua
+sendo a justificativa delas; o que muda é que agora dá para apontar.
+
+⚠️ **O que deliberadamente NÃO virou regra:** a conclusão sobre a *direção da
+sincronização* (aqui o Google propõe e a plataforma registra; nunca
+apaga-e-reconstrói). Aquilo é **dedução minha a partir da A-001 e do modelo do
+`lista-psis`**, não resposta do Gabriel — então mora em
+`docs/GOOGLE_CALENDAR_ARQUITETURA.md`, como decisão de arquitetura, e não aqui.
+O oráculo só carrega o que veio dele.
+
+### R-017 — A cor confirma o estado; o título carrega a intenção
+
+Os cinco estados da tabela acima são a convenção em uso hoje pelas psicólogas.
+Duas propriedades dela governam qualquer código que leia ou escreva no Google:
+
+- **Nenhuma cor significa "paga".** Pagamento nunca é lido da agenda — ele é
+  perguntado depois, pela R-003.
+- **A cor sozinha não move dinheiro.** Verde num evento **futuro** é
+  "confirmada", e é inofensivo. É **verde mais data passada** que significa
+  "realizada" e dispara a cadeia da R-008. Quem for escrever a sincronização
+  precisa das duas condições juntas, nunca só da cor.
+
+⚠️ Os `colorId` das linhas 1, 2, 3 e 5 da tabela **ainda não foram conferidos
+contra a API do Google**. Só 7 e 9 (disponível) estão confirmados no código do
+`lista-psis`. Errar um id aqui é silencioso e troca um estado por outro — é
+verificação obrigatória antes de virar código, não detalhe.
+
+🟡 **Continua em aberto dentro desta regra:** se "agendada" e "confirmada" ganham
+um segundo canal além da cor. Recomendação registrada: **não ganham** — a cor
+propõe e a plataforma pergunta. Se for desejado, o prefixo é `[CONFIRMADO]`, no
+estado que move dinheiro.
+
+### R-018 — Do lado do Google, a plataforma pergunta em vez de assumir
+
+Quando o fato já aconteceu na agenda, a plataforma **não recusa e não deduz** —
+ela aceita o fato e pergunta a consequência:
+
+| O que a psicóloga faz no Google | O que a plataforma faz |
+|---|---|
+| pinta de **Tomate** | aceita, e **notifica pedindo o motivo** — falta é um dos motivos, e o motivo decide a regra financeira (R-003) |
+| põe **Grafite** em cima de sessão marcada | aceita, **marca conflito e notifica** — a R-014 segue recusando isso *dentro* da plataforma, mas fora dela o fato já existe |
+
+💡 **O que sustenta as duas linhas:** o Gabriel disse que hoje muitas psicólogas
+**esquecem de registrar coisas**, e a notificação ajuda a se organizar. Neste
+produto **notificação é serviço, não ruído** — o que baixa o custo de desenhos
+que perguntam em vez de assumir. Antes de trocar qualquer uma dessas notificações
+por uma dedução automática "para não incomodar", releia esta linha.
 
 ---
 

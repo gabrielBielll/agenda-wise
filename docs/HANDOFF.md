@@ -50,9 +50,10 @@ Branch: **`claude/google-calendar-integration-arch-7tvhae`** (PR **#7**, aberto,
 | Arquivo | O que é |
 |---|---|
 | [`mensageria/INDEX.md`](../mensageria/INDEX.md) | threads abertas e pendências nomeadas — **o painel** |
-| [`mensageria/DECISOES.md`](../mensageria/DECISOES.md) | D-001 a D-010, com o porquê e a contrapartida |
+| [`mensageria/DECISOES.md`](../mensageria/DECISOES.md) | D-001 a **D-011**, com o porquê e a contrapartida |
 | [`docs/REVISAO_PRE_PRODUCAO.md`](REVISAO_PRE_PRODUCAO.md) | a varredura: A-001 a A-006 + 7 achados + plano em 5 fases |
-| [`docs/REGRAS_DE_NEGOCIO.md`](REGRAS_DE_NEGOCIO.md) | **o oráculo** — ✅ **as 16 regras confirmadas**; 6 perguntas de segunda ordem |
+| [`docs/REGRAS_DE_NEGOCIO.md`](REGRAS_DE_NEGOCIO.md) | **o oráculo** — ✅ **as 18 regras confirmadas**, sem lacuna. As duas últimas (**R-017** e **R-018**) são a convenção de cores do Google, que só virou regra numerada em 2026-08-16 |
+| [`docs/GOOGLE_CALENDAR_ARQUITETURA.md`](GOOGLE_CALENDAR_ARQUITETURA.md) | a integração que ainda não existe em código — e a **D-011**, que decide a direção do sync antes de alguém escrevê-lo |
 | [`docs/PROTOCOLO_AUDITORIA.md`](PROTOCOLO_AUDITORIA.md) | como o auditor cego trabalha |
 | [`mensageria/FILA_PICO.md`](../mensageria/FILA_PICO.md) | fila semanal, 1 item |
 
@@ -116,19 +117,33 @@ enquanto o backend já é multi-fuso. As duas estão no INDEX.
    abriram seis perguntas novas de segunda ordem, listadas no oráculo.
    ⚠️ **O oráculo está completo pela primeira vez** — a auditoria adversarial
    (D-008), que estava bloqueada por isso, agora pode rodar.
-8. 🆕 **Seis perguntas de segunda ordem**, abertas pelas próprias respostas dele.
-   A que mais trava: a R-014 tem duas regras contraditórias dentro — "bloqueio
-   não pode cair em cima de sessão marcada" e "avisa e a pessoa decide se
-   cancela". Isso decide como a A-006 é corrigida. Todas listadas no oráculo.
+8. ✅ ~~Seis perguntas de segunda ordem~~ — **respondidas em 2026-08-15.** A que
+   mais travava era a R-014, que parecia ter duas regras contraditórias dentro;
+   ele decidiu: **bloqueio é proibição, não aviso.** Isso fixa como a A-006 é
+   corrigida — mas a correção **espera o histórico da R-010**, que ele pôs no
+   lançamento.
+9. ✅ ~~Convenção de cores do Google~~ — passada por ele em 2026-08-15, com os
+   quatro buracos respondidos. Virou **R-017** e **R-018** em 2026-08-16.
+   🟡 **Sobra uma decisão dele:** agendada e confirmada só se distinguem pela
+   **cor**. Recomendação registrada é **não** acrescentar prefixo — a cor propõe
+   e a plataforma pergunta. Se ele quiser o segundo canal, o prefixo é
+   `[CONFIRMADO]`, no estado que move dinheiro.
+10. ⏸️ **Pausar clínica** (terceiro nível de pausa, do operador da plataforma) —
+   **adiado por ele em 2026-08-15**, e está registrado como adiamento e não como
+   lacuna, de propósito: pendência convida alguém a preencher. Não implemente
+   metade dela junto com o painel de superadmin.
 
 ## Quem está com o quê
 
-- **`duna`** — D-4: extração de `prontuarios` do `core.clj`. ⚠️ Aquele módulo
-  tem **três** namespaces de teste apontando para ele agora (`prontuarios_test`,
-  `plataforma_test`, `isolamento_test`); os três têm que continuar verdes **sem
-  edição**, e é isso que prova que a extração não mudou comportamento.
-- **`vale`** — a tela do painel do operador ([0032](../mensageria/0032-orla-para-vale-teu-achado-confirmado-e-a-tela-do-painel.md)). Depois dela, o e2e que
-  falta: abrir a tela de edição, salvar sem tocar em nada, conferir que o
+- **`duna`** — ✅ D-4 entregue ([0038](../mensageria/0038-duna-para-orla-d4-prontuarios-extraido.md)): `prontuarios` saiu do `core.clj` e os três
+  namespaces de teste seguiram verdes **sem edição**. Agora: **item 5**, e há uma
+  parte dele que é privacidade, não limpeza — sobraram **12 `println "DEBUG"`**, e
+  `prontuarios.clj:35` despeja **o corpo do prontuário** no stdout. A R-012 diz
+  que nem o admin da clínica lê aquilo; o log lê. `core.clj:574` e `:842` fazem o
+  mesmo com corpo de agendamento. Depois, ROB-008.
+- **`vale`** — ✅ painel do operador entregue e medido de ponta a ponta
+  ([0039](../mensageria/0039-vale-para-orla-painel-da-plataforma-medido-de-ponta-a-ponta.md)), com um achado real no caminho. Agora: o e2e que
+  falta — abrir a tela de edição, salvar sem tocar em nada, conferir que o
   horário não andou. É o teste que pegaria o item 1 de frente, e nenhum atual faz.
 - **`pico`** — P-001: `ALTER COLUMN TYPE` do Cockroach é atômico?
 - **Você** — revisar o que as duas devolverem. A D-002 vale: quem escreve não

@@ -390,3 +390,52 @@ original que ele existia para pegar continua coberto pelos outros dois blocos.
 'America/Sao_Paulo'` desde a migration de fuso. O front acabou de virar mono-fuso
 por constante (`FUSO_CLINICA`). Não quebra hoje, porque toda clínica tem o mesmo
 valor; quebra quando existir clínica em outro fuso, que é o plano.
+
+---
+
+## D-011 — O Google propõe, a plataforma registra
+
+**Decidido por:** `orla`, 2026-08-16 — **é dedução, não resposta do Gabriel**
+**Discutido em:** `docs/GOOGLE_CALENDAR_ARQUITETURA.md`, seção da convenção de cores
+**Onde vive:** ainda em nenhum código — a integração não foi escrita, e é
+exatamente por isso que a decisão precisa existir antes
+
+O `lista-psis` — repositório que já consome a API do Google em produção, e que o
+Gabriel marcou como **somente leitura** — sincroniza assim: consulta a janela
+futura, **apaga o cache daquele calendário e reinsere**. O Google é fonte da
+verdade, por atacado. Existe até a regra explícita de que *"o `[DISPONÍVEL]` azul
+SEMPRE vence"*.
+
+**Lá está certo.** O que se sincroniza é **disponibilidade**, e a dona
+legítima dela é a psicóloga.
+
+**Aqui seria desastroso.** No agenda-wise a cor carrega **status de sessão** —
+realizada, cancelada, falta — que é estado financeiro e clínico, com dinheiro
+atrelado, e cujo dono é a plataforma.
+
+**Decisão:** a direção da propriedade é oposta, então o modelo de sincronização
+tem que ser oposto. Lá o Google escreve e a plataforma espelha; **aqui a
+plataforma é o registro e o Google é um canal de entrada que propõe mudanças.**
+Nenhuma leitura inbound escreve direto em estado financeiro.
+
+**Por quê:** apagar-e-reconstruir sobre status de sessão é a **A-001 em escala
+maior**. A A-001 era uma query que alcançava o passado; esta seria um job
+periódico que alcança o passado inteiro, em todas as clínicas, sem que ninguém
+veja — porque o efeito de um sync é indistinguível do efeito de outro sync.
+
+**Contrapartida aceita:** a plataforma vai ter que perguntar em vez de assumir, e
+isso gera notificação. Custaria menos deduzir. Aceito porque o Gabriel já disse
+que neste produto **notificação é serviço, não ruído** — as psicólogas esquecem
+de registrar coisas, e ser perguntado ajuda.
+
+⚠️ **Esta decisão é minha, e isso importa.** A forma dela coincide com a
+**R-018**, que é do Gabriel, mas o caminho até aqui é dedução a partir da A-001 e
+da leitura do `lista-psis`. Se um dia as duas divergirem, **manda a R-018** — o
+oráculo não se dobra a uma decisão de arquitetura. Foi por isso que ela não foi
+escrita dentro de `REGRAS_DE_NEGOCIO.md`, onde teria virado regra sem nunca ter
+saído da boca dele.
+
+💡 **Precedente a favor, no próprio `lista-psis`:** existe lá uma camada de
+exceção manual (`disponivel: true/false`) que sobrepõe o que veio do Google. A
+ideia de a plataforma ter a última palavra já está naquele código; aqui ela
+deixa de ser exceção e vira a regra.
