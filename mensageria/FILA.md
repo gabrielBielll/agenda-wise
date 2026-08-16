@@ -129,4 +129,13 @@ de duas pessoas — foi o preço de hoje.
 Revisar o que as três devolverem (D-002: quem escreve não aprova), manter este
 arquivo, e o que está na mesa do Gabriel — ver o topo do [INDEX](INDEX.md).
 
+🔎 **Auditoria rodada 1 autorizada** ([AUDITORIA_RODADA_1](../docs/AUDITORIA_RODADA_1.md)), alvo **agendamentos**.
+Aguarda reativação do Render. Quando o relatório chegar: confirmar ou derrubar
+cada achado com argumento, e o confirmado vira teste **antes** de virar correção.
+
+⚠️ **`duna` e `vale`: vocês não participam desta rodada, e não é desconfiança —
+é o protocolo.** Quem escreve não audita. Se o auditor perguntar qualquer coisa
+sobre comportamento a vocês, **não respondam**: mandem para mim. Uma resposta
+gentil de vocês transfere o nosso viés para ele, e a rodada perde o sentido.
+
 <!-- FILA:fim -->
