@@ -77,7 +77,11 @@ async function tentarBloquearPorCimaDaSessao(page: Page) {
 
   await dialogo.getByRole('button', { name: /criar bloqueio/i }).click();
 
-  return page.getByRole('dialog').filter({ hasText: /não dá para bloquear|nao da para bloquear/i });
+  return {
+    recusa: page.getByRole('dialog').filter({ hasText: /não dá para bloquear|nao da para bloquear/i }),
+    dialogo,
+    periodo: { inicio: `${dia}T${BLOQUEIO_INICIO}`, fim: `${dia}T${BLOQUEIO_FIM}` },
+  };
 }
 
 /** A sessão semeada, como a tela deve escrevê-la: "16/08" e "14:00 – 14:50". */
@@ -94,7 +98,7 @@ test.describe('bloqueio sobre sessão marcada — a recusa mostra dia e hora', (
     const esperado = comoATelaEscreve(dia);
     const antes = await contarNoBackend(request, '/api/bloqueios');
 
-    const recusa = await tentarBloquearPorCimaDaSessao(page);
+    const { recusa } = await tentarBloquearPorCimaDaSessao(page);
 
     await expect(
       recusa,
@@ -141,12 +145,58 @@ test.describe('bloqueio sobre sessão — o fuso de quem olha não muda o que a 
     const { dia } = dadosSemeados();
     const esperado = comoATelaEscreve(dia);
 
-    const recusa = await tentarBloquearPorCimaDaSessao(page);
+    const { recusa } = await tentarBloquearPorCimaDaSessao(page);
 
     await expect(recusa).toBeVisible();
     await expect(
       recusa,
       'horário diferente aqui significa que a lista de conflitos voltou a formatar no fuso de quem olha'
     ).toContainText(esperado.intervalo);
+  });
+});
+
+test.describe('a recusa devolve o formulário — guarda do lado que já está certo', () => {
+  /**
+   * ⚠️ ESTE TESTE PASSA HOJE. Não é o vermelho da A-010, e a diferença importa.
+   *
+   * A `orla` registrou a A-010 a partir deste trecho (mensageria 0059):
+   *
+   * ```tsx
+   * defaultValue={newAppointmentDate ? paredeParaInput(newAppointmentDate) : ""}
+   * ```
+   *
+   * Só que esse trecho é do **`CalendarClient`**, e o diálogo que este arquivo
+   * dirige é o do **`AgendamentosClient`** — e os dois não são iguais:
+   *
+   * | Tela | Campos de data | Sobrevive ao fechar? |
+   * |---|---|---|
+   * | `admin/agendamentos` | `value={blockStart}` + `onChange` — controlado | sim, o estado é do componente pai |
+   * | `(app)/calendar` | `defaultValue=…` — não controlado | não, o Radix desmonta e remonta do slot |
+   *
+   * Então a A-010 é **só do calendário**. Aqui o comportamento já é o certo, e o
+   * teste existe para que continue sendo: trocar `value` por `defaultValue`
+   * "para simplificar" é uma linha, e sem esta asserção ninguém veria.
+   *
+   * O vermelho da A-010 mora no calendário e não está escrito ainda — dirigir
+   * aquele diálogo exige clicar num slot da grade e passar por um menu de
+   * contexto, e escrever isso sem conseguir rodar é convite a vermelho pelo
+   * motivo errado. Perguntado na mensageria.
+   */
+  test('o período digitado sobrevive à recusa', async ({ page }) => {
+    const { recusa, dialogo, periodo } = await tentarBloquearPorCimaDaSessao(page);
+    await expect(recusa).toBeVisible();
+
+    await recusa.getByRole('button', { name: /voltar e ajustar/i }).click();
+    await expect(dialogo).toBeVisible();
+
+    const datas = dialogo.locator('input[type="datetime-local"]');
+    await expect(
+      datas.nth(0),
+      'o início se perdeu: "Voltar e ajustar" devolveu formulário em branco'
+    ).toHaveValue(periodo.inicio);
+    await expect(
+      datas.nth(1),
+      'o fim se perdeu pelo mesmo motivo'
+    ).toHaveValue(periodo.fim);
   });
 });
