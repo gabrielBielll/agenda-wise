@@ -226,11 +226,50 @@ bastarem, o sistema ganha **estados próprios que não dependem de cor**. A cor 
 conveniência de visualização — e há outros serviços que já consomem esse mesmo
 padrão de cores, o que é parte do motivo de adotá-lo.
 
-**Leitura que a `orla` tira disso, e que precisa ser confirmada quando a
-sincronização for desenhada:** o modelo de estados é da **plataforma**; a cor é
-um **canal de entrada**, não a fonte da verdade. Isso responde metade da pergunta
-"quem ganha quando os dois discordam" — falta a outra metade, que é o que fazer
-quando a plataforma já mudou o estado e a cor vem contradizendo.
+✅ **A convenção já existe e está em produção** — o Gabriel apontou os repositórios
+`lista-psis-api` e `lista-psis-front-end`, que já consomem a API do Google.
+Lidos, sem edição. O que está codificado lá (`core.clj`, `deep-available-event?`
+e `doc/google-calendar.md`):
+
+> **"O título identifica a intenção e a cor confirma o status."**
+
+- **Título:** casa o radical `DISPONIV` — tolerante a acento, maiúscula,
+  colchetes e erro de digitação — e **nunca** casa `INDISPONIVEL`, garantido por
+  um lookbehind `(?<!IN)`.
+- **Cor:** Pavão (`7`) ou Blueberry (`9`), **ou** evento sem `colorId`, que herda
+  o azul padrão do calendário. Configurável por
+  `GOOGLE_AVAILABLE_EVENT_COLOR_IDS`.
+- Os **dois** precisam bater, mais período válido e evento não-cancelado.
+
+⚠️ **Isso responde, de passagem, a preocupação de "e se a psi usar cor para se
+organizar":** cor sozinha não faz nada. São dois canais independentes que
+precisam concordar, e o título é que carrega a intenção. É um desenho melhor do
+que o que eu tinha imaginado ao perguntar.
+
+### 🔴 Mas o modelo de sincronização de lá **não serve aqui**, e a diferença é grande
+
+Em `lista-psis`, sincronizar é: consultar a janela futura inteira no Google,
+**apagar todo o cache daquele calendário** e reinserir. O Google é fonte da
+verdade, por atacado. E há a regra explícita de que *"o [DISPONÍVEL] azul SEMPRE
+vence"*, mesmo com outro evento sobreposto.
+
+**Lá isso está certo**, porque o que se sincroniza é **disponibilidade** — e
+disponibilidade é da psicóloga, ela é a dona legítima daquele dado.
+
+**Aqui seria desastroso.** No agenda-wise a cor carregaria **status de sessão** —
+paga, falta, realizada — que é estado financeiro e clínico, com dinheiro
+associado, e cujo dono é a plataforma. Um "apaga e reconstrói a partir do Google"
+sobre isso é a A-001 de novo, em escala maior.
+
+**A direção da propriedade é oposta, então o modelo de sincronização tem que ser
+oposto:** lá o Google escreve e a plataforma espelha; aqui a plataforma é o
+registro e o Google é **um canal de entrada que propõe mudanças** — que é
+exatamente o que a notificação assíncrona desta regra já previa.
+
+E há precedente para isso no próprio `lista-psis`: existe uma camada de exceção
+manual (`disponivel: true/false`) que sobrepõe o que veio do Google. A ideia de a
+plataforma ter a última palavra já está lá; aqui ela deixa de ser exceção e vira
+a regra.
 
 ---
 
