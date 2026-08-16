@@ -68,7 +68,7 @@ sem gastar auditoria.
 
 **R-012** — ✅ confirmada, ver abaixo. **Violação corrigida e provada no CI.**
 
-**R-013** — ✅ confirmada, ver abaixo. **Não existe hoje; é funcionalidade nova.**
+**R-013** — ✅ confirmada, ver abaixo. **Não existe hoje; é funcionalidade nova.** ✅ **As sessões futuras já pagas não são canceladas** — vão para uma lista onde o padrão é **transferir** (2026-08-16).
 
 ---
 
@@ -92,7 +92,9 @@ sem gastar auditoria.
 
 **R-018** — ✅ confirmada: do lado do Google a plataforma **aceita o fato e pergunta a consequência**, nunca deduz.
 
-**R-019** — ✅ confirmada, ver abaixo: **os dois caminhos funcionam** — dá para trabalhar pela plataforma ou pelo Google. ✅ **As três perguntas dela foram respondidas em 2026-08-16**, e a segunda abriu uma colisão com a R-004 que segue 🔴 **aberta**.
+**R-019** — ✅ confirmada, ver abaixo: **os dois caminhos funcionam** — dá para trabalhar pela plataforma ou pelo Google. ✅ **As três perguntas dela foram respondidas em 2026-08-16**; a segunda abriu uma colisão com a R-004, **resolvida na R-021**.
+
+**R-021** — ✅ confirmada, ver abaixo: **nada apaga sessão que já aconteceu ou que tem dinheiro**, de nenhum dos dois lados.
 
 **R-020** — ✅ confirmada, ver abaixo: **o admin sempre tem força**; **editar e excluir bloqueio é só da clínica**; **configurações avançadas é só do admin**.
 
@@ -563,9 +565,9 @@ outras palavras. A D-011 deixa de ser aposta.
 **2. Apagar o evento** — *"simplesmente deletar o evento. Se deletar no Google
 apaga na agenda da plataforma, e vice-versa."*
 
-🔴 **Esta resposta colide com a R-004, que também é dele — ver o quadro abaixo.**
-Enquanto a colisão não for resolvida, **ninguém implementa exclusão vinda do
-Google.**
+✅ **A colisão com a R-004 foi resolvida em 2026-08-16 — ver a R-021.** A
+propagação vale para o que ainda não aconteceu e não tem dinheiro; o resto é
+recriado e notificado.
 
 **3. Criar sessão pelo Google** — *"sim, a psicóloga pode criar sessões pelo
 Google."*
@@ -580,7 +582,7 @@ plataforma pergunta.
 
 ---
 
-### 🔴 A colisão entre a resposta 2 e a R-004
+### ✅ A colisão entre a resposta 2 e a R-004 — resolvida na R-021
 
 A R-004 diz: **passado é imutável** — sessão realizada é registro, não rascunho.
 Foi a primeira regra confirmada, e produziu as correções A-001 e A-002.
@@ -595,14 +597,17 @@ aparece o caso que ninguém quis:
 É a **A-001 outra vez**, entrando por um canal que não controlamos e sem ninguém
 clicando em "confirmar".
 
-**Recomendação da `orla`, e é o Gabriel quem decide:** a exclusão propaga
-**só para sessão que ainda não aconteceu e não tem dinheiro associado**. Para
-sessão `realizado` ou paga, a plataforma **recria o evento no Google e avisa** —
-o mesmo desenho da R-018, que aceita o fato e pergunta a consequência.
+**Recomendação da `orla`, ✅ autorizada pelo Gabriel em 2026-08-16:** a exclusão
+propaga **só para sessão que ainda não aconteceu e não tem dinheiro associado**.
+Para sessão `realizado` ou paga, a plataforma **recria o evento no Google e
+avisa** — o mesmo desenho da R-018, que aceita o fato e pergunta a consequência.
 
-⚠️ O custo dessa recomendação é real e vale dizer: a psicóloga que apagou de
-propósito vai ver o evento voltar. Isso é confuso **uma vez**, e recuperável. O
-outro caminho apaga registro financeiro em silêncio, e não é recuperável.
+⚠️ O custo é real e vale ter escrito: a psicóloga que apagou de propósito vai ver
+o evento voltar. Isso é confuso **uma vez**, e recuperável. O outro caminho apaga
+registro financeiro em silêncio, e não é.
+
+📌 Virou **R-021**, abaixo — e ela ficou mais simples do que esta recomendação,
+porque não é regra nova: é a R-004 valendo nos dois lados.
 
 ---
 
@@ -639,6 +644,47 @@ plataforma pergunta antes de virar sessão de verdade.
 esperaram. **Respondidas em 2026-08-16**, com uma ressalva: a segunda abriu a
 colisão com a R-004 registrada acima, e **até ela ser resolvida ninguém
 implementa exclusão vinda do Google.**
+
+---
+
+### R-021 — Apagar propaga, menos onde a R-004 não deixa
+
+Autorizada em **2026-08-16**. Ela nasceu da resposta 2 da R-019 — *"se deletar no
+Google apaga na plataforma e vice-versa"* — colidindo com a R-004.
+
+🔑 **A regra não é nova, e é por isso que ela é curta:**
+
+> **Nada apaga sessão que já aconteceu ou que tem dinheiro associado — de nenhum
+> dos dois lados.** No resto, apagar propaga.
+
+A R-004 já dizia que passado é registro e não rascunho. O que a R-021 faz é
+declarar que isso vale **também quando o comando vem do Google**, e não só quando
+vem de dentro da plataforma.
+
+| Situação da sessão | Apagar propaga? | O que a plataforma faz |
+|---|---|---|
+| futura, sem pagamento registrado | **sim** | apaga, e registra no histórico da R-010 |
+| `realizado` | **não** | **recria o evento no Google e notifica** |
+| paga (mesmo que futura) | **não** | idem — dinheiro registrado já é dinheiro |
+| cancelada | **não apaga o registro** | o evento pode sumir; a linha fica, pela R-010 |
+
+⚠️ **Repare que o corte não é "passado × futuro": é "tem dinheiro ou já
+aconteceu".** Sessão futura **adiantada** não propaga, porque o pagamento já
+existe. Escrever o filtro como `data < now()` seria errado, e é o erro que a
+A-002 já cometeu uma vez neste sistema.
+
+**Por que recriar e não só recusar:** do lado do Google o fato já aconteceu — o
+evento sumiu da tela da psicóloga. Recusar em silêncio deixaria os dois lados
+discordando sem ninguém saber. Recriar devolve os dois ao mesmo estado, e a
+notificação explica por quê. É o desenho da R-018.
+
+**O custo, aceito conscientemente:** quem apagou de propósito vê o evento voltar.
+Confuso **uma vez**, e recuperável. O caminho alternativo apagaria registro
+financeiro em silêncio, e não é recuperável.
+
+💡 **E o mesmo vale na direção de dentro para fora:** a plataforma também não
+deixa apagar sessão realizada ou paga — é o que a A-006 já corrigiu para o
+caminho do bloqueio. A R-021 fecha o círculo em vez de abrir uma exceção.
 
 ---
 
@@ -795,6 +841,47 @@ Ao desligar, **todas as sessões futuras dele são canceladas**. Ao reativar,
 canceladas.
 
 ⚠️ **Não existe fluxo nenhum hoje.** É funcionalidade nova.
+
+### ✅ E as sessões futuras que já foram pagas — autorizado em 2026-08-16
+
+A frase acima, sozinha, cancelaria sessão já paga junto com o resto. **Não
+cancela.** As futuras se dividem em dois grupos:
+
+| Grupo | O que acontece |
+|---|---|
+| **não paga** | cancelada, como a regra acima já dizia |
+| **já paga** | ❌ **não é cancelada.** Vai para uma lista à parte, onde o admin resolve |
+
+**Na lista, o padrão é `transferir`** para outro psicólogo — foi a autorização do
+Gabriel. As outras duas saídas continuam disponíveis por sessão ou em massa:
+**estornar** ao paciente, ou **manter como crédito** para sessões futuras com
+quem assumir.
+
+**Por que transferir é o padrão, e não estornar:** é o único dos três que
+**mantém sendo entregue o serviço que já foi pago**, e é o único **reversível** —
+transferência errada se desfaz, estorno não. A R-011 já permite paciente com mais
+de um psicólogo, então o modelo suporta.
+
+🔑 **O princípio, e ele é o mesmo da R-004:** *dinheiro que já andou nunca é
+resolvido por um padrão silencioso.* O padrão existe para a lista não travar o
+desligamento; a escolha continua sendo de alguém, e **toda escolha entra no
+histórico da R-010**, com quem decidiu.
+
+⚠️ **Dois casos de borda que a implementação vai encontrar, anotados agora para
+não virarem decisão de código:**
+
+1. **Não há outro psicólogo para receber** — clínica de um profissional só, ou
+   ninguém que atenda aquele paciente. Aí transferir não é opção e a lista cai
+   para estornar ou crédito. O sistema não deve oferecer um padrão que não pode
+   cumprir.
+2. **O paciente precisa saber.** Transferir troca quem vai atendê-lo, e isso não
+   é detalhe administrativo. A regra não diz como avisar; fica registrado que
+   **alguém tem que avisar**, e que o sistema não deve fingir que a transferência
+   é invisível.
+
+📌 Recomendação da `orla`, não é regra: se em algum momento você quiser que
+**transferir seja o único caminho** — sem a tela de escolha — é uma construção
+bem menor. Diga, porque muda o tamanho do trabalho.
 
 ---
 

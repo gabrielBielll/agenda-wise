@@ -48,6 +48,26 @@ aquilo sem a regra seria inventar regra de negócio no código.
 depois da medição ([0053](0053-vale-para-orla-fila-vazia-e-o-skip-fechado.md)) · e2e do 409 (`d353006`) · e2e do 403 + os três reparos
 ([0057](0057-vale-para-orla-o-403-fechado-e-o-admin-sem-tela-para-forcar.md)), com o achado da **A-009** no caminho.
 
+<!-- FILA:regras-novas -->
+## 📋 Regras que chegaram em 16/08 e ainda não viraram código
+
+Nenhuma destas é para começar agora — estão aqui para **ninguém implementar por
+dedução** quando chegar perto delas.
+
+| Regra | O que ela manda |
+|---|---|
+| **R-019 (1)** | plataforma ganha do Google; dentro da plataforma, clínica ganha do psicólogo. **Confirma a D-011**, que era dedução |
+| **R-019 (3)** | psicóloga **pode criar sessão pelo Google** — entra como rascunho e a plataforma pergunta o que falta |
+| **R-021** | **nada apaga sessão que já aconteceu ou tem dinheiro**, de nenhum lado. No resto, apagar propaga. Corte é "tem dinheiro ou já aconteceu", **não** `data < now()` |
+| **R-020** | admin sempre tem `force` (inclusive no atualizar); editar/excluir bloqueio é só da clínica; configurações avançadas é só do admin |
+| **R-013** | sessão futura **já paga** não é cancelada ao desligar psicólogo — vai para lista, padrão **transferir** |
+| **R-012** | acesso pela flag **grava sempre**, e a visualização do histórico fica atrás de config |
+| **R-011** | liberação de prontuário **não expira**; revogação é manual |
+
+⚠️ **A R-020 amarra A-009 e A-011 no mesmo trabalho.** Construir o botão de
+forçar no módulo do admin sem tratar a A-011 cria sessões que a própria tela não
+consegue editar.
+
 <!-- FILA:em-voo -->
 ## 🚧 Árvore compartilhada ocupada? Não espere — use worktree
 
