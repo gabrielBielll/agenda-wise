@@ -439,3 +439,50 @@ saído da boca dele.
 exceção manual (`disponivel: true/false`) que sobrepõe o que veio do Google. A
 ideia de a plataforma ter a última palavra já está naquele código; aqui ela
 deixa de ser exceção e vira a regra.
+
+---
+
+## D-012 — Hoje não existe produção; `main` é o ambiente vivo de validação
+
+**Decidido por:** Gabriel, 2026-08-16
+**Resolve:** o conflito D-003 × D-004, aberto desde 2026-08-13
+**Efeito imediato:** destrava o merge do PR #7
+
+Nas palavras dele: *"hoje não existe produção de verdade, estamos criando o
+projeto. Depois dele ficar funcional vamos criar produção de verdade, daí o uso
+da branch `prod`. Por ora podemos usar da melhor maneira que vocês acharem, mas o
+Render pega `main` e testamos a aplicação — mas nada é real. Essa abordagem é
+horizontal e já ajuda a validar o projeto no ar em vez de ficar fazendo tudo
+local."*
+
+**A D-003 desenhou `staging` e `prod`. A D-004 constatou que o Render aponta para
+`main`, logo `main` seria produção.** As duas estavam certas e o fluxo ficou
+circular porque faltava um fato: **não há usuário real, não há dado real.**
+
+**Decisão:** `main` é o **ambiente vivo de validação** — deploy contínuo pelo
+Render, para exercitar o sistema no ar em vez de só localmente. `prod` fica
+reservada e **decorativa por enquanto, de propósito**, e passa a valer quando
+existir produção de verdade.
+
+### O que isso destrava, e é mais do que parece
+
+🔴 A pendência **"ordem migration × reativação do Render"** era bloqueadora do
+merge por causa da janela de 3h em que a instância antiga fala com o schema novo
+(D-001). Aquela janela continua existindo — **o que mudou é o que ela custa.**
+Sem dado real e sem usuário, ela é incômodo de desenvolvimento, não incidente.
+
+**Portanto o PR #7 pode ser mesclado sem resolver a ordem antes.**
+
+⚠️ **E é exatamente por isso que ela precisa ficar escrita, não fechada.** No dia
+em que existir produção de verdade, a janela volta a custar o que sempre custou,
+e o risco terá sido esquecido justamente por não ter doído. A D-001 continua
+valendo; o que caiu foi a urgência, não o problema.
+
+### O que passa a valer agora
+
+- **`main` é implantada e observável** — quebrar `main` quebra o ambiente que
+  todo mundo usa para validar. O CI verde deixa de ser cortesia.
+- **Nada em `main` é real** — nenhum dado ali é de paciente de verdade, e
+  continua valendo o INCIDENTE de 2026-08-15: **antes do primeiro dado real, o
+  `JWT_SECRET` tem que ser rotacionado** (SEC-002).
+- **`prod` é reservada** e ninguém a usa até a decisão de criar produção.

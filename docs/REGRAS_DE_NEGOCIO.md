@@ -92,7 +92,9 @@ sem gastar auditoria.
 
 **R-018** — ✅ confirmada: do lado do Google a plataforma **aceita o fato e pergunta a consequência**, nunca deduz.
 
-**R-019** — ✅ confirmada, ver abaixo: **os dois caminhos funcionam** — dá para trabalhar pela plataforma ou pelo Google. ⚠️ **E abre três perguntas que só você responde.**
+**R-019** — ✅ confirmada, ver abaixo: **os dois caminhos funcionam** — dá para trabalhar pela plataforma ou pelo Google. ✅ **As três perguntas dela foram respondidas em 2026-08-16**, e a segunda abriu uma colisão com a R-004 que segue 🔴 **aberta**.
+
+**R-020** — ✅ confirmada, ver abaixo: **o admin sempre tem força**; **editar e excluir bloqueio é só da clínica**; **configurações avançadas é só do admin**.
 
 ⚠️ As duas primeiras nasceram como prosa em 2026-08-15 e só viraram regra
 numerada depois. O texto longo delas segue no meio da lista abaixo, entre a R-003
@@ -192,10 +194,19 @@ painel possa ligar". Ver A-003 na [revisão](REVISAO_PRE_PRODUCAO.md).
 🔴 **E o admin também apagava prontuário alheio** — achado ao corrigir, fora do
 escopo original da A-003, corrigido junto e sinalizado para você poder derrubar.
 
-⚠️ **Recomendação da `orla`, pendente de decisão:** todo acesso pela flag
-deveria deixar registro — quem, quando, qual prontuário. Prontuário é sigilo
-profissional (CFP) e dado sensível de saúde (LGPD). Saída de emergência sem
-registro é indistinguível de porta dos fundos quando alguém perguntar.
+✅ **Respondido em 2026-08-16: a flag deixa registro, e o registro não é
+visível por padrão.** *"Sim, a flag deixa registro, mas o registro não deve ser
+visível — deve haver uma config para liberar a visualização desse histórico."*
+
+Ou seja: **gravar sempre, mostrar sob liberação.** O registro existe desde o
+primeiro acesso — quem, quando, qual prontuário — e a tela que o exibe fica atrás
+de uma configuração.
+
+💡 **O desenho é melhor do que o que eu tinha recomendado**, e vale dizer por quê:
+eu pedi registro e parei aí. Registro visível a quem tem o painel convida a ser
+lido por curiosidade, e aí o histórico de acesso a prontuário vira ele mesmo um
+vazamento de segunda ordem — dá para inferir quem tratou quem. Gravar sempre e
+liberar a leitura por exceção mantém a auditabilidade sem criar essa porta.
 
 ---
 
@@ -531,7 +542,71 @@ cancelamento, prontuário ou histórico.
 Para essas coisas o caminho é **um só**, e é a plataforma. Isso não é limitação a
 resolver: é a fronteira. Ver [GOOGLE_LIMITES](GOOGLE_LIMITES.md), seção 4.
 
-### 🔴 Três perguntas que esta regra abre, e são suas
+### ✅ As três perguntas, respondidas em 2026-08-16
+
+**1. Quem ganha na divergência** — *"a plataforma ganha, ela é a fonte da verdade.
+E se forem dois da plataforma, o admin ganha sempre. Por ordem de poder: psi
+versus clínica, a clínica ganha."*
+
+Duas hierarquias, e elas são independentes:
+
+| Divergência | Quem prevalece |
+|---|---|
+| Google × plataforma | **plataforma** |
+| psicóloga × clínica, dentro da plataforma | **clínica (admin)** |
+
+📌 **Isto confirma a [D-011](../mensageria/DECISOES.md), que era dedução minha.** Eu havia registrado que
+"o Google propõe, a plataforma registra" era conclusão *minha* e que, se um dia
+divergisse da palavra dele, mandaria a regra. Não diverge: ele disse o mesmo, com
+outras palavras. A D-011 deixa de ser aposta.
+
+**2. Apagar o evento** — *"simplesmente deletar o evento. Se deletar no Google
+apaga na agenda da plataforma, e vice-versa."*
+
+🔴 **Esta resposta colide com a R-004, que também é dele — ver o quadro abaixo.**
+Enquanto a colisão não for resolvida, **ninguém implementa exclusão vinda do
+Google.**
+
+**3. Criar sessão pelo Google** — *"sim, a psicóloga pode criar sessões pelo
+Google."*
+
+Consequência a resolver no desenho, não na regra: a sessão chega **sem paciente
+cadastrado, sem valor e sem vínculo**, e a R-007, a R-008 e a R-009 dependem das
+três coisas. O caminho consistente com a R-018 é **entrar como rascunho** — a
+plataforma cria a sessão em estado provisório e **pergunta** o que falta, em vez
+de inventar. O título já carrega o nome do paciente pela R-017, então o
+casamento por nome é possível; quando ele for ambíguo ou não achar ninguém, a
+plataforma pergunta.
+
+---
+
+### 🔴 A colisão entre a resposta 2 e a R-004
+
+A R-004 diz: **passado é imutável** — sessão realizada é registro, não rascunho.
+Foi a primeira regra confirmada, e produziu as correções A-001 e A-002.
+
+A resposta 2 diz que apagar no Google apaga na plataforma. Junte as duas e
+aparece o caso que ninguém quis:
+
+> A psicóloga limpa a agenda de março no Google. Entre os eventos apagados há
+> sessões **realizadas e pagas**. A plataforma apaga junto — e o livro financeiro
+> muda depois de o dinheiro ter andado.
+
+É a **A-001 outra vez**, entrando por um canal que não controlamos e sem ninguém
+clicando em "confirmar".
+
+**Recomendação da `orla`, e é o Gabriel quem decide:** a exclusão propaga
+**só para sessão que ainda não aconteceu e não tem dinheiro associado**. Para
+sessão `realizado` ou paga, a plataforma **recria o evento no Google e avisa** —
+o mesmo desenho da R-018, que aceita o fato e pergunta a consequência.
+
+⚠️ O custo dessa recomendação é real e vale dizer: a psicóloga que apagou de
+propósito vai ver o evento voltar. Isso é confuso **uma vez**, e recuperável. O
+outro caminho apaga registro financeiro em silêncio, e não é recuperável.
+
+---
+
+### 🔴 Três perguntas que esta regra abriu (todas respondidas acima)
 
 **1. Quando os dois lados mudam a mesma sessão, quem ganha?** (a mais urgente)
 
@@ -560,9 +635,35 @@ dessas três coisas. As saídas: **não dá para criar por lá** (e a paridade d
 R-019 vale só para editar e mudar estado); ou **dá, e vira rascunho** que a
 plataforma pergunta antes de virar sessão de verdade.
 
-⚠️ Nenhuma destas três pode ser respondida por dedução. **Enquanto elas
-estiverem abertas, ninguém escreve o sincronizador de entrada** — é exatamente o
-tipo de buraco que vira decisão implícita no código, que é como a A-001 nasceu.
+⚠️ Nenhuma destas três podia ser respondida por dedução — e é por isso que elas
+esperaram. **Respondidas em 2026-08-16**, com uma ressalva: a segunda abriu a
+colisão com a R-004 registrada acima, e **até ela ser resolvida ninguém
+implementa exclusão vinda do Google.**
+
+---
+
+### R-020 — O admin sempre pode, e bloqueio é da clínica
+
+Respondida em **2026-08-16**, e ela resolve três coisas que estavam soltas:
+
+**1. O admin sempre tem força.** *"Sim, o admin sempre tem força."* Vale também
+no caminho de **atualização**, onde hoje o campo `force` não existe — era uma das
+pendências abertas pela A-007.
+
+**2. Bloqueio: criar é dos dois, editar e excluir é só do admin.** *"Bloqueio só
+deve ser permitido excluir e editar pela clínica/admin."* A R-014 já dizia que
+**criar** é do psicólogo e da clínica; isto acrescenta que **mexer no que já
+existe** é privilégio da clínica.
+
+**3. A área de configurações avançadas é só do admin.** É onde mora o
+cancelamento em massa da R-014, e agora também a liberação de visualização do
+histórico de acesso a prontuário (R-012).
+
+⚠️ **A consequência da (1) para a A-009 e a A-011:** o Gabriel escolheu construir
+o forçar **no módulo do admin**. Como o `force` passa a existir também no
+atualizar, as duas correções são o mesmo trabalho e **têm que sair juntas** —
+senão o botão novo cria sessões que a própria tela não consegue editar. Ver A-009
+e A-011 na [revisão](REVISAO_PRE_PRODUCAO.md).
 
 ---
 
@@ -672,6 +773,15 @@ defensável**, e que precisam de confirmação:
    acabam. Se a liberação não expira nem é revisada, elas se acumulam em
    silêncio e em dois anos todo mundo enxerga todo mundo — sem que ninguém tenha
    decidido isso.
+
+✅ **Respondido em 2026-08-16: a liberação NÃO expira.** A revogação é manual.
+
+⚠️ **Então a acumulação silenciosa que eu descrevi acima é aceita como
+contrapartida, e ela precisa de contrapeso em algum lugar.** O contrapeso barato,
+e que não muda a regra: a área que lista as liberações mostra **desde quando**
+cada uma está aberta. Não expira, não avisa, não revoga sozinha — mas quem abrir
+a tela vê "liberado há 14 meses" em vez de só "liberado". Recomendação da
+`orla`, não é regra.
 
 ---
 
