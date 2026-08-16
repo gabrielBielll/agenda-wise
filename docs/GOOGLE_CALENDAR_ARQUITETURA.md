@@ -609,6 +609,24 @@ Em aberto:
 6. **Elevar as agendas atuais para `owner`** — vale propor aos psicólogos como passo intermediário? Custa uma troca de permissão, não migra dado nenhum, e destrava `acl.list` (D15, caminho 1). Pode ser mais fácil de negociar do que a migração completa para B.
 7. **Quando migrar o legado A → B** — todos de uma vez após a Fase 5, ou conforme conveniência? Não há pressa técnica; a migração compra redução de risco, não funcionalidade.
 
+🔴 **Novas, e de outra natureza — a convenção de cores (2026-08-15):**
+
+Este documento tem **zero** menção a cores, e a cor é o canal de entrada inteiro
+do status vindo do Google. A convenção existe, está em uso pelas psicólogas e
+está registrada na **R-003** de [REGRAS_DE_NEGOCIO](REGRAS_DE_NEGOCIO.md), com o
+mapa completo e quatro buracos. Quem for escrever o sincronizador de status
+**precisa ler aquela seção antes**, e as quatro perguntas precisam estar
+respondidas antes de virar código — senão a convenção vira implícita na
+implementação, que é exatamente como a A-001 nasceu.
+
+⚠️ **E há uma armadilha de arquitetura, não de código.** O `lista-psis` já
+consome essas cores em produção e sincroniza assim: consulta a janela futura,
+**apaga o cache do calendário e reinsere**. Lá está certo — o dado é
+disponibilidade, e ela é da psicóloga. **Aqui a direção da propriedade é
+oposta:** o dado é status de sessão, com dinheiro associado, e o dono é a
+plataforma. Copiar o modelo de sync de lá para cá é a A-001 em escala maior.
+Aqui o Google **propõe**; quem registra é a plataforma.
+
 Novas, deste documento:
 
 8. **Scheduler** — `chime` in-process agora ou EventBridge direto? (5.4)
@@ -635,6 +653,17 @@ Além do checklist da spec (seção 11), específico daqui:
 - [ ] `clinica_id` em toda query do caminho de sync
 - [ ] Estado `sem_acesso` implementado e com alerta visível — no Modelo A o psicólogo pode descompartilhar a qualquer momento
 - [ ] Cancelamento inbound não reverte `status_pagamento = 'pago'` (D13)
+- [ ] **Nunca** apagar-e-reconstruir estado de sessão a partir do Google — o
+      modelo do `lista-psis` vale para disponibilidade, não para status com
+      dinheiro atrelado
+- [ ] `colorId` de Tangerina, Sálvia, Tomate e Grafite **conferidos contra a
+      API** antes de virar constante (só Pavão=7 e Blueberry=9 estão confirmados
+      em código, no `lista-psis`)
+- [ ] Mudança de cor sozinha **não** promove sessão de agendada para confirmada
+      sem um segundo sinal — confirmada dispara a cadeia financeira da R-008
+- [ ] Evento cinza (bloqueio) sobre sessão marcada tem resposta definida: a
+      R-014 proíbe, mas o Google já aceitou — não dá para "recusar" o que já
+      aconteceu do outro lado
 - [ ] `google.*` em namespaces novos, nada em `core.clj`
 - [ ] `src/app/api/calendar/events/route.ts` deletado
 - [ ] `GoogleProvider` do NextAuth restrito a `openid email profile`
