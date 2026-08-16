@@ -19,8 +19,15 @@
 🔴 **NÃO remova a marcação de pagamento.** Ela é **funcionalidade pedida pela
 CEO** (R-022) — eu classifiquei errado na 0067 e o Gabriel corrigiu.
 
-O que muda: `clinicas.pagamento_automatico` (desligado por padrão), o job filtra
-por clínica, e a marca automática passa a ser **distinguível da manual**.
+📐 **O desenho inteiro está em [docs/PAGAMENTO_AUTOMATICO.md](../docs/PAGAMENTO_AUTOMATICO.md)** — leia antes de escrever a
+migration. Resumo: coluna de origem do pagamento com o passado entrando como
+**`desconhecido`** (não `manual`, não `automatico` — o dado não guarda pista, e
+inventar seria pior); flag `clinicas.pagamento_automatico` **desligada por
+padrão mas ligada para as clínicas que já existem**, porque desligar por baixo
+mudaria o comportamento delas sem aviso; filtro por `clinica_id` no job.
+
+⚠️ **Não reuse `origem` nem `origem_ultima_alteracao`** — a primeira é a origem do
+agendamento, a segunda seria sobrescrita na próxima edição de horário.
 
 **2. 🔴 A-012 — a migration das permissões** · [0067](0067-orla-para-duna-a-012-especificada-e-a-a-014-que-inventa-pagamento.md) · matriz completa lá
 

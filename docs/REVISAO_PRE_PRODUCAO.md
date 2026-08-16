@@ -615,10 +615,19 @@ viram.
 o `-main` nunca roda na suíte. Mesma família da lição da A-012, onde tudo rodava
 como admin.
 
-🔴 **E fica uma pergunta de dado, não de código, que é do Gabriel:** o modo rodou
-para todas as clínicas até hoje, sem distinguir a marca. Se em algum momento
-existir clínica que **não** queira o modo, o histórico dela já veio marcado — e
-não dá para separar pelo próprio registro.
+🔴 **E fica uma pergunta de dado, não de código:** o modo rodou para todas as
+clínicas até hoje, sem distinguir a marca.
+
+✅ **Respondida em [PAGAMENTO_AUTOMATICO](PAGAMENTO_AUTOMATICO.md), e a resposta é
+não tentar adivinhar.** Procurei pista no dado e não há: `agendamentos` não tem
+`updated_at` (só `data_registro`, que é criação), e `origem_ultima_alteracao`
+existe como coluna e **nenhum código escreve nela**. Então o passado inteiro
+entra como **`desconhecido`** — não `manual`, que inventaria autoria humana, nem
+`automatico`, que acusaria o job de linhas que alguém marcou de verdade.
+
+💡 **E pela [D-012](../mensageria/DECISOES.md) isso custa zero hoje**, porque não
+há dado real. A mesma migration daqui a seis meses cria uma pilha que alguém
+teria que reconciliar contra extrato.
 
 ---
 

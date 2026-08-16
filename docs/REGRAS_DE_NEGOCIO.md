@@ -736,6 +736,11 @@ consiga corrigir**. Hoje ela não consegue nenhum dos dois:
 quatro, ele é exatamente o que a CEO pediu — a equipe cuida da exceção, e a
 exceção é visível.
 
+📐 **O desenho completo está em [PAGAMENTO_AUTOMATICO](PAGAMENTO_AUTOMATICO.md)**,
+incluindo o que fazer com o histórico que já foi marcado: ele entra como
+`desconhecido`, porque o dado **não guarda** pista de quem marcou o quê —
+`agendamentos` não tem `updated_at` e `origem_ultima_alteracao` nunca foi escrita.
+
 💡 **E uma observação de operação, não de regra:** hoje o job roda **no boot**.
 Isso significa que o fechamento do mês acontece quando alguém faz deploy. Sem
 deploy numa semana, nada é marcado; com três deploys num dia, roda três vezes.
