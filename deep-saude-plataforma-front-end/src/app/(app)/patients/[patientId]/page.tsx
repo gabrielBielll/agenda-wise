@@ -1,7 +1,9 @@
 import React from 'react';
 import { getServerSession } from "next-auth/next";
 import { authOptions } from '@/lib/auth'; // Importar authOptions
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
+import { carregar } from '@/lib/carregar';
+import { FalhaDeCarregamento } from '@/components/FalhaDeCarregamento';
 import Link from 'next/link';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -71,39 +73,7 @@ async function getPatientDetails(patientId: string, token: string): Promise<Pati
 }
 
 // --- FUNÇÃO PARA BUSCAR PRONTUÁRIOS ---
-async function getProntuarios(patientId: string, token: string): Promise<Prontuario[]> {
-  const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/pacientes/${patientId}/prontuarios`;
-  try {
-    const response = await fetch(apiUrl, {
-      method: 'GET',
-      headers: { 'Authorization': `Bearer ${token}` },
-      cache: 'no-store',
-    });
-    if (!response.ok) return [];
-    return response.json();
-  } catch (error) {
-    console.error("Erro ao buscar prontuários:", error);
-    return [];
-  }
-}
-
 // --- FUNÇÃO PARA BUSCAR AGENDAMENTOS ---
-async function getAppointments(patientId: string, token: string) {
-  const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/agendamentos?paciente_id=${patientId}`;
-  try {
-    const response = await fetch(apiUrl, {
-      method: 'GET',
-      headers: { 'Authorization': `Bearer ${token}` },
-      cache: 'no-store',
-    });
-    if (!response.ok) return [];
-    return response.json();
-  } catch (error) {
-    console.error("Erro ao buscar agendamentos:", error);
-    return [];
-  }
-}
-
 // --- DADOS MOCKADOS DOCUMENTOS ---
 const mockDocuments: Document[] = [
     { id: 'd1', name: 'Formulário de Admissão.pdf', uploadDate: '2023-01-10', url: '#' },
@@ -118,19 +88,41 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
   const token = (session as any)?.backendToken;
   
   if (!token) {
-    return <p className="p-4">Sessão inválida ou não encontrada. Por favor, faça login novamente.</p>;
+    redirect("/?expired=true");
   }
 
   // Busca dados em paralelo
   const [patient, prontuarios, appointments] = await Promise.all([
     getPatientDetails(patientId, token),
-    getProntuarios(patientId, token),
-    getAppointments(patientId, token)
+    /**
+     * A-013, e aqui é o caso mais grave da lista.
+     *
+     * Pela R-012 o prontuário é do psicólogo AUTOR — então 403 nesta chamada é
+     * legítimo e esperado: é o colega abrindo o paciente de outra pessoa. Com
+     * `return []`, a tela dizia que **o paciente não tem prontuário**, e quem
+     * cobre um colega concluiria que não há histórico clínico registrado.
+     *
+     * Não é só tela mentindo: é tela mentindo sobre ausência de histórico
+     * clínico, para quem está atendendo.
+     */
+    carregar<any[]>(`/api/pacientes/${patientId}/prontuarios`, token),
+    carregar<any[]>(`/api/agendamentos?paciente_id=${patientId}`, token),
   ]);
 
   if (!patient) {
+    /**
+     * ⚠️ Conflação que sobra, e não é para esta tarefa.
+     *
+     * `getPatientDetails` devolve `null` tanto para 404 quanto para 403 — então
+     * o colega sem acesso vê "paciente não encontrado" em vez de "sem acesso".
+     * É a mesma família da A-013, e tratar exige um quinto estado (404) que a
+     * decisão da 0073 não cobre. Anotado, não corrigido.
+     */
     notFound();
   }
+
+  if (!prontuarios.ok) return <FalhaDeCarregamento motivo={prontuarios.motivo} oQue="o prontuário" />;
+  if (!appointments.ok) return <FalhaDeCarregamento motivo={appointments.motivo} oQue="as sessões" />;
 
   const getInitials = (name: string) => {
     return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
@@ -189,28 +181,28 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
         <TabsContent value="notes">
           <div className="grid gap-6">
             {/* Componente de Formulário para Nova Evolução */}
-            <ProntuarioForm patientId={patient.id} appointments={appointments} patientData={patient} />
+            <ProntuarioForm patientId={patient.id} appointments={appointments.dados} patientData={patient} />
 
             <Card className="shadow-md" id="historico-evolucao">
               <CardHeader><CardTitle className="font-headline text-2xl">Histórico de Evolução</CardTitle></CardHeader>
               <CardContent>
-                    {prontuarios.length > 0 ? (
+                    {prontuarios.dados.length > 0 ? (
                       <ProntuarioList 
-                        initialProntuarios={prontuarios} 
+                        initialProntuarios={prontuarios.dados} 
                         patientId={patient.id} 
-                        appointments={appointments} 
+                        appointments={appointments.dados} 
                       />
                     ) : (
                       <div className="text-center py-10 text-muted-foreground">
                         <FileText className="h-10 w-10 mx-auto mb-2 opacity-20" />
-                        <p>Nenhum registro encontrado no prontuário.</p>
+                        <p>Nenhum registro no prontuário ainda.</p>
                       </div>
                     )}
               </CardContent>
             </Card>
 
             {/* Gráfico de Evolução do Humor */}
-            <MoodChart data={prontuarios} />
+            <MoodChart data={prontuarios.dados} />
 
           </div>
         </TabsContent>

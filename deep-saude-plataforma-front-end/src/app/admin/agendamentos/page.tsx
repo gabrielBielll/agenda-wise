@@ -1,6 +1,9 @@
 import React from 'react';
 import { getServerSession } from "next-auth";
+import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
+import { carregar } from "@/lib/carregar";
+import { FalhaDeCarregamento } from "@/components/FalhaDeCarregamento";
 import AgendamentosClient from "./AgendamentosClient";
 
 interface Agendamento {
@@ -18,84 +21,40 @@ interface Item {
   nome: string;
 }
 
-async function getAgendamentos(token: string): Promise<Agendamento[]> {
-  try {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/agendamentos`, {
-      headers: { 'Authorization': `Bearer ${token}` },
-      cache: 'no-store',
-    });
-    if (!response.ok) return [];
-    return response.json();
-  } catch (e) {
-    console.error(e);
-    return [];
-  }
-}
-
-async function getPacientes(token: string): Promise<Item[]> {
-  try {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/pacientes`, {
-      headers: { 'Authorization': `Bearer ${token}` },
-      cache: 'no-store',
-    });
-    if (!response.ok) return [];
-    return response.json();
-  } catch (e) {
-    console.error(e);
-    return [];
-  }
-}
-
-async function getPsicologos(token: string): Promise<Item[]> {
-  try {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/psicologos`, {
-      headers: { 'Authorization': `Bearer ${token}` },
-      cache: 'no-store',
-    });
-    if (!response.ok) return [];
-    return response.json();
-  } catch (e) {
-    console.error(e);
-    return [];
-  }
-}
-
-async function getBloqueios(token: string): Promise<any[]> {
-  try {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/bloqueios`, {
-      headers: { 'Authorization': `Bearer ${token}` },
-      cache: 'no-store',
-    });
-    if (!response.ok) return [];
-    return response.json();
-  } catch (e) {
-    console.error(e);
-    return [];
-  }
-}
-
+/**
+ * A-013 — esta página tinha quatro `if (!response.ok) return []`.
+ *
+ * A porta de volta aqui é `/admin/login`, não `/`: a área administrativa tem
+ * credencial própria, e mandar o admin para a tela do psicólogo era o item 7 da
+ * revisão pré-produção.
+ */
 export default async function AdminAgendamentosPage() {
   const session = await getServerSession(authOptions);
   const token = (session as any)?.backendToken;
-  
-  if (!token) return <p>Não autorizado.</p>;
-  
+
+  if (!token) {
+    redirect("/admin/login?expired=true");
+  }
+
+  const porta = { porta: "/admin/login" };
   const [agendamentos, pacientes, psicologos, bloqueios] = await Promise.all([
-    getAgendamentos(token),
-    getPacientes(token),
-    getPsicologos(token),
-    getBloqueios(token)
+    carregar<any[]>("/api/agendamentos", token, porta),
+    carregar<any[]>("/api/pacientes", token, porta),
+    carregar<any[]>("/api/psicologos", token, porta),
+    carregar<any[]>("/api/bloqueios", token, porta),
   ]);
 
-  console.log("DEBUG: AdminAgendamentosPage fetched:", agendamentos.length, "agendamentos");
-  console.log("DEBUG: First agendamento:", agendamentos[0]);
+  if (!agendamentos.ok) return <FalhaDeCarregamento motivo={agendamentos.motivo} oQue="os agendamentos" />;
+  if (!pacientes.ok) return <FalhaDeCarregamento motivo={pacientes.motivo} oQue="os pacientes" />;
+  if (!psicologos.ok) return <FalhaDeCarregamento motivo={psicologos.motivo} oQue="os psicólogos" />;
+  if (!bloqueios.ok) return <FalhaDeCarregamento motivo={bloqueios.motivo} oQue="os bloqueios" />;
 
   return (
-    <AgendamentosClient 
-      agendamentos={agendamentos} 
-      pacientes={pacientes} 
-      psicologos={psicologos} 
-      bloqueios={bloqueios}
+    <AgendamentosClient
+      agendamentos={agendamentos.dados}
+      pacientes={pacientes.dados}
+      psicologos={psicologos.dados}
+      bloqueios={bloqueios.dados}
     />
   );
 }
