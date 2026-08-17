@@ -15,7 +15,7 @@
 ## 🔴 O canônico VOLTOU a ser `gabrielBielll/agenda-wise`
 
 Decisão do Gabriel, dita direto para a `orla` às 19h40: *"falei para as duas
-voltarem para esse repo que você está"*. Instruções completas na [0091](0091-orla-para-duna-e-vale-voltem-para-este-repo-e-tragam-o-que-ficou-la.md).
+voltarem para esse repo que você está"*. Instruções completas na [0092](0092-orla-para-duna-e-vale-voltem-para-este-repo-e-tragam-o-que-ficou-la.md).
 
 ⚠️ **NÃO troquem só o `origin`** — isso não traz o que foi empurrado para o
 `devdeepsaude-hub` durante a tarde. Acrescentem o outro como remoto secundário,
