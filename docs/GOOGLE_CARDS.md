@@ -87,6 +87,66 @@ tem rede aberta (`duna`, `vale`) confirma os requisitos atuais na tela.
 
 ---
 
+## 🔴 DECISÃO ABERTA — o Gabriel descreveu um **terceiro modelo**, em 17/08
+
+> *"O psicólogo vai acessar a plataforma e a gente vai ter um botão de conectar
+> com o Google Agenda. Quando ele conectar e colocar a conta do Google dele, a
+> aplicação vai criar uma agenda a mais na lista de agendas dele. Aí ele vai ver
+> a agenda da Deep Saúde e poder lidar com ela."*
+
+**Isso não é o Modelo A nem o Modelo B.** É um terceiro, e ele muda quem faz o
+OAuth — que é a peça de que tudo o mais depende.
+
+| | Quem autoriza | Onde a agenda mora | Quem é dono |
+|---|---|---|---|
+| **A** — hoje em uso | a **clínica** | conta da psicóloga | a psicóloga |
+| **B** — desenhado | a **clínica** | conta da clínica | a clínica |
+| **C** — descrito agora | **cada psicóloga** | conta da psicóloga | **o app** (`calendar.app.created`) |
+
+### O que o C tem de melhor, e não é pouco
+
+- ✅ **Some a armadilha da permissão.** Ninguém precisa escolher *"Fazer
+  alterações nos eventos"* na tela certa — não há compartilhamento manual.
+- ✅ **Some o risco de privacidade.** O `calendar.app.created` alcança **apenas as
+  agendas que o próprio app criou**. A agenda pessoal da psicóloga fica fora do
+  alcance por construção, não por combinado.
+- ✅ **A psicóloga vê a agenda na hora**, na lista dela, sem convite para aceitar.
+- ✅ **A cota escala.** O limite do Google é **por usuário** (600 req/min): com uma
+  conexão só da clínica, toda escrita de todos os psicólogos passa por um gargalo
+  único. Com uma conexão por pessoa, o teto acompanha o time.
+
+### O que ele custa, e precisa estar na mesa
+
+- 🔴 **Muda o schema.** `google_conexao` tem hoje `UNIQUE (clinica_id)` — **uma
+  conexão por clínica**. O C precisa de **uma por psicóloga**.
+- 🔴 **Muda a permissão.** `gerenciar_integracao_google` é **só do admin** na
+  migration de hoje. No C a psicóloga precisa conectar a própria agenda — provável
+  permissão nova e mais estreita, tipo `conectar_minha_agenda`.
+- ⚠️ **N tokens para manter vivos** em vez de um. Cada `invalid_grant` é de uma
+  pessoa, e a tela tem que dizer **de quem**.
+- ⚠️ **Cada psicóloga vê a tela de "app não verificado"** enquanto rodarmos
+  publicado-sem-verificar ([D-014](../mensageria/DECISOES.md)). Com a clínica conectando, isso acontecia
+  **uma vez**; no C acontece **por pessoa**.
+- ⚠️ **Se a psicóloga sair, a agenda vai com ela.** É o inverso da vantagem do
+  Modelo B. Mitigado pela **R-019** — a plataforma é a fonte da verdade e o
+  histórico fica aqui — mas o Google daquela pessoa não é mais nosso.
+
+### 📌 O que **não** muda, e é o que segura a decisão
+
+O motor de sincronização continua **cego ao modelo**: ele lê `google_calendar_id`
+do `vinculo_agenda` e escreve. A coluna `topologia` já existe exatamente para
+isto. **Então as Trilhas B, C e D não mudam** — muda quem autoriza e onde a
+agenda nasce, que é Trilha A e provisionamento.
+
+➡️ **Recomendação: adotar o C como destino, mantendo o A para o legado.** O
+momento é agora, porque nada de sync foi construído ainda — trocar hoje custa uma
+migration e uma tela; trocar depois custa migração de dados de gente real.
+
+⚠️ **E isso muda a plateia do GC-001**: tela do **admin** mapeando agendas (A/B)
+não é a mesma coisa que botão da **psicóloga** conectando a dela (C).
+
+---
+
 ## Trilha A — fechar a Fase 1 · **independente, pode começar já**
 
 ### GC-001 · a tela de integração no admin — `vale`
