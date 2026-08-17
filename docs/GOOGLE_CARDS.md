@@ -29,22 +29,46 @@ desta etapa inteira.
 
 ---
 
-## 🔴 GC-000 — Google Cloud Console · **do Gabriel, e começa hoje**
-
-Consent screen em **Produção**, domínio verificado, **iniciar a verificação
-OAuth**.
+## 🔴 GC-000 — Google Cloud Console · **do Gabriel, e começa antes de tudo**
 
 ⚠️ **Este é o único item da etapa 6 cujo custo é tempo de calendário, não tempo
 de trabalho.** A verificação do Google leva **semanas** e não depende de nós.
-Enquanto ela não sair, o app fica limitado a usuários de teste — e nenhuma
+Enquanto ela não sair, o app fica limitado a **usuários de teste** — e nenhuma
 quantidade de código adianta isso.
 
-📌 **Peça os escopos dos DOIS modelos já na primeira submissão** (D14 da
-arquitetura), inclusive o do Modelo B que não vamos implementar agora. Pedir
-escopo novo depois **reabre a verificação inteira**.
+### O que precisa existir
 
-➡️ **Recomendação: começar isto antes de qualquer card abaixo.** Custa uma tarde
-e destrava um calendário de semanas.
+| | O quê | Observação |
+|---|---|---|
+| 1 | Projeto no Google Cloud + **tela de consentimento em Produção** | não em *Testing* |
+| 2 | **Os três escopos, na primeira submissão** | ver abaixo |
+| 3 | 🔴 **Domínio próprio, verificado** | *.code.run do Northflank **não** serve |
+| 4 | 🔴 **Página inicial e política de privacidade** publicadas nesse domínio | requisito da verificação para escopo sensível |
+| 5 | Verificação submetida | ⏳ **semanas** |
+| 6 | **Usuários de teste** cadastrados | é o que nos deixa desenvolver enquanto a verificação corre |
+| 7 | `GOOGLE_CLIENT_ID` / `SECRET` + **redirect URI** | ⏸️ **depois** do Northflank subir — a URI tem que bater com a URL real do front |
+
+### Os escopos, como já estão no código (`google/oauth.clj:49`)
+
+```
+https://www.googleapis.com/auth/calendar.events                  ← Modelo A
+https://www.googleapis.com/auth/calendar.calendarlist.readonly   ← Modelo A
+https://www.googleapis.com/auth/calendar.app.created             ← Modelo B
+```
+
+📌 **Peça os três já na primeira submissão** (D14), inclusive o do Modelo B que
+não vamos implementar agora: **pedir escopo novo depois reabre a verificação
+inteira**.
+
+🔎 **Os itens 3 e 4 são os que costumam surpreender**, e não estavam escritos em
+lugar nenhum deste repositório até hoje: escopo de calendário é **sensível**, e
+verificação de escopo sensível exige domínio verificado com página inicial e
+política de privacidade. **Não é código — é uma página no ar num domínio nosso.**
+
+⚠️ **Eu não consigo conferir o console nem a documentação do Google** —
+`developers.google.com` é negado pelo proxy da minha sandbox, o mesmo motivo pelo
+qual os limites em [GOOGLE_LIMITES](GOOGLE_LIMITES.md) são **reportados e não medidos por nós**. Quem
+tem rede aberta (`duna`, `vale`) confirma os requisitos atuais na tela.
 
 ---
 
@@ -144,6 +168,21 @@ a R-014 recusa isso dentro da plataforma, mas fora dela o fato já aconteceu.
 🔴 **Limite medido: o canal expira em 7 dias, não renova sozinho, e falha em
 silêncio.** Sem o cron de renovação a integração morre uma semana depois de
 subir, sem erro nenhum. **O card da renovação não é opcional, é parte deste.**
+
+---
+
+## 🧪 GC-000b — uma agenda de verdade para testar · **do Gabriel**
+
+O **Modelo A** é a clínica escrevendo em agendas que **pertencem às psicólogas**.
+Para exercitar isso de ponta a ponta é preciso **pelo menos uma agenda Google
+compartilhada com a conta da clínica, com permissão de escrita** (`writer`).
+
+Pode ser uma conta Google de teste sua — não precisa ser de uma psicóloga real, e
+para os primeiros cartões **é melhor que não seja**.
+
+⚠️ **Sem isto, as trilhas B e C só têm teste contra o que a gente imagina que o
+Google responde.** É o mesmo formato do "o que se testa não é o que roda" que já
+apareceu três vezes hoje.
 
 ---
 
