@@ -115,52 +115,27 @@ Suíte em **99 testes / 339 asserções**.
 <!-- FILA:vale -->
 ## `vale` — Claude no Termux
 
-**1. 🔴 A-013 — a tela para de tratar toda falha como "não há nada"** · [0071](0071-orla-para-vale-a-decisao-de-produto-da-a-013-e-como-nao-esperar-a-a-012.md) · achado dela na [0066](0066-vale-para-orla-por-que-a-a012-ficou-invisivel.md)
+**1. 🧩 GC-001 — a tela de integração do Google** · [0080](0080-orla-para-vale-as-duas-aprovadas-e-voce-pega-o-google.md) · contexto em [GOOGLE_CARDS](../docs/GOOGLE_CARDS.md) e [GOOGLE_MODO_TESTE](../docs/GOOGLE_MODO_TESTE.md)
 
-✅ **A decisão de produto que faltava está dada:** **quatro estados, nunca
-confundidos** — vazio de verdade (*"nenhum … cadastrado ainda"*), **403** (*"você
-não tem acesso a esta lista, fale com a gestão"*), **500/rede** (*"não consegui
-carregar"* + tentar de novo, como o `admin/layout.tsx` já faz) e **401** (manda
-para o login, sem tela de erro). Hoje os quatro produzem a mesma tela.
+O backend já responde — **10 rotas, 966 linhas** em `google/`. Falta a tela, e ela
+é a menor coisa da etapa 6 inteira.
 
-⚠️ **A tela de 403 não pode dizer o que existe do outro lado** — *"14 pacientes
-que você não pode ver"* vaza justamente o que a permissão nega.
+🔴 **O `sem_acesso` grita, não sussurra.** No Modelo A a psicóloga descompartilha
+quando quiser e a integração morre calada — rótulo discreto ali é a A-013 outra
+vez, em outra tela.
 
-🔎 **Um lugar só**, não 14: se a decisão morar nos 14 sítios, o 15º nasce errado.
+🔴 **Botão de reconectar com o motivo visível.** Pela [D-014](DECISOES.md) o app roda
+publicado e não verificado; e o `invalid_grant` acontece igual em produção.
+**Funcionalidade nos dois mundos, não contorno.**
 
-⚠️ **`page.route` NÃO serve aqui** — eu propus e a `vale` derrubou medindo
-([0072](0072-vale-para-orla-o-page-route-nao-alcanca-esses-oito-arquivos.md)): os oito arquivos são **server components**, o `fetch` sai do servidor
-Next e nunca toca o navegador. O teste passaria **achando** que forçou 403.
+🔴 **A confirmação humana no vínculo é permanente.** Agenda errada no psicólogo
+errado **expõe pacientes de um profissional a outro**.
 
-✅ **Como fica, decidido na [0073](0073-orla-para-vale-as-quatro-decisoes-da-a-013-e-o-500-vai-para-a-pico.md):** vermelho do **401 agora** (ela mediu: token com
-`exp` futuro e assinatura falsa atravessa o front e é recusado pela API), helper
-e as quatro telas **de uma vez**, o **403** vira teste quando a A-012 cair, e o
-**backend fora do ar** virou a **P-002 da `pico`**, que é quem roda Playwright.
+⏸️ **As credenciais do Google não existem ainda** — dependem do Gabriel, e a
+redirect URI depende da URL do Northflank. **Construa contra as respostas do
+backend**, que já estão definidas.
 
-⚠️ **Duas das quatro telas nascem sem teste** (403 e 500) — alerta dela, e fica
-escrito no arquivo de teste, não só aqui.
-
-✅ **Aqui a D-008 vale inteira.** A exceção da A-010 existiu porque havia grupo de
-controle (admin com `value` sobrevivendo). Aqui os 14 sítios erram igual — **sem
-grupo de controle, sem exceção.**
-
-**2. 🔴 A-016 — o 401 redireciona mas não encerra a sessão** · [0076](0076-orla-para-vale-o-teste-do-401-continua-vermelho-e-o-motivo-e-a-outra-metade.md) · **fecha o seu teste**
-
-O seu `carregar.ts` está certo e **não deve mudar**. O que falta é a porta de
-login: com `?expired=true`, **não** auto-redirecionar por `authenticated` —
-`signOut({ redirect: false })` e mostrar o formulário.
-
-⚠️ **Nas duas portas** (`/` e `/admin/login`), senão o admin cai no laço e a
-psicóloga não — pior que as duas caírem, porque some da vista.
-
-🔴 **Por que é vermelho:** é o que acontece na **rotação do `JWT_SECRET`**. O
-`exp` dos tokens já emitidos não muda, o middleware só olha o `exp` e deixa
-passar, o backend recusa a assinatura, e **toda sessão aberta entra no laço**.
-
-**3. 🟠 A-009 + A-011 JUNTAS — o botão de forçar do admin** · destravadas pela **R-020**
-
-O muro caiu: o Gabriel respondeu que **admin sempre tem `force`** (inclusive no
-atualizar) e autorizou **construir no módulo do admin**.
+**2. 🟠 A-009 + A-011 JUNTAS — o botão de forçar do admin** · destravadas pela **R-020**
 
 ⚠️ **São um trabalho só.** Botão de forçar sem tratar a A-011 cria sessão que a
 própria tela não consegue editar — caminho de ida sem volta, o mesmo tipo de
@@ -171,17 +146,15 @@ sessão que já aconteceu ou tem dinheiro, e o corte **não** é `data < now()`.
 
 ⚠️ **A A-004 continua fora** — espera a R-009 virar modelo de remuneração.
 
-✅ **Feito hoje:** **A-013** — vermelho deliberado (`cd04af2`) e correção
-(`0bb09b6`): `lib/carregar.ts` com os quatro estados num lugar só, e as 14
-ocorrências de `if (!res.ok) return []` foram embora. O teste segue vermelho **por
-outro motivo**, que virou a A-016 · **SEC-005** (`e26424f`) — aprovada na [0074](0074-orla-para-duna-e-vale-o-ambiente-de-hoje-e-descartavel-e-o-alvo-mudou.md), e ela mediu antes de
-apagar que o papel real chega do backend com esse nome; sem isso a sessão ficaria
-sem papel e o middleware mandaria todo mundo para `/` · **A-010** (`b9f3158`) — o período do bloqueio vive em estado e
-não no DOM ([0065](0065-vale-para-orla-a010-corrigida-e-o-teste-dela-depende-da-a012.md)); o e2e dela está preso atrás da A-012 e entra quando ela
-cair · o achado da **A-013** ([0066](0066-vale-para-orla-por-que-a-a012-ficou-invisivel.md)), que o teste do 403 pagou pela segunda vez ·
-front das guardas ([0052](0052-vale-para-orla-a-recusa-do-backend-virou-tela.md)) · o `skip` do financeiro virou falha
-depois da medição ([0053](0053-vale-para-orla-fila-vazia-e-o-skip-fechado.md)) · e2e do 409 (`d353006`) · e2e do 403 + os três reparos
-([0057](0057-vale-para-orla-o-403-fechado-e-o-admin-sem-tela-para-forcar.md)), com o achado da **A-009** no caminho.
+✅ **Feito hoje:** **A-013** e **A-016** verdes (`0d6a3fc`), aprovadas na [0080](0080-orla-para-vale-as-duas-aprovadas-e-voce-pega-o-google.md) —
+suíte de navegador de **12 passados + 1 pulado** para **18 passados, nenhum
+pulado**; os 14 `if (!res.ok) return []` acabaram · **SEC-005** (`e26424f`) ·
+**A-010** (`b9f3158`) · o achado da **A-013** ([0066](0066-vale-para-orla-por-que-a-a012-ficou-invisivel.md)) e o da **A-016**, que
+apareceu porque o mesmo teste ficou vermelho **duas vezes por motivos
+diferentes** · front das guardas ([0052](0052-vale-para-orla-a-recusa-do-backend-virou-tela.md)) · e2e do 409 e do 403 ([0057](0057-vale-para-orla-o-403-fechado-e-o-admin-sem-tela-para-forcar.md)).
+
+⏳ **Pendências nomeadas, não esquecidas:** o teste do **403** entra quando a
+A-012 cair; o de **backend fora do ar** é a **P-002** da `pico`.
 
 <!-- FILA:regras-novas -->
 ## 📋 Regras que chegaram em 16/08 e ainda não viraram código

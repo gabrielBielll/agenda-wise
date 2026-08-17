@@ -6,11 +6,14 @@
 > desenvolvimento simulando a clínica. Isto **substitui o GC-000 por enquanto** e
 > tira a verificação OAuth do caminho crítico.
 >
-> ⚠️ **Eu não alcanço `developers.google.com` nem o console** — o proxy da minha
-> sandbox nega, o mesmo motivo pelo qual os [limites](GOOGLE_LIMITES.md) são reportados e não
-> medidos por nós. O que está aqui vem da arquitetura, do código e do que é
-> estável na plataforma do Google. **Quem confirma a tela atual é a `duna` ou a
-> `vale`**, que têm rede aberta.
+> ✅ **Aprovado pelo Gabriel em 17/08 e registrado como [D-014](../mensageria/DECISOES.md)**, incluindo
+> publicar **sem verificar** para eliminar o prazo de 7 dias.
+>
+> ⚠️ **Eu não alcanço `developers.google.com` nem `support.google.com`** — o proxy
+> da minha sandbox nega. O que está aqui vem da arquitetura, do código e do que é
+> estável na plataforma do Google; **quem confirma a tela atual é a `duna` ou a
+> `vale`**, que têm rede aberta. 🔎 Mas os **endpoints** da API respondem daqui —
+> ver a seção de correção mais abaixo.
 
 ---
 
@@ -134,15 +137,15 @@ No Google Cloud Console, com essa conta:
 
 1. criar um projeto;
 2. **ativar a Google Calendar API**;
-3. tela de consentimento: tipo **Externo**, publicação em **Testing**;
+3. tela de consentimento: tipo **Externo**, e **publicar em "Em produção"** — ✅ [D-014](../mensageria/DECISOES.md), **sem** submeter para verificação. É isto que tira o relógio de 7 dias;
 4. **escopos** — os três que o código já pede (`google/oauth.clj:49`):
    ```
    .../auth/calendar.events                  ← Modelo A
    .../auth/calendar.calendarlist.readonly   ← Modelo A
    .../auth/calendar.app.created             ← Modelo B
    ```
-5. **usuários de teste**: acrescente a conta da clínica **e as contas que farão
-   papel de psicóloga**;
+5. **usuários de teste**: mesmo publicado, cadastre a conta da clínica e as que
+   farão papel de psicóloga — não custa nada e vale se você voltar para *Testing*;
 6. credenciais **OAuth client ID** do tipo *Web application*, e as **redirect
    URIs**.
 

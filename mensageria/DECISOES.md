@@ -545,3 +545,51 @@ A leitura correta não é *"medir menos"* — é **medir sem parar**. Quando a m
 levanta uma decisão que é dele, o certo é registrar a pergunta, **seguir pela
 suposição mais conservadora** e continuar; não é ficar parado esperando. Fila
 vazia por falta de resposta é falha de coordenação, não zelo.
+
+---
+
+## D-014 — O app do Google fica **publicado e não verificado** no ambiente de teste
+
+**Decidido por:** Gabriel, 2026-08-17
+**Recomendação:** `orla` · **Passo a passo:** [docs/GOOGLE_MODO_TESTE.md](../docs/GOOGLE_MODO_TESTE.md)
+
+O ambiente de validação usa uma conta de desenvolvimento no papel de clínica, e o
+app OAuth fica em **"Em produção" sem submeter para verificação**.
+
+### O que isso troca
+
+O prazo de 7 dias do refresh token é propriedade do estado **Testing**, não da
+falta de verificação — são chaves separadas no console. Publicar sem verificar
+**tira o relógio de 7 dias** e continua sem exigir domínio próprio, política de
+privacidade ou espera.
+
+**Custo aceito:** a tela *"O Google não verificou este app"* (Avançado → Acessar)
+e o teto de **100 contas**. Para contas de desenvolvimento, irrelevante.
+
+⚠️ **É escolha de ambiente de teste, não de lançamento.** A tela de aviso seria
+péssima primeira impressão para uma psicóloga de verdade. No dia da produção, a
+verificação volta — com **domínio verificado, política de privacidade publicada e
+os três escopos pedidos de uma vez** (pedir escopo novo depois reabre a
+verificação inteira).
+
+✅ **Não queima nada:** a verificação é submetida depois, do mesmo estado.
+
+### O que não muda por causa dela
+
+📌 **A reconexão continua sendo funcionalidade, não contorno.** Em produção de
+verdade o `invalid_grant` acontece igual — a pessoa revoga o acesso, troca a senha
+ou remove o compartilhamento. Botão de reconectar e alerta visível são requisito
+do **GC-001** nos dois mundos.
+
+### Confiança
+
+⚠️ Vem do que é estável na plataforma do Google, **não de documentação lida** —
+`developers.google.com` e `support.google.com` são negados pelo proxy da sandbox
+da `orla`. **Conferível em um minuto na tela de publicação do console.** Se a tela
+disser outra coisa, ela ganha.
+
+🔎 **Medido no mesmo dia, e corrige uma suposição nossa:** só a *documentação* do
+Google é bloqueada. `accounts.google.com` responde 302 e `www.googleapis.com`
+responde 404 — **os endpoints são alcançáveis da sandbox**. Quando houver
+credencial, parte do que está em [GOOGLE_LIMITES](../docs/GOOGLE_LIMITES.md) como *reportado* vira
+**medível por nós** — a começar pelos quatro `colorId` não confirmados.
