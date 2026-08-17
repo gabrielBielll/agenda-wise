@@ -125,8 +125,24 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // 2. Todo o resto (app do psicólogo e o que vier depois) — os dois papéis.
-  if (role !== 'psicologo' && role !== 'admin_clinica') {
+  // 2. Todo o resto — os três papéis da clínica.
+  //
+  // ⚠️ A-017. Esta linha exigia `psicologo` ou `admin_clinica`, e estava CERTA
+  // quando foi escrita: naquele dia `papel_permissoes` estava vazia e
+  // `secretario` era um papel que não podia fazer nada em lugar nenhum.
+  //
+  // A A-012 encheu a tabela e deu ao secretário agenda de todos os psicólogos e
+  // cadastro de pacientes — e a linha ficou errada **no mesmo instante**, sem
+  // ninguém tocar nela. Medido: ele era barrado em seis de seis telas, e a porta
+  // de login o devolvia para a rota protegida, fechando laço.
+  //
+  // 📌 Nenhum teste podia ter pegado: o defeito nasceu da correção de outro.
+  //
+  // O que autoriza de verdade é o backend, permissão por permissão — esta lista
+  // é só o portão da área. Deixar o secretário entrar e o backend recusar o que
+  // não é dele é o desenho que o projeto já usa em todo o resto; o inverso, que
+  // é a tela decidir, foi o que a A-011 e a SEC-005 corrigiram.
+  if (role !== 'psicologo' && role !== 'admin_clinica' && role !== 'secretario') {
     return NextResponse.redirect(new URL('/', request.url));
   }
 
