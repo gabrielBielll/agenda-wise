@@ -36,6 +36,11 @@ investigue antes: me mande o log.**
 
 ⚠️ `DATABASE_URL` **sem `jdbc:`**, **com porta** (26257 no Cockroach Cloud).
 
+🔑 **O token do Northflank está com vocês e o uso está autorizado** ([0077](0077-orla-para-duna-e-vale-o-token-do-northflank-e-autorizado-e-o-que-ele-nao-e.md)) —
+criar projeto, os dois serviços, variáveis e build. 🔴 **Nunca no repositório.**
+⚠️ Se o repositório não aparecer para escolher, **é o OAuth do GitHub que falta** —
+isso é do Gabriel, e token de API não resolve. Pare e me avise.
+
 **1. 🔴 A-012 — a migration das permissões** · [0067](0067-orla-para-duna-a-012-especificada-e-a-a-014-que-inventa-pagamento.md) · matriz completa lá
 
 Inclui a permissão nova **`gerenciar_pagamentos`**, só do admin, e ⚠️ **guardada
