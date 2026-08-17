@@ -32,17 +32,23 @@ migrations aplicadas no CockroachDB**, clínica de auditoria com os três logins
 
 **1. 🟠 A-004 — a comissão** · destravada pela **[R-023](../docs/REGRAS_DE_NEGOCIO.md)**
 
-📖 **Leia a R-023 inteira antes de escrever.** São **duas modalidades**, a
-modalidade é **da psicóloga** e não da clínica: **valor fixo por sessão
-realizada** (não é percentual) e **valor fixo por período** (independe de volume).
+✅ **A R-023 fechou e o schema está CERTO** — eu tinha dito que a modalidade 2
+quebrava o `valor_repasse` em `agendamentos`. **Alarme falso, retirado na [0100](0100-orla-para-duna-alarme-falso-o-schema-esta-certo-e-a-r-023-fechou.md).**
+**Faça as duas modalidades**, nada espera resposta.
 
-🔴 **A segunda quebra o schema.** `valor_repasse` mora em `agendamentos`, o que
-assume que todo repasse nasce de sessão. Se ninguém tratar, a tela financeira soma
-**zero** para metade das psicólogas, sem erro e sem aviso — **a A-013 em cima de
-dinheiro**.
+| Modalidade | Cálculo | Exemplo |
+|---|---|---|
+| **Percentual** — as antigas | `valor_consulta × percentual` | 50% de R$ 200 = **R$ 100** |
+| **Valor fixo por sessão** — as novas | `valor_fixo` | **R$ 40**, seja R$ 100 ou R$ 200 |
 
-⛔ **Comece pela modalidade 1**, que está inteira definida. Deixe a 2 **desenhada e
-não implementada** até o Gabriel responder por qual período é o valor fixo.
+🔴 **Cálculo e pagamento são eixos separados:** o **valor** nasce por sessão; o
+**pagamento é mensal**, em lote. `status_repasse` muda por período, não uma a uma.
+
+📌 **Marcação em lote por período e por psicóloga é requisito, não refinamento** —
+marcar 80 sessões uma a uma é a mesma dor que gerou a R-022.
+
+🔒 **Grave qual regra foi aplicada**, não só o resultado — sem isso ninguém
+explica o número seis meses depois (**R-004**).
 
 **2. 🧩 GC-012 e GC-013 — o Modelo C** ([D-015](DECISOES.md) · [GOOGLE_CARDS](../docs/GOOGLE_CARDS.md))
 

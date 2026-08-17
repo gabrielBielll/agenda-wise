@@ -1024,62 +1024,80 @@ marcar em qualquer horário. Decidido explicitamente, não por omissão.
 
 ---
 
-## R-023 — Cada psicóloga tem a **sua** forma de remuneração; hoje são **duas modalidades**
+## R-023 — Duas modalidades de remuneração, **as duas por sessão**
 
-**Confirmada por:** Gabriel, 2026-08-17 · **corrigida no mesmo dia**, ver abaixo
-**Destrava:** a **A-004** (a comissão que hoje é estado de navegador)
+**Confirmada por:** Gabriel, 2026-08-17 · ⚠️ **terceira redação** — as duas
+anteriores estavam erradas, ver o rodapé
+**Destrava:** a **A-004**
 
-Nas palavras dele: *"a taxa é fixa por sessão realizada. Mas também tem a
-modalidade de psis que recebem um valor fixo. Cada psicóloga tem sua forma de
-remuneração — hoje temos essas duas modalidades."*
+Nas palavras dele: *"as psicólogas mais antigas ganham **50% do valor da
+sessão**. As psicólogas novas recebem **um valor fixo, por exemplo R$ 40 por
+sessão** — por mais que a sessão seja R$ 100 ou R$ 200, o que elas recebem é
+R$ 40. Esses são os nossos dois modelos."*
 
-| Modalidade | Como paga | O que a torna diferente |
+| Modalidade | Cálculo | Exemplo |
 |---|---|---|
-| **Por sessão realizada** | **valor fixo por sessão** — não é percentual sobre o `valor_consulta` | o total **depende** de quantas sessões aconteceram |
-| **Valor fixo** | um valor por período, independente de volume | o total **não depende** de sessão nenhuma |
+| **Percentual** — legado | `valor_repasse = valor_consulta × percentual` | 50% de uma sessão de R$ 200 = **R$ 100** |
+| **Valor fixo por sessão** — quem entra agora | `valor_repasse = valor_fixo` | R$ 40, **seja a sessão de R$ 100 ou de R$ 200** |
 
-🔴 **A modalidade é da pessoa, não da clínica.** Duas psicólogas da mesma clínica
-podem estar em modalidades diferentes, e estão.
+🔴 **A modalidade é da pessoa, não da clínica.** As duas convivem na mesma
+clínica, e é justamente essa a situação de hoje: as antigas no percentual, as
+novas no fixo.
 
-📌 **"Por sessão REALIZADA"** — não agendada, não cancelada. Amarra na **R-017**:
-`realizada` exige **verde E data passada**, nunca só a cor. Sessão que não
-aconteceu não gera repasse.
+📌 **As duas nascem da sessão.** Não existe modalidade por período — o repasse é
+**sempre** calculado sessão a sessão.
+
+📌 **"Por sessão REALIZADA"** — amarra na **R-017**: `realizada` exige **verde E
+data passada**, nunca só a cor. Sessão que não aconteceu não gera repasse.
 
 ⚠️ **Sem convênio.** Não existe tabela de preços por operadora.
 
 ---
 
-### 🔴 A consequência que não é óbvia, e é a mais cara de descobrir tarde
+### 💰 O pagamento é **mensal**, e isso é outra coisa
 
-O schema de hoje põe **`valor_repasse` e `status_repasse` na tabela
-`agendamentos`** — ou seja, assume que **todo repasse nasce de uma sessão**.
+*"Geralmente os repasses acontecem mensalmente."*
 
-**Isso vale para a modalidade 1 e é falso para a modalidade 2.** Para quem recebe
-valor fixo, **não existe repasse por sessão**: existe repasse por período.
+🔴 **Não confundir com o cálculo.** O **valor** nasce por sessão; o **pagamento**
+é agrupado por mês. São dois eixos independentes:
 
-🔴 **O risco concreto, se ninguém tratar:** a tela financeira soma
-`valor_repasse` das sessões e mostra **zero** para metade das psicólogas — sem
-erro, sem aviso, com cara de tela correta. **É a A-013 outra vez**, agora em cima
-de dinheiro: silêncio no lugar da verdade.
+- `valor_repasse` — **por sessão**, calculado na hora, gravado ali;
+- `status_repasse` — muda **em lote, por período**, quando a clínica paga.
 
-✅ **O que o modelo precisa ter:**
-
-1. **A modalidade e o valor ficam no cadastro da psicóloga** — não na clínica, não
-   na tela.
-2. **Modalidade 1:** o valor vigente é **gravado na própria sessão** no momento em
-   que ela é criada. É isso que torna o passado imutável — mudar a taxa **não
-   reescreve** o que já aconteceu (**R-004**).
-3. **Modalidade 2:** o repasse é do **período**, e a tela financeira precisa
-   **dizer isso** em vez de somar zero.
-4. **Mudança de modalidade não é retroativa** — pela mesma lógica do item 2.
+⚠️ **Consequência de produto que quem construir precisa ver:** marcar 80 sessões
+como repassadas **uma a uma** é trabalho que ninguém faz. A tela precisa de
+**marcação em lote por período e por psicóloga** — e note que é exatamente a
+mesma dor que gerou o pedido da CEO na **R-022** (o modo automático de
+pagamento). Repetir o problema aqui seria não ter aprendido nada.
 
 ---
 
-### ⛔ O que ainda falta perguntar, e é uma coisa só
+### 🔒 O que torna o passado imutável
 
-**O "valor fixo" da modalidade 2 é por qual período?** Mensal é o palpite óbvio,
-mas palpite em cima de dinheiro é exatamente o que a **A-001** ensinou a não
-fazer. **Quem implementar não inventa: pergunta.**
+**O valor aplicado é gravado na própria sessão** — o percentual ou o valor fixo
+que valia no dia. Mudar a remuneração de alguém **não reescreve** o que já
+aconteceu (**R-004**), e mudança de modalidade **não é retroativa**.
+
+📌 **Isso significa gravar qual regra foi usada, não só o resultado.** Guardar só
+o `valor_repasse` calculado perde a rastreabilidade: ninguém consegue depois
+explicar de onde saiu o número.
+
+---
+
+### ⚠️ Como eu errei isto duas vezes, e por quê
+
+1. **Primeira redação:** supus **percentual** para os dois casos. Errado — existe
+   uma modalidade de valor fixo.
+2. **Segunda redação:** entendi que a segunda era **por período**, e escrevi que
+   isso **quebrava o schema** — que `valor_repasse` em `agendamentos` seria falso
+   para metade das psicólogas. 🔴 **Alarme falso, e eu o propaguei para a fila da
+   `duna`.** Não quebra nada: as duas modalidades nascem da sessão, e o schema
+   está **certo** como está.
+
+📌 **A causa das duas:** eu fui construindo em cima de respostas parciais em vez
+de perguntar a **forma inteira** de uma vez. A lição não é *"perguntar mais"* —
+é **perguntar a estrutura antes do detalhe**, porque detalhe respondido sobre
+estrutura errada parece confirmação e não é.
 
 ## R-024 — Uma pessoa atende em **uma clínica só**
 
