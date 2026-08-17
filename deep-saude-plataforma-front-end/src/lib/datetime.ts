@@ -168,6 +168,43 @@ function componentesDeParede(valor: string | Date): Componentes | null {
 }
 
 /**
+ * Hora de parede da clínica, "HH:MM", **sem passar pelo espelho**.
+ *
+ * ⚠️ A-008(b). O espelho (`paredeDaClinica`) constrói um `Date` LOCAL com os
+ * componentes da clínica — e quando esses componentes caem na hora que **não
+ * existe** no fuso de quem olha (o salto do horário de verão dele), o JavaScript
+ * normaliza para frente **em silêncio**. Medido, com o espectador em Lisboa e a
+ * sessão às 01:30 de São Paulo em 2027-03-28: `getHours()` devolve **02**.
+ *
+ * Nenhum `Date` local representa aquela hora naquele fuso, então o espelho não
+ * tem conserto — o que tem conserto é **não usar espelho para exibir**. Estas
+ * funções formatam direto do instante, com `Intl` no fuso da clínica, e não têm
+ * hora inexistente porque não constroem `Date` nenhum.
+ *
+ * O espelho continua existindo para a **grade do calendário**, que faz
+ * aritmética com `setHours`/`getDate` e precisaria ser reescrita inteira para
+ * largar dele. Esse é o pedaço da A-008(b) que fica aberto.
+ */
+export function horaNaClinica(valor: string | Date): string {
+  const d = parseInstante(valor);
+  if (Number.isNaN(d.getTime())) return "";
+  const c = componentesNaClinica(d);
+  return `${zero(c.hora)}:${zero(c.min)}`;
+}
+
+/** "qua., 20/08" — dia da clínica, também sem espelho. Ver `horaNaClinica`. */
+export function diaNaClinica(valor: string | Date): string {
+  const d = parseInstante(valor);
+  if (Number.isNaN(d.getTime())) return "";
+  return new Intl.DateTimeFormat("pt-BR", {
+    timeZone: FUSO_CLINICA,
+    weekday: "short",
+    day: "2-digit",
+    month: "2-digit",
+  }).format(d);
+}
+
+/**
  * Espelho de parede -> valor de `<input type="datetime-local">`.
  *
  * Não converte fuso nenhum: lê os componentes locais do espelho, que já são o
