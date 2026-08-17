@@ -121,7 +121,21 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
     notFound();
   }
 
-  if (!prontuarios.ok) return <FalhaDeCarregamento motivo={prontuarios.motivo} oQue="o prontuário" />;
+  /**
+   * A-017 — a falha do prontuário é PARCIAL, não substitui a tela.
+   *
+   * Quando o secretário passou a ter tela (A-017), esta página virou o primeiro
+   * caso de **dois níveis de permissão na mesma tela**: ele tem cadastro de
+   * paciente e **não** tem prontuário, pela R-012.
+   *
+   * Devolver `FalhaDeCarregamento` aqui, como eu tinha feito, esconderia em tela
+   * cheia o cadastro que ele PODE ver, por causa da seção que ele não pode. O
+   * comportamento seria tecnicamente correto e péssimo — e é o mesmo erro da
+   * A-013 pelo avesso: em vez de mostrar de menos, mostrar recusa demais.
+   *
+   * As sessões seguem sendo motivo de tela cheia: sem elas o formulário de
+   * evolução não tem a que se vincular, e meia tela ali seria armadilha.
+   */
   if (!appointments.ok) return <FalhaDeCarregamento motivo={appointments.motivo} oQue="as sessões" />;
 
   const getInitials = (name: string) => {
@@ -181,16 +195,23 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
         <TabsContent value="notes">
           <div className="grid gap-6">
             {/* Componente de Formulário para Nova Evolução */}
-            <ProntuarioForm patientId={patient.id} appointments={appointments.dados} patientData={patient} />
+            {/* Sem acesso ao prontuário, não há o que escrever nele. */}
+            {prontuarios.ok && (
+              <ProntuarioForm patientId={patient.id} appointments={appointments.dados} patientData={patient} />
+            )}
 
             <Card className="shadow-md" id="historico-evolucao">
               <CardHeader><CardTitle className="font-headline text-2xl">Histórico de Evolução</CardTitle></CardHeader>
               <CardContent>
-                    {prontuarios.dados.length > 0 ? (
-                      <ProntuarioList 
-                        initialProntuarios={prontuarios.dados} 
-                        patientId={patient.id} 
-                        appointments={appointments.dados} 
+                    {!prontuarios.ok ? (
+                      /* Sem acesso ou indisponível: a recusa fica DENTRO da seção,
+                         e o resto do cadastro continua na tela. */
+                      <FalhaDeCarregamento motivo={prontuarios.motivo} oQue="o prontuário" />
+                    ) : prontuarios.dados.length > 0 ? (
+                      <ProntuarioList
+                        initialProntuarios={prontuarios.dados}
+                        patientId={patient.id}
+                        appointments={appointments.dados}
                       />
                     ) : (
                       <div className="text-center py-10 text-muted-foreground">
@@ -202,7 +223,7 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
             </Card>
 
             {/* Gráfico de Evolução do Humor */}
-            <MoodChart data={prontuarios.dados} />
+            {prontuarios.ok && <MoodChart data={prontuarios.dados} />}
 
           </div>
         </TabsContent>
