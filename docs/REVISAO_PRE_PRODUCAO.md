@@ -1155,6 +1155,53 @@ não da de carregamento.
 
 ---
 
+## 🔴 A-017 — O secretário tem permissão no backend e **nenhuma tela**
+
+**Achado em:** 2026-08-17 pela `vale`, medindo logo depois da A-012 · **Dono:** `vale`
+
+A A-012 deu ao secretário as permissões de backend. E ele **não abre uma única
+tela** — seis de seis redirecionam:
+
+```
+/dashboard  /calendar  /patients  /settings   → 307 → /
+/admin/agendamentos  /admin/dashboard         → 307 → /admin/login
+```
+
+A causa é uma linha do `src/middleware.ts`:
+
+```ts
+if (role !== 'psicologo' && role !== 'admin_clinica') {
+  return NextResponse.redirect(new URL('/', request.url));
+}
+```
+
+📌 **Ela estava certa quando foi escrita.** Naquele dia `secretario` era papel sem
+permissão nenhuma — a lista estava vazia e ninguém sabia. **A linha ficou errada
+no instante em que a A-012 entrou**, e nenhum teste podia pegar isso, porque o
+defeito nasceu da correção de outro.
+
+### 🔴 Há laço, e ele é o mesmo da A-016 sem o gatilho que a conserta
+
+`/dashboard` → `/` → a porta de login vê `authenticated` e faz
+`router.push('/dashboard')` → o middleware manda de volta.
+
+⚠️ **A correção da A-016 não pega este caso**: lá o `signOut` dispara com
+`?expired=true`, e aqui não há parâmetro nenhum — a sessão é **válida**, o que
+falta é autorização de rota.
+
+### Limite honesto da medição, como a `vale` registrou
+
+Os **seis 307 estão medidos**. O **laço é leitura de código**: a segunda metade é
+client-side e o `curl` não roda JS, então ele para no primeiro salto.
+
+### Por que é 🔴 e não 🟠
+
+Bate direto no critério da [D-013](../mensageria/DECISOES.md): *"apresentável pelos três papéis"*. A
+A-012 tirou o secretário do 403 e ele continua sem sistema. **Antes eram dois
+papéis pela metade; agora é um e meio.**
+
+---
+
 ## O que esta revisão não cobriu
 
 - **Não executei nada.** Todo achado é de leitura.

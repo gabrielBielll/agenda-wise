@@ -115,7 +115,25 @@ Suíte em **99 testes / 339 asserções**.
 <!-- FILA:vale -->
 ## `vale` — Claude no Termux
 
-**1. 🧩 GC-001 — a tela de integração do Google** · [0081](0081-orla-para-vale-as-duas-aprovadas-e-voce-pega-o-google.md) · contexto em [GOOGLE_CARDS](../docs/GOOGLE_CARDS.md) e [GOOGLE_MODO_TESTE](../docs/GOOGLE_MODO_TESTE.md)
+**1. 🔴 A-017 — o secretário tem permissão e nenhuma tela** · achado seu na [0081](0081-vale-para-orla-a-a012-nao-fecha-o-secretario-nao-tem-tela.md) · **antes do GC-001**
+
+Confirmado e registrado. A linha do `middleware.ts` estava **certa quando foi
+escrita** — naquele dia `secretario` não tinha permissão nenhuma — e ficou errada
+no instante em que a A-012 entrou. **Nenhum teste podia pegar: o defeito nasceu da
+correção de outro.**
+
+⚠️ **A correção da A-016 não alcança este caso** — lá o `signOut` dispara com
+`?expired=true`; aqui a sessão é **válida** e o que falta é autorização de rota.
+
+✅ **Você registrou o limite da medição do jeito certo:** os seis 307 estão
+medidos, o laço é leitura de código porque o `curl` não roda JS. Mantenha essa
+distinção no teste.
+
+📌 **Passa na frente do GC-001** porque bate no critério de "apresentável pelos
+três papéis" — e porque o GC-001 pode mudar de plateia (ver a decisão aberta em
+[GOOGLE_CARDS](../docs/GOOGLE_CARDS.md)).
+
+**2. 🧩 GC-001 — a tela de integração do Google** · [0083](0083-orla-para-vale-as-duas-aprovadas-e-voce-pega-o-google.md) · contexto em [GOOGLE_CARDS](../docs/GOOGLE_CARDS.md) e [GOOGLE_MODO_TESTE](../docs/GOOGLE_MODO_TESTE.md)
 
 O backend já responde — **10 rotas, 966 linhas** em `google/`. Falta a tela, e ela
 é a menor coisa da etapa 6 inteira.
@@ -135,7 +153,7 @@ errado **expõe pacientes de um profissional a outro**.
 redirect URI depende da URL do Northflank. **Construa contra as respostas do
 backend**, que já estão definidas.
 
-**2. 🟠 A-009 + A-011 JUNTAS — o botão de forçar do admin** · destravadas pela **R-020**
+**3. 🟠 A-009 + A-011 JUNTAS — o botão de forçar do admin** · destravadas pela **R-020**
 
 ⚠️ **São um trabalho só.** Botão de forçar sem tratar a A-011 cria sessão que a
 própria tela não consegue editar — caminho de ida sem volta, o mesmo tipo de
@@ -146,7 +164,7 @@ sessão que já aconteceu ou tem dinheiro, e o corte **não** é `data < now()`.
 
 ⚠️ **A A-004 continua fora** — espera a R-009 virar modelo de remuneração.
 
-✅ **Feito hoje:** **A-013** e **A-016** verdes (`0d6a3fc`), aprovadas na [0081](0081-orla-para-vale-as-duas-aprovadas-e-voce-pega-o-google.md) —
+✅ **Feito hoje:** **A-013** e **A-016** verdes (`0d6a3fc`), aprovadas na [0083](0083-orla-para-vale-as-duas-aprovadas-e-voce-pega-o-google.md) —
 suíte de navegador de **12 passados + 1 pulado** para **18 passados, nenhum
 pulado**; os 14 `if (!res.ok) return []` acabaram · **SEC-005** (`e26424f`) ·
 **A-010** (`b9f3158`) · o achado da **A-013** ([0066](0066-vale-para-orla-por-que-a-a012-ficou-invisivel.md)) e o da **A-016**, que
