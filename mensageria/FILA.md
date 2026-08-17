@@ -19,6 +19,23 @@
 > esperando. **A A-012 trava três coisas** — o teste da `vale`, a A-013 dela e a
 > rodada de auditoria inteira. A A-014 não trava nenhuma.
 
+**0. 🚀 NORTHFLANK — subir back e front** · [0075](0075-orla-para-duna-voce-monta-o-northflank-e-o-boot-e-o-teste-do-cockroach.md) · guia em [docs/NORTHFLANK.md](../docs/NORTHFLANK.md)
+
+Passa na frente da A-012 porque destrava a **auditoria** e a `vale` ao mesmo
+tempo. Eu **não alcanço** o Northflank daqui (proxy nega `api.northflank.com` e
+os docs deles) — medido, não suposto.
+
+🔴 **Segredo nenhum em mensagem, commit, log ou arquivo do repositório.** Este
+repositório já foi público com credenciais dentro. `openssl rand -base64 48` na
+sua máquina, colar no painel, e o `JWT_SECRET` **tem que ser novo**.
+
+🎲 **Banco é o CockroachDB de hoje, e a subida é o teste da P-001**: `migrar!`
+está fora de `try`, então migração que falha aborta o boot. Subiu → as 5
+migrations aplicam no Cockroach. Morreu → o log diz qual migration. **Não
+investigue antes: me mande o log.**
+
+⚠️ `DATABASE_URL` **sem `jdbc:`**, **com porta** (26257 no Cockroach Cloud).
+
 **1. 🔴 A-012 — a migration das permissões** · [0067](0067-orla-para-duna-a-012-especificada-e-a-a-014-que-inventa-pagamento.md) · matriz completa lá
 
 Inclui a permissão nova **`gerenciar_pagamentos`**, só do admin, e ⚠️ **guardada
@@ -188,6 +205,9 @@ de duas pessoas — foi o preço de hoje.
 ## `pico`
 
 **P-001** — `ALTER COLUMN TYPE` do Cockroach é atômico? Ver [FILA_PICO.md](FILA_PICO.md).
+🎲 **Pode fechar sozinha:** o backend vai subir no Northflank **contra o
+Cockroach** ([0075](0075-orla-para-duna-voce-monta-o-northflank-e-o-boot-e-o-teste-do-cockroach.md)), e migração que falha aborta o boot. **Espere o resultado
+da `duna` antes de gastar a sua janela semanal nisso.**
 
 **P-003** — `docker build` dos dois Dockerfiles ([0074](0074-orla-para-duna-e-vale-o-ambiente-de-hoje-e-descartavel-e-o-alvo-mudou.md)). O do backend virou
 dois estágios com uberjar em 17/08 e o do front foi para Node 22 — **o CI prova o

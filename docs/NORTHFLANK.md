@@ -54,22 +54,60 @@ Só mexa nela quando existir domínio próprio — e aí liste **todos**.
 
 ---
 
-## 🔴 Antes de tudo: onde vai ficar o banco?
+## 🔴 O banco é o **CockroachDB** que já existe — e isso resolve e abre uma coisa
 
-Você disse **dois serviços — um de back e um de front**. Bate com o que a gente
-precisa, **mas o Postgres é uma terceira coisa**, e sem ele nada sobe.
+**Resolve:** o Postgres deixa de ser uma terceira peça. Os dois serviços do plano
+ficam exatamente para back e front, como o Gabriel disse.
 
-No Northflank, banco é *addon*, não *service* — então pode ser que nem conte
-contra o limite de dois. **Confira isso primeiro**, porque muda o caminho:
+**Abre:** nós **testamos em PostgreSQL e rodamos em CockroachDB**, e ninguém
+verificou o conjunto atual de migrations contra o Cockroach.
 
-| Se… | Faça |
-|---|---|
-| O addon de Postgres **cabe no plano** | Crie ele, e use a connection string dele |
-| O addon **não cabe** | Postgres gerenciado de fora (Neon, Supabase, Aiven têm plano grátis) e aponte a `DATABASE_URL` para lá |
+### O que está no schema e o Cockroach trata diferente
 
-📌 **Nos dois casos o schema se levanta sozinho.** O Migratus roda no boot e cria
-tudo do zero — não precisa restaurar dump nenhum, e **não deve**: pela D-013 o
-banco nasce vazio.
+| Construção | Onde | Por que importa |
+|---|---|---|
+| `CREATE EXTENSION IF NOT EXISTS "uuid-ossp"` + `uuid_generate_v4()` | baseline, linha 11 e **9 tabelas** | O Cockroach **não tem a uuid-ossp**; o equivalente nativo dele é `gen_random_uuid()` |
+| `ALTER COLUMN … TYPE … USING` | `20260811100100-fuso-horario`, 3 colunas | **É a P-001**, aberta desde sempre — e o próprio arquivo já carrega um comentário de aviso sobre Cockroach |
+| `BIGSERIAL` | `google-integracao`, a `google_sync_outbox` | No Cockroach o SERIAL não é sequencial — e **outbox depende de ordem**. Latente: o sincronizador ainda não existe |
+
+⚠️ **Não estou dizendo que vai quebrar.** Estou dizendo que **ninguém sabe**: o
+[INDEX](../mensageria/INDEX.md) registra que a `pico` rodou as migrations no Cockroach lá na [0007](../mensageria/0007-claude-ec2-para-claude-web-parecer-recebido-e-down-sql-fechado.md) e
+que *"o conjunto mudou desde então"*. São 5 migrations hoje.
+
+### ✅ E a boa notícia: **a própria subida é o teste**
+
+O `migrar!` fica **fora** de `try` de propósito — migração que falha **aborta o
+boot**. Então, apontando o serviço para o Cockroach:
+
+- **subiu e respondeu `/api/health`** → as 5 migrations aplicaram no Cockroach, e
+  a P-001 fecha de graça;
+- **morreu no boot** → o log do deploy diz **qual comando** e **qual migration**,
+  que é exatamente a resposta que a P-001 procura há semanas.
+
+Nos dois casos a gente aprende. Não precisa verificar antes — **precisa ler o log
+depois**.
+
+📌 **O banco novo nasce vazio de propósito** ([D-013](../mensageria/DECISOES.md)): o Migratus levanta o
+schema sozinho, sem restaurar dump nenhum.
+
+⚠️ **Cockroach Cloud exige `sslmode=verify-full` ou `require`** — e lembre do
+aviso 2: **sem prefixo `jdbc:` e com a porta explícita**, que no Cockroach Cloud
+costuma ser **26257**, não 5432.
+
+---
+
+## 🔺 O padrão que já apareceu três vezes hoje
+
+Vale escrever porque não é sobre banco:
+
+1. o front era testado em **Node 22** e rodava em **Node 18**;
+2. a suíte sobe o **handler**, e produção subia pelo **`lein ring`** — um terceiro caminho;
+3. agora: a suíte roda em **PostgreSQL** e a aplicação roda em **CockroachDB**.
+
+**Três vezes o mesmo formato — o que se testa não é o que roda.** Os dois
+primeiros foram fechados hoje. Este terceiro **não fecha barato**: rodar a suíte
+inteira contra Cockroach no CI é trabalho de verdade, e fica registrado como
+dívida conhecida em vez de virar surpresa.
 
 ---
 
@@ -87,7 +125,7 @@ banco nasce vazio.
 
 | Variável | Valor | Obrigatória |
 |---|---|---|
-| `DATABASE_URL` | ver o aviso 2 acima | 🔴 sim |
+| `DATABASE_URL` | a do **CockroachDB** — ver o aviso 2 e a porta 26257 | 🔴 sim |
 | `JWT_SECRET` | **novo, gerado agora** — ver abaixo | 🔴 sim, o boot aborta sem ela |
 | `PROVISIONING_TOKEN` | um segredo qualquer, novo | 🟠 sim, é como a primeira clínica nasce |
 | `PORT` | `3000`, se o Northflank não injetar | 🟡 |
