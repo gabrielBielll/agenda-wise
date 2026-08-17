@@ -40,103 +40,49 @@ se atualiza sozinho.**
 <!-- FILA:duna -->
 ## `duna` — GPT no Termux
 
-> 🔄 **Ordem trocada em 16/08 ([0070](0070-orla-para-duna-a-012-passa-na-frente-da-a-014-e-o-motivo-e-que-ela-trava-tres-coisas.md)): a A-012 passou na frente da A-014.** Eu tinha
-> ordenado por gravidade do defeito, que é a métrica errada quando alguém está
-> esperando. **A A-012 trava três coisas** — o teste da `vale`, a A-013 dela e a
-> rodada de auditoria inteira. A A-014 não trava nenhuma.
+**1. 🚀 NORTHFLANK — terminar o ambiente** · guia em [docs/NORTHFLANK.md](../docs/NORTHFLANK.md) · conta **`gabrielBielll`**
 
-**0. 🚀 NORTHFLANK — subir back e front** · [0075](0075-orla-para-duna-voce-monta-o-northflank-e-o-boot-e-o-teste-do-cockroach.md) · guia em [docs/NORTHFLANK.md](../docs/NORTHFLANK.md)
+✅ Backend de staging já construído a partir **deste** repositório ([0091](0091-duna-para-vale-e-orla-volta-ao-repositorio-antigo.md)).
 
-Passa na frente da A-012 porque destrava a **auditoria** e a `vale` ao mesmo
-tempo. Eu **não alcanço** o Northflank daqui (proxy nega `api.northflank.com` e
-os docs deles) — medido, não suposto.
+⚠️ **O front já existe lá e é anterior às correções de hoje** — antes do uberjar e
+antes do Node 22 (`site--deep-saude-frontend--dtg69x4gb2pz.code.run`). **Serviço
+que já existe não se atualiza sozinho:** confira qual Dockerfile e qual contexto
+de build ele aponta, e reconstrua se estiver no antigo.
 
-🔴 **Segredo nenhum em mensagem, commit, log ou arquivo do repositório.** Este
-repositório já foi público com credenciais dentro. `openssl rand -base64 48` na
-sua máquina, colar no painel, e o `JWT_SECRET` **tem que ser novo**.
+**Falta para o ambiente servir:** a **clínica de teste com os três logins** —
+admin, psicólogo e secretário, pelo endpoint de provisionamento com o header
+`x-provisioning-token`. 🎯 **É isso que destrava a rodada de auditoria.**
 
-🎲 **Banco é o CockroachDB de hoje, e a subida é o teste da P-001**: `migrar!`
-está fora de `try`, então migração que falha aborta o boot. Subiu → as 5
-migrations aplicam no Cockroach. Morreu → o log diz qual migration. **Não
-investigue antes: me mande o log.**
+📤 **Me mande:** as duas URLs, o **log de boot do backend** (é onde o Migratus
+fala, e é a resposta da P-001 sobre o Cockroach) e a resposta crua de
+`/api/health`. Eu não alcanço `*.code.run` daqui — 403 no meu proxy.
 
-⚠️ `DATABASE_URL` **sem `jdbc:`**, **com porta** (26257 no Cockroach Cloud).
+**2. 🟡 A-008 — horário de verão do espectador fura o truque da parede**
 
-🟢 **LUZ VERDE no token — [0078](0078-orla-para-duna-pode-usar-o-token-e-a-linha-que-eu-escrevi-torta.md).** Você travou e a redação torta foi minha: a
-regra do 🔴 é sobre **onde segredo é guardado**, não sobre **usar** credencial.
-Usar na sua máquina para configurar serviço **é a operação normal**; o que nunca
-acontece é segredo **escrito** em repositório, mensagem, commit ou log. A
-diferença é **persistência, não contato**.
+Estava **sem dono** desde a revisão. É sua agora, e é o par certo para depois do
+Northflank: mexe em `tempo.clj`, que você já conhece, e é o último 🟡 aberto da
+lista de achados.
 
-📌 **O alcance do token não é a sua régua** — a régua é o combinado da 0075: dois
-serviços, e não mexer no que não for nosso.
+📖 Ler a **D-010** antes: hora de parede é a **da clínica**, não a do navegador —
+a A-008 é o buraco que sobrou daquela correção, para o espectador em outro fuso.
 
-> **Cuidado que produz uma pergunta é qualidade. Cuidado que produz uma parada é
-> custo.** Registre a dúvida, siga pela suposição conservadora que ainda entrega,
-> e continue.
-⚠️ Se o repositório não aparecer para escolher, **é o OAuth do GitHub que falta** —
-isso é do Gabriel, e token de API não resolve. Me avise **e siga para a A-012**,
-não fique esperando.
+**3. 🔴 Tabela de auditoria (R-012)** — a última peça de funcionalidade sem dono
 
-**1. 🔴 A-012 — a migration das permissões** · [0067](0067-orla-para-duna-a-012-especificada-e-a-a-014-que-inventa-pagamento.md) · matriz completa lá
+A **R-012** manda o acesso pela flag **gravar sempre**, e hoje **não há onde
+gravar**: o vínculo do Google escreve no log com o comentário *"vai para o log até
+existir tabela de auditoria"*. **É regra de negócio nossa, não item de produção** —
+por isso não saiu da fila junto com as decisões de LGPD ([D-013](DECISOES.md)).
 
-Inclui a permissão nova **`gerenciar_pagamentos`**, só do admin, e ⚠️ **guardada
-por CAMPO e não por rota** — pôr na rota trancaria a agenda inteira.
-O admin recebe tudo **explicitamente**, não por bypass — enquanto o privilégio
-dele vier do bypass, a tabela pode ficar vazia para sempre sem ninguém notar, que
-foi exatamente o que aconteceu.
+⚠️ **Converse comigo antes de começar** — esta é maior que as outras e o desenho
+não existe ainda.
 
-🔴 **Virou pré-requisito da rodada de auditoria**, junto com o Render: o auditor
-entra com três logins, e com a A-012 de pé dois deles não fazem nada.
+✅ **Feito hoje:** A-005, A-006, item 5 dos `println`, A-007, **A-012** ([0080](0080-duna-para-orla-northflank-bloqueado-no-oauth-e-a-012-corrigida.md)),
+**A-014** ([0084](0084-duna-para-orla-a-014-vermelha-e-corrigida.md)), **A-015** ([0085](0085-duna-para-orla-a-015-uberjar-sem-segredo-e-boot-fechado.md)) e **ROB-008** ([0086](0086-duna-para-orla-rob-008-logs-estruturados-e-request-id.md)) —
+backend em **104 testes / 351 asserções**, log estruturado com `X-Request-ID`.
+⏳ **As três últimas estão comigo para revisão.**
 
-**Vermelho barato:** login como psicólogo, `GET /api/pacientes`, espera **200**.
-
-**2. 🟠 A-014 — o modo automático vira modo de verdade** · [0068](0068-orla-para-duna-o-pagamento-automatico-e-funcionalidade-e-o-que-sobra-de-defeito.md) · ⚠️ **a 0067 está superada nesta parte**
-
-🔴 **NÃO remova a marcação de pagamento.** Ela é **funcionalidade pedida pela
-CEO** (R-022) — eu classifiquei errado na 0067 e o Gabriel corrigiu.
-
-📐 **O desenho inteiro está em [docs/PAGAMENTO_AUTOMATICO.md](../docs/PAGAMENTO_AUTOMATICO.md)** — leia antes de escrever a
-migration. Resumo: coluna de origem do pagamento com o passado entrando como
-**`desconhecido`** (não `manual`, não `automatico` — o dado não guarda pista, e
-inventar seria pior); flag `clinicas.pagamento_automatico` **desligada por
-padrão mas ligada para as clínicas que já existem**, porque desligar por baixo
-mudaria o comportamento delas sem aviso; filtro por `clinica_id` no job.
-
-⚠️ **Não reuse `origem` nem `origem_ultima_alteracao`** — a primeira é a origem do
-agendamento, a segunda seria sobrescrita na próxima edição de horário.
-
-🟡 Se o Render voltar antes desta cair, o boot marca tudo como pago de novo e **o
-auditor pode reportar**. Está certo assim — achado dele, dado sintético, e não é
-motivo para inverter a ordem.
-
-**3. 🟠 A-015 — o uberjar não compila sem `JWT_SECRET`** · [REVISAO_PRE_PRODUCAO](../docs/REVISAO_PRE_PRODUCAO.md) · achado **pelo CI** em 17/08
-
-`core.clj:33` lê a configuração numa forma de topo e lança. `:aot :all` compila
-`core.clj`, compilar **executa** as formas de topo, e o `lein uberjar` morre.
-
-📌 **É o mesmo defeito do `:test {:jvm-opts ["-Djwt-secret=..."]}`** que já estava
-no `project.clj` com comentário explicando — dois sintomas, uma causa, e ninguém
-tinha ligado os dois.
-
-🔴 **Não troque por `delay` puro:** hoje, sem segredo, a aplicação **não sobe**, e
-isso é acerto. O desenho é leitura preguiçosa **mais** conferência explícita no
-`-main` antes de escutar a porta. Boot continua abortando; compilar para de
-exigir segredo. ✅ E aí o `:jvm-opts` do perfil `:test` sai junto.
-
-⚠️ **Enquanto não cair**, o CI e o Dockerfile passam um segredo de mentira só
-para compilar — e no Dockerfile ele só existe no estágio de build. **Juntar os
-dois estágios criaria uma porta dos fundos.**
-
-**4. ROB-008** — e aí sua fila fecha.
-
-⚠️ **Não comece a A-004** sem conversarmos o tamanho: a R-009 destravou (a taxa é
-gravada por sessão), mas o modelo de remuneração ainda não existe.
-
-✅ **Feito hoje:** A-005 e A-006 com vermelho antes ([0046](0046-duna-para-orla-a005-a006-vermelhas-e-corrigidas.md)) · item 5, os 12
-`println` com os três vazamentos de payload num commit separado ([0048](0048-duna-para-orla-item5-println-debug-removidos.md)) ·
-A-007 com os dois vermelhos reproduzidos ([0058](0058-duna-para-orla-a-007-vermelha-e-corrigida.md)), aprovada na [0060](0060-orla-para-duna-a-007-aprovada-e-a-armadilha-chegou-pela-outra-porta.md).
-Suíte em **99 testes / 339 asserções**.
+⚠️ **A A-004 continua fora** — espera a R-009 virar modelo de remuneração, que
+está com o Gabriel.
 
 <!-- FILA:vale -->
 ## `vale` — Claude no Termux
