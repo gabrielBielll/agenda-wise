@@ -26,6 +26,9 @@ export const CONTA = {
   psicologoNome: 'Psi E2E',
   /** Do lado do e-mail, como a do admin — o teste do 403 loga como psicólogo. */
   psicologoSenha: 'SenhaPsi123',
+  /** O terceiro papel. Semeado a partir da A-017: ele tem permissão e precisa de tela. */
+  secretarioEmail: 'e2e-secretario@teste.local',
+  secretarioSenha: 'SenhaSec123',
   paciente: 'Paciente E2E',
 };
 
@@ -130,6 +133,32 @@ async function criarPsicologo(token: string): Promise<string> {
   if (res.ok) return (await res.json()).id ?? (await buscarPsicologo(token));
   if (res.status === 409) return buscarPsicologo(token);
   throw new Error(`Criação do psicólogo falhou (${res.status}).`);
+}
+
+/**
+ * Cria o secretário, que é o terceiro papel e o único que nunca era semeado.
+ *
+ * Ele não existia porque, até a A-012, `secretario` não tinha permissão nenhuma —
+ * semear um usuário que só sabe tomar 403 não provava nada. Depois da A-012 ele
+ * tem agenda de todos e cadastro de pacientes, e a A-017 é justamente sobre ele
+ * não ter tela para usar isso.
+ *
+ * ⚠️ Idempotente: 409 significa que a rodada anterior já criou, e serve igual.
+ */
+async function criarSecretario(token: string): Promise<void> {
+  const res = await fetch(`${BACKEND}/api/usuarios`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({
+      nome: 'Secretario E2E',
+      email: CONTA.secretarioEmail,
+      senha: CONTA.secretarioSenha,
+      papel: 'secretario',
+    }),
+  });
+  if (!res.ok && res.status !== 409) {
+    throw new Error(`Criação do secretário falhou (${res.status}).`);
+  }
 }
 
 async function buscarPsicologo(token: string): Promise<string> {
@@ -302,6 +331,7 @@ export default async function prepararDados(config: FullConfig) {
   await provisionarClinica();
   const token = await entrar();
   const psicologoId = await criarPsicologo(token);
+  await criarSecretario(token);
   const pacienteId = await garantirPaciente(token, psicologoId);
   const quando = await garantirSessaoDeHoje(token, pacienteId, psicologoId);
   const dia = hojeEmSaoPaulo();
