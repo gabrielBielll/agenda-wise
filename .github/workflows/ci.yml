@@ -122,6 +122,49 @@ jobs:
           TEST_DATABASE_URL: 'jdbc:postgresql://localhost:5432/deep_teste?user=deep&password=deep&sslmode=disable'
         run: lein test
 
+      # O uberjar é o artefato que vai para produção desde 17/08 — o Dockerfile
+      # deixou de rodar `lein ring server-headless` (servidor de
+      # desenvolvimento) e passou a rodar `java -jar`.
+      #
+      # ⚠️ São caminhos de partida DIFERENTES: o lein-ring entrava pelo
+      # `:ring {:init ...}` do project.clj e o jar entra pelo `-main`. Este passo
+      # existe porque o caminho que roda em produção não era exercitado por
+      # nada — nem pelos testes, que sobem o handler e não a aplicação.
+      - name: Compilar o uberjar (o artefato de produção)
+        working-directory: deep-saude-plataforma-api/deep-saude-backend
+        run: lein uberjar
+
+      # Sobe o jar de verdade e cobra o /api/health. Pega o que a compilação não
+      # pega: AOT que quebra em runtime, `-main` que não escuta, e a aplicação
+      # saindo sozinha — `-main` chama run-jetty com `:join? false` e retorna, e
+      # o processo só sobrevive porque as threads do Jetty não são daemon.
+      #
+      # Com banco de propósito: assim as migrations rodam pelo caminho de
+      # produção, que é onde elas de fato rodam.
+      - name: Smoke do jar — sobe, migra e responde no /api/health
+        working-directory: deep-saude-plataforma-api/deep-saude-backend
+        env:
+          JWT_SECRET: 'apenas-para-o-smoke-do-ci'
+          DATABASE_URL: 'postgresql://deep:deep@localhost:5432/deep_teste?sslmode=disable'
+          PORT: '3001'
+        run: |
+          java -jar target/uberjar/deep-saude-backend-*-standalone.jar &
+          JAR_PID=$!
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:3001/api/health > /dev/null 2>&1; then
+              echo "✓ /api/health respondeu na tentativa $i"
+              kill "$JAR_PID"
+              exit 0
+            fi
+            # Se o processo morreu, não adianta esperar os 30s: falhe agora e
+            # deixe o log dele ser a mensagem de erro.
+            kill -0 "$JAR_PID" 2>/dev/null || { echo "✗ o jar morreu antes de responder"; wait "$JAR_PID"; exit 1; }
+            sleep 2
+          done
+          echo "✗ /api/health não respondeu em 60s"
+          kill "$JAR_PID" 2>/dev/null || true
+          exit 1
+
   frontend:
     name: Front — typecheck da app, typecheck do e2e e build
     runs-on: ubuntu-24.04

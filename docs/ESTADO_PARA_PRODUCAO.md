@@ -11,23 +11,27 @@
 
 ---
 
-## O que "pronto para produção" significa aqui
+## São duas listas, e misturá-las foi o meu erro na primeira versão
 
-Na definição do Gabriel: o software fica construído **como se já fosse
-produção**, e a virada é só operacional — criar os serviços no Northflank ou AWS,
-apontar o banco, subir. Nada de "depois a gente arruma".
+Pela [D-013](../mensageria/DECISOES.md), **o ambiente de hoje é descartável**. Nenhum dado daqui
+atravessa. A virada não é migração, é **criação**: serviços novos, credenciais
+novas, banco levantado do zero pelo Migratus. O que atravessa é código e schema.
 
-Isso separa o trabalho em três perguntas diferentes, e elas não se resolvem no
-mesmo lugar:
+Isso parte o que eu tinha escrito em duas listas com donos diferentes:
 
-| | Pergunta | Onde se resolve |
-|---|---|---|
-| **A** | O sistema faz a coisa certa? | Nossa fila de achados |
-| **B** | O sistema **sobe** num provedor qualquer? | Imagens, config, segredos |
-| **C** | O sistema pode receber **dado real de paciente**? | LGPD, auditoria, criptografia |
+| | Lista | De quem | Critério |
+|---|---|---|---|
+| **📋 1** | **O projeto ficar pronto** | nossa | funcional, testado, **apresentável** pelos três papéis, sem bug e sem tela mentindo |
+| **🔀 2** | **A virada** | do Gabriel, num dia só | criar os serviços, gerar credencial nova, decidir o regime de dado sensível |
 
-Hoje o **B** está mais perto do que parece, o **A** está no meio, e o **C** é o
-que ninguém olhou ainda.
+⚠️ **A primeira versão deste documento tratava a lista 2 como bloqueio da lista
+1** — e por isso mostrava o projeto travado esperando o Gabriel quando ele não
+estava travado. A rotação do `JWT_SECRET` é o exemplo: produção nasce com segredo
+próprio **por construção**, então rotacionar o de hoje protege dado descartável.
+Nada nosso espera por isso.
+
+📌 **O que não muda:** o segredo de hoje **nunca** pode ser o de produção.
+Reaproveitar transforma um vazamento velho em vazamento novo.
 
 ---
 
@@ -53,27 +57,25 @@ Vale registrar porque é a metade que não aparece na conversa do dia a dia.
 
 ---
 
-## 🔴 Bloqueadores — nada de dado real antes destes
+# 📋 LISTA 1 — o que falta para o projeto ficar pronto
 
-### 1. Rotacionar o `JWT_SECRET` e o resto (SEC-002) — **é do Gabriel**
+> **Critério:** dá para mostrar o sistema inteiro, pelos três papéis, sem bug e
+> sem tela mentindo. **Tudo aqui tem dono ou precisa ganhar um.**
 
-O repositório já foi público com credenciais dentro ([INCIDENTE_2026-08-15](INCIDENTE_2026-08-15.md)).
-Com o segredo público, **qualquer pessoa forja um token para qualquer clínica e
-qualquer papel** — não há defesa no código contra isso. Rotacionar é a única
-correção.
+## 🔴 O que impede o projeto de ser apresentável
 
-⚠️ **Rotacione junto o `GOOGLE_TOKEN_KEY`** — é a chave que cifra o refresh token
-do Google (`google/cripto.clj:87`). Uma chave vazada ali abre a agenda dos
-profissionais, não só a nossa aplicação.
-
-### 2. A tabela de permissões tem UMA linha (A-012) — `duna`, em andamento
+### 1. A tabela de permissões tem UMA linha (A-012) — `duna`, em andamento
 
 `papel_permissoes` está praticamente vazia no schema inteiro. Psicóloga e
 secretário tomam 403 em tudo. Só não quebrou até hoje porque **o admin passa por
 bypass** e é com admin que se testa — enquanto o privilégio vier do bypass, a
 tabela pode ficar vazia para sempre sem ninguém notar.
 
-### 3. 🆕 O front força papel de admin por e-mail fixo (SEC-005) — **não estava atribuído**
+🎯 **É a item nº 1 de "apresentável", e por um motivo direto:** hoje **dois dos
+três papéis não fazem nada no sistema**. Uma demonstração que só funciona como
+admin não demonstra o produto — demonstra um terço dele.
+
+### 2. O front força papel de admin por e-mail fixo (SEC-005) — `vale`, na fila hoje
 
 `deep-saude-plataforma-front-end/src/lib/auth.ts:73` e `:123`:
 
@@ -93,11 +95,11 @@ verdade — então as rotas da API continuam guardadas. O que a pessoa ganha sã
 **as telas de admin**, não os dados por trás delas. E `usuarios.email` é
 `UNIQUE` global, então é uma conta só na plataforma inteira.
 
-Mesmo assim não pode ir para produção: é papel decidido por string no cliente, e
-o dia em que a guarda de tela virar guarda de verdade (é justamente a **A-011**)
-isso vira escalada real. São **6 linhas para apagar**.
+Mesmo assim sai agora, e não é por causa da produção: é papel decidido por
+string no cliente, e no dia em que a guarda de tela virar guarda de verdade
+(**A-011**, da mesma pessoa) isso vira escalada de verdade. São **6 linhas**.
 
-### 4. Toda falha de API vira "não há nada" (A-013) — `vale`, com a decisão dada
+### 3. Toda falha de API vira "não há nada" (A-013) — `vale`, com a decisão dada
 
 14 sítios em 8 arquivos. 403, 401, 500 e banco fora do ar produzem a mesma tela.
 Em produção isso significa **incidente que ninguém reporta**: o usuário vê uma
@@ -117,76 +119,43 @@ tela plausível e vai embora.
 
 ---
 
-## 🚢 B — o sistema sobe num provedor qualquer?
+## ✅ Infraestrutura de imagem — **feita em 17/08**
 
-Aqui está o que mexe direto no plano "criar os serviços e apontar".
+Estes três estavam sem dono na primeira versão. Como o plano é *"criar serviços
+idênticos"*, uma imagem errada hoje seria copiada para produção amanhã — então
+saíram na frente.
 
-### 🔴 O container do backend roda servidor de desenvolvimento
+| O que era | O que virou |
+|---|---|
+| Backend rodava `lein ring server-headless` (**servidor de desenvolvimento**), com Leiningen, código-fonte e `.m2` dentro da imagem | Dockerfile de **dois estágios**: compila o uberjar e roda `java -jar` numa imagem **só de JRE**, com usuário sem privilégio |
+| Imagens do front em `node:18-alpine` (fora de suporte desde abril/2025) enquanto o CI roda **Node 22** | `node:22-alpine`, batendo com o CI |
+| **Dois** Dockerfiles do front, quase idênticos | Um só. O de dentro da pasta **não construía** — copiava `/app/public`, que não existe neste projeto |
 
-`deep-saude-plataforma-api/deep-saude-backend/Dockerfile`:
+🔎 **E o que mudou de verdade não é o tamanho da imagem — é qual código roda.**
+`lein ring` entrava pelo `:ring {:init ...}` do `project.clj`; `java -jar` entra
+pelo `-main`. Eram **dois caminhos de partida diferentes** para a mesma
+aplicação, e o de produção não era exercitado por nada — nem pelos testes, que
+sobem o handler e não a aplicação.
 
-```dockerfile
-FROM clojure:lein-2.11.2
-RUN lein deps
-COPY . .
-CMD ["lein", "ring", "server-headless"]
-```
+✅ **Por isso o CI ganhou dois passos novos:** compilar o uberjar, e **subir o jar
+de verdade contra o Postgres, deixar as migrations rodarem e cobrar o
+`/api/health`**. Se o artefato de produção não sobe, o CI fica vermelho — em vez
+de a gente descobrir no dia da virada.
 
-O `project.clj` **tem** o perfil `:uberjar` com `:aot :all` e
-`direct-linking=true` (linha 26) — e o Dockerfile não o usa. O que vai para o ar
-é: Leiningen dentro da imagem, código-fonte dentro da imagem, `.m2` inteiro
-dentro da imagem, e o servidor do plugin de desenvolvimento no lugar do `-main`.
-
-**Consequência prática na virada:** imagem grande e lenta para subir, toolchain
-de build exposta em runtime, e o caminho de boot em produção **não é o mesmo** que
-o `lein test` exercita. O conserto é um Dockerfile de dois estágios que gera o
-uberjar e roda `java -jar` numa imagem só de JRE.
-
-### 🟠 As imagens do front estão em Node 18 e o CI está em Node 22
-
-`Dockerfile` (raiz) e `deep-saude-plataforma-front-end/Dockerfile`: `FROM
-node:18-alpine`. `ci.yml`: `node-version: '22'`. **O que testamos não é o que
-roda** — e o Node 18 saiu do suporte em abril de 2025, então a imagem base não
-recebe mais correção de segurança.
-
-⚠️ E há **dois Dockerfiles do front** (raiz e pasta), quase idênticos. Antes de
-apontar o Northflank para um deles, é preciso decidir qual é o verdadeiro e
-apagar o outro — apontar para o errado é o tipo de erro que só aparece semanas
-depois.
-
-### 🟠 Nenhuma observabilidade
-
-Zero: sem Sentry, sem métrica, sem log estruturado (`println` solto é o que
-existe). Em produção, **a primeira notícia de um erro vai ser o cliente
-ligando**. A ROB-008 na fila da `duna` é o primeiro passo, e OPS-002 é o segundo.
-
-### 🟠 Backup é um script manual
-
-`backup-db.sh` existe e roda na mão. Não há rotina automática, não há retenção
-definida, não há teste de **restore** — e backup que nunca foi restaurado é
-hipótese, não backup.
-
-### 🟡 Segredos são variáveis de ambiente
-
-Funciona e é aceitável para começar. O caminho seguinte é o gerenciador de
-segredos do provedor (AWS-006), o que também dá rotação sem redeploy — que é
-exatamente o que faltou no incidente de agosto.
+⚠️ **O que ainda não foi verificado:** ninguém **construiu as imagens**. Eu não
+tenho Docker nem compilo Clojure na sandbox — o CI prova o **jar**, não a
+imagem. Um `docker build` dos dois Dockerfiles é trabalho da `pico`, e vale fazer
+antes de apontar o Northflank.
 
 ---
 
-## ⚖️ C — pode receber dado real de paciente?
+## 🟠 O que sobra de infraestrutura, e continua sem dono
 
-Esta é a parte que ninguém olhou, e é a que muda de natureza quando o dado deixa
-de ser sintético. **Prontuário de psicologia é dado sensível de saúde na LGPD** —
-o regime é mais rígido que o de dado pessoal comum.
-
-| | O quê | Estado hoje |
-|---|---|---|
-| 🔴 | **Não existe tabela de auditoria** | A **R-012** exige que o acesso pela flag **grave sempre**. Hoje o vínculo do Google escreve no log com o comentário *"vai para o log até existir tabela de auditoria"* (`google/handlers.clj:293`). **A regra existe e não tem onde gravar.** É a LGPD-001 |
-| 🟠 | **Prontuário em claro** | `prontuarios.conteudo TEXT NOT NULL`. A cifra de disco do provedor protege o disco roubado, **não** protege um dump, um backup vazado ou um SELECT indevido. É decisão consciente a tomar, não descuido a corrigir às pressas |
-| 🟠 | **Sem soft delete e sem política de retenção** | LGPD-002. Não há `deleted_at` em lugar nenhum. Exclusão hoje é definitiva, e prontuário tem prazo legal de guarda (CFP: 5 anos) que colide com "apagar quando pedirem" |
-| 🟠 | **Isolamento é só da aplicação** | Todo `WHERE clinica_id = ?` é escrito à mão. Uma consulta esquecida vaza entre clínicas. **Row Level Security** (LGPD-003) é o cinto de segurança que transforma esse bug em erro do banco em vez de vazamento |
-| 🟡 | **`usuarios.email` é UNIQUE global** | Uma psicóloga **não pode atender em duas clínicas** com o mesmo e-mail. É decisão de produto que ainda não foi tomada, e ela aparece no primeiro cadastro real |
+| O quê | Por que importa |
+|---|---|
+| **Observabilidade** (Sentry ou equivalente) | Hoje é zero. A primeira notícia de um erro vai ser alguém avisando. Depende da **ROB-008** (log estruturado), que está na fila da `duna` |
+| **Backup automático + um teste de restore** | `backup-db.sh` roda na mão. Backup que nunca foi restaurado é hipótese, não backup — e isto vale **antes** da produção, porque é o ambiente de conceito que guarda o trabalho |
+| **Tabela de auditoria** | 📌 Esta **não é** item de produção: a **R-012** já manda o acesso pela flag gravar sempre. É funcionalidade, e hoje o código do Google escreve no log com o comentário *"vai para o log até existir tabela de auditoria"* |
 
 ---
 
@@ -200,44 +169,52 @@ sugerir e fazer vínculo, pausar. O que **não** existe: mandar sessão da
 plataforma para o Google, trazer evento do Google para a plataforma, canal de
 watch, tratamento do `410 fullSyncRequired`.
 
-Ou seja: os dois caminhos que você pediu ("os 2 caminhos funcionando") estão
-**desenhados e não construídos** — o desenho está em
-[GOOGLE_CALENDAR_ARQUITETURA](GOOGLE_CALENDAR_ARQUITETURA.md) e os limites medidos em [GOOGLE_LIMITES](GOOGLE_LIMITES.md).
+Ou seja: os dois caminhos pedidos ("os 2 caminhos funcionando") estão
+**desenhados e não construídos** — desenho em [GOOGLE_CALENDAR_ARQUITETURA](GOOGLE_CALENDAR_ARQUITETURA.md), limites
+medidos em [GOOGLE_LIMITES](GOOGLE_LIMITES.md).
 
-📌 **Isto não bloqueia a virada.** A plataforma funciona sem o Google. Mas é o
-maior naco de trabalho restante, e é bom que esteja escrito que ele é grande, e
-não um acabamento.
-
----
-
-## ⚠️ Um alerta sobre o plano do clone
-
-> *"rodamos um clone do banco para o banco de produção e pronto"*
-
-Se "clone" significar copiar o banco atual **com os dados**, isso leva para a
-produção: pacientes sintéticos, prontuários sintéticos, e **contas de teste com
-senha conhecida** — inclusive a `admin@deepsaude.com` do item 3. Um cadastro de
-paciente inventado convivendo com um real é do tipo de sujeira que ninguém
-consegue limpar depois com confiança.
-
-✅ **O caminho certo já está construído e é mais simples:** o banco de produção
-nasce **vazio**, o Migratus levanta o schema do zero (esse caminho já é exercitado
-a cada CI), e as clínicas reais entram pelo provisionamento. Clone serve para
-**estrutura**, e o Migratus faz estrutura melhor que clone — com registro do que
-rodou, que o clone não tem.
+📌 **É o maior naco de trabalho que sobra — maior que toda a lista 1 somada.** E é
+o único item onde "apresentável" e "pronto" divergem: dá para apresentar a
+plataforma sem ele, mas ele é metade da proposta de valor.
 
 ---
 
-## Resumo em uma frase por gate
+# 🔀 LISTA 2 — o dia da virada
 
-- **Gate A — dado real de uma clínica piloto:** faltam **4 bloqueadores** (rotação, A-012, SEC-005, A-013), os **4 laranjas** da fila, e a **tabela de auditoria**, que é a única peça da LGPD que uma regra nossa já exige hoje.
-- **Gate B — subir em Northflank/AWS:** falta o **uberjar no Dockerfile do backend**, alinhar **Node 18 → 22**, escolher entre os **dois Dockerfiles do front**, e ter **log estruturado** antes de ligar o tráfego.
-- **Gate C — vender para clínicas:** decidir **criptografia do prontuário**, **retenção/soft delete**, **RLS**, e o **e-mail em duas clínicas**. Nenhuma dessas é código difícil; todas são decisão sua.
+> **Esta é a lista curta que fica com o Gabriel.** Nada aqui bloqueia a lista 1,
+> e nada aqui deve ser feito antes da hora.
+
+### Criar (mecânico, uma sentada)
+
+1. Serviços novos no Northflank/AWS — front e backend, **isolados dos de hoje**
+2. Banco novo, **vazio**. O Migratus levanta o schema no primeiro boot
+3. **Credenciais novas**: `JWT_SECRET`, `GOOGLE_TOKEN_KEY`, senha do banco, `NEXTAUTH_SECRET`, credenciais do Google
+4. `CORS_ORIGINS` com o domínio de produção
+5. Provisionar a primeira clínica real pelo endpoint que já existe
+
+⚠️ **Item 2, e é o único que dá para errar de forma cara:** *"clonar o banco"* não
+pode significar copiar os dados de hoje. Isso levaria pacientes inventados,
+prontuários inventados e contas de teste com senha conhecida para dentro da
+produção — sujeira que ninguém limpa depois com confiança. **Clone é do
+esqueleto, e o Migratus faz esqueleto melhor que clone**, porque guarda registro
+do que rodou.
+
+⚠️ **Item 3:** o `JWT_SECRET` de produção **tem que ser novo**. O de hoje esteve
+num repositório público ([INCIDENTE_2026-08-15](INCIDENTE_2026-08-15.md)).
+
+### Decidir (não é código difícil — é escolha)
+
+| Decisão | O que está em jogo |
+|---|---|
+| **Criptografar o prontuário no banco?** | A cifra de disco do provedor protege o disco roubado, não um dump ou um SELECT indevido. Prontuário de psicologia é dado sensível de saúde na LGPD |
+| **Retenção e soft delete** | Não há `deleted_at` em lugar nenhum. Exclusão hoje é definitiva, e prontuário tem prazo legal de guarda (CFP: 5 anos) que colide com "apagar quando pedirem" |
+| **Row Level Security?** | Todo `WHERE clinica_id = ?` é escrito à mão. RLS transforma uma consulta esquecida em erro do banco, em vez de vazamento entre clínicas |
+| **Mesmo e-mail em duas clínicas?** | `usuarios.email` é `UNIQUE` global, então uma psicóloga **não pode** atender em duas clínicas. Aparece no primeiro cadastro real |
 
 ---
 
 ## Como manter isto verdadeiro
 
-Este arquivo é uma fotografia de 17/08 e vai envelhecer. O que impede é o campo
-`Status:` dos cards voltar a significar alguma coisa — **hoje ele não significa,
-e é a razão de este documento ter precisado existir.**
+Este arquivo é uma fotografia e vai envelhecer. O que impede é o campo `Status:`
+dos cards voltar a significar alguma coisa — **hoje ele não significa, e é a
+razão de este documento ter precisado existir.**

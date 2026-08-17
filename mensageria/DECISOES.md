@@ -486,3 +486,62 @@ valendo; o que caiu foi a urgência, não o problema.
   continua valendo o INCIDENTE de 2026-08-15: **antes do primeiro dado real, o
   `JWT_SECRET` tem que ser rotacionado** (SEC-002).
 - **`prod` é reservada** e ninguém a usa até a decisão de criar produção.
+
+---
+
+## D-013 — O ambiente de hoje é descartável; produção nasce nova e vazia
+
+**Decidido por:** Gabriel, 2026-08-17
+**Estende:** a [D-012](#d-012--hoje-não-existe-produção-main-é-o-ambiente-vivo-de-validação)
+**Efeito imediato:** tira a rotação de credenciais do caminho crítico do projeto
+
+Nas palavras dele: *"tudo que eu estou utilizando hoje, de banco de dados e de
+serviço, é descartável. Todos os pacientes que temos hoje, tudo que nós temos
+hoje lá, não vamos utilizar. O que a gente está utilizando é o esqueleto, é o
+conceito. Quando tudo estiver pronto, a gente vai criar outros serviços idênticos
+e um banco de dados com o mesmo esqueleto, mas não com os mesmos dados. Serviço
+novo, totalmente isolado, com novas credenciais."*
+
+E o motivo, que é a parte que muda o nosso comportamento: *"você fica esperando
+por mim até eu fazer esse JWT Secret, e aí o projeto não anda. O objetivo é o
+projeto andar todo e falar: cara, beleza, o projeto está totalmente testado.
+Segurança não está boa — agora, quando eu for passar para produção, a gente
+ajusta. E aí fica uma lista muito menor de coisa que eu tenho que fazer."*
+
+### O que isso decide
+
+**A virada para produção não é uma migração — é uma criação.** Serviços novos,
+credenciais novas, banco novo levantado do zero pelo Migratus, e **nenhum dado de
+hoje atravessa**. O que atravessa é o código e o schema.
+
+### O que muda no nosso trabalho, e é bem concreto
+
+🔓 **Nada mais espera o Gabriel por causa de segredo.** Rotacionar o
+`JWT_SECRET` (SEC-002) **deixa de ser bloqueador do projeto** — produção nasce
+com segredo próprio por construção, então rotacionar o de hoje só protege dado
+descartável. Continua na lista, mas na **lista da virada**, não na nossa.
+
+⚠️ **Isto NÃO cancela o incidente de 2026-08-15.** A regra que sobra é mais
+simples e mais dura: **o segredo de hoje nunca pode ser o segredo de produção.**
+Reaproveitar seria transformar um vazamento antigo em vazamento novo.
+
+🎯 **O critério de pronto muda de alvo.** Deixa de ser *"seguro para dado real"*
+e passa a ser **"funcional, testado e apresentável"** — dá para mostrar o sistema
+inteiro, pelos três papéis, sem bug e sem tela mentindo. As decisões de dado
+sensível (criptografia de prontuário, retenção, RLS) saem da nossa fila e entram
+na lista da virada.
+
+📌 **A exceção, e ela importa:** o que já virou **regra de negócio nossa** não sai
+da fila só por ser de privacidade. A **R-012** manda o acesso pela flag gravar
+sempre — isso é funcionalidade do produto, não configuração de produção, e
+continua sendo trabalho nosso.
+
+### O que ele pediu que não mudasse
+
+*"Checar antes é a melhor coisa que estão fazendo, é a maior qualidade de vocês,
+e eu quero que vocês mantenham isso. Mas o projeto tem que andar."*
+
+A leitura correta não é *"medir menos"* — é **medir sem parar**. Quando a medição
+levanta uma decisão que é dele, o certo é registrar a pergunta, **seguir pela
+suposição mais conservadora** e continuar; não é ficar parado esperando. Fila
+vazia por falta de resposta é falha de coordenação, não zelo.

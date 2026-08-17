@@ -1,6 +1,17 @@
 
+# Imagem do FRONT. É a única — havia uma segunda em
+# `deep-saude-plataforma-front-end/Dockerfile`, quase idêntica, e ela foi
+# apagada em 17/08 por dois motivos: duas imagens quase iguais garantem que uma
+# vai envelhecer sem ninguém notar, e aquela **não construía** — copiava
+# `/app/public`, que não existe neste projeto.
+#
+# ⚠️ O contexto de build é a RAIZ do repositório, não a pasta do front. Ao
+# apontar o Northflank/App Runner, o `context` é `.` e o `dockerfile` é este.
+
 # 1. Base image
-FROM node:18-alpine AS base
+# Node 22 para bater com o CI (`.github/workflows/ci.yml`). Estava em `node:18`,
+# que saiu do suporte em abril de 2025 — a imagem testada não era a que rodava.
+FROM node:22-alpine AS base
 
 # 2. Dependencies
 FROM base AS deps
