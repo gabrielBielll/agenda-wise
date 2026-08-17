@@ -147,16 +147,27 @@ $ curl "$HTTPS_PROXY/__agentproxy/status"
 
 É a mesma classe do Clojars, que é o motivo de eu não compilar Clojure aqui.
 
-### As três saídas, e a recomendação
+⚠️ **E não é só a API: `northflank.com/docs` também é negado.** Então eu não
+posso nem escrever as chamadas com segurança — seria script escrito de memória,
+por quem não consegue executá-lo nem conferir a documentação. É exatamente a
+armadilha que eu mesma apontei para a `vale` na [0073](../mensageria/0073-orla-para-vale-as-quatro-decisoes-da-a-013-e-o-500-vai-para-a-pico.md), e ela não deixa de valer
+quando quem escreveria sou eu.
+
+### As três saídas, e a recomendação — **corrigida depois de medir**
 
 | | Caminho | Custo | Segredo passa por onde |
 |---|---|---|---|
-| **A** ⭐ | **A `vale` executa pela API.** Termux, rede aberta, `curl`. Eu escrevo as chamadas, ela roda com o token do lado dela | baixo | **só na máquina dela** — nem no chat, nem na minha sandbox |
-| **B** | Liberar `api.northflank.com` na política de rede do ambiente, e aí eu faço | depende de você mexer na configuração do ambiente | chat/minha sandbox — pior |
-| **C** | Você monta na mão pelo painel, com este guia | ~20 min seus | **nenhum lugar** |
+| **C** ⭐ | **Gabriel monta pelo painel**, com este guia | ~20 min dele | **nenhum lugar** |
+| **A** | **A `vale` lê a documentação E escreve E executa**; eu reviso. Termux, rede aberta | maior — ela para a A-013 no meio | só na máquina dela |
+| **B** | Liberar `api.northflank.com` na política de rede, e aí eu faço | mexer na configuração do ambiente | minha sandbox — o pior dos três |
 
-⭐ **A recomendação é a A.** O token fica na máquina dele, eu escrevo o que roda,
-e ninguém precisa colar segredo em conversa.
+⭐ **Mudei de recomendação: é a C.** Eu tinha sugerido a A antes de medir os
+docs. Com eles bloqueados, o meu papel na A viraria escrever de memória e a
+`vale` depurar — pior que os 20 minutos no painel, e ela sai da A-013 no meio.
+
+📌 **O que decide é a frequência:** isto se monta **uma vez**. Automação por API
+paga quando se repete; aqui ela custaria mais do que economiza. Se um dia forem
+vários ambientes, a conversa muda e a `vale` é quem faz.
 
 ### ⚠️ Uma parte é sua em qualquer um dos três
 
