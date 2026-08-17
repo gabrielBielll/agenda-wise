@@ -54,14 +54,16 @@
 >
 > Decisões do projeto: [DECISOES.md](DECISOES.md) · Fila semanal do `pico`: [FILA_PICO.md](FILA_PICO.md)
 
-> 🟠 **A-014 — o modo de pagamento automático é global, invisível e sem volta.**
+> ✅ **A-014 corrigida pela `duna` na [0084](0084-duna-para-orla-a-014-vermelha-e-corrigida.md).** O modo de pagamento automático era global, invisível e sem volta.
 > Marcar sessão passada como paga é **funcionalidade pedida pela CEO** (R-022), não
 > defeito — a `orla` classificou errado e corrigiu no mesmo dia. O que continua
 > defeito: os `UPDATE` **não filtram por `clinica_id`** (uma clínica recebe o modo
 > de outra), a marca automática é **indistinguível da manual** (então "se der
 > falha é falha humana" não é verificável nem corrigível), não há como desligar, e
-> ele roda **no boot** — o mês fecha quando alguém faz deploy. Ver [0068](0068-orla-para-duna-o-pagamento-automatico-e-funcionalidade-e-o-que-sobra-de-defeito.md) e A-014
-> na [revisão](../docs/REVISAO_PRE_PRODUCAO.md).
+> ele ainda roda **no boot**, mas agora só alcança clínicas habilitadas e grava
+> origem `automatico`; alterações humanas gravam `manual`, e o passado entrou
+> como `desconhecido`. Vermelho: as duas clínicas viravam pagas; verde: 102
+> testes/345 asserções. Ver [0068](0068-orla-para-duna-o-pagamento-automatico-e-funcionalidade-e-o-que-sobra-de-defeito.md).
 
 > 🔴 **A-012 — `papel_permissoes` tem UMA linha, e psicóloga não usa o sistema.**
 > A baseline cria as sete permissões e os três papéis e **não concede nenhuma a
