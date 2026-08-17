@@ -172,6 +172,35 @@
 (def ^:private sessao-base
   {:paciente_id (str paciente-a) :psicologo_id (str psicologo-a) :valor_consulta 200})
 
+(deftest pagamento-automatico-respeita-configuracao-da-clinica
+  ;; A coluna é criada aqui para que o vermelho prove o defeito de alcance do
+  ;; job antes de a migration da correção existir: hoje ele ignora a flag e
+  ;; fecha o financeiro de todas as clínicas.
+  ;; Os testes anteriores não viram isso porque exercitam handlers; o job roda
+  ;; fora de rota, no -main, e o -main não é iniciado pela suíte.
+  (db/execute-one! ["ALTER TABLE clinicas ADD COLUMN IF NOT EXISTS pagamento_automatico BOOLEAN NOT NULL DEFAULT false"])
+  (db/execute-one! ["UPDATE clinicas SET pagamento_automatico = (id = ?) WHERE id IN (?, ?)"
+                    clinica-a clinica-a clinica-b])
+  (doseq [[id cli pac psi] [[#uuid "aaaaaaaa-0000-0000-0000-0000000000e1" clinica-a paciente-a psicologo-a]
+                            [#uuid "bbbbbbbb-0000-0000-0000-0000000000e2" clinica-b paciente-b psicologo-b]]]
+    (db/execute-one! ["INSERT INTO agendamentos
+                       (id, clinica_id, paciente_id, psicologo_id, data_hora_sessao,
+                        duracao, valor_consulta, status, status_pagamento)
+                       VALUES (?, ?, ?, ?, now() - interval '1 day', 50, 200,
+                               'agendado', 'pendente')"
+                      id cli pac psi]))
+
+  (core/sincronizar-status-global!)
+
+  (let [habilitada (db/execute-one! ["SELECT status, status_pagamento, status_pagamento_origem
+                                       FROM agendamentos WHERE clinica_id = ?" clinica-a])
+        desabilitada (db/execute-one! ["SELECT status, status_pagamento, status_pagamento_origem
+                                        FROM agendamentos WHERE clinica_id = ?" clinica-b])]
+    (is (= ["realizado" "pago" "automatico"]
+           ((juxt :status :status_pagamento :status_pagamento_origem) habilitada)))
+    (is (= ["agendado" "pendente" "desconhecido"]
+           ((juxt :status :status_pagamento :status_pagamento_origem) desabilitada)))))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Criação
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -503,7 +532,8 @@
                                                        :duracao 50 :force true)))
         resp (atualizar (:id forcada) {:status_pagamento "pago"})]
     (is (= 200 (:status resp)))
-    (is (= "pago" (:status_pagamento (:body resp))))))
+    (is (= "pago" (:status_pagamento (:body resp))))
+    (is (= "manual" (:status_pagamento_origem (:body resp))))))
 
 (deftest atualizar-duracao-menor-sem-sobreposicao-continua-permitido
   (let [sessao (:body (criar (assoc sessao-base :data_hora_sessao "2027-06-13T14:00:00"

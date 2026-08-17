@@ -572,6 +572,10 @@
   (try
     (let [clinica-id (get-in request [:identity :clinica_id])
           papel (get-in request [:identity :role])
+          ;; Lista branca também é a guarda financeira da criação: campos como
+          ;; status_pagamento, valor_repasse e status_repasse não entram aqui,
+          ;; portanto ninguém cria uma sessão já paga. Se algum deles passar a
+          ;; ser aceito, precisa receber a mesma permissão por campo do update.
           {:keys [paciente_id psicologo_id data_hora_sessao valor_consulta duracao recorrencia_tipo quantidade_recorrencia force observacoes]} (:body request)]
       (cond
         (or (nil? paciente_id) (nil? psicologo_id) (nil? data_hora_sessao))
@@ -900,7 +904,9 @@
                            (some? observacoes) (assoc :observacoes observacoes)
                            (some? (:valor_repasse (:body request))) (assoc :valor_repasse (:valor_repasse (:body request)))
                            (some? (:status_repasse (:body request))) (assoc :status_repasse (:status_repasse (:body request)))
-                           (some? (:status_pagamento (:body request))) (assoc :status_pagamento (:status_pagamento (:body request))))]
+                           (some? (:status_pagamento (:body request)))
+                           (assoc :status_pagamento (:status_pagamento (:body request))
+                                  :status_pagamento_origem "manual"))]
           
           (cond
             bloqueio-existente
@@ -973,17 +979,24 @@
                             ["UPDATE agendamentos 
                               SET status = 'realizado' 
                               WHERE data_hora_sessao < ? 
-                              AND (status IS NULL OR status = 'agendado')"
+                              AND (status IS NULL OR status = 'agendado')
+                              AND clinica_id IN (
+                                SELECT id FROM clinicas WHERE pagamento_automatico = true
+                              )"
                              agora])
             status-count (get (first status-result) :next.jdbc/update-count 0)
             
             ;; Atualiza status_pagamento para 'pago' em sessões passadas realizadas (não canceladas)
             pagamento-result (jdbc/execute! @datasource 
                                ["UPDATE agendamentos 
-                                 SET status_pagamento = 'pago' 
+                                 SET status_pagamento = 'pago',
+                                     status_pagamento_origem = 'automatico'
                                  WHERE data_hora_sessao < ? 
                                  AND status != 'cancelado'
-                                 AND (status_pagamento IS NULL OR status_pagamento = 'pendente')"
+                                 AND (status_pagamento IS NULL OR status_pagamento = 'pendente')
+                                 AND clinica_id IN (
+                                   SELECT id FROM clinicas WHERE pagamento_automatico = true
+                                 )"
                                 agora])
             pagamento-count (get (first pagamento-result) :next.jdbc/update-count 0)]
         
@@ -1005,18 +1018,25 @@
                               SET status = 'realizado' 
                               WHERE clinica_id = ? 
                               AND data_hora_sessao < ? 
-                              AND (status IS NULL OR status = 'agendado')"
+                              AND (status IS NULL OR status = 'agendado')
+                              AND clinica_id IN (
+                                SELECT id FROM clinicas WHERE pagamento_automatico = true
+                              )"
                              clinica-id agora])
             status-count (get (first status-result) :next.jdbc/update-count 0)
             
             ;; Atualiza status_pagamento para 'pago' em sessões passadas realizadas (não canceladas)
             pagamento-result (jdbc/execute! @datasource 
                                ["UPDATE agendamentos 
-                                 SET status_pagamento = 'pago' 
+                                 SET status_pagamento = 'pago',
+                                     status_pagamento_origem = 'automatico'
                                  WHERE clinica_id = ? 
                                  AND data_hora_sessao < ? 
                                  AND status != 'cancelado'
-                                 AND (status_pagamento IS NULL OR status_pagamento = 'pendente')"
+                                 AND (status_pagamento IS NULL OR status_pagamento = 'pendente')
+                                 AND clinica_id IN (
+                                   SELECT id FROM clinicas WHERE pagamento_automatico = true
+                                 )"
                                 clinica-id agora])
             pagamento-count (get (first pagamento-result) :next.jdbc/update-count 0)]
         
