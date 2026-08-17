@@ -11,10 +11,12 @@
             [buddy.sign.jwt :as jwt]
             [buddy.hashers :as hashers]
             [migratus.core :as migratus]
+            [taoensso.timbre :as log]
             [deep-saude-backend.db :refer [datasource execute-query! execute-one!]]
             [deep-saude-backend.tempo :as tempo]
             [deep-saude-backend.dominio :as dominio]
             [deep-saude-backend.limites :as limites]
+            [deep-saude-backend.logging :as logging]
             [deep-saude-backend.prontuarios :as prontuarios]
             [deep-saude-backend.google.rrule :as rrule]
             [deep-saude-backend.google.handlers :as google]
@@ -36,9 +38,9 @@
     ;; ⚠️ Não logar nem pedaço do segredo. A versão anterior imprimia os 4
     ;; primeiros e os 4 últimos caracteres no startup — em log agregado isso é
     ;; material entregue de graça para quem quiser forjar um JWT.
-    (do (println "JWT_SECRET carregada.") secret)
+    (do (log/info "jwt_secret_loaded") secret)
     (do
-      (println "ERROR: Variável de ambiente JWT_SECRET não foi encontrada!")
+      (log/error "jwt_secret_missing")
       (throw (Exception. "FATAL: A variável de ambiente :jwt-secret não está configurada! A aplicação será encerrada.")))))
 
 (defn fuso-da-clinica
@@ -73,9 +75,9 @@
   "Aplica as migrations pendentes. Roda de forma síncrona no boot: subir a
    aplicação com o schema desatualizado é pior do que não subir."
   []
-  (println "MIGRATIONS: aplicando migrations pendentes...")
+  (log/info "migrations_started")
   (migratus/migrate (migratus-config))
-  (println "MIGRATIONS: schema atualizado."))
+  (log/info "migrations_completed"))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -100,7 +102,7 @@
                                                   (update :papel_id #(java.util.UUID/fromString %)))]
                              {:identity claims-parsed})
                           (catch Exception e
-                            (println "ERRO DE VALIDAÇÃO JWT:" (.getMessage e))
+                            (log/warn e "jwt_validation_failed")
                             nil))]
           (if auth-data
             (handler (assoc request :identity (:identity auth-data)))
@@ -128,7 +130,7 @@
      (if (true? (get-in request [:identity :plataforma_admin]))
        (handler request)
        (do
-         (println "PLATAFORMA: acesso negado para usuário" (str (get-in request [:identity :user_id])))
+         (log/warn "platform_access_denied")
          {:status 403 :body {:erro "Acesso restrito ao operador da plataforma."
                              :code "nao_e_operador_da_plataforma"}})))))
 
@@ -166,7 +168,7 @@
     {:status 200 :headers {"Content-Type" "application/json"}
      :body {:status "ok" :banco "ok"}}
     (catch Exception e
-      (println "HEALTH: banco indisponível:" (.getMessage e))
+      (log/error e "health_database_unavailable")
       {:status 503 :headers {"Content-Type" "application/json"}
        :body {:status "degradado" :banco "indisponivel"}})))
 
@@ -241,7 +243,7 @@
   [request]
   (if-not (provisionamento-autorizado? request)
     (do
-      (println "PROVISIONAMENTO: tentativa não autorizada.")
+      (log/warn "provisioning_unauthorized")
       {:status 403 :body {:erro "Provisionamento não autorizado."
                           :code "provisionamento_nao_autorizado"}})
     (criar-clinica-e-admin! (:body request))))
@@ -305,9 +307,7 @@
   (try
     (hashers/check senha hash-armazenado)
     (catch Exception e
-      (println "LOGIN: hash ilegível para o usuário" (str usuario-id)
-               "- autenticação negada. Necessário reset por admin."
-               (.getMessage e))
+      (log/error e "login_password_hash_unreadable")
       false)))
 
 (defn login-handler [request]
@@ -346,7 +346,7 @@
                                                 :role       (:nome_papel papel)}}})
                 {:status 401 :body {:erro "Credenciais inválidas."}})))
           (do
-            (println "LOGIN: papel inexistente para o usuário" (str (:id usuario)))
+            (log/error "login_role_missing")
             {:status 500 :body {:erro "Erro de integridade: Papel do usuário não encontrado."}})))
       ;; Mesma resposta para usuário inexistente e senha errada: distinguir os
       ;; dois casos permite enumerar quem tem conta na plataforma.
@@ -680,8 +680,7 @@
                                 sessoes-para-criar))]
                 {:status 201, :body (first novos-agendamentos)}))))))
     (catch Exception e
-      (println "ERRO FATAL NO HANDLER:" (.getMessage e))
-      (.printStackTrace e)
+      (log/error e "appointment_create_failed")
       {:status 500 :body {:erro "Erro interno."}})))
 
 
@@ -898,8 +897,7 @@
                   {:status 200 :body agendamento-atualizado}))))))
           {:status 404 :body {:erro "Agendamento não encontrado."}})))
     (catch Exception e
-      (println "ERRO AO ATUALIZAR AGENDAMENTO:" (.getMessage e))
-      (.printStackTrace e)
+      (log/error e "appointment_update_failed")
       {:status 500 :body {:erro "Erro interno."}})))
 
 
@@ -939,15 +937,14 @@
                     {:status 204 :body ""})))))
         {:status 404 :body {:erro "Agendamento não encontrado."}}))
     (catch Exception e
-      (println "ERRO AO REMOVER AGENDAMENTO:" (.getMessage e))
-      (.printStackTrace e)
+      (log/error e "appointment_delete_failed")
       {:status 500 :body {:erro "Erro interno."}})))
 ;; Função global de sincronização (sem contexto de request)
 ;; Usada na inicialização do backend para TODAS as clínicas
 (defn sincronizar-status-global! []
   (try
     (let [agora (java.sql.Timestamp. (System/currentTimeMillis))]
-      (println "SYNC GLOBAL: Sincronizando status de todos os agendamentos passados...")
+      (log/info "global_status_sync_started")
       
       ;; Atualiza status para 'realizado' em sessões passadas que ainda estão como 'agendado'
       (let [status-result (jdbc/execute! @datasource 
@@ -968,9 +965,10 @@
                                 agora])
             pagamento-count (get (first pagamento-result) :next.jdbc/update-count 0)]
         
-        (println "SYNC GLOBAL: Atualizados" status-count "status e" pagamento-count "pagamentos")))
+        (log/with-context {:status_count status-count :payment_count pagamento-count}
+          (log/info "global_status_sync_completed"))))
     (catch Exception e
-      (println "ERRO SYNC GLOBAL:" (.getMessage e)))))
+      (log/error e "global_status_sync_failed"))))
 
 ;; Handler para sincronizar status de agendamentos passados (por clínica)
 ;; Atualiza no banco: status='realizado' e status_pagamento='pago' para sessões passadas não canceladas
@@ -978,7 +976,7 @@
   (try
     (let [clinica-id (get-in request [:identity :clinica_id])
           agora (java.sql.Timestamp. (System/currentTimeMillis))]
-      (println "SYNC: Sincronizando status de agendamentos passados para clínica" clinica-id)
+      (log/info "clinic_status_sync_started")
       
       ;; Atualiza status para 'realizado' em sessões passadas que ainda estão como 'agendado'
       (let [status-result (jdbc/execute! @datasource 
@@ -1001,13 +999,13 @@
                                 clinica-id agora])
             pagamento-count (get (first pagamento-result) :next.jdbc/update-count 0)]
         
-        (println "SYNC: Atualizados" status-count "status e" pagamento-count "pagamentos")
+        (log/with-context {:status_count status-count :payment_count pagamento-count}
+          (log/info "clinic_status_sync_completed"))
         {:status 200 :body {:message "Sincronização concluída"
                             :status_atualizados status-count
                             :pagamentos_atualizados pagamento-count}}))
     (catch Exception e
-      (println "ERRO AO SINCRONIZAR STATUS:" (.getMessage e))
-      (.printStackTrace e)
+      (log/error e "clinic_status_sync_failed")
       {:status 500 :body {:erro "Erro ao sincronizar."}})))
 
 (defn listar-agendamentos-handler [request]
@@ -1093,7 +1091,7 @@
                                 intervalos)]
           {:status 200 :body {:conflitos conflitos :total (count conflitos)}})))
     (catch Exception e
-      (println "ERRO VERIFICAR CONFLITOS:" (.getMessage e))
+      (log/error e "schedule_conflict_check_failed")
       {:status 500 :body {:erro "Erro interno ao verificar conflitos."}})))
 
 (defn criar-bloqueio-handler [request]
@@ -1113,6 +1111,16 @@
         (let [fuso (fuso-da-clinica clinica-id)
               intervalos (gerar-intervalos-bloqueio data_inicio data_fim recorrencia_tipo
                                                    quantidade_recorrencia fuso)
+              ;; Limite conhecido: esta guarda é sequencial. O SELECT e os
+              ;; INSERTs abaixo não se protegem de uma sessão concorrente; um
+              ;; SELECT comum em READ COMMITTED dentro da transação também não
+              ;; fecharia essa corrida. A correção real exige trava ou
+              ;; restrição no banco.
+              ;;
+              ;; Custo conhecido: há uma consulta por intervalo, inclusive no
+              ;; caminho sem conflito. Uma recorrência no limite da R-005 pode
+              ;; chegar a 120 consultas; agrupar intervalos numa única query é
+              ;; otimização futura, não mudança silenciosa desta guarda.
               conflitos (reduce (fn [acc {:keys [start end]}]
                                   (into acc
                                         (execute-query!
@@ -1154,7 +1162,7 @@
                                                 intervalos))]
                 {:status 201 :body (first novos-bloqueios)}))))))
     (catch Exception e
-      (println "ERRO ao criar bloqueio:" (.getMessage e))
+      (log/error e "schedule_block_create_failed")
       {:status 500 :body {:erro "Erro interno."}})))
 
 (defn listar-bloqueios-handler [request]
@@ -1388,7 +1396,7 @@
       ;; APLICAÇÃO DO MIDDLEWARE DE CORS
       (wrap-cors :access-control-allow-origin (origens-permitidas)
                  :access-control-allow-methods [:get :post :put :delete :options]
-                 :access-control-allow-headers #{"Authorization" "Content-Type"})
+                 :access-control-allow-headers #{"Authorization" "Content-Type" "X-Request-ID"})
       ;; ⚠️ Ordem importa e é contraintuitiva no `->`: quem aparece DEPOIS aqui
       ;; roda ANTES na requisição. `wrap-keyword-params` vem listado antes de
       ;; `wrap-params` justamente para rodar DEPOIS dele, que é a única ordem em
@@ -1417,7 +1425,8 @@
       ;; respostas geradas por quem está FORA dele saem sem serializar. Era o
       ;; caso do 413: o corpo chegava ao Jetty como mapa Clojure e virava um 500
       ;; cru, sem corpo — justamente na resposta que existe para ser clara.
-      (middleware-json/wrap-json-response)))
+      (middleware-json/wrap-json-response)
+      (logging/wrap-request-id)))
 
 (def app (montar-app app-routes))
 
@@ -1449,10 +1458,11 @@
                        :ok
                        (catch Exception e
                          (if (>= n tentativas)
-                           (do (println "BOOT: banco inacessível após" tentativas "tentativas.")
+                           (do (log/with-context {:attempts tentativas}
+                                 (log/error "database_boot_exhausted"))
                                (throw e))
-                           (do (println "BOOT: banco indisponível, tentativa" n "de" tentativas
-                                        "— nova tentativa em" (* 2 n) "s")
+                           (do (log/with-context {:attempt n :max_attempts tentativas :retry_in_s (* 2 n)}
+                                 (log/warn "database_boot_retry"))
                                :repetir))))]
        (if (= resultado :ok)
          true
@@ -1462,10 +1472,10 @@
 (defn init-db []
   (if (env :database-url)
     (do
-      (println "DATABASE_URL encontrada.")
-      (println "Tentando conectar ao banco de dados...")
+      (log/info "database_url_configured")
+      (log/info "database_connection_started")
       (aguardar-banco!)
-      (println "Conexão com o banco de dados estabelecida com sucesso!")
+      (log/info "database_connection_established")
       ;; Schema: antes era um paredão de ALTER TABLE ... IF NOT EXISTS aqui,
       ;; sem ordem nem registro do que já havia rodado. Agora é Migratus.
       ;;
@@ -1481,11 +1491,11 @@
         ;; Sincronização de status de agendamentos passados na inicialização
         (sincronizar-status-global!)
         (catch Exception e
-          (println "Aviso na sincronização de status:" (.getMessage e)))))
-    (println "AVISO: DATABASE_URL não configurada. As operações de banco de dados irão falhar.")))
+          (log/warn e "startup_status_sync_failed"))))
+    (log/warn "database_url_missing")))
 
 (defn destroy-db []
-  (println "Finalizando aplicação..."))
+  (log/info "application_stopping"))
 
 (defn reset-senha!
   "CLI de resgate: redefine a senha de um usuário direto pelo banco.
@@ -1502,10 +1512,10 @@
   [email nova-senha]
   (cond
     (or (str/blank? email) (str/blank? nova-senha))
-    (do (println "Uso: lein run reset-senha <email> <nova-senha>") 1)
+    (do (log/error "password_reset_usage_invalid") 1)
 
     (< (count nova-senha) 8)
-    (do (println "Senha muito curta (mínimo 8 caracteres).") 1)
+    (do (log/error "password_reset_too_short") 1)
 
     :else
     (if-let [usuario (execute-one! ["SELECT id FROM usuarios WHERE email = ?" email])]
@@ -1513,9 +1523,9 @@
         (sql/update! @datasource :usuarios
                      {:senha_hash (hashers/encrypt nova-senha)}
                      {:id (:id usuario)})
-        (println "Senha redefinida para o usuário" (str (:id usuario)))
+        (log/info "password_reset_completed")
         0)
-      (do (println "Usuário não encontrado para o e-mail informado.") 1))))
+      (do (log/warn "password_reset_user_not_found") 1))))
 
 (defn -main [& args]
   (case (first args)

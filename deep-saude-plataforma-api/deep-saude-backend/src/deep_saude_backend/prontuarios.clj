@@ -21,6 +21,7 @@
   (:require [clojure.string :as str]
             [next.jdbc.result-set :as rs]
             [next.jdbc.sql :as sql]
+            [taoensso.timbre :as log]
             [deep-saude-backend.db :refer [datasource execute-query! execute-one!]]))
 
 (defn criar-handler [request]
@@ -61,8 +62,7 @@
                                                  {:builder-fn rs/as-unqualified-lower-maps :return-keys true})]
                 {:status 201 :body novo-prontuario}))))
         (catch Exception e
-          (println "ERRO CRIAR PRONTUARIO:" (.getMessage e))
-          (.printStackTrace e)
+          (log/error e "prontuario_create_failed")
           {:status 500 :body {:erro "Erro interno."}})))))
 
 (defn- pode-ler?

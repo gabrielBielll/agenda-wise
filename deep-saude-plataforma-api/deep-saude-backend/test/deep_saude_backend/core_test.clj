@@ -32,6 +32,25 @@
     (let [resp (core/app (mock/request :get "/api/agendamentos"))]
       (is (= 401 (:status resp))))))
 
+(deftest toda-resposta-tem-request-id
+  (let [app (core/montar-app (fn [request]
+                               {:status 200
+                                :body {:request-id (:request-id request)}}))]
+    (testing "gera UUID quando o cliente não envia identificador"
+      (let [resp (app (mock/request :get "/qualquer"))
+            outro-resp (app (mock/request :get "/qualquer"))
+            request-id (get-in resp [:headers "X-Request-ID"])]
+        (is (= request-id
+               (get (json/parse-string (:body resp)) "request-id")))
+        (is (= request-id (str (java.util.UUID/fromString request-id))))
+        (is (not= request-id (get-in outro-resp [:headers "X-Request-ID"])))))
+    (testing "propaga o identificador recebido"
+      (let [resp (app (-> (mock/request :get "/qualquer")
+                          (mock/header "X-Request-ID" "req-do-proxy")))]
+        (is (= "req-do-proxy" (get-in resp [:headers "X-Request-ID"])))
+        (is (= "req-do-proxy"
+               (get (json/parse-string (:body resp)) "request-id")))))))
+
 (deftest payload-grande-devolve-413-em-json
   ;; Regressão do bug de ordem de middleware: `wrap-limite-payload` estava
   ;; envolvendo `wrap-json-response` em vez de ser envolvido por ele. O corpo do

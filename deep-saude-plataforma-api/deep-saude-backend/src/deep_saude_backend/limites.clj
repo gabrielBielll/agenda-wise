@@ -10,7 +10,8 @@
    contador é POR INSTÂNCIA — ao escalar horizontalmente, o limite efetivo
    multiplica pelo número de instâncias. Quando isso importar, o lugar de
    trocar é aqui, e só aqui."
-  (:require [clojure.string :as str]))
+  (:require [clojure.string :as str]
+            [taoensso.timbre :as log]))
 
 ;; chave -> {:janela-inicio millis :tentativas n}
 (defonce ^:private contadores (atom {}))
@@ -75,7 +76,8 @@
       (if permitido?
         (handler request)
         (do
-          (println "RATE LIMIT:" nome "bloqueou" (ip-do-request request))
+          (log/with-context {:endpoint nome}
+            (log/warn "rate_limit_blocked"))
           {:status 429
            :headers {"Retry-After" (str espera-s)}
            :body {:erro "Muitas tentativas. Tente novamente em instantes."
