@@ -593,3 +593,53 @@ Google é bloqueada. `accounts.google.com` responde 302 e `www.googleapis.com`
 responde 404 — **os endpoints são alcançáveis da sandbox**. Quando houver
 credencial, parte do que está em [GOOGLE_LIMITES](../docs/GOOGLE_LIMITES.md) como *reportado* vira
 **medível por nós** — a começar pelos quatro `colorId` não confirmados.
+
+---
+
+## D-015 — O Modelo C é o destino: a psicóloga conecta a própria conta
+
+**Decidido por:** Gabriel, 2026-08-17
+**Substitui como destino:** o Modelo B da D14 da arquitetura
+**Análise completa:** [docs/GOOGLE_CARDS.md](../docs/GOOGLE_CARDS.md)
+
+Nas palavras dele: *"o psicólogo vai acessar a plataforma e a gente vai ter um
+botão de conectar com o Google Agenda. Quando ele conectar e colocar a conta do
+Google dele, a aplicação vai criar uma agenda a mais na lista de agendas dele."*
+
+| | Quem autoriza | Onde a agenda mora | Quem é dono |
+|---|---|---|---|
+| **A** — legado, **mantido** | a clínica | conta da psicóloga | a psicóloga |
+| **B** — desenhado, **descartado como destino** | a clínica | conta da clínica | a clínica |
+| ✅ **C** — **destino** | **cada psicóloga** | conta da psicóloga | **o app** (`calendar.app.created`) |
+
+### Por que C e não B
+
+- **Some a armadilha da permissão** — não há compartilhamento manual, então
+  ninguém erra escolhendo *"Ver todos os detalhes"* em vez de *"Fazer alterações"*.
+- **Some o risco de privacidade** — o `calendar.app.created` alcança **apenas as
+  agendas que o app criou**. A agenda pessoal fica fora do alcance **por
+  construção**, não por combinado. Num consultório de psicologia isso pesa.
+- **A cota escala** — o limite do Google é por usuário; uma conexão por pessoa
+  tira o gargalo da conta única da clínica.
+
+### O que isso obriga a mudar
+
+🔴 **Schema:** `google_conexao` tem `UNIQUE (clinica_id)` — **uma por clínica**. O
+C precisa de **uma por psicóloga**.
+🔴 **Permissão:** `gerenciar_integracao_google` é só do admin. O C precisa de uma
+permissão nova e mais estreita para a psicóloga conectar **a dela**.
+⚠️ **N tokens vivos** em vez de um — e a tela tem que dizer **de quem** é o que
+morreu.
+
+### O que **não** muda
+
+O motor de sincronização continua **cego ao modelo**: lê `google_calendar_id` do
+`vinculo_agenda` e escreve. A coluna `topologia` existe para isso.
+
+### 📌 E uma pergunta que morreu junto
+
+A pendência 6 da arquitetura — *"vale propor às psicólogas elevarem as agendas
+atuais para `owner`?"* — existia porque no Modelo A o `acl.list` responde 403 e a
+gente não conseguia conferir quem tem acesso a quê. **No C o app é dono do que
+criou, então a pergunta só sobrevive para as agendas do legado** — e para essas a
+resposta é esperar a migração, não negociar permissão.

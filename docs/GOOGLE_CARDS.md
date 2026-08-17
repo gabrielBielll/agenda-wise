@@ -87,63 +87,77 @@ tem rede aberta (`duna`, `vale`) confirma os requisitos atuais na tela.
 
 ---
 
-## 🔴 DECISÃO ABERTA — o Gabriel descreveu um **terceiro modelo**, em 17/08
+## ✅ DECIDIDO em 17/08 — **Modelo C é o destino** ([D-015](../mensageria/DECISOES.md))
 
-> *"O psicólogo vai acessar a plataforma e a gente vai ter um botão de conectar
-> com o Google Agenda. Quando ele conectar e colocar a conta do Google dele, a
-> aplicação vai criar uma agenda a mais na lista de agendas dele. Aí ele vai ver
-> a agenda da Deep Saúde e poder lidar com ela."*
+A psicóloga conecta a **própria** conta e o app cria a agenda na lista dela
+(`calendar.app.created`). O **Modelo A** fica para o legado. O **B** foi
+descartado como destino.
 
-**Isso não é o Modelo A nem o Modelo B.** É um terceiro, e ele muda quem faz o
-OAuth — que é a peça de que tudo o mais depende.
+**O que isso obriga, e nasce como cartões novos:**
 
-| | Quem autoriza | Onde a agenda mora | Quem é dono |
-|---|---|---|---|
-| **A** — hoje em uso | a **clínica** | conta da psicóloga | a psicóloga |
-| **B** — desenhado | a **clínica** | conta da clínica | a clínica |
-| **C** — descrito agora | **cada psicóloga** | conta da psicóloga | **o app** (`calendar.app.created`) |
+### GC-012 · uma conexão por psicóloga — `duna` · 🔴 pré-requisito do GC-001
+`google_conexao` tem `UNIQUE (clinica_id)`. Passa a ser **uma por pessoa**.
+⚠️ E uma **permissão nova e estreita** para a psicóloga conectar **a dela** —
+`gerenciar_integracao_google` é do admin e assim continua.
 
-### O que o C tem de melhor, e não é pouco
+### GC-013 · provisionar a agenda no ato da conexão — `duna`
+Conectou → o app **cria** a agenda "Deep Saúde" na conta dela e grava o
+`vinculo_agenda` com `topologia = modelo_c`.
+⚠️ **Chamada de rede não cabe em transação de banco:** gravar a intenção primeiro,
+chamar a API, confirmar. Se morrer no meio, sobra agenda sem vínculo — e isso é
+reconciliável por `calendarList.list`.
 
-- ✅ **Some a armadilha da permissão.** Ninguém precisa escolher *"Fazer
-  alterações nos eventos"* na tela certa — não há compartilhamento manual.
-- ✅ **Some o risco de privacidade.** O `calendar.app.created` alcança **apenas as
-  agendas que o próprio app criou**. A agenda pessoal da psicóloga fica fora do
-  alcance por construção, não por combinado.
-- ✅ **A psicóloga vê a agenda na hora**, na lista dela, sem convite para aceitar.
-- ✅ **A cota escala.** O limite do Google é **por usuário** (600 req/min): com uma
-  conexão só da clínica, toda escrita de todos os psicólogos passa por um gargalo
-  único. Com uma conexão por pessoa, o teto acompanha o time.
+### GC-001 muda de plateia
+Deixa de ser **tela do admin mapeando agendas** e passa a ser **botão da psicóloga
+conectando a dela** + o painel do admin apenas **observando** quem conectou.
+📌 O que **não** muda: o `sem_acesso` grita, e o botão de reconectar continua
+obrigatório.
 
-### O que ele custa, e precisa estar na mesa
+---
 
-- 🔴 **Muda o schema.** `google_conexao` tem hoje `UNIQUE (clinica_id)` — **uma
-  conexão por clínica**. O C precisa de **uma por psicóloga**.
-- 🔴 **Muda a permissão.** `gerenciar_integracao_google` é **só do admin** na
-  migration de hoje. No C a psicóloga precisa conectar a própria agenda — provável
-  permissão nova e mais estreita, tipo `conectar_minha_agenda`.
-- ⚠️ **N tokens para manter vivos** em vez de um. Cada `invalid_grant` é de uma
-  pessoa, e a tela tem que dizer **de quem**.
-- ⚠️ **Cada psicóloga vê a tela de "app não verificado"** enquanto rodarmos
-  publicado-sem-verificar ([D-014](../mensageria/DECISOES.md)). Com a clínica conectando, isso acontecia
-  **uma vez**; no C acontece **por pessoa**.
-- ⚠️ **Se a psicóloga sair, a agenda vai com ela.** É o inverso da vantagem do
-  Modelo B. Mitigado pela **R-019** — a plataforma é a fonte da verdade e o
-  histórico fica aqui — mas o Google daquela pessoa não é mais nosso.
+## ✅ As outras quatro decisões de 17/08
 
-### 📌 O que **não** muda, e é o que segura a decisão
+### GC-004 — recorrência: **exceções individuais**
+*"Esta e as seguintes"* vira **exceções individuais**, não quebra de série.
+📌 Combina com a **R-021**: exceção individual **não toca** no que já aconteceu ou
+tem dinheiro; quebrar a série exigiria decidir o destino de cada ocorrência
+passada.
 
-O motor de sincronização continua **cego ao modelo**: ele lê `google_calendar_id`
-do `vinculo_agenda` e escreve. A coluna `topologia` já existe exatamente para
-isto. **Então as Trilhas B, C e D não mudam** — muda quem autoriza e onde a
-agenda nasce, que é Trilha A e provisionamento.
+### GC-008 — **sem prefixo** no título
+A distinção *agendada × confirmada* continua só na cor. Título é o que a
+psicóloga lê o dia inteiro; poluir é pior que a ambiguidade.
 
-➡️ **Recomendação: adotar o C como destino, mantendo o A para o legado.** O
-momento é agora, porque nada de sync foi construído ainda — trocar hoje custa uma
-migration e uma tela; trocar depois custa migração de dados de gente real.
+### GC-003 — backfill **sim**, push **não** — 🔴 **e com deduplicação**
 
-⚠️ **E isso muda a plateia do GC-001**: tela do **admin** mapeando agendas (A/B)
-não é a mesma coisa que botão da **psicóloga** conectando a dela (C).
+Backfill de `recorrencias` a partir do que já existe; **push para o Google só sob
+ação explícita do admin, agenda por agenda.** Empurrar um ano de todos de uma vez
+é como se descobre o limite de quota.
+
+🔴 **Requisito acrescentado pelo Gabriel, e ele é o mais difícil deste cartão:**
+
+> *"Tem que haver uma verificação para não duplicar o que já existe no Google. Se
+> já existir, para não duplicar — isso deve ser bem feito por quem for fazer."*
+
+⚠️ **Por que é difícil, e não dá para resolver com o id determinístico:** o id
+determinístico só identifica **evento que nós criamos**. As sessões que já estão
+na agenda da psicóloga foram criadas **por ela, na mão** — não têm o nosso id nem
+o `extendedProperties.origem`. Comparar por id acharia zero e duplicaria tudo.
+
+✅ **O desenho que funciona, e quem pegar o cartão precisa segui-lo:**
+
+1. **Antes de escrever**, listar os eventos da janela naquela agenda;
+2. **casar por (início, duração)** — e só isso, porque o título é escrito à mão e
+   varia;
+3. **casou → adotar, não criar**: escrever o nosso id e o
+   `extendedProperties.private.origem` **no evento que já existe**;
+4. **não casou → criar**;
+5. ⚠️ **casou com mais de um → não decidir sozinho.** Registrar e **perguntar** —
+   é a **R-018**: do lado do Google a plataforma aceita o fato e pergunta a
+   consequência.
+
+📌 **Adotar em vez de criar é o que torna a operação repetível.** Rodar o push
+duas vezes tem que dar o mesmo resultado — e a segunda vez só vai dar se a
+primeira tiver **marcado** o que encontrou.
 
 ---
 

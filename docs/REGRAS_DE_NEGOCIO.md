@@ -1021,3 +1021,44 @@ de data** — então alcança sessão passada e já paga. Ver A-006 na
 
 Fica como está: **não existe** horário de atendimento por psicólogo, e dá para
 marcar em qualquer horário. Decidido explicitamente, não por omissão.
+
+---
+
+## R-023 — A remuneração do psicólogo é calculada **por sessão**, sem convênio
+
+**Confirmada por:** Gabriel, 2026-08-17
+**Destrava:** a **A-004** (a comissão que hoje é estado de navegador)
+
+Nas palavras dele: *"é calculado por sessão, não tem convênio."*
+
+- O cálculo é **por sessão**, não por pacote, não por mês fechado.
+- **Não existe variação por convênio** — não há tabela de preços por operadora.
+- A **taxa aplicada fica gravada na própria sessão**, e é isso que torna o
+  histórico imutável: mudar a taxa de um psicólogo **não reescreve** o que já
+  aconteceu.
+
+⚠️ **O que ainda falta para virar código, e é uma pergunta só:** a taxa é
+**percentual** sobre o `valor_consulta`, ou **valor fixo** por sessão?
+
+📌 **Enquanto não houver resposta, a suposição é percentual** — porque valor fixo
+não precisaria do `valor_consulta` para nada, e não se chamaria "taxa". Quem
+implementar **escreve a suposição no código** e não a esconde.
+
+🔎 **Hoje o schema tem `valor_consulta` e `valor_repasse`, os dois absolutos, e
+nenhuma coluna de taxa.** Ela precisa nascer na mesma migration do modelo.
+
+---
+
+## R-024 — Uma pessoa atende em **uma clínica só**
+
+**Confirmada por:** Gabriel, 2026-08-17
+
+*"Não, ela pode atender somente por uma clínica."*
+
+✅ **Isto confirma que o `usuarios.email UNIQUE` global está CERTO** — eu tinha
+registrado como limitação a resolver, e não é: é a regra.
+
+📌 **Consequência que vale escrever:** quem for construir cadastro de usuário não
+precisa de nenhum mecanismo de "mesma pessoa em duas clínicas", e **não deve
+inventar um**. Se um dia a regra mudar, muda o schema junto — não se prepara
+terreno para regra que não existe.
