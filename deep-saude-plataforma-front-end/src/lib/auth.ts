@@ -68,21 +68,13 @@ export const authOptions: AuthOptions = {
           if (data.token && data.user) {
             console.log("NextAuth: Authorize success, returning user with token.");
             
-            // --- FIX FORCE ADMIN ROLE ---
-            let role = data.user.role;
-            if (credentials.email === 'admin@deepsaude.com') {
-               console.log("FORCE OVERRIDE: Setting role to 'admin_clinica' for admin@deepsaude.com");
-               role = 'admin_clinica';
-            }
-            // -----------------------------
-
             return {
               id: data.user.id,
               email: credentials.email,
               backendToken: data.token,
               clinica_id: data.user.clinica_id,
               papel_id: data.user.papel_id,
-              role: role,
+              role: data.user.role,
             };
           }
           return null;
@@ -111,6 +103,17 @@ export const authOptions: AuthOptions = {
           token.googleEmail = p?.email_verified ? p.email : undefined;
         }
 
+        // ⚠️ SEC-005 — havia aqui, e no `authorize` acima, um bloco que dava papel
+        // `admin_clinica` a quem entrasse com `admin@deepsaude.com`, qualquer que
+        // fosse a resposta do backend. Papel decidido por string no cliente.
+        //
+        // O que vazava eram as TELAS e não os dados — a senha continuava conferida
+        // e o `backendToken` carregava o papel real, então a API recusava. Mas a
+        // A-011 vai transformar guarda de tela em guarda de verdade, e nesse dia
+        // isto viraria escalada de privilégio de verdade.
+        //
+        // Os dois blocos tinham que sair juntos: apagar só um deixava o override
+        // vivo pelo outro caminho. O papel é o que o backend respondeu, e nada mais.
         if (account?.provider === 'credentials') {
           token.backendToken = (user as any).backendToken;
           token.id = (user as any).id;
@@ -119,12 +122,6 @@ export const authOptions: AuthOptions = {
           token.role = (user as any).role;
         }
 
-        // --- FIX FORCE ADMIN ROLE IN JWT ---
-        if (token.email === 'admin@deepsaude.com') {
-             console.log("NextAuth JWT: Forcing 'admin_clinica' for admin");
-             token.role = 'admin_clinica';
-        }
-        // ------------------------------------
       }
       return token;
     },
