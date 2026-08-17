@@ -1,4 +1,4 @@
-import { paredeDaClinica } from "@/lib/datetime";
+import { diaNaClinica, horaNaClinica, maisMinutos, parseInstante } from "@/lib/datetime";
 
 /**
  * O que o backend devolve quando recusa por conflito, e como a tela conta isso.
@@ -66,18 +66,45 @@ export function lerRecusaDeBloqueio(
  * do item 1 reaparecendo num lugar novo.
  */
 export function descreveSessaoEmConflito(sessao: SessaoEmConflito): string {
-  const inicio = paredeDaClinica(sessao.data_hora_sessao);
-  if (Number.isNaN(inicio.getTime())) return "(horário inválido)";
+  const instante = parseInstante(sessao.data_hora_sessao);
+  if (Number.isNaN(instante.getTime())) return "(horário inválido)";
 
-  const fim = new Date(inicio.getTime() + (sessao.duracao ?? 50) * 60 * 1000);
-  const hora = (d: Date) =>
-    `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  /**
+   * A-008(a) — o fim é calculado no INSTANTE e só depois vira parede.
+   *
+   * Antes era `new Date(inicio.getTime() + duracao * 60_000)`, somando tempo real
+   * sobre um **espelho de parede** e lendo getters locais. Isso só devolve
+   * "parede + duração" se o relógio de **quem olha** não virar no meio — e quando
+   * vira, a tela mostra a sessão terminando uma hora fora.
+   *
+   * Reproduzido varrendo 2027, com a sessão em horário de São Paulo:
+   *
+   * ```
+   * espectador          sessão             mostrava   correto
+   * Europe/Lisbon       2027-03-28 01:30   03:20      02:20
+   * America/New_York    2027-03-14 02:30   04:20      03:20
+   * Australia/Sydney    2027-04-04 02:30   02:20      03:20
+   * America/Sao_Paulo   —                  (nenhum caso)
+   * ```
+   *
+   * A última linha é o motivo de ninguém ter visto: o Brasil não tem horário de
+   * verão desde 2019, então o defeito é **impossível de descobrir por acidente**
+   * daqui. Ele acorda com a R-016 — psicólogo em outro país é plano declarado.
+   *
+   * A forma certa é aritmética de instante: a sessão dura 50 minutos **reais**,
+   * e as duas pontas são convertidas para a parede da clínica em separado.
+   */
+  const fim = maisMinutos(instante, sessao.duracao ?? 50);
 
-  const dia = inicio.toLocaleDateString("pt-BR", {
-    day: "2-digit",
-    month: "2-digit",
-    weekday: "short",
-  });
-
-  return `${dia}, ${hora(inicio)} – ${hora(fim)}`;
+  /**
+   * A-008(b) — sem espelho aqui.
+   *
+   * Corrigir só a (a) deixou o defeito **visível em vez de silencioso**: com o
+   * espectador em Lisboa, a linha saía `02:30 – 02:20`, com o início depois do
+   * fim, porque o espelho do início tinha sido normalizado para a frente.
+   *
+   * Formatar direto do instante, no fuso da clínica, não tem essa falha: não
+   * existe hora inexistente quando não se constrói `Date` local nenhum.
+   */
+  return `${diaNaClinica(instante)}, ${horaNaClinica(instante)} – ${horaNaClinica(fim)}`;
 }
