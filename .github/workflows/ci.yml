@@ -132,6 +132,19 @@ jobs:
       # nada — nem pelos testes, que sobem o handler e não a aplicação.
       - name: Compilar o uberjar (o artefato de produção)
         working-directory: deep-saude-plataforma-api/deep-saude-backend
+        # ⚠️ JWT_SECRET aqui é para COMPILAR, não para rodar — e o fato de ser
+        # necessário é um defeito registrado como **A-015**.
+        #
+        # `:aot :all` compila `core.clj`, e compilar um namespace **executa** as
+        # formas de topo dele. O `(def jwt-secret ...)` lança quando a variável
+        # não existe, então a compilação morre. É o mesmo motivo do
+        # `:test {:jvm-opts ["-Djwt-secret=..."]}` no project.clj: configuração
+        # lida no carregamento do namespace contamina tudo que precisa carregá-lo.
+        #
+        # O valor abaixo nunca assina nada: o passo seguinte sobe o jar com
+        # outro segredo, e a imagem de produção descarta o estágio de build.
+        env:
+          JWT_SECRET: 'placeholder-de-compilacao-nao-e-segredo'
         run: lein uberjar
 
       # Sobe o jar de verdade e cobra o /api/health. Pega o que a compilação não

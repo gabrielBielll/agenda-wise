@@ -51,7 +51,25 @@ agendamento, a segunda seria sobrescrita na próxima edição de horário.
 auditor pode reportar**. Está certo assim — achado dele, dado sintético, e não é
 motivo para inverter a ordem.
 
-**3. ROB-008** — e aí sua fila fecha.
+**3. 🟠 A-015 — o uberjar não compila sem `JWT_SECRET`** · [REVISAO_PRE_PRODUCAO](../docs/REVISAO_PRE_PRODUCAO.md) · achado **pelo CI** em 17/08
+
+`core.clj:33` lê a configuração numa forma de topo e lança. `:aot :all` compila
+`core.clj`, compilar **executa** as formas de topo, e o `lein uberjar` morre.
+
+📌 **É o mesmo defeito do `:test {:jvm-opts ["-Djwt-secret=..."]}`** que já estava
+no `project.clj` com comentário explicando — dois sintomas, uma causa, e ninguém
+tinha ligado os dois.
+
+🔴 **Não troque por `delay` puro:** hoje, sem segredo, a aplicação **não sobe**, e
+isso é acerto. O desenho é leitura preguiçosa **mais** conferência explícita no
+`-main` antes de escutar a porta. Boot continua abortando; compilar para de
+exigir segredo. ✅ E aí o `:jvm-opts` do perfil `:test` sai junto.
+
+⚠️ **Enquanto não cair**, o CI e o Dockerfile passam um segredo de mentira só
+para compilar — e no Dockerfile ele só existe no estágio de build. **Juntar os
+dois estágios criaria uma porta dos fundos.**
+
+**4. ROB-008** — e aí sua fila fecha.
 
 ⚠️ **Não comece a A-004** sem conversarmos o tamanho: a R-009 destravou (a taxa é
 gravada por sessão), mas o modelo de remuneração ainda não existe.
@@ -64,19 +82,7 @@ Suíte em **99 testes / 339 asserções**.
 <!-- FILA:vale -->
 ## `vale` — Claude no Termux
 
-**1. 🔴 SEC-005 — apagar o `FORCE OVERRIDE` do `auth.ts`** · 6 linhas · achado na varredura de 17/08 ([ESTADO_PARA_PRODUCAO](../docs/ESTADO_PARA_PRODUCAO.md))
-
-`src/lib/auth.ts:73` e `:123` dão papel de **admin** para quem entrar com
-`admin@deepsaude.com`, independente do que o backend respondeu. A senha continua
-conferida e o `backendToken` carrega o papel real — então o que vaza são **as
-telas**, não os dados. Mas é papel decidido por string no cliente, e no dia em
-que a guarda de tela virar guarda de verdade (**A-011**, sua) isso vira escalada.
-
-⚠️ **Cuidado ao apagar:** o `role` tem que voltar a ser `data.user.role` puro nos
-**dois** lugares (o `authorize` e o callback `jwt`) — apagar só um deixa o
-override vivo pelo outro caminho. Leva junto os dois `console.log`.
-
-**2. 🔴 A-013 — a tela para de tratar toda falha como "não há nada"** · [0071](0071-orla-para-vale-a-decisao-de-produto-da-a-013-e-como-nao-esperar-a-a-012.md) · achado dela na [0066](0066-vale-para-orla-por-que-a-a012-ficou-invisivel.md)
+**1. 🔴 A-013 — a tela para de tratar toda falha como "não há nada"** · [0071](0071-orla-para-vale-a-decisao-de-produto-da-a-013-e-como-nao-esperar-a-a-012.md) · achado dela na [0066](0066-vale-para-orla-por-que-a-a012-ficou-invisivel.md)
 
 ✅ **A decisão de produto que faltava está dada:** **quatro estados, nunca
 confundidos** — vazio de verdade (*"nenhum … cadastrado ainda"*), **403** (*"você
@@ -89,15 +95,23 @@ que você não pode ver"* vaza justamente o que a permissão nega.
 
 🔎 **Um lugar só**, não 14: se a decisão morar nos 14 sítios, o 15º nasce errado.
 
-🔓 **Não espera a A-012.** `page.route(…, r => r.fulfill({ status: 403 }))` força
-403/401/500 no fio — o vermelho fica independente do backend e do banco, e
-continua válido depois.
+⚠️ **`page.route` NÃO serve aqui** — eu propus e a `vale` derrubou medindo
+([0072](0072-vale-para-orla-o-page-route-nao-alcanca-esses-oito-arquivos.md)): os oito arquivos são **server components**, o `fetch` sai do servidor
+Next e nunca toca o navegador. O teste passaria **achando** que forçou 403.
+
+✅ **Como fica, decidido na [0073](0073-orla-para-vale-as-quatro-decisoes-da-a-013-e-o-500-vai-para-a-pico.md):** vermelho do **401 agora** (ela mediu: token com
+`exp` futuro e assinatura falsa atravessa o front e é recusado pela API), helper
+e as quatro telas **de uma vez**, o **403** vira teste quando a A-012 cair, e o
+**backend fora do ar** virou a **P-002 da `pico`**, que é quem roda Playwright.
+
+⚠️ **Duas das quatro telas nascem sem teste** (403 e 500) — alerta dela, e fica
+escrito no arquivo de teste, não só aqui.
 
 ✅ **Aqui a D-008 vale inteira.** A exceção da A-010 existiu porque havia grupo de
 controle (admin com `value` sobrevivendo). Aqui os 14 sítios erram igual — **sem
 grupo de controle, sem exceção.**
 
-**3. 🟠 A-009 + A-011 JUNTAS — o botão de forçar do admin** · destravadas pela **R-020**
+**2. 🟠 A-009 + A-011 JUNTAS — o botão de forçar do admin** · destravadas pela **R-020**
 
 O muro caiu: o Gabriel respondeu que **admin sempre tem `force`** (inclusive no
 atualizar) e autorizou **construir no módulo do admin**.
@@ -111,7 +125,9 @@ sessão que já aconteceu ou tem dinheiro, e o corte **não** é `data < now()`.
 
 ⚠️ **A A-004 continua fora** — espera a R-009 virar modelo de remuneração.
 
-✅ **Feito hoje:** **A-010** (`b9f3158`) — o período do bloqueio vive em estado e
+✅ **Feito hoje:** **SEC-005** (`e26424f`) — aprovada na [0074](0074-orla-para-duna-e-vale-o-ambiente-de-hoje-e-descartavel-e-o-alvo-mudou.md), e ela mediu antes de
+apagar que o papel real chega do backend com esse nome; sem isso a sessão ficaria
+sem papel e o middleware mandaria todo mundo para `/` · **A-010** (`b9f3158`) — o período do bloqueio vive em estado e
 não no DOM ([0065](0065-vale-para-orla-a010-corrigida-e-o-teste-dela-depende-da-a012.md)); o e2e dela está preso atrás da A-012 e entra quando ela
 cair · o achado da **A-013** ([0066](0066-vale-para-orla-por-que-a-a012-ficou-invisivel.md)), que o teste do 403 pagou pela segunda vez ·
 front das guardas ([0052](0052-vale-para-orla-a-recusa-do-backend-virou-tela.md)) · o `skip` do financeiro virou falha
@@ -172,6 +188,10 @@ de duas pessoas — foi o preço de hoje.
 ## `pico`
 
 **P-001** — `ALTER COLUMN TYPE` do Cockroach é atômico? Ver [FILA_PICO.md](FILA_PICO.md).
+
+**P-003** — `docker build` dos dois Dockerfiles ([0074](0074-orla-para-duna-e-vale-o-ambiente-de-hoje-e-descartavel-e-o-alvo-mudou.md)). O do backend virou
+dois estágios com uberjar em 17/08 e o do front foi para Node 22 — **o CI prova o
+jar, não a imagem**, e ninguém construiu nenhuma das duas.
 
 **P-002** — o estado "backend fora do ar" da A-013 precisa de um projeto do
 Playwright com a porta do backend morta ([0073](0073-orla-para-vale-as-quatro-decisoes-da-a-013-e-o-500-vai-para-a-pico.md)). Cai em você porque os oito

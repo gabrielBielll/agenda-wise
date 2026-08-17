@@ -1045,6 +1045,61 @@ Paginação (item 4) e o que o uso real mostrar.
 
 ---
 
+## 🟠 A-015 — O artefato de produção não compila sem o segredo
+
+**Achado em:** 2026-08-17, **pelo CI**, na primeira vez que alguém tentou
+construir o artefato de produção · **Dono:** `duna`
+
+`core.clj:33` lê a configuração numa forma de topo, e lança se ela não existir:
+
+```clojure
+(def jwt-secret
+  (if-let [secret (env :jwt-secret)]
+    (do (println "JWT_SECRET carregada.") secret)
+    (do (println "ERROR: ...")
+        (throw (Exception. "FATAL: ... A aplicação será encerrada.")))))
+```
+
+`:aot :all` **compila** `core.clj`, e compilar um namespace em Clojure **executa
+as formas de topo dele**. Resultado: `lein uberjar` morre com o `FATAL` do
+runtime, e o artefato que vai para produção **não pode ser construído sem um
+segredo no ambiente de build**.
+
+### Por que isto é mais do que um incômodo de build
+
+📌 **Já havia um sintoma no repositório e ninguém tinha ligado os dois:** o
+`project.clj` carrega um `:test {:jvm-opts ["-Djwt-secret=segredo-apenas-para-teste"]}`
+com um comentário explicando que sem ele *"`lein test` morre inteiro — inclusive
+os testes que não têm nada a ver com JWT"*. É o **mesmo defeito**, visto pelo
+outro lado: configuração lida no carregamento do namespace contamina tudo que
+precisa carregá-lo — a suíte, a compilação, e amanhã qualquer ferramenta que
+faça `require`.
+
+⚠️ **E o remendo de hoje tem um risco que precisa ficar escrito.** O Dockerfile e
+o CI passam um `JWT_SECRET` de mentira só para compilar. Na imagem, isso vive
+**apenas no estágio de build** — o estágio de execução começa de outra imagem e
+não herda ENV. **Se algum dia alguém juntar os dois estágios, aquela linha vira
+segredo conhecido em produção.** É o mesmo formato da SEC-005: credencial fixa
+no código, esperando alguém mudar o contexto ao redor.
+
+### A correção, e o que ela NÃO pode custar
+
+Tirar a leitura do carregamento — `delay`, ou uma função que lê na primeira vez.
+
+🔴 **Mas não perca o "aborta o boot".** Hoje, sem `JWT_SECRET`, a aplicação **não
+sobe** — e isso é acerto: falha de implantação é barata, subir inseguro não é.
+Um `delay` puro trocaria isso por um 500 na primeira requisição, o que é pior.
+
+✅ **O desenho que preserva as duas coisas:** a leitura vira preguiçosa, **e**
+`-main` confere explicitamente antes de escutar a porta, saindo com código
+diferente de zero se faltar. Boot continua abortando, e compilar deixa de exigir
+segredo.
+
+📌 **Fecha um caso ao passar:** o `:test {:jvm-opts ...}` do `project.clj` deixa de
+ser necessário e sai junto — a gíria some quando o defeito que a exigia some.
+
+---
+
 ## O que esta revisão não cobriu
 
 - **Não executei nada.** Todo achado é de leitura.
