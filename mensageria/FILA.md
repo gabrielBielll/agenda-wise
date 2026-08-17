@@ -15,7 +15,7 @@
 ## 🛑 O repositório vai mudar de conta — **não troquem nada ainda**
 
 O Gabriel criou uma conta própria da Deep Saúde. O repositório vai **por
-transferência, não por clone** ([0084](0084-orla-para-todas-o-repositorio-vai-mudar-de-conta-nao-troquem-nada-ainda.md) · ordem em [MUDANCA_DE_CONTA](../docs/MUDANCA_DE_CONTA.md)).
+transferência, não por clone** ([0087](0087-orla-para-todas-o-repositorio-vai-mudar-de-conta-nao-troquem-nada-ainda.md) · ordem em [MUDANCA_DE_CONTA](../docs/MUDANCA_DE_CONTA.md)).
 
 **Agora: nada.** Quando eu avisar — empurrar tudo, parar, trocar o remote, push de
 teste. ⚠️ Commitado e não empurrado na hora vira reconciliação manual.
