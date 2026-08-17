@@ -132,6 +132,17 @@
          {:status 403 :body {:erro "Acesso restrito ao operador da plataforma."
                              :code "nao_e_operador_da_plataforma"}})))))
 
+(defn tem-permissao?
+  [papel-id nome-permissao]
+  (boolean
+   (and papel-id
+        (execute-one!
+         ["SELECT pp.permissao_id
+             FROM papel_permissoes pp
+             JOIN permissoes p ON pp.permissao_id = p.id
+            WHERE pp.papel_id = ? AND p.nome_permissao = ?"
+          papel-id nome-permissao]))))
+
 (defn wrap-checar-permissao [handler nome-permissao-requerida]
   (fn [request]
     (let [papel-id (get-in request [:identity :papel_id])
@@ -142,15 +153,9 @@
         (if (= role "admin_clinica")
           (handler request)
           ;; Outros papéis: checa na tabela papel_permissoes
-          (let [permissao (execute-one!
-                           ["SELECT pp.permissao_id
-                             FROM papel_permissoes pp
-                             JOIN permissoes p ON pp.permissao_id = p.id
-                             WHERE pp.papel_id = ? AND p.nome_permissao = ?"
-                            papel-id nome-permissao-requerida])]
-            (if permissao
+          (if (tem-permissao? papel-id nome-permissao-requerida)
               (handler request)
-              {:status 403 :body {:erro (str "Usuário não tem a permissão necessária: " nome-permissao-requerida)}})))))))
+              {:status 403 :body {:erro (str "Usuário não tem a permissão necessária: " nome-permissao-requerida)}}))))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -739,10 +744,19 @@
 (defn atualizar-agendamento-handler [request]
   (try
     (let [clinica-id (get-in request [:identity :clinica_id])
+          papel-id (get-in request [:identity :papel_id])
           agendamento-id (java.util.UUID/fromString (get-in request [:params :id]))
-          {:keys [paciente_id psicologo_id data_hora_sessao valor_consulta duracao status mode observacoes]} (:body request)]
+          {:keys [paciente_id psicologo_id data_hora_sessao valor_consulta duracao status mode observacoes
+                  status_pagamento valor_repasse status_repasse]} (:body request)
+          altera-financeiro? (some some? [status_pagamento valor_repasse status_repasse])]
 
-      (if-let [erro-de-dominio (dominio/validar (:body request))]
+      (if (and altera-financeiro?
+               (not (tem-permissao? papel-id "gerenciar_pagamentos")))
+        {:status 403
+         :body {:erro "Usuário não tem permissão para alterar pagamentos ou repasses."
+                :code "payment_permission_required"}}
+
+        (if-let [erro-de-dominio (dominio/validar (:body request))]
         ;; Sem esta checagem o backend gravava qualquer string nas colunas de
         ;; estado. Foi assim que `status_repasse` acabou com cinco valores de
         ;; três vocabulários diferentes na mesma coluna.
@@ -901,7 +915,7 @@
                 {:status 500 :body {:erro "Erro ao atualizar agendamento."}}
                 (let [agendamento-atualizado (execute-one! ["SELECT * FROM agendamentos WHERE id = ?" agendamento-id])]
                   {:status 200 :body agendamento-atualizado}))))))
-          {:status 404 :body {:erro "Agendamento não encontrado."}})))
+          {:status 404 :body {:erro "Agendamento não encontrado."}}))))
     (catch Exception e
       (println "ERRO AO ATUALIZAR AGENDAMENTO:" (.getMessage e))
       (.printStackTrace e)

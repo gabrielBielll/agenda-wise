@@ -136,7 +136,13 @@
 
 (defn- atualizar [id body & {:keys [clinica] :or {clinica clinica-a}}]
   (core/atualizar-agendamento-handler
-   {:identity {:clinica_id clinica} :params {:id (str id)} :body body}))
+   {:identity {:clinica_id clinica
+               ;; Estes testes históricos exercitam o caminho administrativo;
+               ;; agora que dinheiro tem guarda própria, a identidade precisa
+               ;; declarar o papel em vez de passar por ausência de autorização.
+               :papel_id (:id (db/execute-one! ["SELECT id FROM papeis WHERE nome_papel = 'admin_clinica'"]))
+               :role "admin_clinica"}
+    :params {:id (str id)} :body body}))
 
 (defn- remover [id mode & {:keys [clinica] :or {clinica clinica-a}}]
   (core/remover-agendamento-handler
