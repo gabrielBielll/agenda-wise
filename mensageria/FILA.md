@@ -128,7 +128,20 @@ escrito no arquivo de teste, não só aqui.
 controle (admin com `value` sobrevivendo). Aqui os 14 sítios erram igual — **sem
 grupo de controle, sem exceção.**
 
-**2. 🟠 A-009 + A-011 JUNTAS — o botão de forçar do admin** · destravadas pela **R-020**
+**2. 🔴 A-016 — o 401 redireciona mas não encerra a sessão** · [0076](0076-orla-para-vale-o-teste-do-401-continua-vermelho-e-o-motivo-e-a-outra-metade.md) · **fecha o seu teste**
+
+O seu `carregar.ts` está certo e **não deve mudar**. O que falta é a porta de
+login: com `?expired=true`, **não** auto-redirecionar por `authenticated` —
+`signOut({ redirect: false })` e mostrar o formulário.
+
+⚠️ **Nas duas portas** (`/` e `/admin/login`), senão o admin cai no laço e a
+psicóloga não — pior que as duas caírem, porque some da vista.
+
+🔴 **Por que é vermelho:** é o que acontece na **rotação do `JWT_SECRET`**. O
+`exp` dos tokens já emitidos não muda, o middleware só olha o `exp` e deixa
+passar, o backend recusa a assinatura, e **toda sessão aberta entra no laço**.
+
+**3. 🟠 A-009 + A-011 JUNTAS — o botão de forçar do admin** · destravadas pela **R-020**
 
 O muro caiu: o Gabriel respondeu que **admin sempre tem `force`** (inclusive no
 atualizar) e autorizou **construir no módulo do admin**.
@@ -142,7 +155,10 @@ sessão que já aconteceu ou tem dinheiro, e o corte **não** é `data < now()`.
 
 ⚠️ **A A-004 continua fora** — espera a R-009 virar modelo de remuneração.
 
-✅ **Feito hoje:** **SEC-005** (`e26424f`) — aprovada na [0074](0074-orla-para-duna-e-vale-o-ambiente-de-hoje-e-descartavel-e-o-alvo-mudou.md), e ela mediu antes de
+✅ **Feito hoje:** **A-013** — vermelho deliberado (`cd04af2`) e correção
+(`0bb09b6`): `lib/carregar.ts` com os quatro estados num lugar só, e as 14
+ocorrências de `if (!res.ok) return []` foram embora. O teste segue vermelho **por
+outro motivo**, que virou a A-016 · **SEC-005** (`e26424f`) — aprovada na [0074](0074-orla-para-duna-e-vale-o-ambiente-de-hoje-e-descartavel-e-o-alvo-mudou.md), e ela mediu antes de
 apagar que o papel real chega do backend com esse nome; sem isso a sessão ficaria
 sem papel e o middleware mandaria todo mundo para `/` · **A-010** (`b9f3158`) — o período do bloqueio vive em estado e
 não no DOM ([0065](0065-vale-para-orla-a010-corrigida-e-o-teste-dela-depende-da-a012.md)); o e2e dela está preso atrás da A-012 e entra quando ela

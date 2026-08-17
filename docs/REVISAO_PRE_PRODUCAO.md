@@ -1100,6 +1100,61 @@ ser necessário e sai junto — a gíria some quando o defeito que a exigia some
 
 ---
 
+## 🔴 A-016 — Rotacionar o `JWT_SECRET` põe todo mundo que estiver logado num laço
+
+**Achado em:** 2026-08-17, **pelo teste da A-013 da `vale`** · **Dono:** `vale`
+
+O 401 do backend faz o `carregar.ts` redirecionar para a porta de login. Mas a
+**sessão do NextAuth continua viva** — quem recusou foi o backend, e o NextAuth
+não sabe. Então `src/app/page.tsx:48`:
+
+```ts
+if (status === 'loading' || status === 'authenticated') {
+  return (<p>Login confirmado, redirecionando...</p>);   // o formulário não renderiza
+}
+```
+
+…manda de volta para `/dashboard`, que leva 401, que redireciona para `/`, que
+está `authenticated`. **Laço.** A saída existe — o botão *"Sair / Trocar Conta"*
+naquela tela — mas ninguém adivinha que aquilo é a saída.
+
+### Por que isto é 🔴 e não 🟡
+
+Não é hipótese: **é o que acontece na rotação do `JWT_SECRET`**, que está na lista
+da virada.
+
+Rotacionar o segredo **não muda o `exp` dos tokens já emitidos**. No instante
+seguinte, todo mundo logado tem token com **validade no futuro e assinatura
+inválida**:
+
+1. o `isBackendTokenExpired` do middleware olha só o `exp` → deixa passar;
+2. o backend confere a assinatura → **401**;
+3. o front redireciona para a porta de login → **`authenticated`** → volta.
+
+**Toda sessão aberta no momento da rotação entra no laço.** E como a rotação é
+justamente a primeira coisa da lista da virada, o defeito estaria esperando
+exatamente lá.
+
+📌 **O repositório já suspeitava, num comentário que ninguém tinha conectado.** No
+`middleware.ts`, na guarda do token vencido: *"O ideal aqui seria limpar o cookie
+de sessão, mas o middleware tem limitações. O redirecionamento força o usuário a
+logar novamente."* — **não força**, enquanto a sessão do NextAuth sobreviver.
+
+### A correção
+
+A porta de login trata `?expired=true` como *"esta sessão não vale"*: **não**
+auto-redireciona por `status === 'authenticated'`, chama `signOut({ redirect:
+false })` e mostra o formulário com o aviso.
+
+⚠️ **Nas duas portas.** O `portaDoPapel` manda admin para `/admin/login` e os
+demais para `/` — tratar só uma faz o admin cair no laço e a psicóloga não, que é
+pior do que as duas caírem, porque some da vista.
+
+✅ **O `carregar.ts` está certo e não deve mudar.** O achado é da camada de sessão,
+não da de carregamento.
+
+---
+
 ## O que esta revisão não cobriu
 
 - **Não executei nada.** Todo achado é de leitura.
