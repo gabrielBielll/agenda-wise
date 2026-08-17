@@ -64,7 +64,19 @@ Suíte em **99 testes / 339 asserções**.
 <!-- FILA:vale -->
 ## `vale` — Claude no Termux
 
-**1. 🔴 A-013 — a tela para de tratar toda falha como "não há nada"** · [0071](0071-orla-para-vale-a-decisao-de-produto-da-a-013-e-como-nao-esperar-a-a-012.md) · achado dela na [0066](0066-vale-para-orla-por-que-a-a012-ficou-invisivel.md)
+**1. 🔴 SEC-005 — apagar o `FORCE OVERRIDE` do `auth.ts`** · 6 linhas · achado na varredura de 17/08 ([ESTADO_PARA_PRODUCAO](../docs/ESTADO_PARA_PRODUCAO.md))
+
+`src/lib/auth.ts:73` e `:123` dão papel de **admin** para quem entrar com
+`admin@deepsaude.com`, independente do que o backend respondeu. A senha continua
+conferida e o `backendToken` carrega o papel real — então o que vaza são **as
+telas**, não os dados. Mas é papel decidido por string no cliente, e no dia em
+que a guarda de tela virar guarda de verdade (**A-011**, sua) isso vira escalada.
+
+⚠️ **Cuidado ao apagar:** o `role` tem que voltar a ser `data.user.role` puro nos
+**dois** lugares (o `authorize` e o callback `jwt`) — apagar só um deixa o
+override vivo pelo outro caminho. Leva junto os dois `console.log`.
+
+**2. 🔴 A-013 — a tela para de tratar toda falha como "não há nada"** · [0071](0071-orla-para-vale-a-decisao-de-produto-da-a-013-e-como-nao-esperar-a-a-012.md) · achado dela na [0066](0066-vale-para-orla-por-que-a-a012-ficou-invisivel.md)
 
 ✅ **A decisão de produto que faltava está dada:** **quatro estados, nunca
 confundidos** — vazio de verdade (*"nenhum … cadastrado ainda"*), **403** (*"você
@@ -85,7 +97,7 @@ continua válido depois.
 controle (admin com `value` sobrevivendo). Aqui os 14 sítios erram igual — **sem
 grupo de controle, sem exceção.**
 
-**2. 🟠 A-009 + A-011 JUNTAS — o botão de forçar do admin** · destravadas pela **R-020**
+**3. 🟠 A-009 + A-011 JUNTAS — o botão de forçar do admin** · destravadas pela **R-020**
 
 O muro caiu: o Gabriel respondeu que **admin sempre tem `force`** (inclusive no
 atualizar) e autorizou **construir no módulo do admin**.

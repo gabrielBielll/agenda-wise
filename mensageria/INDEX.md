@@ -31,6 +31,12 @@
 > ambiente vivo de validação — e é a descrição exata do que um auditor cego
 > precisa.
 
+> 📊 **Estado do projeto para produção: [docs/ESTADO_PARA_PRODUCAO.md](../docs/ESTADO_PARA_PRODUCAO.md)** (17/08) —
+> varredura no código, três portões (faz certo · sobe em qualquer provedor ·
+> pode receber dado real). ⚠️ **Não leia o campo `Status:` dos cards**: os 70
+> estão marcados `TODO`, inclusive uma dúzia que já está feita, e é por isso que
+> este documento precisou existir.
+
 > 🚀 **Sessão nova começa em [docs/HANDOFF.md](../docs/HANDOFF.md).**
 >
 > 👁 **Antes de trabalhar e antes de empurrar: `VIGIA_EU=<seu nome> bash mensageria/vigia.sh`**
