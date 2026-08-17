@@ -57,6 +57,66 @@ Vale registrar porque é a metade que não aparece na conversa do dia a dia.
 
 ---
 
+# 🪜 AS ETAPAS, EM ORDEM
+
+> Atualizado em **17/08, fim do dia**. A ordem é de **dependência**, não de
+> gravidade: cada etapa destrava a seguinte. O detalhe de cada item está nas
+> listas abaixo.
+
+### Etapa 1 — 🚧 **O ambiente no ar** · `duna`, em andamento
+
+Northflank de pé (back + front), banco no **CockroachDB** que já existe, e uma
+**clínica de teste com os três logins**. Guia em [NORTHFLANK](NORTHFLANK.md), tarefa na [0075](../mensageria/0075-orla-para-duna-voce-monta-o-northflank-e-o-boot-e-o-teste-do-cockroach.md).
+
+📌 **Destrava três coisas de uma vez:** a auditoria, a validação no ar, e a
+**P-001** — se as migrations aplicam no Cockroach, a subida responde sozinha.
+
+### Etapa 2 — 🔴 **Os três papéis funcionando** · `duna`, a **A-012**
+
+Hoje psicóloga e secretário tomam 403 em tudo. **Sem isto não há demonstração** —
+mostrar só o admin é mostrar um terço do produto — e não há auditoria, porque dois
+dos três logins não fazem nada.
+
+**É o item mais importante do projeto.**
+
+### Etapa 3 — 🔎 **A auditoria adversarial, rodada 1** · alvo agendamentos
+
+Roda **em paralelo** com a etapa 4, assim que a 1 e a 2 caírem. Pacote pronto em
+[AUDITORIA_RODADA_1](AUDITORIA_RODADA_1.md).
+
+### Etapa 4 — 🟠 **Os defeitos que sobram**
+
+| | De quem |
+|---|---|
+| **A-016** — o 401 redireciona mas não encerra a sessão | `vale` |
+| **A-009 + A-011** — o botão de forçar do admin, e a guarda na tela | `vale` |
+| **A-014** — o pagamento automático vira modo de verdade | `duna` |
+| **A-015** — o uberjar não compila sem segredo | `duna` |
+| **A-008** — horário de verão do espectador | ❌ **sem dono** |
+| **A-004** — a comissão é estado de navegador | ⛔ **espera a R-009** virar modelo |
+
+### Etapa 5 — 🟠 **O que nenhum de nós tem na mão**
+
+| | Por quê |
+|---|---|
+| **Tabela de auditoria** | A **R-012** já exige que o acesso pela flag grave sempre, e não há onde gravar | ❌ **sem dono** |
+| **ROB-008** — log estruturado | fundação de qualquer observabilidade | `duna`, última da fila |
+| **Observabilidade** | hoje é zero: a primeira notícia de um erro é alguém avisando | ❌ **sem dono** |
+| **Backup automático + teste de restore** | `backup-db.sh` roda na mão; backup nunca restaurado é hipótese | ❌ **sem dono** |
+
+### Etapa 6 — 🧩 **O sincronizador do Google**
+
+Os dois caminhos, plataforma ↔ Google. **Maior que todas as etapas anteriores
+somadas**, e é a única onde *apresentável* e *completo* divergem: dá para
+apresentar sem ele, e ele é metade da proposta de valor.
+
+### Etapa 7 — 🔀 **A virada** · do Gabriel, uma sentada
+
+A lista 2, lá embaixo. ⚠️ **A A-016 é pré-requisito dela** — rotacionar o
+`JWT_SECRET` com a A-016 aberta põe toda sessão logada num laço.
+
+---
+
 # 📋 LISTA 1 — o que falta para o projeto ficar pronto
 
 > **Critério:** dá para mostrar o sistema inteiro, pelos três papéis, sem bug e
