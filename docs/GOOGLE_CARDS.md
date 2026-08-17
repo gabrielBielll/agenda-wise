@@ -29,10 +29,25 @@ desta etapa inteira.
 
 ---
 
-## 🔴 GC-000 — Google Cloud Console · **do Gabriel, e começa antes de tudo**
+## ⏸️ GC-000 — Google Cloud Console · **ADIADO em 17/08**
 
-⚠️ **Este é o único item da etapa 6 cujo custo é tempo de calendário, não tempo
-de trabalho.** A verificação do Google leva **semanas** e não depende de nós.
+🟢 **O Gabriel decidiu ir por modo de teste**, com uma conta de desenvolvimento
+fazendo papel de clínica. **O passo a passo está em [GOOGLE_MODO_TESTE](GOOGLE_MODO_TESTE.md)**, e ele
+substitui este cartão por enquanto.
+
+✅ **Efeito: a etapa 6 deixa de esperar qualquer coisa externa.** Domínio
+verificado, política de privacidade e verificação OAuth **saem do caminho
+crítico** — voltam no dia da produção de verdade.
+
+🔴 **Custo novo, e é o que engana:** em *Testing* o refresh token do Google vale
+**7 dias**. A conta da clínica reconecta toda semana, e integração parada depois
+de uns dias é **suspeito nº 1 antes de qualquer código**. O sintoma é
+`invalid_grant`.
+
+📌 **O texto abaixo continua valendo para a produção de verdade** — não apague.
+
+⚠️ **Este era o único item da etapa 6 cujo custo era tempo de calendário, não
+tempo de trabalho.** A verificação do Google leva **semanas** e não depende de nós.
 Enquanto ela não sair, o app fica limitado a **usuários de teste** — e nenhuma
 quantidade de código adianta isso.
 
@@ -171,7 +186,14 @@ subir, sem erro nenhum. **O card da renovação não é opcional, é parte deste
 
 ---
 
-## 🧪 GC-000b — uma agenda de verdade para testar · **do Gabriel**
+## ✅ GC-000b — uma agenda de verdade para testar · **resolvido em 17/08**
+
+🟢 **Contas de desenvolvimento resolvem** — ver [GOOGLE_MODO_TESTE](GOOGLE_MODO_TESTE.md), passos 2 e 3:
+uma conta faz papel de clínica, outra faz papel de psicóloga, e dá para exercitar
+**os dois modelos**. O texto original segue abaixo, porque a exigência técnica não
+mudou — só quem a satisfaz.
+
+### 🧪 GC-000b (original) — uma agenda de verdade para testar
 
 O **Modelo A** é a clínica escrevendo em agendas que **pertencem às psicólogas**.
 Para exercitar isso de ponta a ponta é preciso **pelo menos uma agenda Google
