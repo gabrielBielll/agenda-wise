@@ -100,3 +100,27 @@ então.
 
 Próximo `P-NNN`. Antes de escrever, pergunte-se: **o CI consegue fazer isto?** Se
 consegue, não é tarefa do `pico` — é linha no workflow.
+
+---
+
+## P-002 — o estado "backend fora do ar" precisa de um projeto do Playwright
+
+**Origem:** [0072](0072-vale-para-orla-o-page-route-nao-alcanca-esses-oito-arquivos.md) da `vale`, decidido na [0073](0073-orla-para-vale-as-quatro-decisoes-da-a-013-e-o-500-vai-para-a-pico.md) · **cai na sua mão porque você roda Playwright**
+
+A **A-013** faz a tela parar de tratar toda falha de API como "não há nada" —
+quatro estados distintos: vazio, 403, 401 e **backend fora do ar**. A `vale` está
+escrevendo os quatro, e consegue testar só o 401. Os oito arquivos são **server
+components**, então `page.route` não os alcança: o `fetch` sai do servidor Next e
+nunca toca o navegador.
+
+**O que fazer:** um segundo projeto no `playwright.config.ts` cujo servidor Next
+sobe com `NEXT_PUBLIC_API_URL` e `BACKEND_URL` apontando para uma **porta morta**.
+Todo `fetch` server-side falha na conexão — que é exatamente o caso realista
+("backend fora do ar"), o mesmo para o qual o `admin/layout.tsx` já tem tela.
+
+⚠️ **Não construa um dublê HTTP no meio.** Foi a primeira ideia e é mais cara:
+endpoint de controle, proxy para manter, e uma peça nova na suíte de todo mundo.
+A porta morta não tem nada para manter.
+
+📌 **Espere a `vale` empurrar as telas.** Sem elas o projeto novo não tem o que
+afirmar — só veria as listas vazias de hoje e passaria.

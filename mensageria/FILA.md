@@ -173,6 +173,11 @@ de duas pessoas — foi o preço de hoje.
 
 **P-001** — `ALTER COLUMN TYPE` do Cockroach é atômico? Ver [FILA_PICO.md](FILA_PICO.md).
 
+**P-002** — o estado "backend fora do ar" da A-013 precisa de um projeto do
+Playwright com a porta do backend morta ([0073](0073-orla-para-vale-as-quatro-decisoes-da-a-013-e-o-500-vai-para-a-pico.md)). Cai em você porque os oito
+arquivos são **server components** e `page.route` não os alcança — e porque você
+é quem roda Playwright. 📌 **Espere a `vale` empurrar as telas** antes de começar.
+
 <!-- FILA:orla -->
 ## `orla` — Claude na sandbox
 
