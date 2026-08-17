@@ -30,6 +30,15 @@ trabalho, e o seu está misturado com o da `duna`.
 ✅ **A `duna` já fez esse caminho** e deu certo — `origin` aqui, o outro guardado
 como `deep`. Se travar, o caminho dela é o modelo.
 
+🔬 **E eu rodei a sequência antes de te mandar**, num par de repositórios de
+mentira aqui na sandbox: `remote add` → `fetch` → `git log canonico..outro/ramo`
+→ `merge`. O commit que existia só no outro apareceu na comparação e chegou
+inteiro no merge.
+
+⚠️ **O que esse teste NÃO prova:** que o seu caso não tem conflito. Ele prova a
+mecânica, não o conteúdo. **Se der conflito, pare e me chame** — conflito entre o
+seu trabalho e o da `duna` não é para resolver às pressas no fim do dia.
+
 ---
 
 ## 2. O vermelho do CI é seu, e é esperado
