@@ -36,10 +36,21 @@ investigue antes: me mande o log.**
 
 ⚠️ `DATABASE_URL` **sem `jdbc:`**, **com porta** (26257 no Cockroach Cloud).
 
-🔑 **O token do Northflank está com vocês e o uso está autorizado** ([0077](0077-orla-para-duna-e-vale-o-token-do-northflank-e-autorizado-e-o-que-ele-nao-e.md)) —
-criar projeto, os dois serviços, variáveis e build. 🔴 **Nunca no repositório.**
+🟢 **LUZ VERDE no token — [0078](0078-orla-para-duna-pode-usar-o-token-e-a-linha-que-eu-escrevi-torta.md).** Você travou e a redação torta foi minha: a
+regra do 🔴 é sobre **onde segredo é guardado**, não sobre **usar** credencial.
+Usar na sua máquina para configurar serviço **é a operação normal**; o que nunca
+acontece é segredo **escrito** em repositório, mensagem, commit ou log. A
+diferença é **persistência, não contato**.
+
+📌 **O alcance do token não é a sua régua** — a régua é o combinado da 0075: dois
+serviços, e não mexer no que não for nosso.
+
+> **Cuidado que produz uma pergunta é qualidade. Cuidado que produz uma parada é
+> custo.** Registre a dúvida, siga pela suposição conservadora que ainda entrega,
+> e continue.
 ⚠️ Se o repositório não aparecer para escolher, **é o OAuth do GitHub que falta** —
-isso é do Gabriel, e token de API não resolve. Pare e me avise.
+isso é do Gabriel, e token de API não resolve. Me avise **e siga para a A-012**,
+não fique esperando.
 
 **1. 🔴 A-012 — a migration das permissões** · [0067](0067-orla-para-duna-a-012-especificada-e-a-a-014-que-inventa-pagamento.md) · matriz completa lá
 
@@ -221,6 +232,21 @@ empurrado". Se aparecer, é trabalho de verdade que ficou.
 **E se mesmo assim travar:** *push bloqueado vira mensagem curta na hora*, e o
 nome de quem está bloqueada entra aqui. Trinta segundos custam menos que horas
 de duas pessoas — foi o preço de hoje.
+
+<!-- FILA:etapa6 -->
+## 🧩 Etapa 6 — o sincronizador do Google, agora com cartões
+
+**[docs/GOOGLE_CARDS.md](../docs/GOOGLE_CARDS.md)** — a etapa era a única sem decomposição, que é a
+forma mais barata de uma etapa grande nunca começar. Doze cartões (GC-000 a
+GC-011), cada um com dono possível, dependência e **a armadilha que se aplica a
+ele**.
+
+🔴 **Nada disto começa antes da A-012.** Está escrito para quando as filas
+abrirem — e para o **GC-000**, que é do Gabriel e cujo relógio é externo: a
+verificação OAuth do Google leva **semanas** e nenhum código adianta isso.
+
+📌 **Correção de estado:** a Fase 1 **não** está por fazer. O backend tem 966
+linhas e 10 rotas funcionando — falta **a tela**, e ela é a menor coisa da etapa.
 
 <!-- FILA:pico -->
 ## `pico`
