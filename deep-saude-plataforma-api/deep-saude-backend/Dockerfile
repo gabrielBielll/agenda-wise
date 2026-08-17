@@ -24,18 +24,9 @@ RUN lein deps
 COPY . .
 
 # O perfil :uberjar do project.clj já traz :aot :all e direct-linking=true.
-#
-# ⚠️ O JWT_SECRET abaixo é para COMPILAR, e a necessidade dele é um defeito
-# registrado como **A-015**: `:aot :all` compila `core.clj`, compilar um
-# namespace executa as formas de topo dele, e o `(def jwt-secret ...)` lança
-# quando a variável não existe. Sem isto o `lein uberjar` morre — foi o CI que
-# mostrou, na primeira vez que alguém tentou construir o artefato de produção.
-#
-# 🔴 **Este valor NUNCA chega no que roda.** Ele vive só neste estágio, e o
-# estágio de execução abaixo começa de outra imagem — não herda ENV nenhum. Se
-# algum dia alguém juntar os dois estágios num só, esta linha vira um segredo
-# conhecido em produção: **junte os estágios e você criou uma porta dos fundos.**
-RUN JWT_SECRET='placeholder-de-compilacao-nao-e-segredo' lein uberjar && \
+# JWT_SECRET é configuração exclusiva de execução; compilar não lê nem embute
+# um valor conhecido no artefato.
+RUN lein uberjar && \
     cp target/uberjar/deep-saude-backend-*-standalone.jar /build/app.jar
 
 # ---------- Estágio 2: execução ----------

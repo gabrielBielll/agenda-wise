@@ -32,14 +32,16 @@
 ;; Ver a docstring de lá para o motivo da extração.
 
 (def jwt-secret
-  (if-let [secret (env :jwt-secret)]
-    ;; ⚠️ Não logar nem pedaço do segredo. A versão anterior imprimia os 4
-    ;; primeiros e os 4 últimos caracteres no startup — em log agregado isso é
-    ;; material entregue de graça para quem quiser forjar um JWT.
-    (do (println "JWT_SECRET carregada.") secret)
-    (do
-      (println "ERROR: Variável de ambiente JWT_SECRET não foi encontrada!")
-      (throw (Exception. "FATAL: A variável de ambiente :jwt-secret não está configurada! A aplicação será encerrada.")))))
+  ;; Carregar o namespace também acontece durante AOT e nos testes. Configuração
+  ;; de runtime não pode tornar esses dois caminhos dependentes do ambiente de
+  ;; produção; o -main força este delay antes de abrir banco ou porta.
+  (delay
+    (if-let [secret (env :jwt-secret)]
+      ;; ⚠️ Não logar nem pedaço do segredo.
+      (do (println "JWT_SECRET carregada.") secret)
+      (do
+        (println "ERROR: Variável de ambiente JWT_SECRET não foi encontrada!")
+        (throw (Exception. "FATAL: A variável de ambiente :jwt-secret não está configurada! A aplicação será encerrada."))))))
 
 (defn fuso-da-clinica
   "Fuso horário da clínica. Todo horário que chega do frontend é horário de
@@ -93,7 +95,7 @@
       (if-not token
         {:status 401 :body {:erro "Token de autorização não fornecido."}}
         (let [auth-data (try
-                          (let [claims (jwt/unsign token jwt-secret)
+                          (let [claims (jwt/unsign token @jwt-secret)
                                 claims-parsed (-> claims
                                                   (update :user_id #(java.util.UUID/fromString %))
                                                   (update :clinica_id #(java.util.UUID/fromString %))
@@ -341,7 +343,7 @@
                               ;; criada antes da migration.
                               :plataforma_admin (boolean (:plataforma_admin usuario))
                               :exp        (-> (java.time.Instant/now) (.plusSeconds 3600) .getEpochSecond)}
-                      token (jwt/sign claims jwt-secret)]
+                      token (jwt/sign claims @jwt-secret)]
                   {:status 200 :body {:message "Usuário autenticado com sucesso."
                                       :token   token
                                       :user    {:id         (:id usuario)
@@ -1570,6 +1572,9 @@
   (case (first args)
     "reset-senha" (System/exit (reset-senha! (second args) (nth args 2 nil)))
     (do
+      ;; Falha fechada antes de tocar no banco ou escutar a porta. A leitura é
+      ;; preguiçosa para o AOT, não opcional para o processo servidor.
+      (force jwt-secret)
       (init-db)
       ;; `HOST` restringe a interface de escuta. Sem ele o Jetty ouve em todas,
       ;; que é o que se quer atrás de um balanceador — e é exatamente o que NÃO

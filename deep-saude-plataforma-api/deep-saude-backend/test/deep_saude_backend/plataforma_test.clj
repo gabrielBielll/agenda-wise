@@ -68,7 +68,10 @@
 (defn com-banco-de-teste [f]
   (if-let [url (env :test-database-url)]
     (let [ds (jdbc/get-datasource {:jdbcUrl url})]
-      (with-redefs [db/datasource (delay ds)]
+      ;; O segredo pertence aos testes que realmente assinam JWT, não ao perfil
+      ;; global do Leiningen (que contaminava toda compilação/require).
+      (with-redefs [db/datasource (delay ds)
+                    core/jwt-secret (delay "segredo-apenas-para-plataforma-test")]
         (#'agtest/exigir-banco-de-teste! url)
         (migratus/migrate (core/migratus-config))
         (limpar!)
@@ -95,7 +98,7 @@
              :role papel
              :plataforma_admin operador?
              :exp (-> (java.time.Instant/now) (.plusSeconds 600) .getEpochSecond)}
-            core/jwt-secret))
+            @core/jwt-secret))
 
 (defn- req [usuario-id papel operador? & [body]]
   (cond-> {:headers {"authorization" (str "Bearer " (token-de usuario-id papel operador?))}}
