@@ -1,6 +1,9 @@
 import React from 'react';
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { redirect } from "next/navigation";
+import { carregar } from "@/lib/carregar";
+import { FalhaDeCarregamento } from "@/components/FalhaDeCarregamento";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,31 +17,20 @@ interface Psicologo {
 }
 
 // Função para buscar os psicólogos no servidor
-async function getPsicologos(token: string): Promise<Psicologo[]> {
-  const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/psicologos`;
-  try {
-    const response = await fetch(apiUrl, {
-      headers: { 'Authorization': `Bearer ${token}` },
-      cache: 'no-store',
-    });
-    if (!response.ok) return [];
-    return response.json();
-  } catch (error) {
-    console.error("Erro ao buscar psicólogos:", error);
-    return [];
-  }
-}
-
-// A página agora é um Server Component
 export default async function AdminNovoPacientePage() {
   const session = await getServerSession(authOptions);
   const token = (session as any)?.backendToken;
 
   if (!token) {
-    return <p>Não autorizado.</p>;
+    redirect("/admin/login?expired=true");
   }
 
-  const psicologos = await getPsicologos(token);
+  // A-013: lista de psicólogos vazia por falha viraria um <select> sem opção,
+  // e a pessoa concluiria que a clínica não tem psicólogo cadastrado.
+  const psicologos = await carregar<any[]>("/api/psicologos", token, { porta: "/admin/login" });
+  if (!psicologos.ok) {
+    return <FalhaDeCarregamento motivo={psicologos.motivo} oQue="os psicólogos" />;
+  }
 
   return (
     <Card className="w-full max-w-2xl">
@@ -61,7 +53,7 @@ export default async function AdminNovoPacientePage() {
         </div>
       </CardHeader>
       {/* Passamos a lista de psicólogos para o formulário (Client Component) */}
-      <NovoPacienteForm psicologos={psicologos} />
+      <NovoPacienteForm psicologos={psicologos.dados} />
     </Card>
   );
 }
