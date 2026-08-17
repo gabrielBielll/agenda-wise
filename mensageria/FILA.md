@@ -81,8 +81,20 @@ não existe ainda.
 backend em **104 testes / 351 asserções**, log estruturado com `X-Request-ID`.
 ⏳ **As três últimas estão comigo para revisão.**
 
-⚠️ **A A-004 continua fora** — espera a R-009 virar modelo de remuneração, que
-está com o Gabriel.
+🔓 **A A-004 DESTRAVOU pela [R-023](../docs/REGRAS_DE_NEGOCIO.md)** — mas leia a regra antes, porque ela tem
+uma armadilha de schema:
+
+🔴 **São DUAS modalidades**, e a modalidade é **da psicóloga**, não da clínica:
+**valor fixo por sessão realizada** (não é percentual) e **valor fixo por
+período** (independe de volume).
+
+🔴 **A segunda quebra o schema de hoje.** `valor_repasse` mora em `agendamentos`,
+o que assume que todo repasse nasce de sessão — **falso para a modalidade 2**. Se
+ninguém tratar, a tela financeira soma zero para metade das psicólogas **sem erro
+e sem aviso**. É a A-013 em cima de dinheiro.
+
+⛔ **Uma pergunta segue aberta com o Gabriel:** o valor fixo é por qual período.
+**Não invente** — a A-001 nasceu de palpite sobre dinheiro.
 
 <!-- FILA:vale -->
 ## `vale` — Claude no Termux

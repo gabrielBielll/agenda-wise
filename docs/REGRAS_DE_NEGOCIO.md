@@ -1024,30 +1024,62 @@ marcar em qualquer horário. Decidido explicitamente, não por omissão.
 
 ---
 
-## R-023 — A remuneração do psicólogo é calculada **por sessão**, sem convênio
+## R-023 — Cada psicóloga tem a **sua** forma de remuneração; hoje são **duas modalidades**
 
-**Confirmada por:** Gabriel, 2026-08-17
+**Confirmada por:** Gabriel, 2026-08-17 · **corrigida no mesmo dia**, ver abaixo
 **Destrava:** a **A-004** (a comissão que hoje é estado de navegador)
 
-Nas palavras dele: *"é calculado por sessão, não tem convênio."*
+Nas palavras dele: *"a taxa é fixa por sessão realizada. Mas também tem a
+modalidade de psis que recebem um valor fixo. Cada psicóloga tem sua forma de
+remuneração — hoje temos essas duas modalidades."*
 
-- O cálculo é **por sessão**, não por pacote, não por mês fechado.
-- **Não existe variação por convênio** — não há tabela de preços por operadora.
-- A **taxa aplicada fica gravada na própria sessão**, e é isso que torna o
-  histórico imutável: mudar a taxa de um psicólogo **não reescreve** o que já
-  aconteceu.
+| Modalidade | Como paga | O que a torna diferente |
+|---|---|---|
+| **Por sessão realizada** | **valor fixo por sessão** — não é percentual sobre o `valor_consulta` | o total **depende** de quantas sessões aconteceram |
+| **Valor fixo** | um valor por período, independente de volume | o total **não depende** de sessão nenhuma |
 
-⚠️ **O que ainda falta para virar código, e é uma pergunta só:** a taxa é
-**percentual** sobre o `valor_consulta`, ou **valor fixo** por sessão?
+🔴 **A modalidade é da pessoa, não da clínica.** Duas psicólogas da mesma clínica
+podem estar em modalidades diferentes, e estão.
 
-📌 **Enquanto não houver resposta, a suposição é percentual** — porque valor fixo
-não precisaria do `valor_consulta` para nada, e não se chamaria "taxa". Quem
-implementar **escreve a suposição no código** e não a esconde.
+📌 **"Por sessão REALIZADA"** — não agendada, não cancelada. Amarra na **R-017**:
+`realizada` exige **verde E data passada**, nunca só a cor. Sessão que não
+aconteceu não gera repasse.
 
-🔎 **Hoje o schema tem `valor_consulta` e `valor_repasse`, os dois absolutos, e
-nenhuma coluna de taxa.** Ela precisa nascer na mesma migration do modelo.
+⚠️ **Sem convênio.** Não existe tabela de preços por operadora.
 
 ---
+
+### 🔴 A consequência que não é óbvia, e é a mais cara de descobrir tarde
+
+O schema de hoje põe **`valor_repasse` e `status_repasse` na tabela
+`agendamentos`** — ou seja, assume que **todo repasse nasce de uma sessão**.
+
+**Isso vale para a modalidade 1 e é falso para a modalidade 2.** Para quem recebe
+valor fixo, **não existe repasse por sessão**: existe repasse por período.
+
+🔴 **O risco concreto, se ninguém tratar:** a tela financeira soma
+`valor_repasse` das sessões e mostra **zero** para metade das psicólogas — sem
+erro, sem aviso, com cara de tela correta. **É a A-013 outra vez**, agora em cima
+de dinheiro: silêncio no lugar da verdade.
+
+✅ **O que o modelo precisa ter:**
+
+1. **A modalidade e o valor ficam no cadastro da psicóloga** — não na clínica, não
+   na tela.
+2. **Modalidade 1:** o valor vigente é **gravado na própria sessão** no momento em
+   que ela é criada. É isso que torna o passado imutável — mudar a taxa **não
+   reescreve** o que já aconteceu (**R-004**).
+3. **Modalidade 2:** o repasse é do **período**, e a tela financeira precisa
+   **dizer isso** em vez de somar zero.
+4. **Mudança de modalidade não é retroativa** — pela mesma lógica do item 2.
+
+---
+
+### ⛔ O que ainda falta perguntar, e é uma coisa só
+
+**O "valor fixo" da modalidade 2 é por qual período?** Mensal é o palpite óbvio,
+mas palpite em cima de dinheiro é exatamente o que a **A-001** ensinou a não
+fazer. **Quem implementar não inventa: pergunta.**
 
 ## R-024 — Uma pessoa atende em **uma clínica só**
 
