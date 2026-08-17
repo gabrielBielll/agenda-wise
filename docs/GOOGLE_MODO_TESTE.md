@@ -54,6 +54,73 @@ os dois de uma vez em vez de um deles em produção.
 
 ---
 
+## ✅ Existe uma saída para os 7 dias: **publicar sem verificar**
+
+O prazo de 7 dias é propriedade do estado **Testing**, não do app estar
+verificado. E os dois são chaves **separadas** no console:
+
+| Estado de publicação | Verificado? | Refresh token | Quem pode conectar |
+|---|---|---|---|
+| **Testing** | não | 🔴 **7 dias** | usuários de teste (até 100) |
+| ✅ **Em produção** | **não** | ✅ **não expira por prazo** | qualquer um, **até 100 contas** |
+| **Em produção** | sim | ✅ não expira | ilimitado |
+
+➡️ **A linha do meio é a que resolve o nosso caso.** Publicar em produção **sem
+submeter para verificação** tira o relógio de 7 dias, e continua não exigindo
+domínio, nem política de privacidade, nem espera.
+
+### O que se paga por isso
+
+⚠️ **A tela de aviso.** Quem conectar vê *"O Google não verificou este app"* e
+precisa ir em **Avançado → Acessar (não seguro)**. Para conta de desenvolvimento
+é irrelevante. **Para psicóloga de verdade seria péssimo** — então isto é escolha
+de ambiente de teste, não de lançamento.
+
+⚠️ **Teto de 100 contas** enquanto não verificar. Para o que estamos fazendo,
+sobra.
+
+✅ **E não queima nada:** a verificação é submetida depois, do mesmo estado. Você
+não perde nem refaz o que montou.
+
+### 📌 O que fazer de qualquer jeito, e não é contorno
+
+**A reconexão precisa ser barata e visível na tela** — botão de reconectar e
+alerta quando o token morre. Isso **não é gambiarra de modo de teste**: em
+produção de verdade o `invalid_grant` acontece igual, quando a pessoa revoga o
+acesso, troca a senha ou remove o compartilhamento. É funcionalidade do **GC-001**
+nos dois mundos, e nenhuma linha dela é descartável.
+
+### ⚠️ Confiança desta seção
+
+Isto vem do que é estável na plataforma do Google, **não de documentação lida
+agora** — `developers.google.com` e `support.google.com` são negados pelo proxy da
+minha sandbox. **É conferível em um minuto no próprio console**, na tela de
+publicação: ela mostra o estado e o teto de usuários. Se a tela disser outra
+coisa, ela ganha de mim.
+
+---
+
+## 🔎 Correção sobre o que eu disse antes: **a API do Google é alcançável daqui**
+
+Medido hoje, host por host:
+
+```
+developers.google.com   →  HTTP 000   (negado)
+support.google.com      →  HTTP 000   (negado)
+accounts.google.com     →  HTTP 302   ✅ responde
+www.googleapis.com      →  HTTP 404   ✅ responde
+```
+
+**Só a documentação é bloqueada. Os endpoints não são.**
+
+📌 **Consequência prática:** quando existirem credenciais, **eu consigo exercitar
+chamadas reais ao Google daqui** — e parte do que está em [GOOGLE_LIMITES](GOOGLE_LIMITES.md) como
+*"reportado, não medido por nós"* passa a ser **medível**. Os quatro `colorId` não
+confirmados são o primeiro candidato: é uma chamada só, e errar um id troca um
+estado por outro em silêncio.
+
+---
+
 ## Passo 1 — a conta que faz o papel da clínica
 
 Uma conta Google comum, de desenvolvimento. Ela vai ser **a dona da integração**:
