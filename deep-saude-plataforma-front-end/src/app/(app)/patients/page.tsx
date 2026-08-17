@@ -61,8 +61,6 @@ export default function PatientsPage() {
     setError(null);
     try {
       const result = await getPacientes();
-      console.log("PatientsPage: Resultado do getPacientes:", result);
-      
       if (result.success && result.data) {
         setPatients(result.data);
       } else {

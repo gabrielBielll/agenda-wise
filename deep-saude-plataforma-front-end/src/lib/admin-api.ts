@@ -16,7 +16,6 @@ adminApi.interceptors.request.use(config => {
   const isAdminTokenAvailable = typeof window !== 'undefined' && localStorage.getItem('adminToken');
 
   if (process.env.NEXT_PUBLIC_NODE_ENV === 'development' && !isAdminTokenAvailable) {
-    console.warn("Usando mock token para /admin API em desenvolvimento. Certifique-se de que isso é intencional.");
     config.headers.Authorization = 'Bearer mock-dev-token';
   } else if (isAdminTokenAvailable) {
     config.headers.Authorization = `Bearer ${localStorage.getItem('adminToken')}`;

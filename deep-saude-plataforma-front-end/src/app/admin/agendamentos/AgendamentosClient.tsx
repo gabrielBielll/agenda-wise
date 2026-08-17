@@ -260,8 +260,6 @@ export default function AgendamentosClient({
     setCurrentPage(1);
   }, [selectedPaciente, selectedPsicologo, searchTerm, selectedDateFilter]);
 
-  console.log("DEBUG: AgendamentosClient render. Total:", agendamentos.length, "Filtered:", filteredAgendamentos.length);
-
   // Format Helper for Week Range Display
   const getWeekRangeDisplay = (date: Date) => {
     const start = new Date(date);

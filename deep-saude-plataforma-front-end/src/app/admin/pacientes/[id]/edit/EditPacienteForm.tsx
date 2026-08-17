@@ -56,7 +56,6 @@ export default function EditPacienteForm({
   psicologos: Psicologo[];
   readOnly?: boolean;
 }) {
-  console.log("EditPacienteForm Props:", { paciente, psicologos, readOnly });
   const { toast } = useToast();
   const updatePacienteWithId = updatePaciente.bind(null, paciente.id);
   const [state, formAction] = useActionState(updatePacienteWithId, initialState);

@@ -39,15 +39,12 @@ const wakeUpBackendWithRetry = async (retries = 3, delay = 3000): Promise<boolea
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 segundos de timeout
 
-      console.log(`Tentativa ${i + 1} de acordar o backend...`);
       const response = await fetch(apiUrl, { signal: controller.signal });
       clearTimeout(timeoutId);
 
       if (response.ok) {
-        console.log(`Backend acordado na tentativa ${i + 1}.`);
         return true;
       }
-      console.warn(`Tentativa ${i + 1} falhou com status: ${response.status}`);
     } catch (error) {
       console.error(`Erro na tentativa ${i + 1}:`, error);
     }

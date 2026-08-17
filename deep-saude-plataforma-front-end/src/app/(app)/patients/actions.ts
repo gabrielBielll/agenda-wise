@@ -27,7 +27,6 @@ export type FormState = {
 async function getBackendToken(): Promise<string | null> {
   try {
     const session = await getServerSession(authOptions);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return (session as any)?.backendToken || null;
   } catch (error) {
     console.error("Erro ao obter sessão:", error);
@@ -57,9 +56,6 @@ export async function createPaciente(
   const session = await getServerSession(authOptions);
   const userId = (session?.user as any)?.id;
   
-  console.log("createPaciente: Session User ID:", userId);
-  console.log("createPaciente: Token size:", token?.length);
-
   if (!token) {
     console.error("createPaciente: Token não encontrado");
     return { message: "Erro de autenticação.", success: false };
@@ -72,8 +68,6 @@ export async function createPaciente(
   };
 
   const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/pacientes`;
-  console.log("createPaciente: Enviando dados para", apiUrl, payload);
-
   try {
     const response = await fetch(apiUrl, {
       method: "POST",
@@ -85,8 +79,6 @@ export async function createPaciente(
     });
 
     const data = await response.json();
-    console.log("createPaciente: Resposta API", response.status, data);
-
     if (!response.ok) {
       console.error("createPaciente: Erro na API", data);
       return { message: data.erro || "Falha ao criar paciente.", success: false };
@@ -112,8 +104,6 @@ export async function deletePaciente(pacienteId: string): Promise<{ success: boo
   }
 
   const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/pacientes/${pacienteId}`;
-  console.log("deletePaciente: Enviando DELETE para", apiUrl);
-
   try {
     const response = await fetch(apiUrl, {
       method: "DELETE",
@@ -121,8 +111,6 @@ export async function deletePaciente(pacienteId: string): Promise<{ success: boo
         "Authorization": `Bearer ${token}`,
       },
     });
-
-    console.log("deletePaciente: Response status:", response.status);
 
     if (!response.ok) {
       const data = await response.json();
@@ -167,7 +155,6 @@ export async function getPacientes(): Promise<{ success: boolean; data?: any[]; 
     }
 
     const data = await response.json();
-    console.log("getPacientes: Dados retornados:", JSON.stringify(data, null, 2));
     return { success: true, data };
 
   } catch (error) {
@@ -203,8 +190,6 @@ export async function updatePaciente(
   const payload = validatedFields.data;
   const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/pacientes/${id}`;
   
-  console.log("updatePaciente: Enviando PUT para", apiUrl, payload);
-
   try {
     const response = await fetch(apiUrl, {
       method: "PUT",
@@ -216,8 +201,6 @@ export async function updatePaciente(
     });
 
     const data = await response.json();
-    console.log("updatePaciente: Resposta API", response.status);
-
     if (!response.ok) {
       console.error("updatePaciente: Erro na API", data);
       return { message: data.erro || "Falha ao atualizar paciente.", success: false };

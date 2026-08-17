@@ -10,6 +10,7 @@
             [environ.core :refer [env]]
             [next.jdbc :as jdbc]
             [next.jdbc.sql :as sql]
+            [taoensso.timbre :as log]
             [deep-saude-backend.db :refer [datasource execute-query! execute-one!]]
             [deep-saude-backend.google.api :as api]
             [deep-saude-backend.google.cripto :as cripto]
@@ -172,7 +173,7 @@
         (try
           (oauth/revogar (cripto/decifrar-token (:refresh_token_cifrado conexao)))
           (catch Exception e
-            (println "GOOGLE: falha ao revogar token (seguindo com a remoção local):" (.getMessage e))))
+            (log/warn e "google_token_revoke_failed")))
         (jdbc/with-transaction [tx @datasource]
           (sql/update! tx :vinculo_agenda {:status "pausado"} {:clinica_id clinica-id})
           (sql/delete! tx :google_conexao {:id (:id conexao)}))
@@ -291,8 +292,7 @@
                      {:id vinculo-id})
         ;; Trilha de auditoria: quem vinculou qual agenda a quem, e quando
         ;; (spec seção 7). Vai para o log até existir tabela de auditoria.
-        (println "AUDITORIA google/vinculo: admin" (str admin-id)
-                 "vinculou agenda" (str vinculo-id) "ao usuário" (str usuario_id))
+        (log/info "google_calendar_linked")
         {:status 200 :body {:message "Agenda vinculada."}}))))
 
 (defn desvincular-handler [request]
@@ -305,8 +305,7 @@
         (sql/update! @datasource :vinculo_agenda
                      {:usuario_id nil :status "pendente" :vinculado_por nil :vinculado_em nil}
                      {:id vinculo-id})
-        (println "AUDITORIA google/vinculo: admin" (str admin-id)
-                 "desvinculou agenda" (str vinculo-id))
+        (log/info "google_calendar_unlinked")
         {:status 200 :body {:message "Vínculo removido."}})
       {:status 404 :body {:erro "Vínculo não encontrado."}})))
 

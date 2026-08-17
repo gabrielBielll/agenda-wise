@@ -371,7 +371,6 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
   };
 
   const initDeleteBlock = (id: string, recorrencia_id?: string) => {
-      console.log('initDeleteBlock called with:', { id, recorrencia_id });
       setBlockToDelete({ id, recorrencia_id });
       setSlotAction(null);
       setIsConfirmDeleteBlockOpen(true);

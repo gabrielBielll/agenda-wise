@@ -23,9 +23,6 @@ async function getPsicologo(token: string, psicologoId: string): Promise<Psicolo
     });
 
     const responseText = await response.text();
-    console.log(`[getPsicologo] Status: ${response.status}`);
-    console.log(`[getPsicologo] Body Preview: ${responseText.substring(0, 200)}`);
-
     if (!response.ok) {
       if (response.status === 404) {
         return { error: 'Psicólogo não encontrado.' };

@@ -63,11 +63,7 @@ export const authOptions: AuthOptions = {
           }
 
           const data = await res.json();
-          console.log("NextAuth: Login API Response", { status: res.status, hasToken: !!data.token });
-          
           if (data.token && data.user) {
-            console.log("NextAuth: Authorize success, returning user with token.");
-            
             return {
               id: data.user.id,
               email: credentials.email,
@@ -92,8 +88,6 @@ export const authOptions: AuthOptions = {
     },
     async jwt({ token, user, account, profile }) {
       if (user) {
-        console.log("NextAuth: JWT Callback - Initial sign in");
-
         // Login com Google: guarda o e-mail VERIFICADO. É o que permite sugerir
         // com segurança de quem é cada agenda na tela de mapeamento (spec 5.4).
         // Um e-mail não verificado não serve para isso — vincular a agenda
@@ -126,7 +120,6 @@ export const authOptions: AuthOptions = {
       return token;
     },
     async session({ session, token }) {
-      // console.log("NextAuth: Session Callback"); // Too noisy
       (session as any).backendToken = token.backendToken;
       (session.user as any).id = token.id;
       (session.user as any).clinica_id = token.clinica_id;
