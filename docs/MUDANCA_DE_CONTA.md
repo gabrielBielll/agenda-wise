@@ -2,9 +2,19 @@
 
 > **Data:** 2026-08-17 · **Autor:** `orla`
 >
-> O Gabriel criou uma conta GitHub própria da Deep Saúde e já ligou o Northflank
-> nela. Este arquivo existe porque a mudança envolve **quatro partes** — ele, eu,
-> as três instâncias e o Northflank — e feita fora de ordem custa um dia.
+> ⏸️ **SUSPENSO em 17/08, no mesmo dia.** O Gabriel resolveu por outro caminho:
+> **o repositório fica em `gabrielBielll/agenda-wise`** e o Northflank a usar é o
+> que já está ligado a essa conta. **Nada muda de lugar, e o risco abaixo não se
+> aplica hoje.**
+>
+> ✅ **Este arquivo não foi apagado de propósito.** Ter conta própria da empresa
+> continua sendo o destino certo, e no dia em que for feito a sequência abaixo é a
+> que evita perder um dia. O que mudou foi o **quando**, não o **se**.
+>
+> Contexto original: o Gabriel criou uma conta GitHub própria da Deep Saúde e
+> ligou o Northflank nela. Este arquivo existe porque a mudança envolve **quatro
+> partes** — ele, eu, as três instâncias e o Northflank — e feita fora de ordem
+> custa um dia.
 
 ---
 
