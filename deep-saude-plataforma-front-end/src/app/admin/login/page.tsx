@@ -1,11 +1,11 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { signIn } from "next-auth/react";
+import { signIn, signOut, useSession } from "next-auth/react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -35,6 +35,38 @@ export default function AdminLoginPage() {
   const { toast } = useToast();
   const { showLoading, hideLoading } = useLoading();
   const [isLoading, setIsLoading] = useState(false);
+  const { status } = useSession();
+
+  /**
+   * A-016 — encerra de verdade a sessão que o backend recusou.
+   *
+   * ⚠️ Esta porta **não** entrava em laço, ao contrário do que se esperava: ela
+   * não tem redirecionamento por `status === 'authenticated'`, então sempre mostra
+   * o formulário. A assimetria era o inverso — quem laçava era `/`, a porta da
+   * psicóloga.
+   *
+   * Mas o problema de fundo é o mesmo e é aqui também: chegar com `?expired=true`
+   * significa que o backend recusou a sessão, e o cookie do NextAuth **continua
+   * válido**. Sem `signOut` a sessão morta fica pendurada — e quem sair desta tela
+   * para qualquer rota protegida volta a bater no 401.
+   *
+   * Ver o comentário maior em `src/app/page.tsx`, incluindo o caso da rotação do
+   * `JWT_SECRET`, que é onde isto deixa de ser hipótese.
+   */
+  // Lido de `window.location` e não com `useSearchParams()` — ver o comentário em
+  // `src/app/page.tsx`: lá o `useSearchParams` quebrou o `next build`, e aqui
+  // vale o mesmo por ser a outra tela de login prerenderizada.
+  const [sessaoExpirou, setSessaoExpirou] = useState(false);
+
+  useEffect(() => {
+    setSessaoExpirou(new URLSearchParams(window.location.search).get("expired") === "true");
+  }, []);
+
+  useEffect(() => {
+    if (sessaoExpirou && status === "authenticated") {
+      signOut({ redirect: false });
+    }
+  }, [sessaoExpirou, status]);
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginFormSchema),
@@ -88,6 +120,13 @@ export default function AdminLoginPage() {
         <CardDescription>
           Acesse o painel de administrador da Deep Saúde.
         </CardDescription>
+        {/* A-016: dizer por que a pessoa voltou para cá, senão ela reentra os
+            dados achando que errou a senha na vez anterior. */}
+        {sessaoExpirou && (
+          <p className="mt-2 rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">
+            Sua sessão expirou. Entre novamente para continuar.
+          </p>
+        )}
       </CardHeader>
       <form onSubmit={form.handleSubmit(onSubmit)}>
         <CardContent className="grid gap-4">

@@ -19,12 +19,58 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
-  // Redirecionar se já estiver autenticado (efeito colateral deve estar no useEffect)
+  /**
+   * A-016 — `?expired=true` significa "esta sessão acabou", não "navegue".
+   *
+   * Quem chega aqui com o parâmetro veio de um 401 do backend (via `carregar.ts`)
+   * ou do token vencido no middleware. Nos dois casos o **cookie do NextAuth
+   * continua válido** — quem recusou foi o backend, e o NextAuth não tem como
+   * saber. Então `status` ainda é `authenticated`.
+   *
+   * Sem este tratamento o `useEffect` abaixo empurrava para `/dashboard`, que
+   * levava 401, que mandava para cá de novo: **laço**. A saída existia — o botão
+   * "Sair / Trocar Conta" — mas é beco com saída que ninguém adivinha.
+   *
+   * 🔴 Não é hipótese: é o que acontece na **rotação do `JWT_SECRET`**. Rotacionar
+   * não muda o `exp` dos tokens já emitidos, então toda sessão aberta passa a ter
+   * validade no futuro e assinatura que não confere — o middleware deixa passar e
+   * o backend recusa. Todo mundo logado na hora da rotação cairia no laço.
+   */
+  /**
+   * ⚠️ Lido de `window.location`, e **não** com `useSearchParams()`.
+   *
+   * Duas razões, e a primeira é dura: `useSearchParams()` num componente cliente
+   * faz o `next build` **falhar** nesta página —
+   * *"useSearchParams() should be wrapped in a suspense boundary at page /"* —
+   * porque ela é prerenderizada estática. Medido: o build quebrou na primeira
+   * tentativa.
+   *
+   * A segunda é o motivo de eu não ter só embrulhado em `<Suspense>`: o embrulho
+   * resolve o erro **tirando a página do prerender**, e esta é a tela de login —
+   * a primeira coisa que qualquer pessoa vê. Trocar o primeiro paint dela por uma
+   * conveniência de API não vale.
+   *
+   * `null` = ainda não sabemos. Sem esse terceiro estado, o efeito de
+   * redirecionamento roda antes da leitura e empurra para `/dashboard` — o laço
+   * de volta, pela porta dos fundos.
+   */
+  const [sessaoExpirou, setSessaoExpirou] = useState<boolean | null>(null);
+
   useEffect(() => {
-    if (status === 'authenticated') {
-      router.push('/dashboard');
+    setSessaoExpirou(new URLSearchParams(window.location.search).get('expired') === 'true');
+  }, []);
+
+  useEffect(() => {
+    if (sessaoExpirou === null || status !== 'authenticated') return;
+
+    if (sessaoExpirou) {
+      // Encerra de verdade, sem redirecionar: o formulário abaixo é o destino.
+      signOut({ redirect: false });
+      return;
     }
-  }, [status, router]);
+
+    router.push('/dashboard');
+  }, [status, router, sessaoExpirou]);
 
   // Esta função irá acionar o nosso 'CredentialsProvider'
   const handleLogin = async (e: React.FormEvent) => {
@@ -46,7 +92,9 @@ export default function LoginPage() {
     }
   };
 
-  if (status === 'loading' || status === 'authenticated') {
+  // Com `?expired=true` a tela de espera não pode aparecer: o `signOut` acima
+  // está em curso e o destino é o formulário, não outra rota.
+  if (status === 'loading' || (status === 'authenticated' && sessaoExpirou !== true)) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-background p-4 gap-4">
         <p className="text-lg">{status === 'loading' ? 'Verificando sessão...' : 'Login confirmado, redirecionando...'}</p>
@@ -69,6 +117,13 @@ export default function LoginPage() {
           <CardDescription className="text-muted-foreground">
             Entre com seu e-mail e senha ou use o Google.
           </CardDescription>
+          {/* A-016: dizer por que a pessoa voltou para cá. Sem isto ela reentra
+              os dados achando que errou a senha na vez anterior. */}
+          {sessaoExpirou && (
+            <p className="mt-2 rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">
+              Sua sessão expirou. Entre novamente para continuar.
+            </p>
+          )}
         </CardHeader>
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-4">
