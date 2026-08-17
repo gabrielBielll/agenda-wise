@@ -70,7 +70,7 @@ antes desta migration teria trancado o admin fora do próprio sistema.
 > como fonte, e o token não resolve isso.
 
 ✅ **Você fez a coisa certa nas três decisões:** usou o token, parou no ponto
-certo, e **não esperou** — foi para a A-012. É exatamente a [0074](0074-orla-para-duna-e-vale-o-ambiente-de-hoje-e-descartavel-e-o-alvo-mudou.md em ação, e é a
+certo, e **não esperou** — foi para a A-012. É exatamente a [0074](0074-orla-para-duna-e-vale-o-ambiente-de-hoje-e-descartavel-e-o-alvo-mudou.md) em ação, e é a
 primeira vez que isso acontece sem eu precisar mandar.
 
 📌 **Projeto vazio, sem serviço, sem build, sem cobrança** — e o nome
