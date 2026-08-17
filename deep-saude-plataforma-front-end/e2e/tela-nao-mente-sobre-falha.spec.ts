@@ -1,5 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { encode } from 'next-auth/jwt';
+import { CONTA } from './preparar-dados';
+import { dadosSemeados } from './apoio';
 
 /**
  * A-013 — a tela para de tratar toda falha como "não há nada".
@@ -36,13 +38,15 @@ import { encode } from 'next-auth/jwt';
  * ## ⚠️ DUAS DAS QUATRO TELAS NASCEM SEM TESTE, e isto não é descuido
  *
  * Está escrito aqui, e não só na mensageria, porque quem ler o resumo daqui a um
- * mês vai achar que "a A-013 está coberta". **Não está — está pela metade.**
+ * mês vai achar que "a A-013 está coberta". **Falta um dos quatro** — o 500.
  *
  * - **401** — coberto aqui. É o único forçável hoje.
  * - **vazio de verdade** — coberto pelo resto da suíte, que roda com banco semeado.
- * - **403** — ❌ sem teste. Precisa de usuário autenticado **sem** a permissão, e
- *   hoje ninguém tem: `papel_permissoes` está vazia (**A-012**, primeira da fila
- *   da `duna`). 📌 **O teste do 403 entra aqui quando a A-012 cair.**
+ * - **403** — ✅ **coberto**, desde que a A-012 encheu `papel_permissoes` e a
+ *   A-017 deu tela ao secretário. Ele tem `visualizar_pacientes` e **não** tem
+ *   `gerenciar_prontuarios` (migration `20260817090000-permissoes-papeis`), então
+ *   a recusa é **legítima e real** — não simulada. O gatilho que eu tinha deixado
+ *   escrito aqui disparou.
  * - **500 / backend fora do ar** — ❌ sem teste. Virou a **P-002 da `pico`**, que é
  *   quem roda Playwright de verdade: um segundo projeto cujo servidor Next sobe
  *   apontando para uma porta morta.
@@ -119,5 +123,61 @@ test.describe('A-013 — 401 no fetch do servidor manda para o login', () => {
       page.locator('#email'),
       'depois do 401 a pessoa tem que cair no formulário de login, não numa lista vazia'
     ).toBeVisible();
+  });
+});
+
+test.describe('A-013 — 403 diz "sem acesso", e não esconde o que a pessoa pode ver', () => {
+  /**
+   * O quarto estado, com uma recusa **de verdade** — não simulada.
+   *
+   * O secretário tem `visualizar_pacientes` e **não** tem `gerenciar_prontuarios`
+   * (migration `20260817090000-permissoes-papeis`, e é a resposta do Gabriel na
+   * mensageria 0064: cadastro sim, prontuário não). Então esta é a única tela do
+   * sistema onde **dois níveis de permissão** convivem, e ela prova duas coisas
+   * de uma vez:
+   *
+   * 1. o 403 **fala** — *"você não tem acesso"* — em vez de virar lista vazia,
+   *    que era a A-013 e foi o que escondeu a A-012 por semanas;
+   * 2. a recusa é **parcial** — o cadastro que ele PODE ver continua na tela.
+   *    Antes da A-017 eu devolvia a recusa em tela cheia, o que era a A-013 pelo
+   *    avesso: em vez de mostrar de menos, recusar demais.
+   */
+  test.use({ storageState: { cookies: [], origins: [] } });
+
+  test('o secretário vê o paciente e uma recusa nomeada no lugar do prontuário', async ({ page }) => {
+    const { pacienteId, paciente } = dadosSemeados();
+
+    await page.goto('/');
+    await page.locator('#email').fill(CONTA.secretarioEmail);
+    await page.locator('#password').fill(CONTA.secretarioSenha);
+    await page.getByRole('button', { name: /^entrar$/i }).click();
+    await expect
+      .poll(
+        async () =>
+          (await page.context().cookies()).some((c) => c.name.includes('next-auth.session-token')),
+        { timeout: 90_000, message: 'o login do secretário não criou sessão' }
+      )
+      .toBe(true);
+
+    await page.goto(`/patients/${pacienteId}`);
+
+    // 1. O que ele PODE ver continua lá.
+    await expect(
+      page.getByText(paciente).first(),
+      'a tela inteira sumiu por causa do prontuário — é a recusa em tela cheia escondendo o cadastro'
+    ).toBeVisible();
+
+    // 2. E a seção do prontuário nomeia a recusa.
+    const historico = page.locator('#historico-evolucao');
+    await expect(
+      historico,
+      'o 403 do prontuário precisa dizer que é falta de acesso'
+    ).toContainText(/não tem acesso|nao tem acesso/i);
+
+    // 3. E não pode, de jeito nenhum, dizer que não há registro.
+    await expect(
+      historico,
+      'a recusa virou "não há nada" — é exatamente a A-013, e num lugar onde ela mente sobre histórico clínico'
+    ).not.toContainText(/nenhum registro/i);
   });
 });
