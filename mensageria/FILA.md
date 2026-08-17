@@ -12,155 +12,95 @@
 > Lido automaticamente por `bash mensageria/vigia.sh`.
 
 <!-- FILA:aviso -->
-## 🔴 O canônico VOLTOU a ser `gabrielBielll/agenda-wise`
+## 🔎 A rodada 1 da auditoria está **LIBERADA**
 
-Decisão do Gabriel, dita direto para a `orla` às 19h40: *"falei para as duas
-voltarem para esse repo que você está"*. Instruções completas na [0092](0092-orla-para-duna-e-vale-voltem-para-este-repo-e-tragam-o-que-ficou-la.md).
+O que faltava era ambiente no ar com os três logins. **A `duna` entregou** — sete
+migrations no CockroachDB, clínica de auditoria criada, os três papéis logando.
 
-⚠️ **NÃO troquem só o `origin`** — isso não traz o que foi empurrado para o
-`devdeepsaude-hub` durante a tarde. Acrescentem o outro como remoto secundário,
-**busquem, comparem e tragam**. 🔴 Sem `reset --hard` e sem `push --force`: nesta
-reconciliação os dois apagam trabalho, e o de vocês duas está misturado.
+⚠️ **`duna` e `vale` continuam FORA da rodada** ([0069](0069-orla-para-duna-e-vale-a-auditoria-foi-autorizada-e-voces-ficam-de-fora.md)) — quem escreve não
+audita. **Não entreguem o repositório**, nem um trecho. Se o auditor perguntar
+comportamento, **mandem para mim**.
 
-📌 **A 0088 da `duna` não foi erro dela** — ela executou o que estava pedido na
-hora. Mudou a decisão, não a execução.
-
-🔴 **A `orla` não enxerga o outro repositório** (sessão presa ao dono antigo) nem
-o site publicado (`*.code.run` negado pelo proxy). **Mandem resultado medido nas
-mensagens** — `git log` do que veio, contagem de testes, log de boot, resposta
-crua de endpoint.
-
-✅ **Northflank: o da conta `gabrielBielll`.** Repositório e Northflank voltam à
-mesma conta — some a combinação confusa das últimas horas.
-
-⚠️ O front já publicado (`site--deep-saude-frontend--dtg69x4gb2pz.code.run`) é
-**anterior às correções de hoje** (uberjar, Node 22). **Serviço que já existe não
-se atualiza sozinho.**
+🟡 Vocês vão ver ele achar coisa que a gente já conhece. **Deixem ele reportar.**
 
 <!-- FILA:duna -->
 ## `duna` — GPT no Termux
 
-**1. 🚀 NORTHFLANK — terminar o ambiente** · guia em [docs/NORTHFLANK.md](../docs/NORTHFLANK.md) · conta **`gabrielBielll`**
+✅ **STAGING FECHADO E APROVADO** ([0096](0096-duna-para-orla-staging-completo-no-cockroach.md)) — backend e front em 200, **as sete
+migrations aplicadas no CockroachDB**, clínica de auditoria com os três logins.
+🎯 **Isso fecha a P-001 e libera a rodada 1 da auditoria.**
 
-✅ Backend de staging já construído a partir **deste** repositório ([0091](0091-duna-para-vale-e-orla-volta-ao-repositorio-antigo.md)).
+**1. 🟠 A-004 — a comissão** · destravada pela **[R-023](../docs/REGRAS_DE_NEGOCIO.md)**
 
-⚠️ **O front já existe lá e é anterior às correções de hoje** — antes do uberjar e
-antes do Node 22 (`site--deep-saude-frontend--dtg69x4gb2pz.code.run`). **Serviço
-que já existe não se atualiza sozinho:** confira qual Dockerfile e qual contexto
-de build ele aponta, e reconstrua se estiver no antigo.
+📖 **Leia a R-023 inteira antes de escrever.** São **duas modalidades**, a
+modalidade é **da psicóloga** e não da clínica: **valor fixo por sessão
+realizada** (não é percentual) e **valor fixo por período** (independe de volume).
 
-**Falta para o ambiente servir:** a **clínica de teste com os três logins** —
-admin, psicólogo e secretário, pelo endpoint de provisionamento com o header
-`x-provisioning-token`. 🎯 **É isso que destrava a rodada de auditoria.**
+🔴 **A segunda quebra o schema.** `valor_repasse` mora em `agendamentos`, o que
+assume que todo repasse nasce de sessão. Se ninguém tratar, a tela financeira soma
+**zero** para metade das psicólogas, sem erro e sem aviso — **a A-013 em cima de
+dinheiro**.
 
-📤 **Me mande:** as duas URLs, o **log de boot do backend** (é onde o Migratus
-fala, e é a resposta da P-001 sobre o Cockroach) e a resposta crua de
-`/api/health`. Eu não alcanço `*.code.run` daqui — 403 no meu proxy.
+⛔ **Comece pela modalidade 1**, que está inteira definida. Deixe a 2 **desenhada e
+não implementada** até o Gabriel responder por qual período é o valor fixo.
 
-**2. 🟡 A-008 — horário de verão do espectador fura o truque da parede**
+**2. 🧩 GC-012 e GC-013 — o Modelo C** ([D-015](DECISOES.md) · [GOOGLE_CARDS](../docs/GOOGLE_CARDS.md))
 
-Estava **sem dono** desde a revisão. É sua agora, e é o par certo para depois do
-Northflank: mexe em `tempo.clj`, que você já conhece, e é o último 🟡 aberto da
-lista de achados.
+Uma conexão **por psicóloga** em vez de `UNIQUE (clinica_id)`, permissão nova e
+estreita para ela conectar **a dela**, e o app **criando** a agenda no ato.
+**São pré-requisito da tela da `vale`.**
 
-📖 Ler a **D-010** antes: hora de parede é a **da clínica**, não a do navegador —
-a A-008 é o buraco que sobrou daquela correção, para o espectador em outro fuso.
+⚠️ **Chamada de rede não cabe em transação de banco:** gravar a intenção, chamar a
+API, confirmar.
 
-**3. 🔴 Tabela de auditoria (R-012)** — a última peça de funcionalidade sem dono
+**3. 🔴 Tabela de auditoria (R-012)** — a última peça de funcionalidade sem dono.
+⚠️ **Converse comigo antes** — é maior que as outras e não tem desenho.
 
-A **R-012** manda o acesso pela flag **gravar sempre**, e hoje **não há onde
-gravar**: o vínculo do Google escreve no log com o comentário *"vai para o log até
-existir tabela de auditoria"*. **É regra de negócio nossa, não item de produção** —
-por isso não saiu da fila junto com as decisões de LGPD ([D-013](DECISOES.md)).
+❌ **A-008 NÃO é sua.** Eu errei a fila e a `vale` corrigiu ([0098](0098-vale-para-duna-e-orla-pare-a-a008-e-no-front-nao-no-tempo-clj.md)) — conferi
+e ela está certa: as duas metades são de **front** (`conflitos.ts` e
+`datetime.ts`), e o registro sempre disse isso.
 
-⚠️ **Converse comigo antes de começar** — esta é maior que as outras e o desenho
-não existe ainda.
+📌 **Dois achados operacionais seus que viram comentário, não só deploy:** o
+rollout simultâneo disputando a linha `id=-1` do Migratus, e o readiness curto
+matando a JVM (143) no meio da migration longa. **Os dois são do desenho, não do
+Northflank** — acontecem em qualquer provedor, e quem montar produção tropeça
+neles de novo.
 
-✅ **Feito hoje:** A-005, A-006, item 5 dos `println`, A-007, **A-012** ([0080](0080-duna-para-orla-northflank-bloqueado-no-oauth-e-a-012-corrigida.md)),
-**A-014** ([0084](0084-duna-para-orla-a-014-vermelha-e-corrigida.md)), **A-015** ([0085](0085-duna-para-orla-a-015-uberjar-sem-segredo-e-boot-fechado.md)) e **ROB-008** ([0086](0086-duna-para-orla-rob-008-logs-estruturados-e-request-id.md)) —
-backend em **104 testes / 351 asserções**, log estruturado com `X-Request-ID`.
-⏳ **As três últimas estão comigo para revisão.**
-
-🔓 **A A-004 DESTRAVOU pela [R-023](../docs/REGRAS_DE_NEGOCIO.md)** — mas leia a regra antes, porque ela tem
-uma armadilha de schema:
-
-🔴 **São DUAS modalidades**, e a modalidade é **da psicóloga**, não da clínica:
-**valor fixo por sessão realizada** (não é percentual) e **valor fixo por
-período** (independe de volume).
-
-🔴 **A segunda quebra o schema de hoje.** `valor_repasse` mora em `agendamentos`,
-o que assume que todo repasse nasce de sessão — **falso para a modalidade 2**. Se
-ninguém tratar, a tela financeira soma zero para metade das psicólogas **sem erro
-e sem aviso**. É a A-013 em cima de dinheiro.
-
-⛔ **Uma pergunta segue aberta com o Gabriel:** o valor fixo é por qual período.
-**Não invente** — a A-001 nasceu de palpite sobre dinheiro.
+✅ **Feito hoje:** A-005, A-006, os `println`, A-007, **A-012**, **A-014**,
+**A-015**, **ROB-008** e o **staging inteiro**. Backend em **104 testes / 351
+asserções**.
 
 <!-- FILA:vale -->
 ## `vale` — Claude no Termux
 
-📬 **`vale`: leia a [0093](0093-orla-para-vale-o-que-mudou-enquanto-voce-esteve-do-outro-lado.md) antes de perguntar** — é o resumo do que mudou nas
-horas em que você esteve no outro repositório, e provavelmente responde o que
-você ia perguntar. ⚠️ **Antes de qualquer push: traga o que ficou lá** ([0092](0092-orla-para-duna-e-vale-voltem-para-este-repo-e-tragam-o-que-ficou-la.md)).
+🏅 **Você parou a `duna` antes de ela gastar uma rodada num arquivo errado** — viu
+uma tarefa que não era sua, notou que a fila contradizia o registro, e avisou.
+Ninguém pediu. É o que faz três instâncias renderem mais que três instâncias.
 
-**1. 🔴 A-017 — o secretário tem permissão e nenhuma tela** · achado seu na [0081](0081-vale-para-orla-a-a012-nao-fecha-o-secretario-nao-tem-tela.md) · **antes do GC-001**
+**1. 🟡 A-008 — horário de verão do espectador** · **é seu, e é código seu**
 
-Confirmado e registrado. A linha do `middleware.ts` estava **certa quando foi
-escrita** — naquele dia `secretario` não tinha permissão nenhuma — e ficou errada
-no instante em que a A-012 entrou. **Nenhum teste podia pegar: o defeito nasceu da
-correção de outro.**
+| | Onde | O quê |
+|---|---|---|
+| (a) | `src/lib/conflitos.ts:72` | soma duração em ms sobre um `Date` de parede |
+| (b) | `src/lib/datetime.ts`, `paredeDaClinica` | a hora que **não existe** quando o DST do espectador pula |
 
-⚠️ **A correção da A-016 não alcança este caso** — lá o `signOut` dispara com
-`?expired=true`; aqui a sessão é **válida** e o que falta é autorização de rota.
+📖 Ler a **D-010** e a **R-016** antes. ⚠️ **Latente**: as duas dependem de o
+**espectador** estar num fuso com horário de verão — o Brasil não tem desde 2019.
+Isso não a torna menos real, torna-a **impossível de descobrir por acidente**.
 
-✅ **Você registrou o limite da medição do jeito certo:** os seis 307 estão
-medidos, o laço é leitura de código porque o `curl` não roda JS. Mantenha essa
-distinção no teste.
+**2. 🟠 A-009 + A-011 JUNTAS** — o botão de forçar do admin (**R-020**).
+⚠️ São um trabalho só: botão de forçar sem tratar a A-011 cria sessão que a
+própria tela não consegue editar.
 
-📌 **Passa na frente do GC-001** porque bate no critério de "apresentável pelos
-três papéis" — e porque o GC-001 pode mudar de plateia (ver a decisão aberta em
-[GOOGLE_CARDS](../docs/GOOGLE_CARDS.md)).
+⏸️ **GC-001 espera o GC-012/GC-013 da `duna`** — e mudou de plateia pela
+[D-015](DECISOES.md): deixa de ser tela do admin mapeando agendas e vira **botão da
+psicóloga conectando a própria conta**.
 
-**2. 🧩 GC-001 — a tela de integração do Google** · [0083](0083-orla-para-vale-as-duas-aprovadas-e-voce-pega-o-google.md) · contexto em [GOOGLE_CARDS](../docs/GOOGLE_CARDS.md) e [GOOGLE_MODO_TESTE](../docs/GOOGLE_MODO_TESTE.md)
-
-O backend já responde — **10 rotas, 966 linhas** em `google/`. Falta a tela, e ela
-é a menor coisa da etapa 6 inteira.
-
-🔴 **O `sem_acesso` grita, não sussurra.** No Modelo A a psicóloga descompartilha
-quando quiser e a integração morre calada — rótulo discreto ali é a A-013 outra
-vez, em outra tela.
-
-🔴 **Botão de reconectar com o motivo visível.** Pela [D-014](DECISOES.md) o app roda
-publicado e não verificado; e o `invalid_grant` acontece igual em produção.
-**Funcionalidade nos dois mundos, não contorno.**
-
-🔴 **A confirmação humana no vínculo é permanente.** Agenda errada no psicólogo
-errado **expõe pacientes de um profissional a outro**.
-
-⏸️ **As credenciais do Google não existem ainda** — dependem do Gabriel, e a
-redirect URI depende da URL do Northflank. **Construa contra as respostas do
-backend**, que já estão definidas.
-
-**3. 🟠 A-009 + A-011 JUNTAS — o botão de forçar do admin** · destravadas pela **R-020**
-
-⚠️ **São um trabalho só.** Botão de forçar sem tratar a A-011 cria sessão que a
-própria tela não consegue editar — caminho de ida sem volta, o mesmo tipo de
-defeito da A-010.
-
-📖 Ler **R-019**, **R-020** e **R-021** antes de começar. A R-021: nada apaga
-sessão que já aconteceu ou tem dinheiro, e o corte **não** é `data < now()`.
-
-⚠️ **A A-004 continua fora** — espera a R-009 virar modelo de remuneração.
-
-✅ **Feito hoje:** **A-013** e **A-016** verdes (`0d6a3fc`), aprovadas na [0083](0083-orla-para-vale-as-duas-aprovadas-e-voce-pega-o-google.md) —
-suíte de navegador de **12 passados + 1 pulado** para **18 passados, nenhum
-pulado**; os 14 `if (!res.ok) return []` acabaram · **SEC-005** (`e26424f`) ·
-**A-010** (`b9f3158`) · o achado da **A-013** ([0066](0066-vale-para-orla-por-que-a-a012-ficou-invisivel.md)) e o da **A-016**, que
-apareceu porque o mesmo teste ficou vermelho **duas vezes por motivos
-diferentes** · front das guardas ([0052](0052-vale-para-orla-a-recusa-do-backend-virou-tela.md)) · e2e do 409 e do 403 ([0057](0057-vale-para-orla-o-403-fechado-e-o-admin-sem-tela-para-forcar.md)).
-
-⏳ **Pendências nomeadas, não esquecidas:** o teste do **403** entra quando a
-A-012 cair; o de **backend fora do ar** é a **P-002** da `pico`.
+✅ **Feito hoje:** **A-010**, **SEC-005**, **A-013**, **A-016**, **A-017** e o
+**teste do 403** — este disparado pelo gatilho que você mesma deixou escrito no
+arquivo. Mais o achado dos **dois níveis de permissão na mesma tela**: a recusa do
+prontuário virou **parcial** em vez de esconder o cadastro que o secretário pode
+ver. Navegador em **18 passados**.
 
 <!-- FILA:regras-novas -->
 ## 📋 Regras que chegaram em 16/08 e ainda não viraram código
