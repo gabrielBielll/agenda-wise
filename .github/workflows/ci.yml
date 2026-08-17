@@ -86,11 +86,34 @@ jobs:
           distribution: temurin
           java-version: '21'
 
+      # Cache antes do download: em 17/08 o `raw.githubusercontent.com` devolveu
+      # **429** e derrubou o job `navegador` sem que ninguém tivesse mexido em
+      # código. Vermelho por flake externo é pior do que parece — é assim que uma
+      # equipe aprende a ignorar vermelho.
+      - name: Cache do Leiningen
+        id: cache-lein
+        uses: actions/cache@v4
+        with:
+          path: ~/lein
+          key: lein-2.11.2
+
       - name: Instalar Leiningen
         # Versão pinada na URL, não `stable`: `stable` é alvo móvel e faria o CI
         # mudar de comportamento sem ninguém ter mexido no repositório.
+        #
+        # ⚠️ O `|| :` no fim de cada tentativa é de propósito — com `set -e` do
+        # shell do Actions, um curl que falha abortaria o passo antes da segunda
+        # tentativa, e o laço não serviria para nada.
         run: |
-          curl -fsSL https://raw.githubusercontent.com/technomancy/leiningen/2.11.2/bin/lein -o "$HOME/lein"
+          if [ ! -x "$HOME/lein" ]; then
+            for tentativa in 1 2 3 4; do
+              curl -fsSL https://raw.githubusercontent.com/technomancy/leiningen/2.11.2/bin/lein \
+                -o "$HOME/lein" && break || :
+              echo "tentativa $tentativa falhou — nova em $((tentativa * 5))s"
+              sleep $((tentativa * 5))
+            done
+          fi
+          test -s "$HOME/lein" || { echo "não consegui baixar o lein em 4 tentativas"; exit 1; }
           chmod +x "$HOME/lein"
           echo "$HOME" >> "$GITHUB_PATH"
           "$HOME/lein" version
@@ -243,9 +266,25 @@ jobs:
           distribution: temurin
           java-version: '21'
 
+      # Mesmo cache e mesma retentativa do job `backend` — ver o comentário lá.
+      # Foi ESTE job que caiu com 429 em 17/08.
+      - name: Cache do Leiningen
+        uses: actions/cache@v4
+        with:
+          path: ~/lein
+          key: lein-2.11.2
+
       - name: Instalar Leiningen
         run: |
-          curl -fsSL https://raw.githubusercontent.com/technomancy/leiningen/2.11.2/bin/lein -o "$HOME/lein"
+          if [ ! -x "$HOME/lein" ]; then
+            for tentativa in 1 2 3 4; do
+              curl -fsSL https://raw.githubusercontent.com/technomancy/leiningen/2.11.2/bin/lein \
+                -o "$HOME/lein" && break || :
+              echo "tentativa $tentativa falhou — nova em $((tentativa * 5))s"
+              sleep $((tentativa * 5))
+            done
+          fi
+          test -s "$HOME/lein" || { echo "não consegui baixar o lein em 4 tentativas"; exit 1; }
           chmod +x "$HOME/lein"
           echo "$HOME" >> "$GITHUB_PATH"
 
