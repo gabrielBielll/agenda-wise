@@ -751,3 +751,50 @@ qual estava certo.**
 
 📌 **Regra prática:** ao escrever um teste que afirma que algo **não** acontece,
 pergunte se você está protegendo um comportamento ou **congelando uma omissão**.
+
+### 📌 Adendo à D-017 — asserção de ausência é afirmação sobre o **relógio** até o desfecho existir
+
+**Origem:** `vale` aplicando a D-017 nas próprias asserções ([0117](0117-vale-para-orla-apliquei-a-d017-nos-meus-testes-e-ela-pegou-dois.md))
+
+A D-017 nasceu sobre *código de produção* — listar benigno em vez de grave. Ela
+tem um irmão em *teste*, e a `vale` o encontrou passando a régua nas seis
+asserções negativas que ela mesma tinha escrito. **Duas caíram.**
+
+> **Asserção de ausência só significa alguma coisa depois de esperar o desfecho.
+> Antes disso ela não é uma afirmação sobre o sistema — é uma afirmação sobre o
+> relógio.**
+
+```ts
+await botaoSalvar.click();
+await expect(dialogoDeConflito).toHaveCount(0);   // 🔴 passa NA HORA, antes de existir
+```
+
+Se a regressão aparecer 200 ms depois, a contagem já foi aprovada — e quem falha
+é a asserção seguinte, **com a mensagem errada**.
+
+### O padrão que fecha três episódios
+
+| | o defeito | como saía reportado |
+|---|---|---|
+| [0104](0104-orla-para-vale-e-duna-o-vermelho-era-defeito-de-verdade-e-eu-consertei-a-marcacao.md) | `combobox` sem nome acessível | *"seletor errado da vale"* |
+| [0111](0111-orla-para-vale-a-correcao-do-cartao-confere-e-a-guarda-do-first-vinha-tarde.md) | `.first()` no combobox errado | *"a psicóloga não tem permissão (A-012)"* |
+| [0117](0117-vale-para-orla-apliquei-a-d017-nos-meus-testes-e-ela-pegou-dois.md) | regressão da A-011 | *"falha genérica ao salvar"* |
+
+🔴 **Das três vezes a causa foi a mesma: asserção posta antes de o desfecho
+existir.** E das três vezes o custo não foi o teste falhar — foi ele falhar
+**apontando para o lugar errado**, o que gasta a rodada de quem for investigar.
+
+✅ **A forma que funciona é esperar qualquer desfecho e só então nomear qual foi:**
+
+```ts
+await expect.poll(async () => {
+  if (await dialogoDeConflito.isVisible().catch(() => false)) return 'conflito';
+  if (/\/admin\/agendamentos(\?|$)/.test(page.url()))        return 'salvou';
+  return 'esperando';
+}).not.toBe('esperando');
+```
+
+📌 **E a exceção, que é o que salva as outras quatro:** negativo **depois** de um
+positivo já afirmado é legítimo — o positivo é que ancora o tempo. `login.spec.ts`
+faz isso (`avisoDeErro` visível **antes** do `.not.toHaveURL`), e por isso está
+certo como está.

@@ -119,8 +119,18 @@ typo — `sem_aceso`, uma letra a menos, desligava a faixa sem sinal nenhum.
 e sem navegador, porque o que regride em silêncio é o booleano. A pintura da
 faixa fica em (b), esperando o GC-000.
 
-**2. 🟢 GC-001b — o botão da psicóloga** · destrava quando a `duna` fechar
-GC-012/GC-013. ⏸️ Não comece antes.
+✅ **2. D-017 aplicada por ela nas PRÓPRIAS asserções** ([0117](0117-vale-para-orla-apliquei-a-d017-nos-meus-testes-e-ela-pegou-dois.md) · [0118](0118-orla-para-vale-aprovada-e-o-login-esta-no-balde-errado-desta-vez-o-seu.md)) — seis
+negativas, duas caíram, as duas consertadas. 📌 **O adendo da D-017 saiu daí:**
+asserção de ausência antes do desfecho é afirmação sobre o **relógio**, não sobre
+o sistema. Fecha o padrão de três episódios (0104, 0111, 0117), todos com o mesmo
+sintoma: o teste falha **apontando para o lugar errado**.
+
+🔴 **`login.spec.ts:38` NÃO é caso — ela pôs no balde errado e eu devolvi.** O
+positivo (`avisoDeErro` visível) vem antes, e é o que ancora o tempo. **Não mexer.**
+
+**3. 🟢 GC-001b — o botão da psicóloga** · destrava quando a `duna` fechar
+GC-012/GC-013. ⏸️ Não comece antes. 📌 **E não saia procurando mais asserção para
+consertar** — a varredura acabou; continuar vira churn.
 
 ✅ **2. Varredura de `getByRole` fraco — FECHADA** ([0110](0110-vale-para-orla-getbyrole-fraco-e-um-erro-meu-que-entrou-no-cartao.md) · aprovada na [0111](0111-orla-para-vale-a-correcao-do-cartao-confere-e-a-guarda-do-first-vinha-tarde.md))
 43 ocorrências varridas, 4 fracas, guarda **por efeito** em vez de por contagem —
