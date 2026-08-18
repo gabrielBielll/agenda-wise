@@ -61,7 +61,53 @@
   (testing "convite_pendente é espera normal"
     (is (not (handlers/precisa-atencao? ativa [{:status "convite_pendente"}]))))
 
-  (testing "status desconhecido não grita sozinho"
-    ;; Se um status novo tiver que gritar, ele entra na regra E ganha teste aqui.
-    ;; Gritar por padrão faria todo status novo virar alarme até alguém reclamar.
-    (is (not (handlers/precisa-atencao? ativa [{:status "status_que_nao_existe"}])))))
+  (testing "status conhecido e inofensivo continua mudo"
+    (is (not (handlers/precisa-atencao? ativa [{:status "pendente"}])))))
+
+(deftest status-que-ninguem-previu-grita
+  ;; 🔴 VERMELHO DELIBERADO — e ele contradiz uma decisão da `orla`, de propósito.
+  ;;
+  ;; A versão anterior deste arquivo afirmava o contrário:
+  ;;
+  ;;     (testing "status desconhecido não grita sozinho"
+  ;;       ;; Gritar por padrão faria todo status novo virar alarme
+  ;;       (is (not (handlers/precisa-atencao? ativa [{:status "status_que_nao_existe"}]))))
+  ;;
+  ;; O argumento é real — fadiga de alarme existe. Mas ele não cobre o que
+  ;; acabou de acontecer **neste mesmo commit**: a 0114 corrigiu um defeito que
+  ;; era, exatamente, um status grave fora da lista de graves. Aquele teste
+  ;; transformava esse modo de falha em comportamento **esperado**: o próximo
+  ;; `orfao` some igual, e agora com um teste verde dizendo que está certo.
+  ;;
+  ;; ## As duas metades da mesma função discordavam
+  ;;
+  ;;   conexão -> (not= "ativa" status)          fail-CLOSED: novo status grita
+  ;;   agendas -> (contains? #{graves} status)   fail-OPEN:   novo status silencia
+  ;;
+  ;; Mesma função, mesmo propósito, defaults opostos. Qualquer que seja o certo,
+  ;; os dois lados têm que ser o mesmo.
+  ;;
+  ;; ## Por que fail-closed, e não é preferência
+  ;;
+  ;; As duas falhas não custam a mesma coisa:
+  ;;
+  ;;   alarme à toa  -> alguém vê, reclama, e o conserto é UMA entrada no
+  ;;                    conjunto de benignos. Custa um dia e é barulhento.
+  ;;   silêncio      -> ninguém vê. Descobre-se quando uma clínica perceber que
+  ;;                    faz semanas que não chega sessão.
+  ;;
+  ;; É a mesma assimetria da A-013, e é a mesma escolha que a V-1 fez no
+  ;; `middleware.ts` — deny-by-default. O preço daquela decisão foi a A-017, que
+  ;; trancou o secretário fora de tudo: **descoberta em um dia, porque era alta**.
+  ;;
+  ;; ⚠️ E o vocabulário é FECHADO — a migration `20260811100200-google-integracao`
+  ;; lista os seis. Quem inventa um sétimo está editando a migration; obrigá-lo a
+  ;; declarar se ele é benigno é uma linha, e o esquecimento passa a ser alto em
+  ;; vez de mudo.
+  (testing "um status grave que ninguém previu não pode passar em silêncio"
+    (is (handlers/precisa-atencao? ativa [{:status "ativo"} {:status "revogado_pelo_google"}])
+        "status fora do vocabulário conhecido ficou mudo — é o mesmo buraco que engoliu o `orfao`"))
+
+  (testing "e um erro de digitação no status também grita, em vez de sumir"
+    (is (handlers/precisa-atencao? ativa [{:status "sem_aceso"}])
+        "um typo em `sem_acesso` desligava a faixa sem nenhum sinal")))
