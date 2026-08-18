@@ -117,3 +117,25 @@
   (testing "uuid válido continua convertendo"
     (let [u "3f2504e0-4f89-11d3-9a0c-0305e82c3301"]
       (is (= (java.util.UUID/fromString u) (dominio/uuid-de-formulario u))))))
+
+(deftest texto-de-formulario-nao-colide-no-unique
+  ;; 🔴 O vermelho deste estava no CI de 18/08 (run 32159417543), e só ficou
+  ;; legível depois que eu mandei o backend IMPRIMIR o próprio log:
+  ;;
+  ;;   ERROR: duplicate key value violates unique constraint "unique_email_clinica"
+  ;;   DETAIL: Key (email, clinica_id)=(, b437db70-…) already exists.
+  ;;
+  ;; O e-mail chegou como string vazia. Em SQL dois NULL não colidem; dois ""
+  ;; colidem. Efeito: a clínica só conseguia cadastrar UM paciente sem e-mail —
+  ;; e o segundo levava 500 com a tela dizendo "erro de conexão".
+  (testing "campo opcional em branco vira nil, e nil não colide no UNIQUE"
+    (is (nil? (dominio/texto-de-formulario "")))
+    (is (nil? (dominio/texto-de-formulario "   ")))
+    (is (nil? (dominio/texto-de-formulario nil))))
+
+  ;; ⚠️ A guarda do outro lado: e-mail de verdade tem que continuar chegando
+  ;; inteiro. Um "conserto" que normalizasse ou aparasse conteúdo apagaria dado
+  ;; de paciente em silêncio.
+  (testing "texto preenchido passa intacto"
+    (is (= "ana@clinica.com" (dominio/texto-de-formulario "ana@clinica.com")))
+    (is (= " com espaço dentro " (dominio/texto-de-formulario " com espaço dentro ")))))

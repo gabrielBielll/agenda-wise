@@ -462,7 +462,9 @@
       (let [novo-paciente (sql/insert! @datasource :pacientes
                                        {:clinica_id      clinica-id
                                         :nome            nome
-                                        :email           email
+                                        ;; 🔴 `""` colide no UNIQUE (email, clinica_id); `NULL` não.
+                                        ;; Sem isto a clínica só cadastrava UM paciente sem e-mail.
+                                        :email           (dominio/texto-de-formulario email)
                                         :telefone        telefone
                                         :data_nascimento (dominio/data-de-formulario data_nascimento)
                                         :endereco        endereco
@@ -531,7 +533,7 @@
         :else
         (let [update-map (cond-> {}
                            (some? nome) (assoc :nome nome)
-                           (some? email) (assoc :email email)
+                           (some? email) (assoc :email (dominio/texto-de-formulario email))
                            (some? telefone) (assoc :telefone telefone)
                            (some? data_nascimento) (assoc :data_nascimento (dominio/data-de-formulario data_nascimento))
                            (some? endereco) (assoc :endereco endereco)

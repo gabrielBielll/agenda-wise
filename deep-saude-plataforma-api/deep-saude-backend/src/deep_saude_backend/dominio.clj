@@ -100,3 +100,28 @@
   [s]
   (when-not (str/blank? s)
     (java.util.UUID/fromString s)))
+
+(defn texto-de-formulario
+  "Campo de texto opcional vindo de formulário: branco vira `nil`.
+
+   🔴 A terceira irmã, e a que mais custou. Um `<input>` opcional não preenchido
+   chega como `\"\"`, e `\"\"` **não é ausência para o banco**:
+
+     CONSTRAINT unique_email_clinica UNIQUE (email, clinica_id)
+
+   Em SQL, dois `NULL` não colidem — dois `\"\"` colidem. Efeito medido no CI de
+   18/08 (run 32159417543), na mensagem que só apareceu depois que eu mandei o
+   backend imprimir o próprio log:
+
+     ERROR: duplicate key value violates unique constraint \"unique_email_clinica\"
+     DETAIL: Key (email, clinica_id)=(, b437db70-…) already exists.
+
+   ⚠️ **Ou seja: a clínica só conseguia cadastrar UM paciente sem e-mail.** O
+   segundo era recusado por 500, e a tela dizia \"erro de conexão\". Paciente sem
+   e-mail é o caso comum, não a exceção.
+
+   📌 Este é o mesmo defeito da `data-de-formulario` e da `uuid-de-formulario`, e
+   eu declarei a categoria fechada duas vezes antes de chegar nele. A categoria
+   nunca foi \"o parser\": é **string vazia de formulário chegando ao banco**."
+  [s]
+  (when-not (str/blank? s) s))
