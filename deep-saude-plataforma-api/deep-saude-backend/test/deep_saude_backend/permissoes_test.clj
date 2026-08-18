@@ -60,3 +60,37 @@
     (is (= "pendente" (:status_pagamento
                         (db/execute-one! ["SELECT status_pagamento FROM agendamentos WHERE id = ?"
                                           agendamento]))))))
+
+(deftest gc012-conexao-google-e-permissao-sao-por-psicologa
+  (testing "a permissão estreita pertence à psicóloga, sem entregar a gestão da clínica"
+    (let [permissoes (set (map :nome_permissao
+                               (db/execute-query!
+                                ["SELECT per.nome_permissao
+                                    FROM papel_permissoes pp
+                                    JOIN papeis p ON p.id = pp.papel_id
+                                    JOIN permissoes per ON per.id = pp.permissao_id
+                                   WHERE p.nome_papel = 'psicologo'"])))]
+      (is (contains? permissoes "conectar_agenda_propria"))
+      (is (not (contains? permissoes "gerenciar_integracao_google")))))
+
+  (testing "duas psicólogas da mesma clínica têm conexões independentes"
+    (let [outra #uuid "cccccccc-0000-0000-0000-000000000006"]
+      (db/execute-one! ["INSERT INTO usuarios (id, clinica_id, papel_id, nome, email, senha_hash)
+                         VALUES (?, ?, ?, 'Psi 2', 'psi2-permissoes@teste.local', 'x')"
+                        outra clinica (papel "psicologo")])
+      (doseq [usuario [psicologo outra]]
+        (db/execute-one!
+         ["INSERT INTO google_conexao
+             (clinica_id, usuario_id, google_account_email, refresh_token_cifrado, escopos)
+           VALUES (?, ?, ?, 'cifrado', 'calendar')"
+          clinica usuario (str usuario "@google.local")]))
+      (is (= 2 (:total (db/execute-one!
+                        ["SELECT count(*) AS total FROM google_conexao WHERE clinica_id = ?"
+                         clinica]))))
+      (is (thrown? Exception
+                   (db/execute-one!
+                    ["INSERT INTO google_conexao
+                        (clinica_id, usuario_id, google_account_email, refresh_token_cifrado, escopos)
+                      VALUES (?, ?, 'duplicada@google.local', 'cifrado', 'calendar')"
+                     clinica psicologo]))
+          "a mesma pessoa não pode ganhar duas conexões"))))

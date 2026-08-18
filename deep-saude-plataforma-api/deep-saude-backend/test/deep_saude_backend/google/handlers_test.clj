@@ -18,9 +18,41 @@
    handler que consultava banco, e foi exatamente isso que a deixou sem teste
    por todo esse tempo."
   (:require [clojure.test :refer [deftest is testing]]
+            [deep-saude-backend.db :as db]
             [deep-saude-backend.google.handlers :as handlers]))
 
 (def ativa {:status "ativa"})
+
+(deftest status-da-psicologa-usa-apenas-a-identidade-e-a-regra-compartilhada
+  (let [clinica #uuid "dddddddd-0000-0000-0000-000000000001"
+        usuario #uuid "dddddddd-0000-0000-0000-000000000002"
+        conexao {:status "ativa" :google_account_email "psi@google.local"}
+        consultas (atom [])]
+    (with-redefs [handlers/conexao-do-usuario
+                  (fn [clinica-id usuario-id]
+                    (is (= clinica clinica-id))
+                    (is (= usuario usuario-id))
+                    conexao)
+                  db/execute-query!
+                  (fn [query]
+                    (swap! consultas conj query)
+                    [{:status "orfao"}])
+                  handlers/precisa-atencao?
+                  (fn [recebida vinculos]
+                    (is (= conexao recebida))
+                    (is (= [{:status "orfao"}] vinculos))
+                    :regra-compartilhada)]
+      (let [resp (handlers/status-conexao-propria-handler
+                  {:identity {:clinica_id clinica :user_id usuario}})]
+        (is (= 200 (:status resp)))
+        (is (= {:conectada true
+                :status_conexao "ativa"
+                :conta "psi@google.local"
+                :agendas [{:status "orfao"}]
+                :precisa_atencao :regra-compartilhada}
+               (:body resp)))
+        (is (= usuario (last (first @consultas)))
+            "a consulta termina no user_id do JWT, não em um alvo do corpo")))))
 
 (deftest conexao-quebrada-sempre-grita
   (testing "conexão inválida grita mesmo com todas as agendas saudáveis"
