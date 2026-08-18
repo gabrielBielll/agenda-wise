@@ -1,5 +1,34 @@
 "use server";
 
+/**
+ * 🔴 ARQUIVO MORTO — o fluxo de login antigo, anterior ao NextAuth.
+ *
+ * **Nada aqui é importado por lugar nenhum.** Medido em 18/08/2026, em `src/` e
+ * `e2e/`: `handleLogin` e `LoginFormState` têm zero referências.
+ *
+ * ⚠️ Cuidado ao conferir: existe um `handleLogin` em `app/page.tsx:76`, mas é um
+ * `const` **local** daquele arquivo, homônimo. Não é este.
+ *
+ * O login administrativo de verdade acontece em `admin/login/page.tsx:84`, com
+ * `signIn("credentials")` do NextAuth.
+ *
+ * ## Por que isto não é só entulho
+ *
+ * Este arquivo é o **único** lugar que escreve o cookie `sessionToken`. Como
+ * ninguém o chama, ninguém escreve o cookie — e o `deletePaciente` do painel do
+ * admin lia esse cookie e por isso **nunca funcionou**, devolvendo sempre
+ * *"Erro de autenticação"*. Corrigido em `admin/pacientes/actions.ts`; a
+ * investigação está na mensageria 0131/0132.
+ *
+ * 🔴 **Enquanto ele existir, existe um segundo caminho de autenticação no
+ * repositório** — que decide papel por `jwtDecode` no servidor e grava sessão
+ * própria. Dois jeitos de dizer quem você é é a família da SEC-005.
+ *
+ * 📌 **Recomendo apagar**, e não apaguei: a decisão é da `orla`, pelo mesmo
+ * motivo do `AppointmentForm.tsx` — não apago código de outra pessoa sem que ela
+ * diga, porque pode estar guardado de propósito.
+ */
+
 import { z } from "zod";
 import { cookies } from "next/headers";
 import { jwtDecode } from "jwt-decode";
