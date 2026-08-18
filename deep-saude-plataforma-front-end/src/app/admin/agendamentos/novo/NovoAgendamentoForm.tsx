@@ -158,13 +158,38 @@ export default function NovoAgendamentoForm({
    * Reenvia o MESMO formulário com `force`, em vez de montar o payload à mão.
    *
    * Remontar aqui duplicaria as regras de duração, recorrência e parede da
-   * clínica que o formulário já resolve — e as duas cópias divergiriam. O
-   * `setTimeout(0)` espera o React aplicar o estado no input escondido antes do
-   * submit; é o mesmo motivo do calendário.
+   * clínica que o formulário já resolve — e as duas cópias divergiriam. Por isso
+   * o payload sai de `new FormData(form)`: é o formulário inteiro, não uma cópia.
+   *
+   * 🔴 Antes isto era `setForceSubmission(true)` + `setTimeout(requestSubmit, 0)`,
+   * e **não reenviava nada**. Medido no CI de 18/08 (run 32098684477): um único
+   * POST por tentativa, e a tela parada em `/novo` até o teste estourar. Duas
+   * armadilhas no mesmo caminho, e bastava uma:
+   *
+   *   1. `requestSubmit()` roda a validação de restrição do HTML e **desiste em
+   *      silêncio** se algum campo obrigatório não agradar — sem erro, sem POST;
+   *   2. o diálogo do Radix ainda está **fechando** (animação de 200 ms) quando o
+   *      `setTimeout(0)` dispara, com o conteúdo de fora ainda neutralizado.
+   *
+   * Chamar o dispatch do `useFormState` direto tira as duas do caminho: não passa
+   * por evento de submit, não depende de o React ter aplicado o estado no input
+   * escondido, e `force` vai explícito no payload em vez de por efeito colateral.
+   *
+   * 📌 Não é invenção daqui: é o caminho que o `EditarAgendamentoForm` ao lado já
+   * usa e já documenta ("o reenvio guarda o `FormData` em vez de chamar
+   * `requestSubmit()`"). As duas telas do mesmo par agora reenviam do mesmo jeito.
    */
   const handleForceSubmit = () => {
+    const form = formRef.current;
+    if (!form) return;
+
+    const dados = new FormData(form);
+    dados.set("force", "true");
+
     setForceSubmission(true);
-    setTimeout(() => formRef.current?.requestSubmit(), 0);
+    React.startTransition(() => {
+      formAction(dados);
+    });
   };
 
   return (
