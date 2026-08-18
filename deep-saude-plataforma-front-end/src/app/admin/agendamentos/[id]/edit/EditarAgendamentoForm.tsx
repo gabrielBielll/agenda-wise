@@ -192,7 +192,9 @@ export default function EditarAgendamentoForm({
           <div className="space-y-2">
             <Label htmlFor="paciente_id">Paciente</Label>
             <Select name="paciente_id" defaultValue={agendamento.paciente_id} required>
-              <SelectTrigger>
+              {/* id liga ao <Label htmlFor="paciente_id">: o SelectTrigger é um
+                  combobox, e combobox não tira nome do conteúdo. */}
+              <SelectTrigger id="paciente_id">
                 <SelectValue placeholder="Selecione um paciente" />
               </SelectTrigger>
               <SelectContent>
@@ -207,7 +209,8 @@ export default function EditarAgendamentoForm({
           <div className="space-y-2">
             <Label htmlFor="psicologo_id">Psicólogo</Label>
             <Select name="psicologo_id" defaultValue={agendamento.psicologo_id} required>
-              <SelectTrigger>
+              {/* Mesmo motivo do paciente_id acima. */}
+              <SelectTrigger id="psicologo_id">
                 <SelectValue placeholder="Selecione um psicólogo" />
               </SelectTrigger>
               <SelectContent>

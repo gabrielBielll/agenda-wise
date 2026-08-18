@@ -596,6 +596,7 @@ export default function AgendamentosClient({
                         <Button variant="ghost" size="icon" asChild>
                           <Link href={`/admin/agendamentos/${ag.id}/edit`}>
                             <Pencil className="h-4 w-4" />
+                            <span className="sr-only">Editar</span>
                           </Link>
                         </Button>
                         <Button 
@@ -605,6 +606,7 @@ export default function AgendamentosClient({
                             onClick={() => handleDeleteAgendamento(ag.id, ag.recorrencia_id)}
                         >
                             <Trash2 className="h-4 w-4" />
+                            <span className="sr-only">Excluir</span>
                         </Button>
                       </div>
                     </TableCell>

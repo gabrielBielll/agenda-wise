@@ -176,7 +176,12 @@ export default function NovoAgendamentoForm({
             <Label htmlFor="paciente_id">Paciente</Label>
             <Popover open={openPaciente} onOpenChange={setOpenPaciente}>
               <PopoverTrigger asChild>
+                {/* O id liga este botão ao <Label htmlFor="paciente_id"> acima.
+                    Sem ele o controle fica SEM nome acessível: `combobox` não
+                    tira nome do próprio conteúdo (ao contrário de `button`), e o
+                    input de baixo tem name mas não id. Não remova. */}
                 <Button
+                  id="paciente_id"
                   variant="outline"
                   role="combobox"
                   type="button"
@@ -244,7 +249,9 @@ export default function NovoAgendamentoForm({
             <Label htmlFor="psicologo_id">Psicólogo</Label>
              <Popover open={openPsicologo} onOpenChange={setOpenPsicologo}>
               <PopoverTrigger asChild>
+                {/* Mesmo motivo do paciente_id acima. */}
                 <Button
+                  id="psicologo_id"
                   variant="outline"
                   role="combobox"
                   type="button"
