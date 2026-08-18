@@ -377,18 +377,18 @@ export default function AgendamentosClient({
 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="flex flex-col gap-2">
-                        <Label>Início</Label>
-                        <Input type="datetime-local" value={blockStart} onChange={e => setBlockStart(e.target.value)} />
+                        <Label htmlFor="block_inicio">Início</Label>
+                        <Input id="block_inicio" type="datetime-local" value={blockStart} onChange={e => setBlockStart(e.target.value)} />
                     </div>
                     <div className="flex flex-col gap-2">
-                        <Label>Fim</Label>
-                        <Input type="datetime-local" value={blockEnd} onChange={e => setBlockEnd(e.target.value)} />
+                        <Label htmlFor="block_fim">Fim</Label>
+                        <Input id="block_fim" type="datetime-local" value={blockEnd} onChange={e => setBlockEnd(e.target.value)} />
                     </div>
                   </div>
 
                   <div className="flex flex-col gap-2">
-                    <Label>Motivo</Label>
-                    <Input placeholder="Ex: Férias, Reunião..." value={blockMotivo} onChange={e => setBlockMotivo(e.target.value)} />
+                    <Label htmlFor="block_motivo">Motivo</Label>
+                    <Input id="block_motivo" placeholder="Ex: Férias, Reunião..." value={blockMotivo} onChange={e => setBlockMotivo(e.target.value)} />
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
@@ -411,8 +411,8 @@ export default function AgendamentosClient({
                     </div>
                      {blockRecurrenceType !== 'none' && (
                         <div className="flex flex-col gap-2">
-                             <Label>Qtd. Vezes</Label>
-                             <Input 
+                             <Label htmlFor="block_recurrence_count">Qtd. Vezes</Label>
+                             <Input id="block_recurrence_count" 
                                 type="number" 
                                 min="2" max="52" 
                                 value={blockRecurrenceCount} 

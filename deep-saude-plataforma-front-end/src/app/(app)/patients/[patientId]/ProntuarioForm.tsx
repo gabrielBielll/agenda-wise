@@ -161,9 +161,9 @@ export default function ProntuarioForm({
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                      <div className="space-y-2">
                         {/* Agendamento Select */}
-                        <Label>Vincular a Sessão (Opcional)</Label>
+                        <Label htmlFor="agendamento_id">Vincular a Sessão (Opcional)</Label>
                         <Select name="agendamento_id" defaultValue={initialData?.agendamento_id || "none"}>
-                            <SelectTrigger>
+                            <SelectTrigger id="agendamento_id">
                                 <SelectValue placeholder="Selecione uma sessão agendada" />
                             </SelectTrigger>
                             <SelectContent>
@@ -178,9 +178,9 @@ export default function ProntuarioForm({
                     </div>
 
                     <div className="space-y-2">
-                        <Label>Humor / Estado de Ânimo</Label>
+                        <Label htmlFor="humor">Humor / Estado de Ânimo</Label>
                         <Select value={humor} onValueChange={setHumor}>
-                            <SelectTrigger>
+                            <SelectTrigger id="humor">
                                 <SelectValue placeholder="Como o paciente está se sentindo?" />
                             </SelectTrigger>
                             <SelectContent>
