@@ -142,6 +142,20 @@
               (sql/insert! @datasource :google_conexao dados))
             {:status 200 :body {:message "Google Agenda conectado."}}))))))
 
+(defn precisa-atencao?
+  "A integração parou de funcionar de um jeito que a tela precisa GRITAR?
+
+   🔴 Vive fora do handler porque é **a regra que decide se o admin descobre ou
+   não** que a sincronização morreu. Dentro do handler ela dependia de banco e
+   por isso nunca teve teste.
+
+   ⚠️ Extraída sem mudança de comportamento, de propósito: o teste que vem junto
+   nasce VERMELHO no caso `orfao` (D-008). O conserto é o commit seguinte."
+  [conexao vinculos]
+  (boolean
+   (or (and conexao (not= "ativa" (:status conexao)))
+       (some #(= "sem_acesso" (:status %)) vinculos))))
+
 (defn status-handler
   "Estado da integração para o painel do admin."
   [request]
@@ -155,11 +169,8 @@
             :conta (:google_account_email conexao)
             :ultimo_erro (:ultimo_erro conexao)
             :agendas (into {} (map (juxt :status :total)) vincs)
-            ;; O painel precisa gritar nestes dois casos: conexão inválida para
-            ;; toda a clínica, e agenda descompartilhada sem ninguém saber.
-            :precisa_atencao (boolean
-                              (or (and conexao (not= "ativa" (:status conexao)))
-                                  (some #(= "sem_acesso" (:status %)) vincs)))}}))
+            ;; A regra mora em `precisa-atencao?`, acima — o handler só a aplica.
+            :precisa_atencao (precisa-atencao? conexao vincs)}}))
 
 (defn desconectar-handler
   "Desconecta de verdade: revoga no Google antes de apagar localmente.
