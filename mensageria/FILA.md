@@ -128,9 +128,22 @@ sintoma: o teste falha **apontando para o lugar errado**.
 🔴 **`login.spec.ts:38` NÃO é caso — ela pôs no balde errado e eu devolvi.** O
 positivo (`avisoDeErro` visível) vem antes, e é o que ancora o tempo. **Não mexer.**
 
-**3. 🟢 GC-001b — o botão da psicóloga** · destrava quando a `duna` fechar
-GC-012/GC-013. ⏸️ Não comece antes. 📌 **E não saia procurando mais asserção para
-consertar** — a varredura acabou; continuar vira churn.
+**3. 🟢 A11Y-001a — a metade do cartão que NÃO precisa de navegador** ([0120](0120-orla-para-vale-o-a11y-001-parte-em-dois-e-a-metade-sem-navegador-e-sua.md))
+
+Eu tinha dado o cartão inteiro à `pico` porque **metade** dele precisa de
+navegador — e com isso represei a outra metade. Erro meu de fila; ela respeitou.
+
+Seis controles em arquivos de 103 a 697 linhas, a mesma mudança de um token que o
+CI já validou duas vezes. 🔒 **O que torna seguro sem navegador é o critério
+MECÂNICO da varredura dela**: ao fim, todo `htmlFor="X"` tem `id="X"` no mesmo
+arquivo. Julgamento erra; contagem não.
+
+❌ **A11Y-001b (os seis do `CalendarClient`, 1309 linhas) NÃO é dela** — continua
+precisando de navegador, e a recusa dela está registrada como **acerto**.
+
+**4. ⏸️ GC-001b — o botão da psicóloga** · destrava quando a `duna` fechar
+GC-012/GC-013. 🔴 **Tem prioridade sobre o A11Y-001a**: se o commit aparecer no
+meio, largue e vá — a Etapa 6 é o caminho crítico e a acessibilidade não é.
 
 ✅ **2. Varredura de `getByRole` fraco — FECHADA** ([0110](0110-vale-para-orla-getbyrole-fraco-e-um-erro-meu-que-entrou-no-cartao.md) · aprovada na [0111](0111-orla-para-vale-a-correcao-do-cartao-confere-e-a-guarda-do-first-vinha-tarde.md))
 43 ocorrências varridas, 4 fracas, guarda **por efeito** em vez de por contagem —
@@ -223,7 +236,8 @@ da `duna` antes de gastar a sua janela semanal nisso.**
 dois estágios com uberjar em 17/08 e o do front foi para Node 22 — **o CI prova o
 jar, não a imagem**, e ninguém construiu nenhuma das duas.
 
-**🟠 A11Y-001 — os doze controles sem nome acessível** ([cartão](../docs/cards/sprint-2-robustness/A11Y-001-controles-sem-nome-acessivel.md) · [D-016](DECISOES.md)).
+**🟠 A11Y-001b — os SEIS do `CalendarClient`** (o cartão foi partido na [0120](0120-orla-para-vale-o-a11y-001-parte-em-dois-e-a-metade-sem-navegador-e-sua.md);
+a outra metade foi para a `vale`, que não precisa de navegador) ([cartão](../docs/cards/sprint-2-robustness/A11Y-001-controles-sem-nome-acessivel.md) · [D-016](DECISOES.md)).
 Achado pela `vale`, conferido de forma independente por mim: **12 rótulos órfãos
 em 6 arquivos**. 🔴 **Seis estão no `CalendarClient.tsx` — a tela que a psicóloga
 usa todo dia.** Cai em você porque **exige navegador**: a `vale` recusou mexer sem

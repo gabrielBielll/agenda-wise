@@ -5,7 +5,7 @@
 **Esforço:** M (meio dia) — **mas exige navegador**
 **Área:** Front
 **Status:** TODO
-**Dono sugerido:** `pico` (é quem roda Playwright) · achado por `vale` na [0106](../../../mensageria/0106-vale-para-orla-o-conserto-esta-certo-e-incompleto-nos-proprios-arquivos.md)
+**Dono sugerido:** ⚠️ **PARTIDO EM DOIS, 18/08** — ver "A divisão" abaixo · achado por `vale` na [0106](../../../mensageria/0106-vale-para-orla-o-conserto-esta-certo-e-incompleto-nos-proprios-arquivos.md)
 
 ## Contexto
 
@@ -90,6 +90,38 @@ num `<button>` **piora** a acessibilidade em vez de melhorar, se não vier com
 todos os dias.** O módulo do admin, já corrigido em `0d60c77`/`08e1824`, é o que a
 gestão abre de vez em quando. **O defeito mais frequente ficou no lugar de maior
 uso**, porque foi o de menor uso que tinha teste.
+
+## A divisão — 6 e 6, e o corte é a capacidade de medir
+
+O cartão ficou parado esperando quem tem navegador. **Metade dele não precisa de
+navegador**, e essa metade estava sendo represada pela outra.
+
+### 🟢 A11Y-001a — os seis fora do `CalendarClient` · `vale`, sem navegador
+
+| arquivo | linhas | controles |
+|---|---|---|
+| `admin/pacientes/[id]/edit/EditPacienteForm.tsx` | 159 | `psicologo_id`, `status` |
+| `admin/pacientes/novo/NovoPacienteForm.tsx` | 103 | `psicologo_id` |
+| `(app)/patients/[patientId]/edit/EditForm.tsx` | 112 | `status` |
+| `(app)/calendar/AppointmentForm.tsx` | 147 | `paciente` |
+| `admin/agendamentos/AgendamentosClient.tsx` | 697 | `block-psico` |
+
+📌 **É a mesma mudança de um token que o CI já validou duas vezes hoje**
+(`0d60c77` e `08e1824`): `id` no `SelectTrigger`/`Button` casando o
+`<Label htmlFor>`.
+
+🔴 **E o risco de "fazer por leitura" — que foi o que me fez deixar dois de fora —
+está coberto por um critério MECÂNICO**, não por julgamento: ao terminar, todo
+`htmlFor="X"` em `src/` tem que ter um `id="X"` no mesmo arquivo. Foi a varredura
+da `vale` que estabeleceu isso, e é o que torna esta metade segura sem navegador.
+
+### 🔴 A11Y-001b — os seis do `CalendarClient` · precisa de navegador
+
+`CalendarClient.tsx` tem **1309 linhas** e concentra `paciente`,
+`recorrencia_tipo`, `quantidade_recorrencia`, `block_recurrence_type`,
+`block_recurrence_count` e `motivo`. ⚠️ **É a tela que a psicóloga usa todos os
+dias** — a de maior uso e a de maior risco de mexer às cegas. Fica com quem puder
+medir o resultado.
 
 ## Solução proposta
 
