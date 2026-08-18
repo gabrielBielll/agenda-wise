@@ -43,6 +43,15 @@ das linhas existentes**: pela D-013 descartar é legítimo, ficar ambíguo não 
 
 ⏸️ **GC-013 NÃO entra neste commit** — chamada de rede é trabalho próprio.
 
+🔴 **Mais as três respostas de forma da API ([0128](0128-orla-para-duna-e-vale-as-tres-respostas-de-forma-da-api-do-gc-012.md)), perguntadas pela `vale` antes de
+você começar:**
+
+| | decisão |
+|---|---|
+| **rota** | **separada** (`/api/google/minha-conexao`), não afrouxar a existente — com rota compartilhada o guarda teria que aceitar as duas permissões, e a separação passaria a depender de um `if` no handler |
+| **status** | a psicóloga tem o **dela**, e o `precisa_atencao` sai da **MESMA** `precisa-atencao?` — 🔴 **não escreva uma segunda regra**, é o defeito de hoje com o dobro de superfície |
+| **permissão** | **`conectar_agenda_propria`** — `gerenciar_integracao_google` continua exclusiva do admin |
+
 **2. 🟠 A-004 — a comissão** · **não perde a vez**, volta logo depois · destravada pela **[R-023](../docs/REGRAS_DE_NEGOCIO.md)**
 
 ✅ **A R-023 fechou e o schema está CERTO** — eu tinha dito que a modalidade 2
