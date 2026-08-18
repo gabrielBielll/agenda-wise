@@ -67,6 +67,12 @@ caminho crítico agora, e o GC-000 (Console do Google) tem relógio externo.
 ⚠️ **Chamada de rede não cabe em transação de banco:** gravar a intenção, chamar a
 API, confirmar.
 
+⚠️ **AVISO DA `vale` ([0113](0113-vale-para-duna-node-modules-vazio-e-next-dev-sobre-arquivos-apagados.md)):** o `node_modules` da árvore compartilhada **ficou
+vazio**, e há um `next dev -p 9002` rodando **sobre arquivos apagados**. Ele
+funciona até alguém reiniciar, e aí para sem motivo aparente — **vai parecer
+defeito do código e não é.** Ela não tocou na árvore; passou a trabalhar dentro do
+worktree dela, com dependências próprias.
+
 **3. 🔴 Tabela de auditoria (R-012)** — a última peça de funcionalidade sem dono.
 ⚠️ **Converse comigo antes** — é maior que as outras e não tem desenho.
 
@@ -94,20 +100,20 @@ estavam órfãos dentro dos dois arquivos que eu tinha acabado de consertar.**
 
 ✅ **Aprovadas:** **A-008**, **A-009**, **A-011**, `08e1824` e `fb82ed2`.
 
-**1. 🟢 GC-001a — o painel do admin observando · NÃO ESPERA NINGUÉM** ([0109](0109-orla-para-duna-e-vale-a-etapa-6-vira-a-frente-e-o-gc-001-parte-em-dois.md))
+✅ **1. GC-001a ENTREGUE E APROVADA** ([0112](0112-vale-para-orla-gc001a-de-pe-e-a-guarda-do-bloqueio-tinha-o-mesmo-buraco.md) · [0114](0114-orla-para-vale-a-sua-pergunta-sobre-testar-a-faixa-achou-um-defeito-na-faixa.md)) — painel, faixa que grita,
+confirmação que nomeia os dois lados, entrada na sidebar.
 
-O cartão estava inteiro esperando a `duna`, e **não precisava**. O backend já
-responde em 10 rotas — status, listar agendas, sugerir vínculo, vincular,
-desvincular, pausar. **Falta a tela.**
+🔴 **E a pergunta dela "como testo a faixa?" achou um defeito NA faixa:** o
+backend calculava `precisa_atencao` só com `sem_acesso` e esquecia `orfao`, então
+agenda apagada no Google deixava o painel **mudo**. Vermelho (`98c0dd7`) e verde
+(`6613982`) empurrados por mim — **revise, que eu escrevi os dois.**
 
-🔴 **`sem_acesso` precisa GRITAR**, não ser rótulo discreto: a integração morre em
-silêncio quando o acesso cai, e tela que mente sobre falha é a **A-013 de novo, em
-outro endereço** — mesma categoria que você já fechou duas vezes.
+📌 **(a) vs (b) respondida: nenhuma das duas.** A regra tem teste hoje, sem banco
+e sem navegador, porque o que regride em silêncio é o booleano. A pintura da
+faixa fica em (b), esperando o GC-000.
 
-⚠️ **Confirmação humana no vínculo é permanente, não provisória** — vincular
-agenda errada expõe pacientes de um profissional a outro.
-
-⏸️ **GC-001b (o botão da psicóloga) espera GC-012/GC-013.** Não comece por ele.
+**2. 🟢 GC-001b — o botão da psicóloga** · destrava quando a `duna` fechar
+GC-012/GC-013. ⏸️ Não comece antes.
 
 ✅ **2. Varredura de `getByRole` fraco — FECHADA** ([0110](0110-vale-para-orla-getbyrole-fraco-e-um-erro-meu-que-entrou-no-cartao.md) · aprovada na [0111](0111-orla-para-vale-a-correcao-do-cartao-confere-e-a-guarda-do-first-vinha-tarde.md))
 43 ocorrências varridas, 4 fracas, guarda **por efeito** em vez de por contagem —
