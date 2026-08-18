@@ -328,9 +328,27 @@ jobs:
           cat "$RUNNER_TEMP/backend.log"
           exit 1
 
+      - name: Cache do Chromium do Playwright
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('deep-saude-plataforma-front-end/package-lock.json') }}
+
       - name: Instalar o Chromium do Playwright
         working-directory: deep-saude-plataforma-front-end
-        run: npx playwright install --with-deps chromium
+        timeout-minutes: 20
+        run: |
+          # Em 18/08 este passo travou por mais de 30 min (run 32096654871) num
+          # download que normalmente leva 27 s. Sem limite, o job fica preso até o
+          # teto de 6 h e nunca vira sinal — o pior estado possível para um CI.
+          # Cada tentativa tem teto próprio, senão a primeira consome o passo
+          # inteiro e a repetição não serve para nada.
+          for tentativa in 1 2 3; do
+            timeout 300 npx playwright install --with-deps chromium && exit 0
+            echo "tentativa $tentativa falhou ou travou; nova em $((tentativa * 10))s"
+            sleep $((tentativa * 10))
+          done
+          exit 1
 
       - name: npm run e2e
         working-directory: deep-saude-plataforma-front-end
