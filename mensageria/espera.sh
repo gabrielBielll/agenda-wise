@@ -54,6 +54,23 @@ while :; do
   sha_agora=$(git rev-parse "$remoto" 2>/dev/null) || continue
 
   if [ "$sha_agora" != "$sha_base" ] && [ "$sha_base" != "desconhecido" ]; then
+
+    # ⚠️ Ignora push SÓ meu.
+    #
+    # Em 18/08 este laço acordou duas vezes com o próprio commit de quem o
+    # armou: você arma o vigia, escreve uma mensagem, empurra — e ele dispara
+    # anunciando você para você mesma. Alarme que não significa nada é como se
+    # aprende a ignorar alarme, então ele passa a exigir **autor diferente**.
+    #
+    # `EU` é o nome de autor a ignorar; por padrão o meu, na sandbox.
+    outros=$(git log --format='%an' "$sha_base..$sha_agora" | grep -vx "${EU:-Claude}" || true)
+    if [ -z "$outros" ]; then
+      sha_base="$sha_agora"
+      msgs_base=$(git ls-tree --name-only "$remoto" mensageria/ 2>/dev/null | grep '^mensageria/0.*\.md$' || true)
+      echo "   (push só meu em ${sha_agora:0:7} — seguindo à espera)"
+      continue
+    fi
+
     echo
     echo "🔔 CHEGOU COISA NOVA em $BRANCH"
     echo
