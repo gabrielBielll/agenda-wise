@@ -461,9 +461,9 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
   });
 
   return (
-    <div className="flex h-full w-full overflow-hidden bg-background">
+    <div className="flex h-full w-full overflow-hidden bg-transparent">
       {/* Sidebar */}
-      <aside className="w-64 flex-shrink-0 border-r bg-card p-4 flex flex-col gap-6">
+      <aside className="hidden w-[260px] flex-shrink-0 flex-col gap-6 border-r border-border/40 bg-white/35 p-4 backdrop-blur-md lg:flex dark:bg-card/45">
         
         <Dialog open={isDialogOpen} onOpenChange={(open) => {
             setIsDialogOpen(open);
@@ -475,9 +475,9 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
             }
           }}>
           <DialogTrigger asChild>
-            <Button className="w-full rounded-full h-12 shadow-md flex items-center justify-start pl-4 gap-3 bg-primary text-primary-foreground hover:bg-primary/90" onClick={() => handleOpenNew()}>
-              <Plus className="h-6 w-6" /> 
-              <span className="font-semibold text-base">Novo</span>
+            <Button className="h-12 w-full justify-start gap-3 rounded-[15px] pl-4" onClick={() => handleOpenNew()}>
+              <Plus className="h-5 w-5" />
+              <span>Nova sessão</span>
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[425px]">
@@ -1171,7 +1171,7 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
           />
         )}
 
-        <div className="rounded-md border shadow-sm bg-background p-2">
+        <div className="rounded-[18px] border border-white/70 bg-white/55 p-3 shadow-[0_12px_35px_rgba(74,67,55,.06)] dark:bg-card/55">
             <Calendar
                 mode="single"
                 selected={date}
@@ -1212,7 +1212,7 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col overflow-hidden">
-        <div className="p-4 border-b flex-shrink-0">
+        <div className="flex-shrink-0 border-b border-border/35 bg-background/35 px-4 py-3 sm:px-6">
              <CalendarHeader 
                 date={date} 
                 setDate={setDate} 
@@ -1222,7 +1222,7 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
             />
         </div>
         
-        <div className="flex-1 overflow-hidden p-4">
+        <div className="flex-1 overflow-hidden p-3 sm:p-5">
              {view === 'month' && (
              <div className="grid grid-cols-1 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500 h-full">
                 <div className="h-full">
@@ -1230,7 +1230,7 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                     mode="single"
                     selected={date}
                     onSelect={(d) => d && setDate(d)}
-                    className="rounded-md border shadow-md bg-card p-0 w-full h-full"
+                    className="h-full w-full rounded-[20px] border border-white/70 bg-card/65 p-0 shadow-[0_18px_55px_rgba(74,67,55,.08)] backdrop-blur-md"
                     month={date}
                     onMonthChange={setDate}
                     classNames={{

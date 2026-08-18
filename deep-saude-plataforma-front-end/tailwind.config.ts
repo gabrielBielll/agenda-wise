@@ -10,8 +10,8 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        headline: ['Playfair Display', 'serif'],
-        body: ['Montserrat', 'sans-serif'],
+        headline: ['Newsreader', 'Georgia', 'serif'],
+        body: ['DM Sans', 'sans-serif'],
         code: ['monospace'],
       },
       colors: {
@@ -50,10 +50,10 @@ export default {
         ring: 'hsl(var(--ring))',
         // Custom admin colors
         admin: {
-          primary: '#3B82F6',
-          success: '#10B981',
-          warning: '#F59E0B',
-          danger: '#EF4444',
+          primary: '#68715B',
+          success: '#95A084',
+          warning: '#C4A584',
+          danger: '#D2845A',
         },
         chart: {
           '1': 'hsl(var(--chart-1))',
@@ -75,8 +75,8 @@ export default {
       },
       borderRadius: {
         lg: 'var(--radius)',
-        md: 'calc(var(--radius) - 2px)',
-        sm: 'calc(var(--radius) - 4px)',
+        md: 'calc(var(--radius) - 4px)',
+        sm: 'calc(var(--radius) - 7px)',
       },
       keyframes: {
         'accordion-down': {

@@ -9,7 +9,7 @@ import { usePathname } from "next/navigation";
 
 // Componente para a tela de carregamento e erro
 const BackendWakeUpScreen = ({ status }: { status: 'checking' | 'error' }) => (
-  <div className="flex h-screen w-full flex-col items-center justify-center bg-muted/40 p-4 text-center">
+  <div className="flex h-screen w-full flex-col items-center justify-center bg-background p-4 text-center">
     {status === 'checking' && (
       <>
         <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
@@ -99,19 +99,19 @@ export default function AdminLayout({
 
   // Se o backend estiver acordado, renderiza o layout normal da aplicação
   return (
-    <div className="flex min-h-screen w-full flex-col bg-muted/40">
+    <div className="flex min-h-screen w-full flex-col bg-transparent">
       <AdminSidebar
         isCollapsed={isSidebarCollapsed}
         className="hidden md:fixed md:inset-y-0 md:left-0 md:z-50 md:flex"
       />
       <div
         className={cn(
-          "flex flex-col sm:gap-4 sm:py-4 transition-all duration-300 ease-in-out",
+          "flex flex-col transition-all duration-500 ease-out sm:gap-4 sm:py-4",
           isSidebarCollapsed ? "md:ml-14" : "md:ml-64"
         )}
       >
         <AdminHeader />
-        <main className="flex-1 gap-4 p-4 sm:px-6 sm:py-0 md:gap-8 mt-14 md:mt-0">
+        <main className="page-enter mt-14 flex-1 gap-4 p-4 sm:px-7 sm:py-0 md:mt-0 md:gap-8 lg:px-10">
           {children}
         </main>
       </div>

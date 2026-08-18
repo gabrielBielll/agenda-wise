@@ -1,7 +1,8 @@
 
 import React from 'react';
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { CalendarPlus, ChevronLeft, ChevronRight } from "lucide-react";
+import Link from "next/link";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 import { format } from "date-fns";
@@ -63,8 +64,8 @@ export function CalendarHeader({ date, setDate, view, setView, onToday }: Calend
   };
 
   return (
-    <div className="flex flex-col sm:flex-row items-center justify-between space-y-2 sm:space-y-0 pb-4">
-      <div className="flex items-center space-x-2">
+    <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
+      <div className="flex flex-wrap items-center gap-2">
         <Button variant="outline" size="icon" onClick={handlePrev}>
           <ChevronLeft className="h-4 w-4" />
         </Button>
@@ -74,14 +75,14 @@ export function CalendarHeader({ date, setDate, view, setView, onToday }: Calend
         <Button variant="outline" size="icon" onClick={handleNext}>
           <ChevronRight className="h-4 w-4" />
         </Button>
-        <h2 className="font-headline text-lg sm:text-xl font-semibold capitalize ml-2 w-48 text-center sm:text-left">
+        <h2 className="ml-2 min-w-48 font-headline text-xl font-normal capitalize tracking-[-.02em] sm:text-2xl">
           {formatDateRange()}
         </h2>
       </div>
 
-      <div className="flex items-center space-x-2">
+      <div className="flex items-center gap-2">
         <Select value={view} onValueChange={(v: any) => setView(v)}>
-          <SelectTrigger className="w-[120px]">
+          <SelectTrigger className="w-[125px] bg-white/45">
             <SelectValue placeholder="Visualização" />
           </SelectTrigger>
           <SelectContent>
@@ -90,6 +91,7 @@ export function CalendarHeader({ date, setDate, view, setView, onToday }: Calend
             <SelectItem value="day">Dia</SelectItem>
           </SelectContent>
         </Select>
+        <Button asChild className="lg:hidden"><Link href="/calendar/new"><CalendarPlus />Nova sessão</Link></Button>
       </div>
     </div>
   );

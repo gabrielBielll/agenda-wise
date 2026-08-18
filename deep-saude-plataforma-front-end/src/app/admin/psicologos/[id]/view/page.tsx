@@ -1,6 +1,6 @@
 import React from 'react';
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { authOptions } from "@/lib/auth";
 import { notFound } from 'next/navigation';
 
 import EditPsicologoForm from '../edit/EditPsicologoForm'; 

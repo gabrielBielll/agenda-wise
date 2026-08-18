@@ -1,6 +1,6 @@
 import React from 'react';
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { authOptions } from "@/lib/auth";
 import ClientComponent from './ClientComponent'; // Vamos criar este componente a seguir
 
 // Definindo o tipo de dados para um paciente (deve corresponder ao que a API retorna)

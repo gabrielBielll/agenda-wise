@@ -118,16 +118,16 @@ export function WeekView({ date, appointments, bloqueios = [], onAddAppointment,
   };
 
   return (
-    <div className="flex flex-col border rounded-md bg-background overflow-hidden h-full">
+    <div className="flex h-full flex-col overflow-hidden rounded-[20px] border border-white/70 bg-card/65 shadow-[0_18px_55px_rgba(74,67,55,.08)] backdrop-blur-md">
       {/* Header Row */}
-      <div className="grid grid-cols-[60px_repeat(7,1fr)] divide-x border-b sticky top-0 bg-background z-20">
+      <div className="sticky top-0 z-20 grid grid-cols-[54px_repeat(7,1fr)] divide-x divide-border/40 border-b border-border/40 bg-card/90 backdrop-blur-xl">
         <div className="p-2 text-center text-xs font-semibold text-muted-foreground bg-muted/30">
-          Hora
+          GMT−3
         </div>
         {days.map((day, index) => {
             const isToday = day.toDateString() === new Date().toDateString();
             return (
-                <div key={index} className={cn("p-2 text-center text-sm font-medium", isToday && "bg-accent/20")}>
+                <div key={index} className={cn("p-2 text-center text-sm font-medium", isToday && "bg-accent/10")}>
                     <div className={cn("text-xs uppercase text-muted-foreground", isToday && "text-primary font-bold")}>
                         {format(day, 'EEE', { locale: ptBR })}
                     </div>
@@ -140,9 +140,9 @@ export function WeekView({ date, appointments, bloqueios = [], onAddAppointment,
       </div>
 
       {/* Grid */}
-      <div ref={scrollContainerRef} className="grid grid-cols-[60px_repeat(7,1fr)] divide-x overflow-y-auto flex-1">
+      <div ref={scrollContainerRef} className="grid flex-1 grid-cols-[54px_repeat(7,1fr)] divide-x divide-border/35 overflow-y-auto">
         {/* Time Column */}
-        <div className="divide-y bg-muted/30">
+        <div className="divide-y divide-border/35 bg-muted/15">
           {HOURS.map(hour => (
             <div key={hour} className="h-20 flex items-start justify-center pt-2 text-xs text-muted-foreground font-medium sticky left-0">
               {String(hour).padStart(2, '0')}:00
@@ -152,7 +152,7 @@ export function WeekView({ date, appointments, bloqueios = [], onAddAppointment,
 
         {/* Days Columns */}
         {days.map((day, dayIndex) => (
-          <div key={dayIndex} className="divide-y relative min-w-[120px]">
+          <div key={dayIndex} className="relative min-w-[120px] divide-y divide-border/35">
             {HOURS.map(hour => {
               const hourAppointments = getAppointmentsForDayAndHour(day, hour);
               const hourBloqueios = getBloqueiosForDayAndHour(day, hour);
@@ -162,7 +162,7 @@ export function WeekView({ date, appointments, bloqueios = [], onAddAppointment,
                 <div 
                   key={hour} 
                   className={cn(
-                    "h-20 relative group transition-colors cursor-pointer border-b",
+                    "group relative h-20 cursor-pointer border-b border-border/20 transition-colors",
                     isBlocked ? "bg-orange-100/50 dark:bg-orange-900/20" : "hover:bg-accent/5"
                   )}
                   onClick={(e) => handleSlotClick(day, hour, e)}
@@ -242,8 +242,8 @@ export function WeekView({ date, appointments, bloqueios = [], onAddAppointment,
                                 app.status === 'cancelado'
                                   ? "bg-red-100 dark:bg-red-900/20 border-red-500 text-red-700 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-900/30 opacity-80"
                                   : isContinuation
-                                    ? "bg-primary/10 border-primary border-dashed text-foreground hover:bg-primary/20 opacity-75"
-                                    : "bg-primary/10 border-primary text-foreground hover:bg-primary/20"
+                                    ? "border-primary bg-primary/10 text-foreground opacity-75 hover:bg-primary/20"
+                                    : "border-primary bg-primary/15 text-foreground shadow-sm hover:bg-primary/20"
                               )}
                               style={{ top: `${topPos}%`, height: `${(durationMinutes / 60) * 100}%`, minHeight: '20px' }}
                               onClick={(e) => {

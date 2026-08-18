@@ -1,6 +1,6 @@
 import React from 'react';
 import { getServerSession } from "next-auth/next";
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'; // Importar authOptions
+import { authOptions } from '@/lib/auth';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from "@/components/ui/button";
@@ -137,23 +137,25 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
   };
 
   return (
-    <div className="space-y-8">
+    <div className="quiet-page">
       {/* SEÇÃO PRINCIPAL COM DADOS REAIS */}
-      <Card className="shadow-lg">
-        <CardHeader className="flex flex-col md:flex-row items-start md:items-center gap-4">
-          <Avatar className="h-24 w-24 border-2 border-primary">
+      <Card className="overflow-hidden bg-gradient-to-br from-white/75 to-primary/5">
+        <CardHeader className="relative flex flex-col items-start gap-5 p-7 md:flex-row md:items-center">
+          <span className="absolute -right-16 -top-20 h-56 w-56 rounded-full border border-primary/10 shadow-[0_0_0_38px_rgba(149,160,132,.035)]" />
+          <Avatar className="h-24 w-24 border-[4px] border-white shadow-md">
             <AvatarImage src={patient.avatar_url || ''} alt={patient.nome} />
-            <AvatarFallback className="bg-secondary text-secondary-foreground font-bold text-3xl">{getInitials(patient.nome)}</AvatarFallback>
+            <AvatarFallback className="bg-accent/15 font-headline text-3xl text-accent">{getInitials(patient.nome)}</AvatarFallback>
           </Avatar>
-          <div>
-            <CardTitle className="font-headline text-3xl">{patient.nome}</CardTitle>
-            <CardDescription className="text-lg text-muted-foreground">ID do Paciente: {patient.id}</CardDescription>
-            <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground mt-2">
+          <div className="relative flex-1">
+            <p className="page-eyebrow mb-1">Jornada terapêutica</p>
+            <CardTitle className="text-4xl">{patient.nome}</CardTitle>
+            <CardDescription className="mt-1 text-[10px]">ID protegido · {patient.id}</CardDescription>
+            <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-xs text-muted-foreground">
               <span className="flex items-center"><Mail className="h-4 w-4 mr-1 text-primary" /> {patient.email || 'N/A'}</span>
               <span className="flex items-center"><Phone className="h-4 w-4 mr-1 text-primary" /> {patient.telefone || 'N/A'}</span>
               <span className="flex items-center"><CalendarDays className="h-4 w-4 mr-1 text-primary" /> Cadastrado em: {new Date(patient.data_cadastro).toLocaleDateString('pt-BR')}</span>
             </div>
-            <div className="mt-4">
+            <div className="mt-5">
                <Button variant="outline" size="sm" asChild>
                  <Link href={`/patients/${patient.id}/edit`}>
                    Editar Perfil
@@ -165,14 +167,14 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
       </Card>
 
       <Tabs defaultValue="notes" className="w-full">
-        <TabsList className="grid w-full grid-cols-1 sm:grid-cols-3 mb-6">
+        <TabsList className="mb-6 grid h-auto w-full grid-cols-1 sm:h-12 sm:grid-cols-3">
           <TabsTrigger value="profile" className="py-3"><User className="mr-2 h-5 w-5" />Detalhes do Perfil</TabsTrigger>
           <TabsTrigger value="notes" className="py-3"><FileText className="mr-2 h-5 w-5" />Prontuário / Evolução</TabsTrigger>
           <TabsTrigger value="documents" className="py-3"><UploadCloud className="mr-2 h-5 w-5" />Documentos</TabsTrigger>
         </TabsList>
 
         <TabsContent value="profile">
-          <Card className="shadow-md">
+          <Card>
             <CardHeader><CardTitle className="font-headline text-2xl">Informações do Paciente</CardTitle></CardHeader>
             <CardContent className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -191,7 +193,7 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
             {/* Componente de Formulário para Nova Evolução */}
             <ProntuarioForm patientId={patient.id} appointments={appointments} patientData={patient} />
 
-            <Card className="shadow-md" id="historico-evolucao">
+            <Card id="historico-evolucao">
               <CardHeader><CardTitle className="font-headline text-2xl">Histórico de Evolução</CardTitle></CardHeader>
               <CardContent>
                     {prontuarios.length > 0 ? (
@@ -216,12 +218,12 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
         </TabsContent>
 
         <TabsContent value="documents">
-          <Card className="shadow-md">
+          <Card>
             <CardHeader><CardTitle className="font-headline text-2xl">Documentos do Paciente (Mock)</CardTitle></CardHeader>
             <CardContent>
                 <ul className="space-y-3">
                   {mockDocuments.map(doc => (
-                    <li key={doc.id} className="flex items-center justify-between p-3 border rounded-md hover:bg-secondary/20">
+                    <li key={doc.id} className="flex items-center justify-between rounded-xl border border-border/60 bg-white/35 p-4 transition-colors hover:bg-secondary/15">
                       <div><a href={doc.url} className="text-primary hover:underline font-medium">{doc.name}</a><p className="text-xs text-muted-foreground">Carregado em: {new Date(doc.uploadDate).toLocaleDateString('pt-BR')}</p></div>
                       <Button variant="outline" size="sm" asChild><a href={doc.url} download>Baixar</a></Button>
                     </li>

@@ -1,7 +1,7 @@
 "use server";
 
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { authOptions } from "@/lib/auth";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 
@@ -19,6 +19,12 @@ const psicologoSchema = z.object({
   abordagem: z.string().optional(),
   area_de_atuacao: z.string().optional(),
 });
+
+export type FormState = {
+  message: string;
+  errors?: Record<string, string[] | undefined>;
+  success: boolean;
+};
 
 // ...
 

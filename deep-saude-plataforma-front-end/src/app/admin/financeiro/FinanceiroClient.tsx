@@ -66,7 +66,7 @@ interface Agendamento {
   nome_psicologo?: string;
   status?: string; // agendado, realizado, cancelado
   valor_repasse?: number;
-  status_repasse?: 'bloqueado' | 'disponivel' | 'transferido'; // Repasse (Psi)
+  status_repasse?: 'bloqueado' | 'disponivel' | 'transferido' | 'pendente' | 'pago'; // Repasse (Psi)
   status_pagamento?: 'pendente' | 'pago'; // Pagamento (Paciente)
   // New patient financial fields
   nota_fiscal?: boolean;

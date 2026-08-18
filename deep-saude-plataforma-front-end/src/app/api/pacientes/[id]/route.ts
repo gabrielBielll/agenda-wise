@@ -4,7 +4,7 @@ const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3000';
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const authHeader = request.headers.get('authorization');
@@ -13,7 +13,7 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const pacienteId = params.id;
+    const pacienteId = (await params).id;
 
     const response = await fetch(`${BACKEND_URL}/pacientes/${pacienteId}`, {
       method: 'PUT',
@@ -37,7 +37,7 @@ export async function PUT(
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const authHeader = request.headers.get('authorization');
@@ -45,7 +45,7 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const pacienteId = params.id;
+    const pacienteId = (await params).id;
 
     const response = await fetch(`${BACKEND_URL}/pacientes/${pacienteId}`, {
       method: 'GET',

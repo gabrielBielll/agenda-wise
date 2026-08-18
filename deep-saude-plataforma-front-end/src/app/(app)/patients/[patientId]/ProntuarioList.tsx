@@ -11,6 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils";
 import { format, isWithinInterval, startOfDay, endOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { DateRange } from "react-day-picker";
 import {
   Pagination,
   PaginationContent,
@@ -21,7 +22,11 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 
-// ... existing code
+interface ProntuarioListProps {
+  initialProntuarios: Prontuario[];
+  patientId: string;
+  appointments: any[];
+}
 
 export default function ProntuarioList({ initialProntuarios, patientId, appointments }: ProntuarioListProps) {
   const [searchTerm, setSearchTerm] = useState("");

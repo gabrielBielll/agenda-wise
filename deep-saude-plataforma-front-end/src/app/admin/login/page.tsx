@@ -19,7 +19,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Building, Loader2 } from "lucide-react";
+import { Leaf, Loader2, ShieldCheck } from "lucide-react";
 import { useLoading } from "@/components/LoadingOverlay";
 
 // Schema
@@ -79,24 +79,25 @@ export default function AdminLoginPage() {
   };
 
   return (
-    <Card className="w-full max-w-md">
-      <CardHeader className="space-y-1 text-center">
-        <div className="flex justify-center items-center mb-2">
-            <Building className="h-8 w-8 text-primary" />
+    <Card className="w-full max-w-md border-white/80 bg-white/60 shadow-[0_30px_90px_rgba(74,67,55,.13)]">
+      <CardHeader className="space-y-1 p-8 pb-5 text-center">
+        <div className="mb-4 flex justify-center">
+            <span className="grid h-14 w-14 place-items-center rounded-[18px_18px_18px_6px] bg-primary text-primary-foreground shadow-[0_12px_30px_rgba(104,113,91,.24)]"><Leaf className="h-6 w-6" /></span>
         </div>
-        <CardTitle className="text-2xl">Login Administrativo</CardTitle>
+        <p className="page-eyebrow">Deep Saúde</p>
+        <CardTitle className="text-3xl">Acesso administrativo</CardTitle>
         <CardDescription>
-          Acesse o painel de administrador da Deep Saúde.
+          Entre para cuidar da operação da clínica.
         </CardDescription>
       </CardHeader>
       <form onSubmit={form.handleSubmit(onSubmit)}>
-        <CardContent className="grid gap-4">
+        <CardContent className="grid gap-4 px-8">
           <div className="grid gap-2">
             <Label htmlFor="email">Email</Label>
             <Input
               id="email"
               type="email"
-              placeholder="admin@example.com"
+              placeholder="admin@deepsaude.com.br"
               {...form.register("email")}
             />
             {form.formState.errors.email && (
@@ -124,7 +125,7 @@ export default function AdminLoginPage() {
                 Entrando...
               </>
             ) : (
-              "Entrar na Plataforma"
+              <><ShieldCheck />Entrar com segurança</>
             )}
           </Button>
           <Button type="button" variant="link" size="sm" className="w-full" onClick={() => alert("Link 'Esqueci minha senha' clicado.")}>

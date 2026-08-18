@@ -104,7 +104,7 @@ export default function EditForm({ patient, updateAction }: { patient: any, upda
           <Textarea id="endereco" name="endereco" defaultValue={patient.endereco || ''} className="min-h-[100px]" />
         </div>
 
-        <div className="flex justify-end pt-4">
+        <div className="flex justify-end border-t border-border/50 pt-5">
           <SubmitButton />
         </div>
     </form>

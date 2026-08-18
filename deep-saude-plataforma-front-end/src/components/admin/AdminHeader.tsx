@@ -16,25 +16,14 @@ import { Input } from "@/components/ui/input"; // Para um campo de busca de exem
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { ThemeToggle } from "./ThemeToggle";
 import { AdminSidebarSheetContent } from './AdminSidebar'; // Importar o conteúdo da sidebar para o Sheet
+import { usePathname } from "next/navigation";
 
 // Placeholder para Breadcrumbs (será implementado de forma mais robusta depois)
-const BreadcrumbsPlaceholder = () => (
-  <nav aria-label="breadcrumb">
-    <ol className="flex items-center space-x-2 text-sm text-muted-foreground">
-      <li>
-        <Link href="/admin/dashboard" className="hover:text-foreground">
-          Admin
-        </Link>
-      </li>
-      <li>
-        <span>/</span>
-      </li>
-      <li aria-current="page" className="text-foreground">
-        Dashboard
-      </li>
-    </ol>
-  </nav>
-);
+const BreadcrumbsPlaceholder = () => {
+  const pathname = usePathname();
+  const current = pathname.split('/').filter(Boolean).pop()?.replaceAll('-', ' ') || 'dashboard';
+  return <nav aria-label="breadcrumb"><ol className="flex items-center gap-2 text-[10px] uppercase tracking-[.1em] text-muted-foreground"><li><Link href="/admin/dashboard" className="transition-colors hover:text-primary">Admin</Link></li><li><span className="text-accent">·</span></li><li aria-current="page" className="capitalize text-foreground">{current}</li></ol></nav>;
+};
 
 export default function AdminHeader({
   onDrawerToggle, // Prop para controlar o estado do drawer no layout pai, se necessário
@@ -42,7 +31,7 @@ export default function AdminHeader({
   onDrawerToggle?: () => void;
 }) {
   return (
-    <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
+    <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b border-border/35 bg-background/75 px-4 backdrop-blur-xl sm:static sm:mx-6 sm:h-auto sm:rounded-2xl sm:border sm:border-white/60 sm:bg-white/35 sm:px-5 sm:py-3 lg:mx-10">
       {/* Trigger da Sidebar para Mobile - Usará o AdminSidebar como conteúdo */}
       <Sheet>
         <SheetTrigger asChild>
