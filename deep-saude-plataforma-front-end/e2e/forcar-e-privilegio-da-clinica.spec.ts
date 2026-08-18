@@ -265,6 +265,32 @@ test.describe('A-009 — a gestão força, e é ela quem decide', () => {
 
     await expect(page).toHaveURL(/\/admin\/agendamentos\/[^/]+\/edit/);
 
+    /**
+     * A cobertura que a `orla` pediu na 0104, e o motivo dela.
+     *
+     * Ela consertou os `SelectTrigger` desta tela **por leitura**, sem vermelho —
+     * e disse na própria mensagem que conserto sem teste é o que a D-008 manda
+     * não fazer. Estas três linhas são o vermelho que faltou.
+     *
+     * ⚠️ `getByRole(..., { name })` assere DUAS coisas de uma vez: que o controle
+     * existe e que ele tem **nome acessível**. É exatamente a ambiguidade que fez
+     * o CI parecer "seletor errado da vale" quando era defeito de produto. Aqui a
+     * ambiguidade é o ponto: se qualquer um dos dois lados quebrar, isto cai.
+     *
+     * 📌 `combobox` **não** tira nome do próprio conteúdo — ao contrário de
+     * `button`. Então o texto visível na tela não salva: sem o `id` casando o
+     * `<Label htmlFor>`, um leitor de tela anuncia só *"combobox"*.
+     *
+     * ✅ E `status` entrou junto: ele estava **no mesmo arquivo** que a 0104
+     * consertou e ficou de fora. Achado revisando o `0d60c77` pela D-002.
+     */
+    for (const rotulo of ['Paciente', 'Psicólogo', 'Status']) {
+      await expect(
+        page.getByRole('combobox', { name: rotulo }),
+        `o combobox "${rotulo}" não tem nome acessível — um leitor de tela anuncia só "combobox"`
+      ).toBeVisible();
+    }
+
     // Mexe SÓ no dinheiro. O formulário remanda psicologo_id e data_hora_sessao
     // sempre — é essa a A-011.
     await page.locator('#valor_consulta').fill('250');

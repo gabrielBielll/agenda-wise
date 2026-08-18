@@ -381,7 +381,8 @@ export default function NovoAgendamentoForm({
           <div className="space-y-2">
             <Label htmlFor="recorrencia_tipo">Recorrência</Label>
             <Select name="recorrencia_tipo" value={recorrenciaTipo} onValueChange={setRecorrenciaTipo}>
-              <SelectTrigger>
+              {/* Mesmo motivo do paciente_id: sem id, este combobox fica sem nome. */}
+              <SelectTrigger id="recorrencia_tipo">
                 <SelectValue placeholder="Não se repete" />
               </SelectTrigger>
               <SelectContent>

@@ -270,7 +270,8 @@ export default function EditarAgendamentoForm({
             <div className="space-y-2">
               <Label htmlFor="status">Status</Label>
               <Select name="status" defaultValue={agendamento.status || "agendado"}>
-                <SelectTrigger>
+                {/* Mesmo motivo do paciente_id: sem id, este combobox fica sem nome. */}
+                <SelectTrigger id="status">
                   <SelectValue placeholder="Selecione o status" />
                 </SelectTrigger>
                 <SelectContent>
