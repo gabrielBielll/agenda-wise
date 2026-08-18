@@ -63,7 +63,7 @@ Vale registrar porque é a metade que não aparece na conversa do dia a dia.
 > gravidade: cada etapa destrava a seguinte. O detalhe de cada item está nas
 > listas abaixo.
 
-### Etapa 1 — 🚧 **O ambiente no ar** · `duna`, em andamento
+### Etapa 1 — ✅ **O ambiente no ar** · FECHADA em 17/08 (`duna`)
 
 Northflank de pé (back + front), banco no **CockroachDB** que já existe, e uma
 **clínica de teste com os três logins**. Guia em [NORTHFLANK](NORTHFLANK.md), tarefa na [0075](../mensageria/0075-orla-para-duna-voce-monta-o-northflank-e-o-boot-e-o-teste-do-cockroach.md).
@@ -71,7 +71,7 @@ Northflank de pé (back + front), banco no **CockroachDB** que já existe, e uma
 📌 **Destrava três coisas de uma vez:** a auditoria, a validação no ar, e a
 **P-001** — se as migrations aplicam no Cockroach, a subida responde sozinha.
 
-### Etapa 2 — 🔴 **Os três papéis funcionando** · `duna`, a **A-012**
+### Etapa 2 — ✅ **Os três papéis funcionando** · FECHADA (A-012 + A-017)
 
 Hoje psicóloga e secretário tomam 403 em tudo. **Sem isto não há demonstração** —
 mostrar só o admin é mostrar um terço do produto — e não há auditoria, porque dois
@@ -79,32 +79,48 @@ dos três logins não fazem nada.
 
 **É o item mais importante do projeto.**
 
-### Etapa 3 — 🔎 **A auditoria adversarial, rodada 1** · alvo agendamentos
+### Etapa 3 — ⏸️ **A auditoria adversarial, rodada 1** · DESTRAVADA, aguarda o Gabriel disparar
 
 Roda **em paralelo** com a etapa 4, assim que a 1 e a 2 caírem. Pacote pronto em
 [AUDITORIA_RODADA_1](AUDITORIA_RODADA_1.md).
 
-### Etapa 4 — 🟠 **Os defeitos que sobram**
+### Etapa 4 — 🟢 **Os defeitos que sobram** · só a A-004 e a A11Y-001b em aberto
 
 | | De quem |
 |---|---|
-| **A-016** — o 401 redireciona mas não encerra a sessão | `vale` |
-| **A-009 + A-011** — o botão de forçar do admin, e a guarda na tela | `vale` |
-| **A-014** — o pagamento automático vira modo de verdade | `duna` |
-| **A-015** — o uberjar não compila sem segredo | `duna` |
-| **A-008** — horário de verão do espectador | ❌ **sem dono** |
-| **A-004** — a comissão é estado de navegador | ⛔ **espera a R-009** virar modelo |
+| ✅ **A-016** — o 401 redireciona mas não encerra a sessão | `vale`, fechada |
+| ✅ **A-009 + A-011** — o botão de forçar do admin | `vale`, fechadas · o botão **não reenviava** e só apareceu no navegador |
+| ✅ **A-014** — o pagamento automático vira modo de verdade | `duna`, fechada |
+| ✅ **A-015** — o uberjar não compila sem segredo | `duna`, fechada |
+| ✅ **A-008** — horário de verão do espectador | `vale`, fechada · Lisboa marcava 03:20 onde o certo era 02:20 |
+| 🔴 **A-004** — a comissão é estado de navegador | `duna` · **destravada pela R-023**, é a próxima depois do GC-012 |
+| 🟠 **A11Y-001b** — 6 controles sem nome no `CalendarClient` | `pico` · **precisa de navegador** |
 
-### Etapa 5 — 🟠 **O que nenhum de nós tem na mão**
+### Etapa 5 — 🟠 **O que nenhum de nós tem na mão** · ROB-008 fechada; o resto sem dono
 
 | | Por quê |
 |---|---|
 | **Tabela de auditoria** | A **R-012** já exige que o acesso pela flag grave sempre, e não há onde gravar | ❌ **sem dono** |
-| **ROB-008** — log estruturado | fundação de qualquer observabilidade | `duna`, última da fila |
+| ✅ **ROB-008** — log estruturado | fechada | `duna` |
 | **Observabilidade** | hoje é zero: a primeira notícia de um erro é alguém avisando | ❌ **sem dono** |
 | **Backup automático + teste de restore** | `backup-db.sh` roda na mão; backup nunca restaurado é hipótese | ❌ **sem dono** |
 
-### Etapa 6 — 🧩 **O sincronizador do Google**
+### Etapa 6 — 🚧 **O sincronizador do Google** · ⬅️ **É AQUI QUE ESTAMOS**
+
+**Estado em 18/08, 13:50 UTC:**
+
+| cartão | quem | estado |
+|---|---|---|
+| **GC-001a** — painel do admin, com a faixa que grita | `vale` | ✅ **entregue** |
+| **GC-012** — uma conexão por psicóloga + permissão estreita | `duna` | 🚧 **começando agora** |
+| **GC-013** — provisionar a agenda no ato | `duna` | ⬜ depois do GC-012 |
+| **GC-001b** — o botão da psicóloga | `vale` | ⏸️ **espera o GC-012** |
+| **GC-000** — Console do Google | **Gabriel** | ⛔ **relógio externo** |
+| GC-002…GC-011 — a Trilha B (escrita) | — | ⬜ a Fase 2 |
+
+🔴 **O caminho crítico hoje é o GC-012**, e o motivo é humano, não técnico: sem
+ele a `vale` não pode começar a metade dela.
+
 
 Os dois caminhos, plataforma ↔ Google. **Maior que todas as etapas anteriores
 somadas**, e é a única onde *apresentável* e *completo* divergem: dá para
