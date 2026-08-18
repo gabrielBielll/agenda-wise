@@ -1202,9 +1202,65 @@ papéis pela metade; agora é um e meio.**
 
 ---
 
+## 🟠 A-018 — Marcar um paciente como inativo faz ele **sumir**, e a tela não avisa
+
+**Achado em:** 2026-08-18 pela `orla`, lendo o CI · **Dono:** Gabriel (decisão), depois `vale` (tela)
+
+⚠️ **Proveniência, para não contaminar o escopo desta revisão:** este achado
+**não** veio da leitura de agosto/17 — veio do job `navegador` estourando em
+`1d8a70e`. Está aqui porque é o registro dos achados `A-0NN`, não porque a
+revisão original o tenha encontrado.
+
+O caminho, medido no código:
+
+```
+admin/pacientes/ClientComponent.tsx:52   useState<string>("ativo")
+admin/pacientes/ClientComponent.tsx:70   matchesStatus = statusFilter === "todos" || pacienteStatus === statusFilter
+```
+
+A listagem **nasce filtrando por `ativo`**. Então:
+
+1. a pessoa abre o paciente, muda o status para **Inativo** e salva;
+2. a tela devolve para `/admin/pacientes`;
+3. **o paciente não está mais lá** — nenhuma mensagem, nenhuma contagem, nada.
+
+🔴 **O que a pessoa vê é indistinguível de exclusão.** E ao lado do "Editar" existe
+um botão de excluir de verdade, na mesma linha — então o desfecho visual das duas
+ações é o mesmo, e uma delas é irreversível.
+
+📌 **O backend está certo:** `GET /api/pacientes` devolve todos, sem filtro de
+status (`core.clj:492`). O esconde-esconde é só do cliente, e existe um seletor
+"todos" na tela — **quem sabe que ele existe** volta em um clique.
+
+### Por que 🟠 e não 🔴
+
+Nada é perdido e o caminho de volta existe. O dano é confiança: a operadora
+conclui que apagou um prontuário. Não bloqueia produção, mas é exatamente a
+família da A-013 — **tela que deixa a pessoa acreditar em algo que não aconteceu**.
+
+### A decisão que não é minha
+
+O padrão `ativo` é escolha defensável de produto. As saídas possíveis:
+
+- **manter o padrão** e a tela dizer, ao salvar, *"Paciente marcado como inativo —
+  ele saiu desta lista; use o filtro Todos para vê-lo"*;
+- **passar o padrão para `todos`**, com a coluna de situação já distinguindo os dois.
+
+Eu recomendo a **primeira**: o padrão `ativo` é útil no dia a dia, e o problema
+não é o filtro — é o silêncio.
+
+⚠️ **O que já foi feito:** só o teste. A suíte voltava pela listagem e passou a
+estourar em 120s; foi trocada para voltar **pela URL**, que é o que a própria
+docstring dela dizia fazer. Isso separa *"o dado gravou?"* de *"a listagem mostra
+inativos?"*. **O defeito de tela continua aberto** — o teste deixou de medir a
+coisa errada, e não de existir.
+
+---
+
 ## O que esta revisão não cobriu
 
-- **Não executei nada.** Todo achado é de leitura.
+- **Não executei nada.** Todo achado é de leitura. ⚠️ Com a exceção declarada da
+  A-018, acrescentada depois e com proveniência própria.
 - **Não varri o módulo Google a fundo** — é o mais novo e está bloqueado pelo
   Gabriel.
 - **Não avaliei acessibilidade nem responsividade**, que são matéria da Fase 3.

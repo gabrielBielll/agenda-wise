@@ -124,6 +124,12 @@ test.describe('cadastro de paciente — a atribuição e a persistência', () =>
     await page.getByRole('row').filter({ hasText: nome }).getByRole('link', { name: /editar/i }).click();
     await expect(page).toHaveURL(/\/admin\/pacientes\/[^/]+\/edit/);
 
+    /**
+     * Guarda o endereço AGORA, enquanto o paciente ainda está `ativo` e visível.
+     * Daqui a pouco ele não estará — ver o comentário do segundo `goto`.
+     */
+    const enderecoDaEdicao = page.url();
+
     const status = page.getByRole('combobox', { name: /^status$/i });
     await expect(
       status,
@@ -140,9 +146,20 @@ test.describe('cadastro de paciente — a atribuição e a persistência', () =>
      * novo só porque o React ainda tem o estado do formulário na memória. Voltar
      * pela URL força a leitura do banco — é a diferença entre "a tela mudou" e
      * "o dado mudou".
+     *
+     * 🔴 **E é por URL de propósito, não por comodidade.** Este teste voltava
+     * clicando no "editar" da listagem, e passou a estourar por timeout de 120s.
+     * O motivo não é persistência: `ClientComponent.tsx` nasce com
+     * `statusFilter = "ativo"`, então o paciente que a linha acima acabou de
+     * marcar como **inativo desaparece da listagem** — a linha que o teste
+     * procurava não existe mais.
+     *
+     * Voltar pela listagem misturava duas perguntas: *"o dado gravou?"* (que é a
+     * desta suíte) e *"a listagem mostra inativos?"* (que é decisão de produto,
+     * registrada no A-018). Por URL, o teste responde só a primeira — e continua
+     * respondendo mesmo se o filtro padrão mudar amanhã.
      */
-    await page.getByRole('row').filter({ hasText: nome }).getByRole('link', { name: /editar/i }).click();
-    await expect(page).toHaveURL(/\/admin\/pacientes\/[^/]+\/edit/);
+    await page.goto(enderecoDaEdicao);
     await expect(
       page.getByRole('combobox', { name: /^status$/i }),
       'o status voltou ao valor antigo depois de recarregar — a tela confirmou uma gravação que não aconteceu'
