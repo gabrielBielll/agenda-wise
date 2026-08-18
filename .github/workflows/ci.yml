@@ -338,14 +338,25 @@ jobs:
         working-directory: deep-saude-plataforma-front-end
         timeout-minutes: 20
         run: |
-          # Em 18/08 este passo travou por mais de 30 min (run 32096654871) num
-          # download que normalmente leva 27 s. Sem limite, o job fica preso até o
-          # teto de 6 h e nunca vira sinal — o pior estado possível para um CI.
-          # Cada tentativa tem teto próprio, senão a primeira consome o passo
-          # inteiro e a repetição não serve para nada.
+          # Duas etapas, e a separação é o ponto — não é organização.
+          #
+          # A versão anterior repetia `playwright install --with-deps` inteiro sob
+          # `timeout 300`. Em 18/08 (run 32158241456) isso QUEBROU o job: o timeout
+          # matou a tentativa 1 no meio do `apt-get`, o apt seguiu vivo como órfão
+          # segurando `/var/lib/apt/lists/lock`, e as tentativas 2 e 3 morreram no
+          # lock que a tentativa 1 deixou preso. O e2e nem chegou a rodar.
+          #
+          #   deps  -> mexe em apt. NÃO pode ser morto no meio: matar deixa lock.
+          #   browser -> download puro. Pode ser morto e repetido à vontade.
+          #
+          # Por isso só o segundo tem `timeout` e laço. O primeiro é protegido
+          # pelo `timeout-minutes` do passo, que mata o job inteiro em vez de
+          # deixar meio apt para trás.
+          npx playwright install-deps chromium
+
           for tentativa in 1 2 3; do
-            timeout 300 npx playwright install --with-deps chromium && exit 0
-            echo "tentativa $tentativa falhou ou travou; nova em $((tentativa * 10))s"
+            timeout 300 npx playwright install chromium && exit 0
+            echo "download do chromium falhou ou travou (tentativa $tentativa); nova em $((tentativa * 10))s"
             sleep $((tentativa * 10))
           done
           exit 1
