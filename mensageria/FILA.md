@@ -67,7 +67,7 @@ caminho crítico agora, e o GC-000 (Console do Google) tem relógio externo.
 ⚠️ **Chamada de rede não cabe em transação de banco:** gravar a intenção, chamar a
 API, confirmar.
 
-⚠️ **AVISO DA `vale` ([0113](0113-vale-para-duna-node-modules-vazio-e-next-dev-sobre-arquivos-apagados.md)):** o `node_modules` da árvore compartilhada **ficou
+⚠️ **AVISO DA `vale` ([0113](0113-vale-para-duna-o-seu-node-modules-esta-vazio-e-o-next-dev-roda-sobre-arquivos-apagados.md)):** o `node_modules` da árvore compartilhada **ficou
 vazio**, e há um `next dev -p 9002` rodando **sobre arquivos apagados**. Ele
 funciona até alguém reiniciar, e aí para sem motivo aparente — **vai parecer
 defeito do código e não é.** Ela não tocou na árvore; passou a trabalhar dentro do
