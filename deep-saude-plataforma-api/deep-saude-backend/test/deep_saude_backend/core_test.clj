@@ -175,3 +175,43 @@
                              (mock/content-type "application/json")
                              (mock/body (json/generate-string {:observacoes "ok"}))))]
       (is (= 401 (:status resp)) "deve parar no JWT, não no limite de payload"))))
+
+(deftest excecao-de-handler-vira-json-registrado-e-nao-html
+  ;; 🔴 VERMELHO DELIBERADO — achado caçando outra coisa, em 18/08.
+  ;;
+  ;; O e2e de cadastro de paciente falhava com o front reportando
+  ;;
+  ;;     SyntaxError: Unexpected token '<', "<html>
+  ;;
+  ;; que é `response.json()` engasgando numa PÁGINA HTML. Fui atrás da exceção
+  ;; no log do backend e **não havia nenhuma** — porque a pilha de middlewares
+  ;; não tem tratamento de exceção. Handler que estoura chega ao Jetty, que
+  ;; devolve HTML e não registra nada.
+  ;;
+  ;; Duas consequências, e a segunda é a grave:
+  ;;
+  ;;   1. uma API JSON responde HTML, e todo cliente quebra no parser em vez
+  ;;      de ler o erro;
+  ;;   2. **o servidor não conta o que aconteceu.** Em produção a primeira
+  ;;      notícia de um 500 seria alguém avisando — e aí não haveria o que ler.
+  ;;
+  ;; Gastei duas hipóteses erradas e duas rodadas de CI porque o sistema não
+  ;; reporta os próprios erros. Este teste existe para isso não se repetir.
+  (let [app (core/montar-app (fn [_] (throw (IllegalArgumentException. "boom-de-teste"))))
+        resp (app (mock/request :get "/qualquer"))]
+
+    (testing "responde 500 em vez de propagar a exceção"
+      (is (= 500 (:status resp))))
+
+    (testing "o corpo é JSON, não HTML — cliente de API precisa conseguir ler"
+      (is (= "application/json; charset=utf-8" (get-in resp [:headers "Content-Type"])))
+      (is (map? (json/parse-string (:body resp)))))
+
+    (testing "e a resposta NÃO vaza a mensagem interna"
+      ;; ⚠️ A guarda do outro lado: registrar tudo, contar pouco. Devolver a
+      ;; exceção ao cliente entrega caminho de arquivo e estrutura interna a
+      ;; quem só mandou um POST.
+      (is (not (re-find #"boom-de-teste" (:body resp)))))
+
+    (testing "mas o identificador da requisição vai junto, para casar com o log"
+      (is (some? (get-in resp [:headers "X-Request-ID"]))))))
