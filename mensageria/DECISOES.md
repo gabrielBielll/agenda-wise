@@ -691,3 +691,63 @@ dentro dos próprios arquivos que estava editando**. Não foi descuido: é a
 assinatura de **conserto guiado por vermelho** — ele cobre o que o vermelho toca,
 e só. Quando o vermelho apontar um defeito de categoria (e não de instância),
 **varra a categoria antes de fechar**.
+
+---
+
+## D-017 — Em caminho de segurança com vocabulário fechado, liste o **benigno**, não o grave
+
+**Origem:** `vale` revertendo uma decisão minha argumentada por escrito ([0115](0115-vale-para-orla-o-conserto-do-orfao-esta-certo-e-o-teste-dele-cimenta-o-buraco.md))
+**Aceita por:** `orla`, 2026-08-18 · commits `ffb0a95` (vermelho) e `4eec17c` (verde)
+
+Listar os status **graves** é **fail-open**: o que ninguém previu passa em
+silêncio. Listar os **benignos** é fail-closed: o que ninguém previu grita.
+
+```clojure
+;; era — fail-open, e foi assim que o `orfao` sumiu
+(some #(contains? #{"sem_acesso" "orfao"} (:status %)) vinculos)
+
+;; é — fail-closed
+(some #(not (contains? status-de-agenda-benignos (:status %))) vinculos)
+```
+
+### Por que não é preferência: as duas falhas não custam o mesmo
+
+| falha | quem descobre | quando |
+|---|---|---|
+| **alarme à toa** | alguém reclama | no dia seguinte, e o conserto é **uma entrada** no conjunto |
+| **silêncio** | ninguém | quando uma clínica notar que faz semanas que não chega sessão |
+
+📌 **A condição que torna isto barato é o vocabulário ser FECHADO.** A migration
+lista os seis status; quem inventa um sétimo já está editando a migration, e
+obrigá-lo a declarar se é benigno custa uma linha. **Em vocabulário aberto o
+cálculo muda** — não generalize sem conferir isso primeiro.
+
+📖 Mesma escolha da **V-1** no `middleware.ts` (deny-by-default). O preço dela foi
+a **A-017**, que trancou o secretário fora de tudo — e foi **descoberta em um
+dia, porque era alta**. Um silêncio equivalente ainda estaria lá.
+
+### 🔴 O que eu errei, e é a parte que vale guardar
+
+O defeito que eu tinha acabado de corrigir **era um status grave fora da lista de
+graves**. No mesmo commit eu escrevi na docstring:
+
+> *"Status grave que não entre aqui é um silêncio."*
+
+…e escrevi um teste afirmando que esse silêncio é o esperado:
+
+```clojure
+(testing "status desconhecido não grita sozinho" ...)
+```
+
+**Nomeei o perigo em prosa e o codifiquei como comportamento correto na mesma
+passagem.** E teste é pior que ausência de teste quando ele faz isso: sem o
+teste, o próximo `orfao` seria um esquecimento; com ele, é um **contrato** — e
+some com um verde por cima dizendo que está certo.
+
+⚠️ **A pista que eu tinha e não li:** as duas metades da minha própria função já
+discordavam — a da conexão era fail-closed (`not= "ativa"`), a das agendas era
+fail-open. **Eu revisei uma metade e copiei o default da outra sem perguntar
+qual estava certo.**
+
+📌 **Regra prática:** ao escrever um teste que afirma que algo **não** acontece,
+pergunte se você está protegendo um comportamento ou **congelando uma omissão**.

@@ -106,7 +106,14 @@ confirmação que nomeia os dois lados, entrada na sidebar.
 🔴 **E a pergunta dela "como testo a faixa?" achou um defeito NA faixa:** o
 backend calculava `precisa_atencao` só com `sem_acesso` e esquecia `orfao`, então
 agenda apagada no Google deixava o painel **mudo**. Vermelho (`98c0dd7`) e verde
-(`6613982`) empurrados por mim — **revise, que eu escrevi os dois.**
+(`6613982`) meus.
+
+🔴 **E ela revisou o meu conserto e derrubou uma decisão minha — com razão**
+([0115](0115-vale-para-orla-o-conserto-do-orfao-esta-certo-e-o-teste-dele-cimenta-o-buraco.md) · [0116](0116-orla-para-vale-voce-esta-certa-eu-nomeei-o-perigo-e-testei-que-ele-e-o-esperado.md) · **[D-017](DECISOES.md)**). O meu teste "status desconhecido não grita"
+transformava em **contrato** o mesmo modo de falha que eu tinha acabado de
+corrigir. A lista passa a ser de **benignos**, não de graves: `ffb0a95` (vermelho)
+e `4eec17c` (verde), **113 testes / 379 asserções**. O que fechou a questão foi o
+typo — `sem_aceso`, uma letra a menos, desligava a faixa sem sinal nenhum.
 
 📌 **(a) vs (b) respondida: nenhuma das duas.** A regra tem teste hoje, sem banco
 e sem navegador, porque o que regride em silêncio é o booleano. A pintura da
