@@ -147,14 +147,22 @@
 
    🔴 Vive fora do handler porque é **a regra que decide se o admin descobre ou
    não** que a sincronização morreu. Dentro do handler ela dependia de banco e
-   por isso nunca teve teste.
+   por isso nunca teve teste — e ficar sem teste custou exatamente um status:
+   olhava `sem_acesso` e **esquecia `orfao`**.
 
-   ⚠️ Extraída sem mudança de comportamento, de propósito: o teste que vem junto
-   nasce VERMELHO no caso `orfao` (D-008). O conserto é o commit seguinte."
+   Como a faixa da tela fica inteira atrás deste booleano, uma agenda apagada no
+   Google deixava o painel **mudo**, e a frase que a tela sabe escrever para esse
+   caso (*\"a agenda sumiu da conta do Google\"*) era inalcançável. As sessões
+   param de chegar e a tela diz que está tudo bem — a A-013 num terceiro
+   endereço.
+
+   ⚠️ **Status grave que não entre aqui é um silêncio.** Ao acrescentar um novo,
+   acrescente junto o teste em `handlers_test.clj` — inclusive o do outro lado,
+   se ele NÃO deve gritar."
   [conexao vinculos]
   (boolean
    (or (and conexao (not= "ativa" (:status conexao)))
-       (some #(= "sem_acesso" (:status %)) vinculos))))
+       (some #(contains? #{"sem_acesso" "orfao"} (:status %)) vinculos))))
 
 (defn status-handler
   "Estado da integração para o painel do admin."
