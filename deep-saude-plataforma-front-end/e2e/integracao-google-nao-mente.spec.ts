@@ -26,10 +26,21 @@ import { CONTA } from './preparar-dados';
  * descobrindo que o acesso caiu. O semeador desta suíte fala só HTTP
  * (`preparar-dados.ts`), então ele não alcança.
  *
- * As saídas, para quem for fechar isso:
- *   (a) o semeador ganhar acesso ao banco e inserir o vínculo direto — é o
- *       caminho honesto, e muda a natureza do semeador;
- *   (b) esperar o GC-000 e uma conta de teste de verdade no Google.
+ * ✅ **A pergunta (a) vs (b) já foi respondida, e a resposta foi uma terceira**
+ * (mensageria 0114/0116) — para ninguém refazê-la:
+ *
+ * | | tem teste? | onde |
+ * |---|---|---|
+ * | **a decisão** de gritar | ✅ **sim, hoje** | `google/handlers_test.clj`, sem banco e sem navegador |
+ * | **a pintura** da faixa | ❌ não | espera o GC-000 |
+ *
+ * 🔴 **O que regride em silêncio é o booleano, não os pixels** — e foi lá que o
+ * defeito estava: `precisa_atencao` olhava `sem_acesso` e esquecia `orfao`, então
+ * a frase que esta tela sabe escrever para agenda apagada era inalcançável. Hoje
+ * a regra é **fail-closed**: status que ninguém previu grita.
+ *
+ * ⏸️ **(a) foi descartada**: acoplar o semeador ao schema do banco troca um
+ * buraco conhecido por falhas confusas de e2e a cada migration.
  *
  * 📌 **Não simulei com `page.route`**: a página é *server component*, o `fetch`
  * sai do servidor Next e nunca toca o navegador. Um `route` aqui seria ignorado

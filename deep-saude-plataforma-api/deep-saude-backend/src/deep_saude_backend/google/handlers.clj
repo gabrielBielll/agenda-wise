@@ -142,6 +142,17 @@
               (sql/insert! @datasource :google_conexao dados))
             {:status 200 :body {:message "Google Agenda conectado."}}))))))
 
+(def ^:private status-de-agenda-benignos
+  "Os status de agenda em que **não** há nada quebrado.
+
+   `ativo` sincroniza; `pausado` é decisão de alguém; `pendente` e
+   `convite_pendente` são etapas normais de configuração — a tela já os mostra em
+   âmbar na própria linha, que é o tom certo para “falta terminar”, não
+   para “parou de funcionar”.
+
+   Tudo o que não estiver aqui grita. Ver `precisa-atencao?`."
+  #{"ativo" "pausado" "pendente" "convite_pendente"})
+
 (defn precisa-atencao?
   "A integração parou de funcionar de um jeito que a tela precisa GRITAR?
 
@@ -156,13 +167,33 @@
    param de chegar e a tela diz que está tudo bem — a A-013 num terceiro
    endereço.
 
-   ⚠️ **Status grave que não entre aqui é um silêncio.** Ao acrescentar um novo,
-   acrescente junto o teste em `handlers_test.clj` — inclusive o do outro lado,
-   se ele NÃO deve gritar."
+   ## Por que a lista é de BENIGNOS, e não de graves
+
+   A primeira versão listava os graves — e foi assim que o `orfao` sumiu. Listar
+   graves é **fail-open**: o status que ninguém previu passa em silêncio, e um
+   `sem_aceso` digitado errado desliga a faixa sem nenhum sinal.
+
+   Invertido, o esquecimento fica **alto em vez de mudo**. As duas falhas não
+   custam a mesma coisa:
+
+     alarme à toa -> alguém vê, reclama, e o conserto é UMA entrada aqui embaixo
+     silêncio     -> descobre-se quando a clínica notar que faz semanas que não
+                     chega sessão
+
+   É a mesma assimetria da A-013, e a mesma escolha que a V-1 fez no
+   `middleware.ts`. O preço de lá foi a A-017 — descoberta em **um dia**, porque
+   era alta.
+
+   📌 E agora as duas metades desta função concordam: a conexão já era
+   fail-closed (`not= “ativa”`), e as agendas passam a ser também.
+
+   ⚠️ **O vocabulário é fechado** — a migration `20260811100200-google-integracao`
+   lista os seis. Status novo entra aqui **se for benigno**, com teste dos dois
+   lados em `handlers_test.clj`."
   [conexao vinculos]
   (boolean
    (or (and conexao (not= "ativa" (:status conexao)))
-       (some #(contains? #{"sem_acesso" "orfao"} (:status %)) vinculos))))
+       (some #(not (contains? status-de-agenda-benignos (:status %))) vinculos))))
 
 (defn status-handler
   "Estado da integração para o painel do admin."
