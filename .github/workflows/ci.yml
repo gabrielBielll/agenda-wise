@@ -357,6 +357,23 @@ jobs:
           E2E_BACKEND_URL: http://localhost:3999
         run: npm run e2e
 
+      # 🔴 O log do backend IMPRESSO, não só arquivado.
+      #
+      # Em 18/08 o e2e de cadastro falhou com o front reportando
+      # `SyntaxError: Unexpected token '<'` — que é o `response.json()`
+      # engasgando na página de erro HTML do backend. A exceção de verdade
+      # estava neste arquivo, dentro do zip do artefato — e o artefato é
+      # inalcançável de onde a `orla` trabalha (o proxy bloqueia o host do
+      # blob). Resultado: duas hipóteses erradas seguidas, gastas em cima de
+      # leitura de código em vez da mensagem que o servidor já tinha escrito.
+      #
+      # Guardar não é mostrar. Só na falha, e só a cauda, para não afogar o log.
+      - name: Log do backend (só quando o e2e falha)
+        if: failure()
+        run: |
+          echo "===== últimas 120 linhas do backend ====="
+          tail -120 "$RUNNER_TEMP/backend.log" || echo "(sem backend.log)"
+
       # Sem isto, teste de navegador que falha no CI vira adivinhação: o
       # relatório e o log do backend são a única janela para o que aconteceu.
       - name: Guardar relatório e log do backend
