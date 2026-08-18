@@ -150,6 +150,67 @@ test.describe('cadastro de paciente — a atribuição e a persistência', () =>
   });
 });
 
+test.describe('cadastro de paciente — excluir', () => {
+  /**
+   * 🔴 VERMELHO DELIBERADO — o botão de excluir do painel do admin nunca funcionou.
+   *
+   * Eu anotei isto na mensageria 0131 como observação de passagem, dizendo
+   * *"não conferi se o cookie existe — é leitura, não medição"*. A `orla` mediu
+   * (0132) e eu conferi por conta própria:
+   *
+   * ```
+   * quem ESCREVE  "sessionToken"   admin/login/actions.ts:84
+   * quem IMPORTA esse arquivo      ninguém — `handleLogin` e `LoginFormState` sem uso
+   * como o login acontece          admin/login/page.tsx:84 -> signIn("credentials")
+   * quem LÊ      "sessionToken"    admin/pacientes/actions.ts:7  -> deletePaciente
+   * ```
+   *
+   * O cookie é do **fluxo de login antigo**, que o NextAuth substituiu. Ninguém
+   * o escreve mais, então `deletePaciente` do admin devolve **sempre**
+   * `{ success: false, message: "Erro de autenticação." }`.
+   *
+   * 📌 **E há um gêmeo saudável ao lado**, que fecha o diagnóstico: o
+   * `deletePaciente` de `(app)/patients/actions.ts` usa `getBackendToken()` e
+   * funciona. Mesmo nome, duas implementações, uma lendo cookie de ninguém.
+   *
+   * ⚠️ **O pior é a mensagem.** "Erro de autenticação" manda quem investiga
+   * procurar sessão, token, NextAuth — e a causa é um caminho que ficou para trás
+   * numa troca de login. É a quinta vez esta semana que o custo não é a falha, e
+   * sim a falha apontando para o lugar errado; as outras quatro eram em teste,
+   * **esta é na tela do usuário.**
+   */
+  test('o admin exclui um paciente e ele some da listagem', async ({ page }) => {
+    const nome = nomeDePaciente();
+
+    // O alvo é criado pelo próprio teste — excluir o paciente semeado apagaria o
+    // mundo que os outros arquivos da suíte usam.
+    await page.goto('/admin/pacientes/novo');
+    await page.locator('#nome').fill(nome);
+    await page.getByRole('button', { name: /salvar paciente/i }).click();
+    await expect(page).toHaveURL(/\/admin\/pacientes(\?|$)/);
+
+    const linha = page.getByRole('row').filter({ hasText: nome });
+    await expect(linha, 'o paciente do teste não foi criado').toBeVisible();
+
+    await linha.getByRole('button', { name: /excluir/i }).click();
+
+    const confirmacao = page.getByRole('alertdialog').filter({ hasText: /certeza absoluta/i });
+    await expect(confirmacao, 'o diálogo de confirmação não abriu').toBeVisible();
+    await confirmacao.getByRole('button', { name: /sim, excluir/i }).click();
+
+    /**
+     * A asserção que o defeito derruba. Com o cookie inexistente, a action volta
+     * "Erro de autenticação", a linha **continua na tela**, e o único sinal é um
+     * toast que some sozinho.
+     */
+    await expect(
+      page.getByRole('row').filter({ hasText: nome }),
+      'o paciente continua na listagem depois de confirmar a exclusão — o botão de ' +
+        'excluir do admin lê um cookie que ninguém escreve desde a troca para o NextAuth'
+    ).toHaveCount(0);
+  });
+});
+
 test.describe('cadastro de paciente — o que o secretário alcança', () => {
   // Contexto limpo: o globalSetup guarda a sessão do admin, e aqui o objeto é o
   // terceiro papel.
