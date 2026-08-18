@@ -18,6 +18,7 @@
    handler que consultava banco, e foi exatamente isso que a deixou sem teste
    por todo esse tempo."
   (:require [clojure.test :refer [deftest is testing]]
+            [clojure.string]
             [deep-saude-backend.db :as db]
             [deep-saude-backend.google.handlers :as handlers]))
 
@@ -53,6 +54,56 @@
                (:body resp)))
         (is (= usuario (last (first @consultas)))
             "a consulta termina no user_id do JWT, não em um alvo do corpo")))))
+
+(deftest painel-do-admin-nao-pode-calar-quando-uma-das-conexoes-quebra
+  ;; 🔴 VERMELHO DELIBERADO — defeito que o GC-012 abriu na tela do GC-001a.
+  ;;
+  ;; Antes do GC-012 havia UMA conexão por clínica, e `conexao-da-clinica` fazia
+  ;; `SELECT * FROM google_conexao WHERE clinica_id = ?` com `execute-one!`. Com
+  ;; uma linha, "a primeira" e "a única" eram a mesma coisa.
+  ;;
+  ;; Agora há **uma por psicóloga**, e a consulta não tem `ORDER BY`: ela devolve
+  ;; uma linha **arbitrária**. O `status-handler` do admin usa essa linha para
+  ;; `conta`, `status_conexao`, `ultimo_erro` e — o que importa — para a metade de
+  ;; conexão do `precisa_atencao`.
+  ;;
+  ;; ⚠️ Resultado: clínica com três psicólogas, uma com a conexão `invalida`. Se o
+  ;; banco devolver uma das `ativa`, **a faixa não sobe**. A sincronização daquela
+  ;; psicóloga morreu e o painel diz que está tudo bem.
+  ;;
+  ;; É a mesma família que a gente fechou duas vezes hoje (o `orfao` e o
+  ;; fail-open), voltando por uma porta nova: não pela regra, e sim pelo **dado
+  ;; que a regra recebe**. A regra continua certa; ela é chamada com uma amostra.
+  ;;
+  ;; 📌 Este teste afirma o mínimo defensável e nada além: **se QUALQUER conexão
+  ;; da clínica estiver quebrada, o painel grita.** Como mostrar isso na tela — a
+  ;; conta de quem, quantas — é decisão de produto, e está perguntada na 0137.
+  ;; ⚠️ O stub é na CAMADA DE BANCO, não numa função de busca. A primeira versão
+  ;; deste teste redefinia uma `conexoes-da-clinica` que só existiria depois do
+  ;; conserto — ou seja, presumia a forma da correção antes de ela ser decidida.
+  ;; Assim o teste descreve o mundo (três linhas na tabela) e deixa em aberto
+  ;; COMO o handler vai olhá-las.
+  (let [clinica #uuid "eeeeeeee-0000-0000-0000-000000000001"
+        ;; A ordem imita o pior caso realista: o banco devolve primeiro uma sadia.
+        conexoes [{:status "ativa"    :google_account_email "a@google.local"}
+                  {:status "invalida" :google_account_email "b@google.local"}
+                  {:status "ativa"    :google_account_email "c@google.local"}]
+        sql-de (fn [q] (str (first q)))]
+    (with-redefs [db/execute-one!
+                  (fn [q]
+                    (if (clojure.string/includes? (sql-de q) "google_conexao")
+                      (first conexoes)   ; é isto que `execute-one!` faz: a primeira de N
+                      nil))
+                  db/execute-query!
+                  (fn [q]
+                    (if (clojure.string/includes? (sql-de q) "google_conexao")
+                      conexoes
+                      [{:status "ativo" :total 3}]))]
+      (let [resp (handlers/status-handler {:identity {:clinica_id clinica}})]
+        (is (= 200 (:status resp)))
+        (is (true? (:precisa_atencao (:body resp)))
+            (str "uma das conexões da clínica está `invalida` e o painel ficou mudo — "
+                 "o handler olha UMA linha arbitrária de N, e a que ele sorteou estava sadia"))))))
 
 (deftest conexao-quebrada-sempre-grita
   (testing "conexão inválida grita mesmo com todas as agendas saudáveis"
