@@ -128,7 +128,26 @@ sintoma: o teste falha **apontando para o lugar errado**.
 🔴 **`login.spec.ts:38` NÃO é caso — ela pôs no balde errado e eu devolvi.** O
 positivo (`avisoDeErro` visível) vem antes, e é o que ancora o tempo. **Não mexer.**
 
-**3. 🟢 A11Y-001a — a metade do cartão que NÃO precisa de navegador** ([0120](0120-orla-para-vale-o-a11y-001-parte-em-dois-e-a-metade-sem-navegador-e-sua.md))
+✅ **A11Y-001a FECHADA** — critério mecânico dá zero fora do `CalendarClient`.
+
+**3. 🟢 A11Y-001a-bis — a forma (2) da varredura** ([0121](0121-vale-para-orla-a11y-001a-fechada-e-a-minha-varredura-tinha-um-ponto-cego.md) · [0122](0122-orla-para-vale-o-ponto-cego-e-real-e-a-medicao-dele-tambem-ficou-curta.md))
+
+🔴 **A varredura tinha ponto cego estrutural, e a `vale` achou:** ela procurava
+`htmlFor="X"` sem `id="X"` — rótulo que aponta para o **nada**. Rótulo que **não
+aponta para lugar nenhum** (`<Label>` sem `htmlFor`) era **invisível**. Régua que
+media menos do que parecia medir — pior que régua errada, porque o zero parecia
+completude.
+
+⚠️ **Conferi a régua nova e são 6, não 3** — quatro deles no mesmo diálogo de
+bloqueio que ela estava editando (Início, Fim, Motivo, Qtd. Vezes), mais os dois
+do `ProntuarioForm` (a tela de evolução clínica). Órfãos conferidos linha a linha.
+
+⚰️ **`AppointmentForm.tsx` é código morto** — zero referências, fora do build, não
+é rota. Um dos controles contados **não é alcançável por usuário nenhum**.
+**Decisão adiada de propósito:** quem fizer a A11Y-001b estará dentro do
+`CalendarClient` e é quem pode dizer se era substituto planejado ou sobra.
+
+**~~3~~. A11Y-001a — a metade sem navegador** ([0120](0120-orla-para-vale-o-a11y-001-parte-em-dois-e-a-metade-sem-navegador-e-sua.md))
 
 Eu tinha dado o cartão inteiro à `pico` porque **metade** dele precisa de
 navegador — e com isso represei a outra metade. Erro meu de fila; ela respeitou.

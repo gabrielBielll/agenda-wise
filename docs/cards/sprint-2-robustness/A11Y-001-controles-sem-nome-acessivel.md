@@ -123,6 +123,59 @@ da `vale` que estabeleceu isso, e é o que torna esta metade segura sem navegado
 dias** — a de maior uso e a de maior risco de mexer às cegas. Fica com quem puder
 medir o resultado.
 
+## 🔴 A varredura tem DUAS formas, e a primeira versão deste cartão só tinha uma
+
+Achado pela `vale` na [0121](../../../mensageria/0121-vale-para-orla-a11y-001a-fechada-e-a-minha-varredura-tinha-um-ponto-cego.md), fechando a A11Y-001a. **O 12 original era piso, não total.**
+
+| forma | o que procura | como |
+|---|---|---|
+| **(1)** rótulo que aponta para o **nada** | `htmlFor="X"` sem `id="X"` no arquivo | foi a varredura original |
+| **(2)** rótulo que não aponta para **lugar nenhum** | `<Label>` **sem `htmlFor`** | **invisível para a (1)** |
+
+O efeito nas duas é idêntico — controle sem nome acessível. A régua original
+estava certa e **media menos do que parecia medir**.
+
+### Forma (2) — medido pela `orla`, e é mais do que a 0121 reportou
+
+| arquivo | rótulo | estado |
+|---|---|---|
+| `admin/agendamentos/AgendamentosClient.tsx` | Repetição | ✅ `9642692` |
+| `admin/agendamentos/AgendamentosClient.tsx` | **Início** | ⬜ |
+| `admin/agendamentos/AgendamentosClient.tsx` | **Fim** | ⬜ |
+| `admin/agendamentos/AgendamentosClient.tsx` | **Motivo** | ⬜ |
+| `admin/agendamentos/AgendamentosClient.tsx` | **Qtd. Vezes** | ⬜ |
+| `(app)/patients/[patientId]/ProntuarioForm.tsx` | Vincular a Sessão (Opcional) | ⬜ |
+| `(app)/patients/[patientId]/ProntuarioForm.tsx` | Humor / Estado de Ânimo | ⬜ |
+
+⚠️ **Os quatro do diálogo de bloqueio são `<Label>` irmão de `<Input>`** — sem
+`htmlFor`, sem `id`, sem envolver o campo. Conferido linha a linha, não por grep.
+
+🔴 **Os dois do `ProntuarioForm` são a tela de evolução clínica** — a que a
+psicóloga preenche a cada atendimento.
+
+### 📌 O critério de pronto passa a ser os dois
+
+```sh
+# (1) todo htmlFor="X" tem id="X" no mesmo arquivo   -> zero
+# (2) todo <Label> de tela tem htmlFor               -> zero
+#     (exceto components/ui/form.tsx e label.tsx, que DEFINEM o componente)
+```
+
+## ⚰️ `AppointmentForm.tsx` é código morto — um dos controles contados não existe para ninguém
+
+Verificado por `orla` e `vale`, independentemente: **zero referências** em `src/`
+e `e2e/`, não aparece no build, e não é rota (o App Router só roteia `page.tsx`).
+O diálogo de agendamento do calendário é **inline no `CalendarClient.tsx`**.
+
+📌 **O conserto do `paciente` dele ficou** (é um token, e some junto com o arquivo),
+mas o cartão precisa dizer: **um dos controles contados não é alcançável por
+usuário nenhum.**
+
+⚠️ **Não apagar agora.** A decisão cabe a quem fizer a **A11Y-001b**, que vai
+estar dentro do `CalendarClient` e é quem pode dizer se este arquivo era um
+substituto planejado do diálogo inline ou sobra de refactor. **Apagar antes disso
+é decidir sem o contexto.**
+
 ## Solução proposta
 
 Para `Select`/`Popover` (o controle é um `button role="combobox"`):
