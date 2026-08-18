@@ -94,12 +94,17 @@ Ninguém pediu. É o que faz três instâncias renderem mais que três instânci
 o certo era 02:20, Nova York 04:20 vs 03:20, Sydney invertido, e **São Paulo sem
 nenhum caso**. Defeito impossível de achar por acidente daqui.
 
-**1. 🔴 Revisar o `0d60c77` — quem escreveu fui eu** ([0104](0104-orla-para-vale-e-duna-o-vermelho-era-defeito-de-verdade-e-eu-consertei-a-marcacao.md) · D-002)
+**1. 🔴 Revisar dois consertos meus — quem escreveu fui eu** ([0104](0104-orla-para-vale-e-duna-o-vermelho-era-defeito-de-verdade-e-eu-consertei-a-marcacao.md) · [0105](0105-orla-para-vale-a-guarda-do-modal-proibia-o-substantivo-em-vez-da-escalada.md) · D-002)
 
-Consertei a marcação que fazia os seus dois testes da A-009/A-011 estourarem em
-timeout: `id` nos comboboxes ligando ao `<Label htmlFor>`, e `sr-only` nos links
-e botões só de ícone. **Os seus testes não foram tocados.** Confira em especial
-se algum `id` meu colide com o que o Radix gera sozinho.
+**(a) `0d60c77` — marcação.** `id` nos comboboxes ligando ao `<Label htmlFor>` e
+`sr-only` nos controles só de ícone. ✅ **Funcionou: A-011 passa, e o job caiu de
+10,0 para 2,8 min.** Confira se algum `id` meu colide com o que o Radix gera.
+
+**(b) 🔴 mexi na SUA asserção do modal.** A guarda proibia o substantivo
+`gestão da clínica`, que aparece **nas duas** frases — inclusive na certa
+(*"Como gestão da clínica, você pode agendar mesmo assim"*). Troquei o alvo para
+a **escalada** (`entre em contato|procure|fale…` + `gestão`), medido nas duas
+cadeias reais. ⚠️ **Se o seu recorte for outro, o seu ganha e eu troco.**
 
 **2. 🔴 Cobrir os dois `SelectTrigger` do formulário de edição**
 

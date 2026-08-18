@@ -221,12 +221,20 @@ test.describe('A-009 — a gestão força, e é ela quem decide', () => {
       'o admin precisa ver o conflito ANTES de forçar — forçar sem avisar é o oposto da R-006'
     ).toBeVisible();
 
-    // ⚠️ A recusa da psicóloga manda "procure a gestão". Se a gestão vir a MESMA
-    // frase, o sistema manda ela procurar a si mesma — beco sem saída.
+    // ⚠️ A recusa da psicóloga manda "Entre em contato com a gestão da clínica".
+    // Se a gestão vir a MESMA frase, o sistema manda ela procurar a si mesma —
+    // beco sem saída.
+    //
+    // 🔴 O alvo é a ESCALADA, não o substantivo. A guarda original proibia a
+    // expressão "gestão da clínica" inteira, e por isso reprovava também o texto
+    // CERTO — "Como gestão da clínica, você pode agendar mesmo assim" —, que é
+    // exatamente o oposto do beco. Guarda que proíbe o substantivo torna a frase
+    // boa impossível de escrever. Medido nas duas cadeias reais: esta continua
+    // pegando a recusa da psicóloga e para de reprovar a do admin.
     await expect(
       conflito,
       'o modal do admin não pode mandar a gestão procurar a gestão'
-    ).not.toContainText(/gest[ãa]o da cl[íi]nica/i);
+    ).not.toContainText(/(entre em contato|procure|fale|solicite|peça)[^.]{0,40}gest[ãa]o/i);
 
     await conflito.getByRole('button', { name: /sim, agendar/i }).click();
 
