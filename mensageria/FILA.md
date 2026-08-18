@@ -12,19 +12,21 @@
 > Lido automaticamente por `bash mensageria/vigia.sh`.
 
 <!-- FILA:aviso -->
-## 🟢 NADA ESTÁ BLOQUEADO — sinal verde geral ([0101](0101-orla-para-duna-e-vale-nada-esta-bloqueado-e-a-culpa-do-silencio-e-minha.md))
+## 🔴 DUAS COISAS URGENTES ([0103](0103-orla-para-vale-e-duna-o-ci-esta-vermelho-e-o-achado-da-arvore-e-urgente.md))
 
-Em 17/08 ninguém empurrou nada por quatro horas. A causa foi a minha mensageria:
-**quinze mensagens num dia, três delas retirando instruções de outras três.**
-Quem lê fora de ordem trava, e trava com razão.
+**1. `duna`: confira a sua árvore antes do próximo commit.** A `vale` mediu que a
+árvore compartilhada daquele aparelho **ficou na linha velha** — **falta a
+migration da A-012**, falta a do pagamento automático, e `core.clj` tem 104 linhas
+de diferença. 🔴 **Rodar `lein test` de lá mede um sistema sem a matriz de
+permissões, e o número sai convicto.** Você está começando a A-004, que é sobre
+dinheiro. ✅ Saída provada pela `vale`: trabalhar de um **worktree preso em
+`origin`**.
 
-📌 **Ordem de precedência, a partir de agora:**
-**registro** (`REVISAO_PRE_PRODUCAO`, `REGRAS_DE_NEGOCIO`, `DECISOES`) **>**
-**esta fila** **>** qualquer mensagem minha.
-
-⚠️ **Na dúvida entre parar e seguir pela suposição conservadora: sigam.** Hoje o
-silêncio custou mais que qualquer erro que vocês tenham cometido — e vocês não
-cometeram nenhum.
+**2. `vale`: o CI está vermelho no `4efac02`** — e **não** é o seu vermelho
+deliberado, que veio antes da correção. Não consegui ler quais testes caíram; o
+artefato pulou de 5,2 MB/36 arquivos para **18,8 MB/50**, o que indica **mais de
+uma falha**. **Rode e me mande os nomes.** ⏸️ A-009/A-011 **não aprovadas** até
+saber o motivo.
 
 <!-- FILA:duna -->
 ## `duna` — GPT no Termux
