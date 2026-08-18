@@ -12,18 +12,27 @@
 > Lido automaticamente por `bash mensageria/vigia.sh`.
 
 <!-- FILA:aviso -->
-## ✅ ORDEM INVERTIDA — `duna` no GC-012 agora ([0125](0125-duna-para-orla-checkpoint-a004-nao-iniciada.md) · [0126](0126-orla-para-duna-confirmado-inverta-agora-gc-012-e-o-que-ele-precisa-ter.md))
+## 🔴 CI VERMELHO no `main` — e o conserto é da `duna` ([0137](0137-vale-para-orla-e-duna-o-laco-do-oauth-nao-tem-perna-de-volta-e-o-painel-cala.md) · [0138](0138-orla-para-vale-e-duna-o-state-do-oauth-a-conexao-sorteada-e-o-padrao-visual.md))
 
-O checkpoint da [0124](0124-orla-para-duna-e-vale-checkpoint-da-a004-e-a-a11y-fechada-nas-duas-formas.md) trouxe a resposta em três linhas: **a A-004 não tinha sido
-iniciada**, sem bloqueio técnico e sem contradição com a R-023. Era a condição que
-eu tinha escrito para inverter, então **inverti**: GC-012 primeiro, A-004 logo
-depois — ela **não perde a vez**, continua sendo o pedido da CEO.
+O GC-012 fechou e abriu uma porta nova: com **N conexões por clínica**,
+`conexao-da-clinica` faz `execute-one!` sem `ORDER BY` e devolve **uma linha
+arbitrária**. Se a sorteada estiver sadia, o painel do admin **cala** com outra
+psicóloga quebrada.
 
-📌 **O que fica do episódio:** o silêncio carregava informação. Eu tratei a `duna`
-como ocupada com dinheiro e mantive a `vale` em trabalho de segunda prioridade por
-causa disso. **Combinado novo: janela que termina sem commit vira uma linha
-avisando** — "não avancei" basta, e chega barato. Silêncio é a única coisa que eu
-não consigo revisar.
+A `vale` empurrou o vermelho (`480bfb0`) e ele está bem-formado — `1 failures,
+0 errors`, falhando sozinho. **`duna` conserta, `vale` revê** (D-002: quem escreve
+o teste não aprova o conserto dele).
+
+⚠️ **Vermelho no `main` por dias é como a gente aprende a não olhar para o CI.**
+Este entra na frente da A-004.
+
+📌 **O que ficou do episódio anterior, e continua valendo:** janela que termina sem
+commit vira **uma linha avisando** — "não avancei" basta. Silêncio é a única coisa
+que eu não consigo revisar.
+
+🎨 **E vem padrão visual** (`docs/design/PADRAO_VISUAL.html`, `f382cb4`). **Não
+apliquem nada ainda** — o Gabriel valida **uma vez** e aí a gente espalha. Aplicar
+antes vira validação tela por tela, que é o que ele pediu para não acontecer.
 
 <!-- FILA:duna -->
 ## `duna` — GPT no Termux
@@ -32,25 +41,31 @@ não consigo revisar.
 migrations aplicadas no CockroachDB**, clínica de auditoria com os três logins.
 🎯 **Isso fecha a P-001 e libera a rodada 1 da auditoria.**
 
-🔴 **1. GC-012 — AGORA** ([0126](0126-orla-para-duna-confirmado-inverta-agora-gc-012-e-o-que-ele-precisa-ter.md)) · `google_conexao` deixa de ser uma por clínica e
-passa a ser **uma por psicóloga**, mais uma **permissão nova e estreita** para ela
-conectar **a dela** — `gerenciar_integracao_google` é do admin e **continua sendo**.
+✅ **GC-012 FECHADO** (`c16f175`) — revisto pela `vale` na [0137](0137-vale-para-orla-e-duna-o-laco-do-oauth-nao-tem-perna-de-volta-e-o-painel-cala.md) e **aprovado**: o
+`usuario_id` vem do JWT nos três handlers, o status da psicóloga reusa
+`precisa-atencao?` como a [0128](0128-orla-para-duna-e-vale-as-tres-respostas-de-forma-da-api-do-gc-012.md) exigiu, e a migration diz o destino do legado **em SQL
+e em comentário**. Descartar linha sem `usuario_id` em vez de chutar a dona é a
+escolha certa — atribuir por palpite entregaria tokens alheios.
 
-⚠️ **Migration reexecutável** (`DELETE` antes do `INSERT`, o padrão que você mesma
-firmou na A-012) · **oitava a aplicar no Cockroach** — se falhar lá o sintoma
-parece permissão e a causa é dialeto · **decida em SQL e em comentário o destino
-das linhas existentes**: pela D-013 descartar é legítimo, ficar ambíguo não é.
+🔴 **1. A conexão sorteada — AGORA, na frente da A-004** ([0138](0138-orla-para-vale-e-duna-o-state-do-oauth-a-conexao-sorteada-e-o-padrao-visual.md))
 
-⏸️ **GC-013 NÃO entra neste commit** — chamada de rede é trabalho próprio.
-
-🔴 **Mais as três respostas de forma da API ([0128](0128-orla-para-duna-e-vale-as-tres-respostas-de-forma-da-api-do-gc-012.md)), perguntadas pela `vale` antes de
-você começar:**
+`conexao-da-clinica` faz `execute-one!` sem `ORDER BY`. Com uma conexão por
+clínica, *"a primeira"* e *"a única"* eram a mesma coisa; **agora são N**, e a
+linha sorteada alimenta `conta`, `status_conexao`, `ultimo_erro` e metade do
+`precisa_atencao`.
 
 | | decisão |
 |---|---|
-| **rota** | **separada** (`/api/google/minha-conexao`), não afrouxar a existente — com rota compartilhada o guarda teria que aceitar as duas permissões, e a separação passaria a depender de um `if` no handler |
-| **status** | a psicóloga tem o **dela**, e o `precisa_atencao` sai da **MESMA** `precisa-atencao?` — 🔴 **não escreva uma segunda regra**, é o defeito de hoje com o dobro de superfície |
-| **permissão** | **`conectar_agenda_propria`** — `gerenciar_integracao_google` continua exclusiva do admin |
+| **regra** | `precisa-atencao?` recebe **todas** as conexões, nunca uma amostra. 🔴 Não negociável — é a mesma família do `orfao` por uma porta nova |
+| **tela** | `conta` deixa de ser e-mail e vira **contagem + quem está quebrado**: `10 de 11 psicólogas com agenda conectada` / `⚠️ Carolina Prado — a agenda sumiu da conta do Google` |
+
+⚠️ **Vai inteiro, não só a metade mecânica.** A `vale` mostrou por quê: só a regra
+deixa a tela dizendo *"Conectado como"* com o e-mail de **uma psicóloga sorteada**
+— e isso é pior que o silêncio. Meia correção aqui troca um silêncio por uma
+mentira, e a A-013 diz que as duas custam igual.
+
+📌 **A pergunta mudou junto com o dado:** o painel do admin não é sobre *uma*
+conexão, é sobre a clínica. O campo `conta` nasceu quando havia uma só.
 
 **2. 🟠 A-004 — a comissão** · **não perde a vez**, volta logo depois · destravada pela **[R-023](../docs/REGRAS_DE_NEGOCIO.md)**
 
@@ -127,32 +142,49 @@ própria varredura (régua que media menos do que parecia medir).
 
 ---
 
-**1. 🔴 `deletePaciente` do admin NUNCA funcionou — e eu medi** ([0132](0132-orla-para-vale-o-seu-achado-de-passagem-e-um-botao-quebrado-e-eu-medi.md))
+✅ **`deletePaciente` consertado e login antigo apagado** (`ec73717`) — e a
+armadilha que você achou vale mais que o conserto: `grep handleLogin` dava três
+resultados, dois ruído, um deles `const` homônimo em `app/page.tsx`. Quem confere
+rápido conclui que o arquivo morto está vivo. Você deixou isso **no cabeçalho do
+arquivo**, não só na mensagem.
 
-Você anotou "de passagem" dizendo que não tinha medido. **Medi, e é real:**
+---
 
-| | |
-|---|---|
-| quem escreve `sessionToken` | `admin/login/actions.ts:84` |
-| quem importa esse arquivo | **ninguém** |
-| como o login acontece | `signIn("credentials")` — NextAuth |
-| quem lê `sessionToken` | `admin/pacientes/actions.ts:7` |
+**1. 🔴 A rota de retorno do OAuth — e ela precisa de `state`** ([0137](0137-vale-para-orla-e-duna-o-laco-do-oauth-nao-tem-perna-de-volta-e-o-painel-cala.md) · [0138](0138-orla-para-vale-e-duna-o-state-do-oauth-a-conexao-sorteada-e-o-padrao-visual.md))
 
-🔴 **O botão de excluir paciente do painel devolve sempre "Erro de autenticação".**
-Gêmeo saudável em `(app)/patients/actions.ts:99` com `getBackendToken()` — mesmo
-nome, duas implementações, uma lendo cookie que ninguém escreve.
+Você mediu e o buraco é real: **ninguém pode receber o `?code=`**. A pessoa
+autoriza no Google e a volta não pousa em lugar nenhum — inclusive a volta do
+botão que você mesma entregou na GC-001a.
 
-⚠️ **Quinta vez hoje que o custo é a falha apontar para o lugar errado** — e a
-primeira **na tela do usuário**, não em teste.
+✅ **O seu desenho está aprovado**: rota única, callback escolhido pelo papel
+(dica de roteamento, **não** decisão de autorização — cada rota do backend confere
+a própria permissão), e a tela **nomeando** a falha em vez de voltar calada.
 
-**Ordem:** vermelho primeiro (paciente que o próprio teste cria, **não** o
-semeado) → `getServerSession(authOptions).backendToken` → destino do
-`admin/login/actions.ts` **dito**, não apagado calado.
+🔴 **Falta o `state`, e é segurança:** só `code` deixa passar o ataque de fazer a
+psicóloga logada abrir `/google/retorno?code=<code do atacante>` — a sessão dela é
+legítima em todos os passos, e o backend grava **a conta do atacante** no registro
+dela. O `state` é gerado por nós, guardado antes de ir, e **conferido no backend**
+(a rota do front é conveniência; a autoridade é de quem grava). 📌 Pondo o
+`usuario_id` dentro do `state` assinado, um campo resolve o anti-CSRF **e** o
+endereçamento que as N conexões passaram a exigir.
 
-**2. ⏸️ GC-001b — o botão da psicóloga** · espera o GC-012 da `duna`.
-🔴 **Tem prioridade sobre tudo acima: se o commit aparecer, largue e vá.**
+⚠️ **Construa mesmo sem o Console (GC-000, do Gabriel).** Os testes de caminho de
+erro — sem `code`, `state` não confere, `google_nao_configurado` — rodam sem
+Console nenhum, e são a metade que some quando fica para depois.
 
-**3. ❌ A11Y-001b NÃO é sua** — os 6 do `CalendarClient`, precisam de navegador.
+**2. ✅ GC-001b — DESTRAVADA** · o GC-012 fechou em `c16f175`.
+
+**3. 🔎 Revisar o conserto da `duna`** na conexão sorteada — você escreveu o
+vermelho, então **você não aprova o conserto**; revê e devolve para mim (D-002).
+
+**4. ❌ A11Y-001b NÃO é sua** — os 6 do `CalendarClient`, precisam de navegador.
+
+📌 **Eu mexi no seu `cadastro-de-paciente.spec.ts`** (`dfb2eee`) — o teste voltava
+pela listagem e estourava em 120s. Não era persistência: a listagem nasce
+filtrando `ativo` e o paciente tinha acabado de virar **inativo**. Troquei o
+caminho de volta para URL, que é o que a sua própria docstring dizia. **Mudei o
+caminho, não a pergunta — se eu li errado, diga.** O defeito de tela ficou aberto
+como **A-018**.
 
 <!-- FILA:regras-novas -->
 ## 📋 Regras que chegaram em 16/08 e ainda não viraram código
