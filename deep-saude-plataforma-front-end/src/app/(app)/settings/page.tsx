@@ -6,8 +6,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Bell, CalendarCog, UserCog, Palette, ShieldCheck } from "lucide-react";
+import { Bell, UserCog, Palette, ShieldCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import IntegracaoGoogleCard from "./IntegracaoGoogleCard";
 
 export default function SettingsPage() {
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
@@ -33,38 +34,8 @@ export default function SettingsPage() {
         </CardHeader>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="font-headline text-xl flex items-center"><CalendarCog className="mr-2 h-6 w-6 text-primary" />Integração com Calendário</CardTitle>
-        </CardHeader>
-        {/*
-          Não há toggle de conexão aqui de propósito.
+      <IntegracaoGoogleCard />
 
-          A conexão com o Google é uma só por clínica e é feita pelo admin — a
-          agenda de cada psicólogo já está compartilhada com a conta da clínica.
-          O vínculo agenda<->profissional também é exclusivo do admin: oferecer
-          ao psicólogo uma lista de agendas para escolher "qual é a minha" seria
-          um vetor direto de acesso indevido ao histórico de pacientes de outro
-          profissional. Ver docs/GOOGLE_CALENDAR_ARQUITETURA.md (D14, spec 5.4).
-
-          Antes havia aqui um switch "(Simulado)" que não fazia nada.
-        */}
-        <CardContent className="space-y-4">
-          <div className="p-4 border rounded-lg space-y-2">
-            <p className="text-base font-medium">Gerenciada pela clínica</p>
-            <p className="text-sm text-muted-foreground">
-              A sincronização com o Google Agenda é configurada uma vez pelo
-              administrador da clínica e vale para todos os profissionais. Sua
-              agenda aparece automaticamente assim que estiver vinculada.
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Se suas sessões não estão aparecendo no Google Agenda, fale com o
-              administrador da clínica.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-      
       <Card>
         <CardHeader>
           <CardTitle className="font-headline text-xl flex items-center"><UserCog className="mr-2 h-6 w-6 text-primary" />Preferências da Conta</CardTitle>
