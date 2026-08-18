@@ -68,7 +68,13 @@
    ⚠️ Efeito para quem usa: **cadastrar paciente sem preencher a data de
    nascimento derrubava a requisição** — e a tela não dizia qual campo era.
 
-   ⚠️ Extraída SEM mudança de comportamento de propósito: o teste que vem junto
-   nasce vermelho (D-008). O conserto é o commit seguinte."
+   ✅ **Medido no CI antes do conserto** (run 32153384721): `0 failures, 2 errors`
+   — *errors*, não *failures*, porque a chamada **estoura** em vez de devolver
+   errado. É a assinatura de um valor que nunca deveria ter chegado ali.
+
+   ⚠️ Branco vira `nil`; **lixo continua lançando**. Engolir `\"10/05/1990\"`
+   devolvendo `nil` gravaria paciente sem data de nascimento sem ninguém saber —
+   trocar um 500 barulhento por perda silenciosa de dado é pior que o defeito."
   [s]
-  (when s (java.sql.Date/valueOf s)))
+  (when-not (str/blank? s)
+    (java.sql.Date/valueOf s)))

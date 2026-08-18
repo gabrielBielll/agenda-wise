@@ -24,7 +24,10 @@
             [ring.middleware.params :refer [wrap-params]]
             [ring.middleware.keyword-params :refer [wrap-keyword-params]])
   (:gen-class)
-  (:import (java.sql Date))) ; Importar java.sql.Date para conversão
+  ;; O import de java.sql.Date saiu em 18/08: a conversão virou
+  ;; `dominio/data-de-formulario`, e import sem uso convida a voltar ao
+  ;; `Date/valueOf` cru — que era exatamente o defeito.
+  )
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Configuração do Banco de Dados e JWT
@@ -380,7 +383,7 @@
                                          :senha_hash (hashers/encrypt senha)
                                          :cpf cpf
                                          :telefone telefone
-                                         :data_nascimento (when data_nascimento (Date/valueOf data_nascimento))
+                                         :data_nascimento (dominio/data-de-formulario data_nascimento)
                                          :endereco endereco
                                          :crp crp
                                          :registro_e_psi registro_e_psi
@@ -423,7 +426,7 @@
                          (not (str/blank? senha)) (assoc :senha_hash (hashers/encrypt senha))
                          (some? cpf) (assoc :cpf cpf)
                          (some? telefone) (assoc :telefone telefone)
-                         (some? data_nascimento) (assoc :data_nascimento (when data_nascimento (Date/valueOf data_nascimento)))
+                         (some? data_nascimento) (assoc :data_nascimento (dominio/data-de-formulario data_nascimento))
                          (some? endereco) (assoc :endereco endereco)
                          (some? crp) (assoc :crp crp)
                          (some? registro_e_psi) (assoc :registro_e_psi registro_e_psi)
@@ -461,7 +464,7 @@
                                         :nome            nome
                                         :email           email
                                         :telefone        telefone
-                                        :data_nascimento (when data_nascimento (Date/valueOf data_nascimento))
+                                        :data_nascimento (dominio/data-de-formulario data_nascimento)
                                         :endereco        endereco
                                         :avatar_url      avatar_url
                                         :psicologo_id    (when psicologo_id (java.util.UUID/fromString psicologo_id))
@@ -530,7 +533,7 @@
                            (some? nome) (assoc :nome nome)
                            (some? email) (assoc :email email)
                            (some? telefone) (assoc :telefone telefone)
-                           (some? data_nascimento) (assoc :data_nascimento (Date/valueOf data_nascimento))
+                           (some? data_nascimento) (assoc :data_nascimento (dominio/data-de-formulario data_nascimento))
                            (some? endereco) (assoc :endereco endereco)
                            (some? avatar_url) (assoc :avatar_url avatar_url)
                            (some? historico_familiar) (assoc :historico_familiar historico_familiar)
