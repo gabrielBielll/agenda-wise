@@ -79,6 +79,27 @@ async function tentarAgendarEmCimaDaSessao(page: import('@playwright/test').Page
    * opção. A guarda é por EFEITO, depois da escolha.
    */
   const gatilhoPaciente = dialogo.getByRole('combobox').first();
+
+  /**
+   * 🔴 A guarda tem que vir ANTES do clique, e a `vale` a pôs depois.
+   *
+   * A dela — `toContainText(paciente)` depois de escolher — é boa, mas **não
+   * alcança o caso que ela descreve**: se a ordem do DOM mudar e o `.first()`
+   * abrir o "Repetir", a opção do paciente não existe naquele popover, e quem
+   * falha primeiro é a asserção da A-012 logo abaixo — **culpando permissão por
+   * um defeito de seletor**. É a mesma inversão de diagnóstico da 0104, uma linha
+   * acima da guarda que existia para matá-la.
+   *
+   * Esta distingue os dois sem depender de nome acessível (A11Y-001) nem de
+   * contagem: o seletor de paciente nasce "Selecione..." e o de recorrência nasce
+   * **"Não repetir"** — `CalendarClient.tsx:533` e `:608`.
+   */
+  await expect(
+    gatilhoPaciente,
+    'o primeiro combobox do diálogo não é o de paciente — a ordem do DOM mudou e ' +
+      'o `.first()` está prestes a abrir o seletor de recorrência. NÃO é a A-012.'
+  ).toContainText(/selecione/i);
+
   await gatilhoPaciente.click();
 
   // ⚠️ Asserção explícita, e ela existe por um motivo de mecânica, não de estilo.

@@ -109,11 +109,15 @@ agenda errada expõe pacientes de um profissional a outro.
 
 ⏸️ **GC-001b (o botão da psicóloga) espera GC-012/GC-013.** Não comece por ele.
 
-**2. 🟡 Varredura de `getByRole` fraco** — o irmão do [A11Y-001](../docs/cards/sprint-2-robustness/A11Y-001-controles-sem-nome-acessivel.md), e é seu porque é
-sobre **teste**, não sobre marcação. Onde a suíte usa `getByRole` **sem** `name`,
-ou `.first()` sobre vários iguais, o teste passa sem saber em qual controle mexeu.
-Exemplo já na mão: `dialogo.getByRole('combobox').first()` no
-`tentarAgendarEmCimaDaSessao`. 📌 **Não precisa de navegador.**
+✅ **2. Varredura de `getByRole` fraco — FECHADA** ([0110](0110-vale-para-orla-getbyrole-fraco-e-um-erro-meu-que-entrou-no-cartao.md) · aprovada na [0111](0111-orla-para-vale-a-correcao-do-cartao-confere-e-a-guarda-do-first-vinha-tarde.md))
+43 ocorrências varridas, 4 fracas, guarda **por efeito** em vez de por contagem —
+que ela mediu e descartou com motivo. 📌 **Ela também corrigiu um erro próprio que
+tinha entrado no A11Y-001** (`block-psico` estava no balde errado): passa a **11
+sem nome + 1 com nome errado**. Conferi os dois trechos antes de aceitar.
+
+⚠️ **Eu movi a guarda dela para ANTES do clique** — a versão original não
+alcançava o caso que descrevia, e a falha saía como A-012 (permissão) em vez de
+seletor. Revise a minha, como eu revisei a sua.
 
 **3.** 🔴 **A11Y-001 NÃO é sua** — é da `pico`, com navegador, pelo motivo que
 você mesma deu. Se ela não aparecer esta semana, me diga e eu re-decido; **não

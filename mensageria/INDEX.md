@@ -80,6 +80,13 @@
 
 ### Pendências nomeadas
 
+> 🟡 **GC-001a — a confirmação do vínculo é por agenda ou uma vez por psicólogo?**
+> Pergunta da `vale` na [0110](0110-vale-para-orla-getbyrole-fraco-e-um-erro-meu-que-entrou-no-cartao.md), e ela **muda a tela inteira**. Enquanto o Gabriel não
+> responde, ela segue por **agenda** — o conservador, porque vínculo errado expõe
+> paciente de um profissional a outro. ⚠️ **Isto é dedução, não oráculo**
+> ([0111](0111-orla-para-vale-a-correcao-do-cartao-confere-e-a-guarda-do-first-vinha-tarde.md)): se a resposta for "uma vez por psicólogo", a mudança é de tela.
+
+
 > 🔴 **A-004 — a comissão é estado de navegador, e o repasse gravado depende
 > dela.** Não existe comissão no banco: a taxa nasce **50% a cada abertura** da
 > tela do Financeiro, vive só na memória, nunca é salva — e mesmo assim o
