@@ -90,8 +90,16 @@ funciona até alguém reiniciar, e aí para sem motivo aparente — **vai parece
 defeito do código e não é.** Ela não tocou na árvore; passou a trabalhar dentro do
 worktree dela, com dependências próprias.
 
-**3. 🔴 Tabela de auditoria (R-012)** — a última peça de funcionalidade sem dono.
-⚠️ **Converse comigo antes** — é maior que as outras e não tem desenho.
+**3. 🗂️ [AUD-001](../docs/cards/sprint-2-robustness/AUD-001-registro-de-acesso-a-prontuario.md) — registro de acesso a prontuário (R-012)** · ✅ **agora TEM desenho**
+
+Eu tinha escrito "converse comigo antes, não tem desenho" — **isso era eu te dando
+um bloqueio e chamando de tarefa.** O cartão está escrito: tabela, ponto exato de
+inserção (`prontuarios.clj:68`) e critérios.
+
+🔴 **Grave só quando a flag foi DECISIVA** — se a pessoa já podia ler pelo caminho
+normal, a flag não decidiu nada. Log de acesso a prontuário só serve se **toda
+linha nele for uma leitura que não deveria ter sido possível**.
+⚠️ **Gravar não pode derrubar a leitura**, e falha ao gravar tem que aparecer alto.
 
 ❌ **A-008 NÃO é sua.** Eu errei a fila e a `vale` corrigiu ([0098](0098-vale-para-duna-e-orla-pare-a-a008-e-no-front-nao-no-tempo-clj.md)) — conferi
 e ela está certa: as duas metades são de **front** (`conflitos.ts` e
