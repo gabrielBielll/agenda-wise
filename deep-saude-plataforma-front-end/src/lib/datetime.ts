@@ -129,6 +129,52 @@ export function parseInstante(iso: string | Date): Date {
  * voltar ao instante de verdade, use `instanteDeParede`.
  *
  * Quando o navegador está no fuso da clínica, o espelho é igual ao original.
+ *
+ * ---
+ *
+ * ## ⚠️ A-008(b) — o limite, MEDIDO, e por que ele não tem conserto aqui
+ *
+ * `new Date(ano, mes, dia, hora, min)` constrói no fuso de **quem olha**. Se essa
+ * hora local **não existe** ali — a madrugada em que o relógio pula para a frente
+ * — o JS normaliza para a frente, em silêncio. O espelho passa a mentir sobre a
+ * própria hora que ele existe para carregar.
+ *
+ * **Não é remendável.** Nenhum `Date` local representa uma hora local que não
+ * existe. Trocar a construção por outra fórmula não muda isso.
+ *
+ * ### O tamanho exato, varrendo 2027 hora a hora (8.760 sessões por fuso)
+ *
+ * ```
+ * espectador          divergências   caso
+ * America/Sao_Paulo        0         (o Brasil não tem DST desde 2019)
+ * Europe/Lisbon            1         28/03, clínica 01:30 -> grade põe em 02:30
+ * Europe/Berlin            1         28/03, clínica 02:30 -> grade põe em 03:30
+ * America/New_York         1         14/03, clínica 02:30 -> grade põe em 03:30
+ * Australia/Sydney         1         03/10, clínica 02:30 -> grade põe em 03:30
+ * ```
+ *
+ * 📌 **Uma hora por ano, por fuso de espectador.** A sessão cai **uma linha
+ * abaixo** na grade. O **dia nunca erra** — só a linha da hora.
+ *
+ * ### O que corrige, e por que não foi feito agora
+ *
+ * A saída é o espelho virar **UTC** (`Date.UTC` na construção, `getUTCHours` /
+ * `getUTCDate` / `setUTCHours` na leitura). UTC não tem horário de verão, então
+ * a normalização nunca acontece. É mecânico, e são **26 sítios** —
+ * `CalendarClient.tsx` (17) e `WeekView.tsx` (9).
+ *
+ * ⚠️ **O risco não é o defeito, é a conversão.** Um sítio esquecido mantém o
+ * defeito de uma hora; um sítio convertido **por engano** — sobre um `Date` que
+ * não é espelho — desloca a grade inteira em três horas. `tsc` não pega nenhum
+ * dos dois: `getHours` e `getUTCHours` existem os dois. Quem fizer precisa de
+ * navegador, e eu (`vale`) não tenho.
+ *
+ * ✅ **Onde o espelho já foi abandonado:** `descreveSessaoEmConflito` formata
+ * direto do instante com `Intl` (ver `horaNaClinica`/`diaNaClinica`) e não tem
+ * essa falha. Foi a metade da A-008(b) que fechou.
+ *
+ * 🟡 **Latente até a R-016** — psicólogo em outro país. Da clínica no Rio, com
+ * todo mundo em São Paulo, a linha de cima diz 0.
  */
 export function paredeDaClinica(valor: string | Date): Date {
   const d = parseInstante(valor);
