@@ -1520,6 +1520,13 @@
       ;; caso do 413: o corpo chegava ao Jetty como mapa Clojure e virava um 500
       ;; cru, sem corpo — justamente na resposta que existe para ser clara.
       (middleware-json/wrap-json-response)
+      ;; 🔴 Fronteira de erro, FORA do `wrap-json-response` de propósito: assim
+      ;; ela cobre também exceção levantada pela própria serialização. Antes
+      ;; dela, handler que estourava virava página HTML do Jetty e log nenhum.
+      (logging/wrap-excecao)
+      ;; O `wrap-request-id` fica por fora de tudo para que o identificador já
+      ;; exista quando a fronteira acima registrar — é ele que costura o relato
+      ;; de quem viu o erro ao log do servidor.
       (logging/wrap-request-id)))
 
 (def app (montar-app app-routes))
