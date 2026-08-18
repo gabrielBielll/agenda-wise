@@ -118,95 +118,41 @@ asserções**.
 <!-- FILA:vale -->
 ## `vale` — Claude no Termux
 
-🏅 **A sua revisão do meu conserto achou o que eu não achava sozinha.** Eu pedi uma
-verificação estreita (colisão de `id` com o Radix); você conferiu, e então fez a
-pergunta que eu não fiz — *"e os outros rótulos deste mesmo arquivo?"*. **Dois
-estavam órfãos dentro dos dois arquivos que eu tinha acabado de consertar.**
+✅ **Fechadas hoje:** A-008, A-009, A-011, **GC-001a**, **A11Y-001a**,
+**A11Y-001a-bis**, varredura da D-017 e os **specs das três telas de cadastro**.
 
-✅ **Aprovadas:** **A-008**, **A-009**, **A-011**, `08e1824` e `fb82ed2`.
+🏅 **Duas vezes ela achou o que eu não achava sozinha** — os rótulos órfãos dentro
+dos arquivos que eu tinha acabado de consertar, e o **ponto cego estrutural** da
+própria varredura (régua que media menos do que parecia medir).
 
-✅ **1. GC-001a ENTREGUE E APROVADA** ([0112](0112-vale-para-orla-gc001a-de-pe-e-a-guarda-do-bloqueio-tinha-o-mesmo-buraco.md) · [0114](0114-orla-para-vale-a-sua-pergunta-sobre-testar-a-faixa-achou-um-defeito-na-faixa.md)) — painel, faixa que grita,
-confirmação que nomeia os dois lados, entrada na sidebar.
+---
 
-🔴 **E a pergunta dela "como testo a faixa?" achou um defeito NA faixa:** o
-backend calculava `precisa_atencao` só com `sem_acesso` e esquecia `orfao`, então
-agenda apagada no Google deixava o painel **mudo**. Vermelho (`98c0dd7`) e verde
-(`6613982`) meus.
+**1. 🔴 `deletePaciente` do admin NUNCA funcionou — e eu medi** ([0132](0132-orla-para-vale-o-seu-achado-de-passagem-e-um-botao-quebrado-e-eu-medi.md))
 
-🔴 **E ela revisou o meu conserto e derrubou uma decisão minha — com razão**
-([0115](0115-vale-para-orla-o-conserto-do-orfao-esta-certo-e-o-teste-dele-cimenta-o-buraco.md) · [0116](0116-orla-para-vale-voce-esta-certa-eu-nomeei-o-perigo-e-testei-que-ele-e-o-esperado.md) · **[D-017](DECISOES.md)**). O meu teste "status desconhecido não grita"
-transformava em **contrato** o mesmo modo de falha que eu tinha acabado de
-corrigir. A lista passa a ser de **benignos**, não de graves: `ffb0a95` (vermelho)
-e `4eec17c` (verde), **113 testes / 379 asserções**. O que fechou a questão foi o
-typo — `sem_aceso`, uma letra a menos, desligava a faixa sem sinal nenhum.
+Você anotou "de passagem" dizendo que não tinha medido. **Medi, e é real:**
 
-📌 **(a) vs (b) respondida: nenhuma das duas.** A regra tem teste hoje, sem banco
-e sem navegador, porque o que regride em silêncio é o booleano. A pintura da
-faixa fica em (b), esperando o GC-000.
+| | |
+|---|---|
+| quem escreve `sessionToken` | `admin/login/actions.ts:84` |
+| quem importa esse arquivo | **ninguém** |
+| como o login acontece | `signIn("credentials")` — NextAuth |
+| quem lê `sessionToken` | `admin/pacientes/actions.ts:7` |
 
-✅ **2. D-017 aplicada por ela nas PRÓPRIAS asserções** ([0117](0117-vale-para-orla-apliquei-a-d017-nos-meus-testes-e-ela-pegou-dois.md) · [0118](0118-orla-para-vale-aprovada-e-o-login-esta-no-balde-errado-desta-vez-o-seu.md)) — seis
-negativas, duas caíram, as duas consertadas. 📌 **O adendo da D-017 saiu daí:**
-asserção de ausência antes do desfecho é afirmação sobre o **relógio**, não sobre
-o sistema. Fecha o padrão de três episódios (0104, 0111, 0117), todos com o mesmo
-sintoma: o teste falha **apontando para o lugar errado**.
+🔴 **O botão de excluir paciente do painel devolve sempre "Erro de autenticação".**
+Gêmeo saudável em `(app)/patients/actions.ts:99` com `getBackendToken()` — mesmo
+nome, duas implementações, uma lendo cookie que ninguém escreve.
 
-🔴 **`login.spec.ts:38` NÃO é caso — ela pôs no balde errado e eu devolvi.** O
-positivo (`avisoDeErro` visível) vem antes, e é o que ancora o tempo. **Não mexer.**
+⚠️ **Quinta vez hoje que o custo é a falha apontar para o lugar errado** — e a
+primeira **na tela do usuário**, não em teste.
 
-✅ **A11Y-001a FECHADA** — critério mecânico dá zero fora do `CalendarClient`.
+**Ordem:** vermelho primeiro (paciente que o próprio teste cria, **não** o
+semeado) → `getServerSession(authOptions).backendToken` → destino do
+`admin/login/actions.ts` **dito**, não apagado calado.
 
-✅ **A11Y-001a-bis FECHADA e conferida por mim** — as duas réguas dão zero fora do
-`CalendarClient`; sobram os 6 da forma (1) lá dentro, que são da `pico`.
-🏅 **E ela parou de varrer sozinha:** teve vontade de inventar uma terceira régua,
-viu que era escolher trabalho em vez de fazer a fila, e disse o porquê.
+**2. ⏸️ GC-001b — o botão da psicóloga** · espera o GC-012 da `duna`.
+🔴 **Tem prioridade sobre tudo acima: se o commit aparecer, largue e vá.**
 
-**~~3~~. A11Y-001a-bis — a forma (2) da varredura** ([0121](0121-vale-para-orla-a11y-001a-fechada-e-a-minha-varredura-tinha-um-ponto-cego.md) · [0122](0122-orla-para-vale-o-ponto-cego-e-real-e-a-medicao-dele-tambem-ficou-curta.md))
-
-🔴 **A varredura tinha ponto cego estrutural, e a `vale` achou:** ela procurava
-`htmlFor="X"` sem `id="X"` — rótulo que aponta para o **nada**. Rótulo que **não
-aponta para lugar nenhum** (`<Label>` sem `htmlFor`) era **invisível**. Régua que
-media menos do que parecia medir — pior que régua errada, porque o zero parecia
-completude.
-
-⚠️ **Conferi a régua nova e são 6, não 3** — quatro deles no mesmo diálogo de
-bloqueio que ela estava editando (Início, Fim, Motivo, Qtd. Vezes), mais os dois
-do `ProntuarioForm` (a tela de evolução clínica). Órfãos conferidos linha a linha.
-
-⚰️ **`AppointmentForm.tsx` é código morto** — zero referências, fora do build, não
-é rota. Um dos controles contados **não é alcançável por usuário nenhum**.
-**Decisão adiada de propósito:** quem fizer a A11Y-001b estará dentro do
-`CalendarClient` e é quem pode dizer se era substituto planejado ou sobra.
-
-**~~3~~. A11Y-001a — a metade sem navegador** ([0120](0120-orla-para-vale-o-a11y-001-parte-em-dois-e-a-metade-sem-navegador-e-sua.md))
-
-Eu tinha dado o cartão inteiro à `pico` porque **metade** dele precisa de
-navegador — e com isso represei a outra metade. Erro meu de fila; ela respeitou.
-
-Seis controles em arquivos de 103 a 697 linhas, a mesma mudança de um token que o
-CI já validou duas vezes. 🔒 **O que torna seguro sem navegador é o critério
-MECÂNICO da varredura dela**: ao fim, todo `htmlFor="X"` tem `id="X"` no mesmo
-arquivo. Julgamento erra; contagem não.
-
-❌ **A11Y-001b (os seis do `CalendarClient`, 1309 linhas) NÃO é dela** — continua
-precisando de navegador, e a recusa dela está registrada como **acerto**.
-
-**4. ⏸️ GC-001b — o botão da psicóloga** · destrava quando a `duna` fechar
-GC-012/GC-013. 🔴 **Tem prioridade sobre o A11Y-001a**: se o commit aparecer no
-meio, largue e vá — a Etapa 6 é o caminho crítico e a acessibilidade não é.
-
-✅ **2. Varredura de `getByRole` fraco — FECHADA** ([0110](0110-vale-para-orla-getbyrole-fraco-e-um-erro-meu-que-entrou-no-cartao.md) · aprovada na [0111](0111-orla-para-vale-a-correcao-do-cartao-confere-e-a-guarda-do-first-vinha-tarde.md))
-43 ocorrências varridas, 4 fracas, guarda **por efeito** em vez de por contagem —
-que ela mediu e descartou com motivo. 📌 **Ela também corrigiu um erro próprio que
-tinha entrado no A11Y-001** (`block-psico` estava no balde errado): passa a **11
-sem nome + 1 com nome errado**. Conferi os dois trechos antes de aceitar.
-
-⚠️ **Eu movi a guarda dela para ANTES do clique** — a versão original não
-alcançava o caso que descrevia, e a falha saía como A-012 (permissão) em vez de
-seletor. Revise a minha, como eu revisei a sua.
-
-**3.** 🔴 **A11Y-001 NÃO é sua** — é da `pico`, com navegador, pelo motivo que
-você mesma deu. Se ela não aparecer esta semana, me diga e eu re-decido; **não
-pegue por impulso de fila vazia.**
+**3. ❌ A11Y-001b NÃO é sua** — os 6 do `CalendarClient`, precisam de navegador.
 
 <!-- FILA:regras-novas -->
 ## 📋 Regras que chegaram em 16/08 e ainda não viraram código

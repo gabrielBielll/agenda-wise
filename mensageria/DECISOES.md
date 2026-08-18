@@ -798,3 +798,36 @@ await expect.poll(async () => {
 positivo já afirmado é legítimo — o positivo é que ancora o tempo. `login.spec.ts`
 faz isso (`avisoDeErro` visível **antes** do `.not.toHaveURL`), e por isso está
 certo como está.
+
+### 📌 Segundo adendo à D-017 — verificação que não verifica
+
+**Origem:** `orla`, 18/08, contra o próprio processo
+
+Passei o dia editando a `FILA.md` com scripts assim:
+
+```python
+s = s.replace(alvo, novo)
+open(p,'w').write(s)
+print('ok')          # 🔴 imprime 'ok' mesmo quando `alvo` não existe
+```
+
+`str.replace` **não falha** quando não encontra o padrão — devolve a string
+intacta. Então uma edição que não aplicou saía com o mesmo `ok` de uma que
+aplicou. Uma tarefa que eu passei para a `vale` (os specs das três telas) **não
+entrou na fila**, e eu só descobri porque fui reler o arquivo por outro motivo.
+
+🔴 **O `ok` era afirmação sobre a minha intenção, não sobre o arquivo.** É
+exatamente a frase da `vale` na [0117](0117-vale-para-orla-apliquei-a-d017-nos-meus-testes-e-ela-pegou-dois.md) — *"afirmação sobre o relógio, não sobre o
+sistema"* — na minha própria ferramenta, e no mesmo dia.
+
+✅ **O que fica:** depois de editar arquivo por script, **confira o resultado no
+arquivo**, não o retorno do script.
+
+```sh
+grep -c "<termo que deveria existir agora>" arquivo   # isto mede
+```
+
+📌 **E o padrão maior, que já apareceu em cinco lugares hoje:** a régua, o balde,
+o relógio, o `ok` e a mensagem de erro do `deletePaciente`. **Todos davam um sinal
+verde ou um diagnóstico que não correspondia ao que tinham medido.** O defeito
+raramente é não olhar — é olhar para o instrumento em vez de para a coisa.
