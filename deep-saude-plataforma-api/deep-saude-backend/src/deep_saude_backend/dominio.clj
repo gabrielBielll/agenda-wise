@@ -49,3 +49,26 @@
   [body]
   (some (fn [campo] (valor-invalido campo (get body campo)))
         (keys campos-validados)))
+
+;; ---------------------------------------------------------------------------
+;; Datas vindas de formulário
+;; ---------------------------------------------------------------------------
+
+(defn data-de-formulario
+  "Converte `yyyy-mm-dd` vindo de formulário em `java.sql.Date`, ou `nil`.
+
+   🔴 Existe por um defeito medido em 18/08: os quatro pontos que gravavam
+   `data_nascimento` faziam `(when data_nascimento (Date/valueOf data_nascimento))`.
+
+   **Em Clojure a string vazia é verdadeira** — só `nil` e `false` são falsos.
+   Um `<input type=\"date\">` não preenchido chega como `\"\"`, o `when` deixa
+   passar, e `java.sql.Date/valueOf \"\"` lança `IllegalArgumentException`
+   (medido, não deduzido). O handler não tem `try`, então vira **500**.
+
+   ⚠️ Efeito para quem usa: **cadastrar paciente sem preencher a data de
+   nascimento derrubava a requisição** — e a tela não dizia qual campo era.
+
+   ⚠️ Extraída SEM mudança de comportamento de propósito: o teste que vem junto
+   nasce vermelho (D-008). O conserto é o commit seguinte."
+  [s]
+  (when s (java.sql.Date/valueOf s)))
