@@ -71,7 +71,8 @@ export function AppointmentForm({
             </Label>
             <div className="col-span-3">
                 <Select name="paciente_id" required defaultValue={editingAppointment?.paciente_id || ""}>
-                    <SelectTrigger>
+                    {/* id casa o <Label htmlFor>: `combobox` não tira nome do conteúdo (D-016). */}
+                    <SelectTrigger id="paciente">
                         <SelectValue placeholder="Selecione..." />
                     </SelectTrigger>
                     <SelectContent>

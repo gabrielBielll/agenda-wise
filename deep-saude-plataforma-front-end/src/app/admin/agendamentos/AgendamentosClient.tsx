@@ -326,7 +326,13 @@ export default function AgendamentosClient({
                     <Label htmlFor="block-psico">Psicólogo</Label>
                     <Popover open={openPsicologoBlock} onOpenChange={setOpenPsicologoBlock}>
                       <PopoverTrigger asChild>
+                        {/* ⚠️ `role="combobox"` num <button> DESLIGA o nome-pelo-conteúdo
+                            que ele teria — `button` é nameFrom:contents, `combobox` não.
+                            Sem este id o controle fica SEM NOME NENHUM (D-016).
+                            É o controle que eu classifiquei errado na 0106 e corrigi
+                            na 0110; aqui ele fecha. */}
                         <Button
+                          id="block-psico"
                           variant="outline"
                           role="combobox"
                           aria-expanded={openPsicologoBlock}
@@ -387,9 +393,13 @@ export default function AgendamentosClient({
 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="flex flex-col gap-2">
-                         <Label>Repetição</Label>
+                         {/* ⚠️ Este Label não tinha `htmlFor` NENHUM — categoria que a minha
+                             varredura da 0106 não via, porque ela procurava `htmlFor`
+                             apontando para o nada. Sem os DOIS tokens o controle fica sem
+                             nome, igual aos outros. */}
+                         <Label htmlFor="block_recurrence_type">Repetição</Label>
                          <Select value={blockRecurrenceType} onValueChange={setBlockRecurrenceType}>
-                            <SelectTrigger>
+                            <SelectTrigger id="block_recurrence_type">
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>

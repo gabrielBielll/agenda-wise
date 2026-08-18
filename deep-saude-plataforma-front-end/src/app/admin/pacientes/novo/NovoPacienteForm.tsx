@@ -49,7 +49,8 @@ export default function NovoPacienteForm({ psicologos }: { psicologos: Psicologo
         <div className="space-y-2">
           <Label htmlFor="psicologo_id">Psicólogo Responsável</Label>
           <Select name="psicologo_id">
-            <SelectTrigger>
+            {/* id casa o <Label htmlFor>: `combobox` não tira nome do conteúdo (D-016). */}
+            <SelectTrigger id="psicologo_id">
               <SelectValue placeholder="Selecione um psicólogo (opcional)" />
             </SelectTrigger>
             <SelectContent>

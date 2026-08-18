@@ -81,28 +81,25 @@ async function tentarBloquearPorCimaDaSessao(page: Page) {
    * A asserção abaixo prova pelo efeito: depois de escolher, o gatilho tem que
    * exibir o nome do psicólogo. Se a ordem mudar, isto cai dizendo o que houve.
    */
-  const gatilhoPsicologo = dialogo.getByRole('combobox').first();
-
   /**
-   * A guarda ANTES do clique — o irmão do que a `orla` corrigiu na 0111.
+   * ✅ O gatilho de migração que eu deixei escrito aqui **disparou** — A11Y-001a.
    *
-   * Ela mostrou que a minha guarda por efeito, sozinha, chega tarde: se a ordem
-   * do DOM mudar e o `.first()` abrir o combobox errado, quem falha primeiro é o
-   * passo seguinte, com uma mensagem sobre outra coisa. Aqui seria "timeout
-   * clicando na opção do psicólogo" — que manda procurar defeito na lista de
-   * psicólogos, não no seletor.
+   * Antes era `dialogo.getByRole('combobox').first()` mais uma guarda de texto,
+   * porque **nenhum dos dois combobox deste diálogo tinha nome acessível**: o do
+   * psicólogo é um `<Button role="combobox">`, e sobrescrever o papel desliga o
+   * nome-pelo-conteúdo que um `button` teria.
    *
-   * Os dois combobox deste diálogo nascem com textos diferentes, e é isso que
-   * separa um do outro sem nome acessível e sem contagem: o do psicólogo nasce
-   * "Selecione o psicólogo...", e o de "Repetição" nasce **"Não repetir"**
-   * (`AgendamentosClient.tsx:337` e `:396`).
+   * Agora os dois têm `id` casando o `<Label htmlFor>`, então dá para pedir o
+   * controle **pelo nome** — e some de vez a escolha por ordem do DOM. A guarda
+   * de texto que a `orla` me ensinou na 0111 sai junto: ela existia para separar
+   * dois anônimos, e não há mais anônimo para separar.
    */
+  const gatilhoPsicologo = dialogo.getByRole('combobox', { name: /psic[óo]logo/i });
   await expect(
     gatilhoPsicologo,
-    'o primeiro combobox do diálogo não é o de psicólogo — a ordem do DOM mudou e ' +
-      'o `.first()` está prestes a abrir o seletor de "Repetição"'
-  ).toContainText(/selecione o psic[óo]logo/i);
-
+    'o combobox de psicólogo não tem nome acessível — a A11Y-001a regrediu, e um ' +
+      'leitor de tela volta a anunciar só "combobox" neste diálogo'
+  ).toBeVisible();
   await gatilhoPsicologo.click();
   await page.getByRole('option', { name: CONTA.psicologoNome }).first().click();
   await expect(

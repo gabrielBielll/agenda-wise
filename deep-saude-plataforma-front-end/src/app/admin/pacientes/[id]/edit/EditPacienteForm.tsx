@@ -101,7 +101,8 @@ export default function EditPacienteForm({
             <div className="space-y-2">
               <Label htmlFor="status">Status</Label>
                <Select name="status" defaultValue={paciente.status || "ativo"} disabled={readOnly}>
-                 <SelectTrigger>
+                 {/* id casa o <Label htmlFor>: `combobox` não tira nome do conteúdo (D-016). */}
+                 <SelectTrigger id="status">
                    <SelectValue placeholder="Selecione o status" />
                  </SelectTrigger>
                  <SelectContent>
@@ -131,7 +132,8 @@ export default function EditPacienteForm({
           <div className="space-y-2">
              <Label htmlFor="psicologo_id">Psicólogo Responsável</Label>
              <Select name="psicologo_id" defaultValue={paciente.psicologo_id || "none"} disabled={readOnly}>
-               <SelectTrigger>
+               {/* id casa o <Label htmlFor>: `combobox` não tira nome do conteúdo (D-016). */}
+               <SelectTrigger id="psicologo_id">
                  <SelectValue placeholder="Selecione um psicólogo..." />
                </SelectTrigger>
                <SelectContent>

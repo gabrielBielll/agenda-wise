@@ -88,7 +88,8 @@ export default function EditForm({ patient, updateAction }: { patient: any, upda
           <div className="space-y-2">
              <Label htmlFor="status">Status</Label>
              <Select name="status" defaultValue={patient.status || "ativo"}>
-               <SelectTrigger>
+               {/* id casa o <Label htmlFor>: `combobox` não tira nome do conteúdo (D-016). */}
+               <SelectTrigger id="status">
                  <SelectValue placeholder="Selecione o status" />
                </SelectTrigger>
                <SelectContent>
