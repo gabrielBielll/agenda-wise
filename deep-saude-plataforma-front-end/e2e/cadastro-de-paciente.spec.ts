@@ -159,7 +159,7 @@ test.describe('cadastro de paciente — excluir', () => {
    * (0132) e eu conferi por conta própria:
    *
    * ```
-   * quem ESCREVE  "sessionToken"   admin/login/actions.ts:84
+   * quem ESCREVE  "sessionToken"   admin/login/actions.ts:84   (arquivo APAGADO na 0134)
    * quem IMPORTA esse arquivo      ninguém — `handleLogin` e `LoginFormState` sem uso
    * como o login acontece          admin/login/page.tsx:84 -> signIn("credentials")
    * quem LÊ      "sessionToken"    admin/pacientes/actions.ts:7  -> deletePaciente

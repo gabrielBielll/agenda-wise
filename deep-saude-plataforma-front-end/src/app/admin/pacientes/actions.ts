@@ -13,11 +13,16 @@ import { revalidatePath } from "next/cache";
  * const token = (await cookies()).get("sessionToken")?.value;
  * ```
  *
- * `sessionToken` é o cookie do **fluxo de login antigo**, escrito só em
- * `app/admin/login/actions.ts` — um arquivo que **ninguém importa** desde que o
+ * `sessionToken` era o cookie do **fluxo de login antigo**, escrito só em
+ * `app/admin/login/actions.ts` — um arquivo que ninguém importava desde que o
  * login virou `signIn("credentials")` do NextAuth (`admin/login/page.tsx:84`).
- * Ninguém escreve esse cookie, então esta função devolvia **sempre**
+ * Ninguém escrevia esse cookie, então esta função devolvia **sempre**
  * `{ success: false, message: "Erro de autenticação." }`.
+ *
+ * 📌 **Aquele arquivo foi apagado** em 18/08/2026 (mensageria 0134): além de
+ * morto, ele era um **segundo caminho de autenticação** — decidia papel por
+ * `jwtDecode` no servidor e gravava sessão própria, que é a família da SEC-005.
+ * Se você chegou aqui procurando por ele, ele está no git.
  *
  * ⚠️ **E a mensagem era o pior pedaço.** "Erro de autenticação" manda quem
  * investiga procurar sessão, token e NextAuth — quando a causa é um caminho que
