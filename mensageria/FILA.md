@@ -56,11 +56,14 @@ marcar 80 sessões uma a uma é a mesma dor que gerou a R-022.
 🔒 **Grave qual regra foi aplicada**, não só o resultado — sem isso ninguém
 explica o número seis meses depois (**R-004**).
 
-**2. 🧩 GC-012 e GC-013 — o Modelo C** ([D-015](DECISOES.md) · [GOOGLE_CARDS](../docs/GOOGLE_CARDS.md))
+**2. 🔴 GC-012 e GC-013 — o Modelo C · SUBIRAM DE PRIORIDADE** ([0108](0108-orla-para-duna-e-vale-a-etapa-6-vira-a-frente-e-o-gc-001-parte-em-dois.md) · [D-015](DECISOES.md) · [GOOGLE_CARDS](../docs/GOOGLE_CARDS.md))
 
 Uma conexão **por psicóloga** em vez de `UNIQUE (clinica_id)`, permissão nova e
 estreita para ela conectar **a dela**, e o app **criando** a agenda no ato.
-**São pré-requisito da tela da `vale`.**
+
+🔴 **É o item da sua fila com mais gente esperando atrás:** sem ele, metade do
+GC-001 da `vale` não pode nascer. Acabou a fila de correção — a Etapa 6 é o
+caminho crítico agora, e o GC-000 (Console do Google) tem relógio externo.
 
 ⚠️ **Chamada de rede não cabe em transação de banco:** gravar a intenção, chamar a
 API, confirmar.
@@ -92,14 +95,26 @@ estavam órfãos dentro dos dois arquivos que eu tinha acabado de consertar.**
 
 ✅ **Aprovadas:** **A-008**, **A-009**, **A-011**, `08e1824` e `fb82ed2`.
 
-**1. 🟡 Varredura de `getByRole` fraco** — o irmão do [A11Y-001](../docs/cards/sprint-2-robustness/A11Y-001-controles-sem-nome-acessivel.md), e é seu porque é
+**1. 🟢 GC-001a — o painel do admin observando · NÃO ESPERA NINGUÉM** ([0108](0108-orla-para-duna-e-vale-a-etapa-6-vira-a-frente-e-o-gc-001-parte-em-dois.md))
+
+O cartão estava inteiro esperando a `duna`, e **não precisava**. O backend já
+responde em 10 rotas — status, listar agendas, sugerir vínculo, vincular,
+desvincular, pausar. **Falta a tela.**
+
+🔴 **`sem_acesso` precisa GRITAR**, não ser rótulo discreto: a integração morre em
+silêncio quando o acesso cai, e tela que mente sobre falha é a **A-013 de novo, em
+outro endereço** — mesma categoria que você já fechou duas vezes.
+
+⚠️ **Confirmação humana no vínculo é permanente, não provisória** — vincular
+agenda errada expõe pacientes de um profissional a outro.
+
+⏸️ **GC-001b (o botão da psicóloga) espera GC-012/GC-013.** Não comece por ele.
+
+**2. 🟡 Varredura de `getByRole` fraco** — o irmão do [A11Y-001](../docs/cards/sprint-2-robustness/A11Y-001-controles-sem-nome-acessivel.md), e é seu porque é
 sobre **teste**, não sobre marcação. Onde a suíte usa `getByRole` **sem** `name`,
 ou `.first()` sobre vários iguais, o teste passa sem saber em qual controle mexeu.
 Exemplo já na mão: `dialogo.getByRole('combobox').first()` no
 `tentarAgendarEmCimaDaSessao`. 📌 **Não precisa de navegador.**
-
-**2.** ⏸️ **GC-001 espera o GC-012/GC-013 da `duna`** — e mudou de plateia pela
-[D-015](DECISOES.md): vira **botão da psicóloga conectando a própria conta**.
 
 **3.** 🔴 **A11Y-001 NÃO é sua** — é da `pico`, com navegador, pelo motivo que
 você mesma deu. Se ela não aparecer esta semana, me diga e eu re-decido; **não
