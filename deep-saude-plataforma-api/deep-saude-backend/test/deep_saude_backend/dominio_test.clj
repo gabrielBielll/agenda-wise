@@ -91,3 +91,29 @@
   ;; gravaria paciente sem data sem ninguém saber.
   (testing "formato errado continua lançando, em vez de virar nil calado"
     (is (thrown? IllegalArgumentException (dominio/data-de-formulario "10/05/1990")))))
+
+(deftest uuid-de-formulario-nao-derruba-com-select-nao-tocado
+  ;; 🔴 O vermelho deste já estava medido no CI, no e2e de cadastro da `vale`
+  ;; (run 32153980199): o backend devolveu HTML de erro 500 e o front reportou
+  ;;
+  ;;     Erro de rede ao criar paciente: SyntaxError: Unexpected token '<'
+  ;;
+  ;; que é o `response.json()` engasgando na página de erro. A causa é a mesma
+  ;; da data, com outro parser — e eu tinha declarado essa categoria fechada
+  ;; depois de consertar só os `Date/valueOf`.
+  (testing "select não tocado manda string vazia, e isso vira nil"
+    (is (nil? (dominio/uuid-de-formulario ""))))
+
+  (testing "ausente continua nil"
+    (is (nil? (dominio/uuid-de-formulario nil))))
+
+  ;; ⚠️ A guarda do outro lado, e aqui ela é sobre dado, não sobre ruído:
+  ;; engolir id malformado devolvendo nil gravaria paciente SEM PSICÓLOGO em
+  ;; silêncio — e paciente sem psicólogo é paciente que ninguém atende.
+  (testing "id malformado continua lançando, em vez de virar nil calado"
+    (is (thrown? IllegalArgumentException (dominio/uuid-de-formulario "none")))
+    (is (thrown? IllegalArgumentException (dominio/uuid-de-formulario "abc"))))
+
+  (testing "uuid válido continua convertendo"
+    (let [u "3f2504e0-4f89-11d3-9a0c-0305e82c3301"]
+      (is (= (java.util.UUID/fromString u) (dominio/uuid-de-formulario u))))))

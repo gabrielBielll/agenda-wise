@@ -78,3 +78,25 @@
   [s]
   (when-not (str/blank? s)
     (java.sql.Date/valueOf s)))
+
+(defn uuid-de-formulario
+  "Converte um id vindo de formulário em `java.util.UUID`, ou `nil`.
+
+   🔴 Irmã da `data-de-formulario`, e ela existe porque eu varri a categoria
+   errada. Em 18/08 consertei os quatro `Date/valueOf` e **declarei a categoria
+   fechada** — mas a categoria não é *\"Date/valueOf\"*, é **parser estrito
+   recebendo string vazia de formulário**. `UUID/fromString` é o mesmo caso:
+
+     java.util.UUID/fromString \"\"  ->  IllegalArgumentException   (medido)
+
+   Um `<Select>` não tocado manda `\"\"`, não ausente. O `criar-paciente-handler`
+   fazia `(when psicologo_id (UUID/fromString psicologo_id))` e virava **500** —
+   enquanto o `atualizar`, três funções abaixo, **já tinha** a guarda de branco.
+   A mesma assimetria do `deletePaciente`: dois caminhos, um consertado.
+
+   ⚠️ Branco vira `nil`; **id malformado continua lançando**. Engolir um id
+   errado devolvendo `nil` gravaria paciente **sem psicólogo** em silêncio — e
+   paciente sem psicólogo é paciente que ninguém atende."
+  [s]
+  (when-not (str/blank? s)
+    (java.util.UUID/fromString s)))

@@ -467,7 +467,7 @@
                                         :data_nascimento (dominio/data-de-formulario data_nascimento)
                                         :endereco        endereco
                                         :avatar_url      avatar_url
-                                        :psicologo_id    (when psicologo_id (java.util.UUID/fromString psicologo_id))
+                                        :psicologo_id    (dominio/uuid-de-formulario psicologo_id)
                                         :historico_familiar historico_familiar
                                         :uso_medicamentos   uso_medicamentos
                                         :diagnostico        diagnostico
