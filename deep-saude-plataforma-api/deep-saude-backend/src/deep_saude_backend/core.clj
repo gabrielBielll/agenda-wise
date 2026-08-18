@@ -1405,6 +1405,14 @@
 ;; admin_clinica. Não é excesso de zelo: vincular a agenda errada a um
 ;; profissional expõe o histórico de pacientes de outro (spec 5.4).
 (defroutes google-routes
+  ;; GC-012: limite próprio da psicóloga. Nenhuma destas rotas aceita usuário
+  ;; alvo e nenhuma atravessa a permissão administrativa da clínica inteira.
+  (POST "/minha-conexao/conectar" request
+    (wrap-checar-permissao google/iniciar-conexao-propria-handler "conectar_agenda_propria"))
+  (POST "/minha-conexao/callback" request
+    (wrap-checar-permissao google/callback-conexao-propria-handler "conectar_agenda_propria"))
+  (GET "/minha-conexao/status" request
+    (wrap-checar-permissao google/status-conexao-propria-handler "conectar_agenda_propria"))
   (POST "/conectar"     request (wrap-checar-permissao google/iniciar-conexao-handler "gerenciar_integracao_google"))
   (POST "/callback"     request (wrap-checar-permissao google/callback-handler "gerenciar_integracao_google"))
   (GET  "/status"       request (wrap-checar-permissao google/status-handler "gerenciar_integracao_google"))

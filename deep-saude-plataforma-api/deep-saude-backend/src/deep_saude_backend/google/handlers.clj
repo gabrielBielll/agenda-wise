@@ -34,6 +34,11 @@
 (defn conexao-da-clinica [clinica-id]
   (execute-one! ["SELECT * FROM google_conexao WHERE clinica_id = ?" clinica-id]))
 
+(defn conexao-do-usuario [clinica-id usuario-id]
+  (execute-one! ["SELECT * FROM google_conexao
+                   WHERE clinica_id = ? AND usuario_id = ?"
+                 clinica-id usuario-id]))
+
 (defn- marcar-conexao-invalida! [conexao-id motivo]
   (sql/update! @datasource :google_conexao
                {:status "invalida"
@@ -98,9 +103,10 @@
                   :state state}})))))
 
 (defn callback-handler
-  "Recebe o `code` do Google e grava a conexão da clínica."
+  "Recebe o `code` do Google e grava a conexão da pessoa autenticada."
   [request]
   (let [clinica-id (get-in request [:identity :clinica_id])
+        usuario-id (get-in request [:identity :user_id])
         code (get-in request [:params :code])]
     (cond
       (str/blank? code)
@@ -127,6 +133,7 @@
           :else
           (let [agora (Instant/now)
                 dados {:clinica_id clinica-id
+                       :usuario_id usuario-id
                        :google_account_email (or (api/conta-conectada access_token) "")
                        :refresh_token_cifrado (cripto/cifrar-token refresh_token)
                        :access_token_cifrado (cripto/cifrar-token access_token)
@@ -137,10 +144,20 @@
                        :ultimo_erro nil
                        :ultimo_erro_em nil
                        :atualizada_em (java.sql.Timestamp/from agora)}]
-            (if-let [existente (conexao-da-clinica clinica-id)]
+            (if-let [existente (conexao-do-usuario clinica-id usuario-id)]
               (sql/update! @datasource :google_conexao dados {:id (:id existente)})
               (sql/insert! @datasource :google_conexao dados))
             {:status 200 :body {:message "Google Agenda conectado."}}))))))
+
+(defn iniciar-conexao-propria-handler
+  "Rota estreita da psicóloga: inicia somente a conexão da identidade no JWT."
+  [request]
+  (iniciar-conexao-handler request))
+
+(defn callback-conexao-propria-handler
+  "Conclui somente a conexão da identidade no JWT; ignora escopo vindo do corpo."
+  [request]
+  (callback-handler request))
 
 (def ^:private status-de-agenda-benignos
   "Os status de agenda em que **não** há nada quebrado.
@@ -209,6 +226,23 @@
             :ultimo_erro (:ultimo_erro conexao)
             :agendas (into {} (map (juxt :status :total)) vincs)
             ;; A regra mora em `precisa-atencao?`, acima — o handler só a aplica.
+            :precisa_atencao (precisa-atencao? conexao vincs)}}))
+
+(defn status-conexao-propria-handler
+  "Estado da conexão e dos vínculos da própria psicóloga, sempre pelo JWT."
+  [request]
+  (let [clinica-id (get-in request [:identity :clinica_id])
+        usuario-id (get-in request [:identity :user_id])
+        conexao (conexao-do-usuario clinica-id usuario-id)
+        vincs (execute-query! ["SELECT status FROM vinculo_agenda
+                                WHERE clinica_id = ? AND usuario_id = ?"
+                               clinica-id usuario-id])]
+    {:status 200
+     :body {:conectada (boolean conexao)
+            :status_conexao (:status conexao)
+            :conta (:google_account_email conexao)
+            :agendas (mapv #(select-keys % [:status]) vincs)
+            ;; Mesma regra do admin: não duplicar a classificação rara de falha.
             :precisa_atencao (precisa-atencao? conexao vincs)}}))
 
 (defn desconectar-handler
