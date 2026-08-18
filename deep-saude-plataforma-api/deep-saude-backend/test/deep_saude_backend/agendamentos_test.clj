@@ -144,6 +144,16 @@
                :role "admin_clinica"}
     :params {:id (str id)} :body body}))
 
+(defn- atualizar-como
+  "Como `atualizar`, mas com o papel escolhido — a R-020 separa quem pode forcar."
+  [papel id body & {:keys [clinica] :or {clinica clinica-a}}]
+  (core/atualizar-agendamento-handler
+   {:identity {:clinica_id clinica
+               :user_id psicologo-a
+               :papel_id (:id (db/execute-one! ["SELECT id FROM papeis WHERE nome_papel = ?" papel]))
+               :role papel}
+    :params {:id (str id)} :body body}))
+
 (defn- remover [id mode & {:keys [clinica] :or {clinica clinica-a}}]
   (core/remover-agendamento-handler
    (cond-> {:identity {:clinica_id clinica} :params {:id (str id)}}
@@ -534,6 +544,142 @@
     (is (= 200 (:status resp)))
     (is (= "pago" (:status_pagamento (:body resp))))
     (is (= "manual" (:status_pagamento_origem (:body resp))))))
+
+(deftest atualizar-com-o-payload-que-a-tela-manda-nao-pode-travar
+  ;; A-011 — a guarda protege a API e nao protege a tela.
+  ;;
+  ;; O teste vizinho, `atualizar-dinheiro-de-sessao-forcada-continua-permitido`,
+  ;; manda UM campo: `{:status_pagamento "pago"}`. Ele passa. Mas o formulario do
+  ;; admin nao manda um campo — o `agendamentoSchema` de
+  ;; `src/app/admin/agendamentos/actions.ts` EXIGE `psicologo_id` e
+  ;; `data_hora_sessao`, entao toda edicao pela tela manda os dois, **iguais ao
+  ;; que ja esta gravado**.
+  ;;
+  ;; A checagem dispara por PRESENCA do campo, nao por MUDANCA de valor. Entao
+  ;; marcar pagamento pela tela, em sessao que um admin sobrepos legitimamente
+  ;; com `force`, da 409 — exatamente o caso que o teste vizinho jurava proteger.
+  ;;
+  ;; ⚠️ Este teste existe porque o outro dava uma garantia que a tela nao tem.
+  (criar-como "admin_clinica"
+              (assoc sessao-base :data_hora_sessao "2027-06-14T14:00:00" :duracao 50))
+  (let [forcada (:body (criar-como "admin_clinica"
+                                   (assoc sessao-base :data_hora_sessao "2027-06-14T14:30:00"
+                                                      :duracao 50 :force true)))
+        ;; O payload da tela: tudo, sempre, com o intervalo INALTERADO.
+        ;;
+        ;; ⚠️ A data vai no formato que `paraPayloadParede` produz — com ESPAÇO,
+        ;; não com `T`. Escrevi "2027-06-14T14:30:00" na primeira versao e parei:
+        ;; a sessao foi CRIADA com `T` e a tela ATUALIZA com espaco, entao um
+        ;; teste que usasse a mesma forma nos dois lados provaria uma igualdade
+        ;; que a tela nunca exercita. Se as duas formas nao caissem no mesmo
+        ;; instante, este teste ficaria verde e a tela continuaria travada — que e
+        ;; exatamente o defeito que ele existe para pegar.
+        resp (atualizar (:id forcada) (assoc sessao-base
+                                             :data_hora_sessao "2027-06-14 14:30:00"
+                                             :duracao 50
+                                             :status_pagamento "pago"))]
+    (is (= 200 (:status resp))
+        "editar pela tela uma sessao forcada da 409 — a pessoa bate na parede na interface")
+    (is (= "pago" (:status_pagamento (:body resp))))
+    (testing "e o intervalo continua onde estava"
+      (is (= ["2027-06-14 14:00" "2027-06-14 14:30"] (horarios-de-parede))))))
+
+(deftest atualizar-que-de-fato-move-para-cima-de-outra-continua-recusado
+  ;; O contrapeso do teste acima, e ele nao e opcional: "so checar quando mudou"
+  ;; e uma frase que, mal implementada, vira "nunca checar". Este segura o lado
+  ;; que a correcao NAO pode afrouxar.
+  (let [primeira (:body (criar (assoc sessao-base :data_hora_sessao "2027-06-15T14:00:00"
+                                                  :duracao 50)))]
+    (criar (assoc sessao-base :data_hora_sessao "2027-06-15T16:00:00" :duracao 50))
+    (let [resp (atualizar (:id primeira) (assoc sessao-base
+                                                :data_hora_sessao "2027-06-15T16:00:00"
+                                                :duracao 50))]
+      (is (= 409 (:status resp))
+          "mover de verdade para cima de outra sessao tem que continuar recusado")
+      (testing "e nada foi gravado"
+        (is (= ["2027-06-15 14:00" "2027-06-15 16:00"] (horarios-de-parede)))))))
+
+(deftest atualizar-com-force-e-privilegio-do-admin
+  ;; R-020 (1) — *"o admin sempre tem forca"*, e o Gabriel disse que vale tambem
+  ;; no caminho de atualizacao, onde hoje o campo `force` **nao existe**.
+  ;;
+  ;; Sem isto, a A-009 nasce pela metade: o admin ganha botao para CRIAR sobre
+  ;; conflito e continua sem poder MOVER uma sessao para cima de outra.
+  (let [a-mover (:body (criar (assoc sessao-base :data_hora_sessao "2027-06-16T14:00:00"
+                                                 :duracao 50)))]
+    (criar (assoc sessao-base :data_hora_sessao "2027-06-16T16:00:00" :duracao 50))
+    (testing "o psicologo nao force nem mesmo mandando o campo"
+      (let [resp (atualizar-como "psicologo" (:id a-mover)
+                                 {:data_hora_sessao "2027-06-16T16:00:00" :force true})]
+        (is (= 403 (:status resp)))
+        (is (= "force_requires_admin" (:code (:body resp))))
+        (is (= ["2027-06-16 14:00" "2027-06-16 16:00"] (horarios-de-parede))
+            "a tentativa negada nao pode ter movido a sessao")))
+    (testing "a clinica move a mesma sessao para cima do conflito"
+      (let [resp (atualizar-como "admin_clinica" (:id a-mover)
+                                 {:data_hora_sessao "2027-06-16T16:00:00" :force true})]
+        (is (= 200 (:status resp)))
+        (is (= ["2027-06-16 16:00" "2027-06-16 16:00"] (horarios-de-parede)))))))
+
+(deftest atualizar-sem-force-nomeia-o-conflito-como-a-criacao-ja-faz
+  ;; ⚠️ Correcao de rumo minha: eu tinha escrito este teste exigindo
+  ;; `session_conflict` e a lista `:sessoes`. **Estava errado.** Fui ler os dois
+  ;; caminhos: aquele contrato e da **R-014**, que e bloqueio-sobre-sessao, e a
+  ;; lista existe la porque a pessoa precisa saber o que ajustar.
+  ;;
+  ;; Conflito entre AGENDAMENTOS tem outro contrato — `appointment_conflict`, sem
+  ;; lista — e e esse que o `(app)/calendar/actions.ts` ja le para abrir o modal
+  ;; de forcar. Copiar o contrato errado teria feito a tela do admin esperar um
+  ;; campo que ninguem manda.
+  ;;
+  ;; O buraco real e mais simples: a CRIACAO nomeia o conflito, a ATUALIZACAO
+  ;; devolve so uma frase. Sem `code`, a tela nao tem como distinguir "conflito,
+  ;; te ofereco forcar" de "deu erro" — entao o botao de forcar da A-009 nao teria
+  ;; onde se pendurar no caminho de edicao.
+  (let [a-mover (:body (criar (assoc sessao-base :data_hora_sessao "2027-06-17T14:00:00"
+                                                 :duracao 50)))]
+    (criar (assoc sessao-base :data_hora_sessao "2027-06-17T16:00:00" :duracao 50))
+    (let [resp (atualizar (:id a-mover) {:data_hora_sessao "2027-06-17T16:00:00"})]
+      (is (= 409 (:status resp)))
+      (is (= "appointment_conflict" (:code (:body resp)))
+          "sem code a tela nao distingue conflito de erro qualquer, e o modal de forcar nao pode existir"))))
+
+(deftest atualizar-sessao-cancelada-dentro-de-bloqueio-nao-pode-travar
+  ;; A mesma A-011 num segundo lugar, que nenhum dos dois cartoes cita: a
+  ;; checagem de BLOQUEIO no caminho de atualizacao roda **sempre** — nao tem nem
+  ;; o `when` que a de conflito tem.
+  ;;
+  ;; ⚠️ Achar o caminho alcancavel deu trabalho, e a primeira versao deste teste
+  ;; era um FALSO VERDE. Eu tinha escrito "cria a sessao, cria o bloqueio por
+  ;; cima" — mas criar bloqueio sobre sessao e recusado (R-014) e nao tem `force`.
+  ;; O bloqueio nunca existiria, o 409 nunca aconteceria, e o teste passaria
+  ;; provando nada.
+  ;;
+  ;; O caminho que existe de verdade e este: a criacao de bloqueio ignora sessao
+  ;; **cancelada** (`status != 'cancelado'`). Entao cancelar e depois bloquear o
+  ;; periodo e uma sequencia que a clinica faz sem forcar nada — e a partir dai a
+  ;; sessao cancelada fica **impossivel de editar pela tela**. Corrigir o valor,
+  ;; anotar o motivo ou DESFAZER o cancelamento: tudo 409.
+  (let [sessao (:body (criar (assoc sessao-base :data_hora_sessao "2027-06-18T14:00:00"
+                                                :duracao 50)))]
+    (is (= 200 (:status (atualizar (:id sessao) {:status "cancelado"}))))
+    (testing "com a sessao cancelada, a clinica consegue bloquear o periodo"
+      (is (= 201 (:status (criar-bloqueio {:data_inicio "2027-06-18T13:00:00"
+                                           :data_fim "2027-06-18T18:00:00"
+                                           :motivo "ferias"})))
+          "se isto nao for 201 o resto do teste nao prova nada — era o falso verde"))
+    (testing "e a sessao cancelada continua editavel"
+      (let [resp (atualizar (:id sessao) (assoc sessao-base
+                                                :data_hora_sessao "2027-06-18T14:00:00"
+                                                :duracao 50
+                                                :observacoes "cancelada pela paciente"))]
+        (is (= 200 (:status resp))
+            "a sessao ficou congelada dentro do bloqueio, sem saida pela tela")))
+    (testing "mas MOVER para outro horario do bloqueio continua recusado"
+      (let [resp (atualizar (:id sessao) {:data_hora_sessao "2027-06-18T16:00:00"})]
+        (is (= 409 (:status resp)))
+        (is (= "block_conflict" (:code (:body resp)))
+            "a criacao ja nomeia este 409; a atualizacao devolvia so uma frase")))))
 
 (deftest atualizar-duracao-menor-sem-sobreposicao-continua-permitido
   (let [sessao (:body (criar (assoc sessao-base :data_hora_sessao "2027-06-13T14:00:00"
