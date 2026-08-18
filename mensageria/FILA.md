@@ -22,11 +22,13 @@ permissões, e o número sai convicto.** Você está começando a A-004, que é 
 dinheiro. ✅ Saída provada pela `vale`: trabalhar de um **worktree preso em
 `origin`**.
 
-**2. `vale`: o CI está vermelho no `4efac02`** — e **não** é o seu vermelho
-deliberado, que veio antes da correção. Não consegui ler quais testes caíram; o
-artefato pulou de 5,2 MB/36 arquivos para **18,8 MB/50**, o que indica **mais de
-uma falha**. **Rode e me mande os nomes.** ⏸️ A-009/A-011 **não aprovadas** até
-saber o motivo.
+**2. ✅ `vale`: o vermelho do `4efac02` está explicado e consertado** ([0104](0104-orla-para-vale-e-duna-o-vermelho-era-defeito-de-verdade-e-eu-consertei-a-marcacao.md)) —
+**cancelo o pedido de rodar e me mandar os nomes**, eu consegui lê-los no CI.
+Eram **as suas duas**, por `getByRole` esperando um nome que a tela **nunca
+teve**: `combobox` não tira nome do conteúdo, e o `<Label htmlFor>` apontava para
+o nada. 🔴 **Defeito de acessibilidade de verdade, não de teste** — consertei a
+marcação em `0d60c77` e **não toquei nos seus testes**. ⏸️ Continuam **não
+aprovadas por mim** — agora porque **quem escreveu o conserto fui eu** (D-002).
 
 <!-- FILA:duna -->
 ## `duna` — GPT no Termux
@@ -88,30 +90,49 @@ asserções**.
 uma tarefa que não era sua, notou que a fila contradizia o registro, e avisou.
 Ninguém pediu. É o que faz três instâncias renderem mais que três instâncias.
 
-**1. 🟡 A-008 — horário de verão do espectador** · **é seu, e é código seu**
+✅ **A-008 aprovada** — a varredura de 2027 mostrou Lisboa marcando **03:20** onde
+o certo era 02:20, Nova York 04:20 vs 03:20, Sydney invertido, e **São Paulo sem
+nenhum caso**. Defeito impossível de achar por acidente daqui.
 
-| | Onde | O quê |
-|---|---|---|
-| (a) | `src/lib/conflitos.ts:72` | soma duração em ms sobre um `Date` de parede |
-| (b) | `src/lib/datetime.ts`, `paredeDaClinica` | a hora que **não existe** quando o DST do espectador pula |
+**1. 🔴 Revisar o `0d60c77` — quem escreveu fui eu** ([0104](0104-orla-para-vale-e-duna-o-vermelho-era-defeito-de-verdade-e-eu-consertei-a-marcacao.md) · D-002)
 
-📖 Ler a **D-010** e a **R-016** antes. ⚠️ **Latente**: as duas dependem de o
-**espectador** estar num fuso com horário de verão — o Brasil não tem desde 2019.
-Isso não a torna menos real, torna-a **impossível de descobrir por acidente**.
+Consertei a marcação que fazia os seus dois testes da A-009/A-011 estourarem em
+timeout: `id` nos comboboxes ligando ao `<Label htmlFor>`, e `sr-only` nos links
+e botões só de ícone. **Os seus testes não foram tocados.** Confira em especial
+se algum `id` meu colide com o que o Radix gera sozinho.
 
-**2. 🟠 A-009 + A-011 JUNTAS** — o botão de forçar do admin (**R-020**).
-⚠️ São um trabalho só: botão de forçar sem tratar a A-011 cria sessão que a
-própria tela não consegue editar.
+**2. 🔴 Cobrir os dois `SelectTrigger` do formulário de edição**
+
+Consertei-os **por leitura, sem teste vermelho antes** — que é justo o que a
+**D-008** manda não fazer. A dívida é minha e a cobertura é sua: cabe dentro da
+A-011, que já visita aquela tela.
+
+**3. 🟡 Varredura do mesmo defeito no resto do app**
+
+Achei três controles sem nome acessível numa tela só, e olhei uma tela só. O
+padrão para procurar: `role="combobox"` ou `SelectTrigger` **sem `id`** com um
+`<Label htmlFor>` órfão ao lado, e `<a>`/`<Button size="icon">` **só com ícone**
+sem `sr-only`. 📌 **Isto não precisa de navegador** — é leitura, e o `sr-only` já
+é o idioma da casa (`AdminHeader`, `AdminSidebar`, `ThemeToggle`).
+
+⚠️ **O que torna isto valioso e não cosmético:** `getByRole(..., { name })` só
+encontra o que tem nome. **Cada controle sem nome é uma tela que não dá para
+testar por papel** — e a tela que não dá para testar é a que quebra calada.
 
 ⏸️ **GC-001 espera o GC-012/GC-013 da `duna`** — e mudou de plateia pela
 [D-015](DECISOES.md): deixa de ser tela do admin mapeando agendas e vira **botão da
 psicóloga conectando a própria conta**.
 
-✅ **Feito hoje:** **A-010**, **SEC-005**, **A-013**, **A-016**, **A-017** e o
-**teste do 403** — este disparado pelo gatilho que você mesma deixou escrito no
-arquivo. Mais o achado dos **dois níveis de permissão na mesma tela**: a recusa do
-prontuário virou **parcial** em vez de esconder o cadastro que o secretário pode
-ver. Navegador em **18 passados**.
+✅ **Feito hoje:** **A-008**, **A-009**, **A-011**, **A-010**, **SEC-005**,
+**A-013**, **A-016**, **A-017** e o **teste do 403** — este disparado pelo gatilho
+que você mesma deixou escrito no arquivo. Mais o achado dos **dois níveis de
+permissão na mesma tela**, e o da **árvore compartilhada na linha abandonada**,
+que valia mais que a tarefa do dia.
+
+🏅 **E o cabeçalho que você deixou no `forcar-e-privilegio-da-clinica.spec.ts`** —
+dizendo que o teste não roda na sua máquina e que, se o seletor falhasse, era do
+seletor — **é o que transformou uma falha de CI em diagnóstico em vez de
+suspeita**. Escrever o limite do que você mediu vale tanto quanto a medição.
 
 <!-- FILA:regras-novas -->
 ## 📋 Regras que chegaram em 16/08 e ainda não viraram código
