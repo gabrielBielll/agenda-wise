@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { Home, Users, CalendarDays, DollarSign, BriefcaseMedical, Settings, LogOut, Building } from "lucide-react"; // Adicionei mais ícones
+import { Home, Users, CalendarDays, DollarSign, BriefcaseMedical, Settings, LogOut, Building, Plug } from "lucide-react"; // Adicionei mais ícones
 import { cn } from "@/lib/utils";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"; // Para tooltips nos ícones
@@ -21,6 +21,9 @@ const mainNavLinks: NavLinkItem[] = [
   { href: "/admin/pacientes", label: "Pacientes", icon: BriefcaseMedical },
   { href: "/admin/agendamentos", label: "Agendamentos", icon: CalendarDays },
   { href: "/admin/financeiro", label: "Financeiro", icon: DollarSign },
+  // GC-001a. Sem entrada aqui a tela existe e ninguém a encontra — e o painel
+  // que avisa que a integração caiu não pode depender de alguém digitar a URL.
+  { href: "/admin/integracoes", label: "Integrações", icon: Plug },
 ];
 
 const secondaryNavLinks: NavLinkItem[] = [

@@ -82,6 +82,27 @@ async function tentarBloquearPorCimaDaSessao(page: Page) {
    * exibir o nome do psicólogo. Se a ordem mudar, isto cai dizendo o que houve.
    */
   const gatilhoPsicologo = dialogo.getByRole('combobox').first();
+
+  /**
+   * A guarda ANTES do clique — o irmão do que a `orla` corrigiu na 0111.
+   *
+   * Ela mostrou que a minha guarda por efeito, sozinha, chega tarde: se a ordem
+   * do DOM mudar e o `.first()` abrir o combobox errado, quem falha primeiro é o
+   * passo seguinte, com uma mensagem sobre outra coisa. Aqui seria "timeout
+   * clicando na opção do psicólogo" — que manda procurar defeito na lista de
+   * psicólogos, não no seletor.
+   *
+   * Os dois combobox deste diálogo nascem com textos diferentes, e é isso que
+   * separa um do outro sem nome acessível e sem contagem: o do psicólogo nasce
+   * "Selecione o psicólogo...", e o de "Repetição" nasce **"Não repetir"**
+   * (`AgendamentosClient.tsx:337` e `:396`).
+   */
+  await expect(
+    gatilhoPsicologo,
+    'o primeiro combobox do diálogo não é o de psicólogo — a ordem do DOM mudou e ' +
+      'o `.first()` está prestes a abrir o seletor de "Repetição"'
+  ).toContainText(/selecione o psic[óo]logo/i);
+
   await gatilhoPsicologo.click();
   await page.getByRole('option', { name: CONTA.psicologoNome }).first().click();
   await expect(
