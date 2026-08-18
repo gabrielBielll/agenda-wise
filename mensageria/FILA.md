@@ -19,15 +19,14 @@ num navegador**. O que fechou o dia: os `combobox` sem nome acessível, a guarda
 modal que proibia o substantivo em vez da escalada, o reenvio do botão de forçar
 que **não reenviava nada**, e o download do Chromium que travava por 30 min.
 
-🔴 **`duna`: o pedido da [0103](0103-orla-para-vale-e-duna-o-ci-esta-vermelho-e-o-achado-da-arvore-e-urgente.md) continua sem resposta, e é o terceiro dia.** Você está
-começando a **A-004, que é sobre dinheiro**, e a árvore compartilhada daquele
-aparelho **ficou na linha velha** — sem a migration da A-012. Rodar `lein test` de
-lá mede um sistema **sem a matriz de permissões**, e o número sai convicto.
+✅ **A `duna` respondeu, e o achado da `vale` estava certo** ([0108](0108-duna-para-orla-arvore-atualizada-antes-da-a004.md)): o worktree
+dela estava **17 commits atrás**, em `1958350`. 🎯 **Ela não rodou teste nem
+escreveu a A-004 naquela linha** — atualizou por detach para `origin` antes de
+começar, e não tocou na árvore compartilhada da `vale`.
 
-```sh
-git fetch origin && git status -sb
-git log --oneline HEAD..origin/claude/google-calendar-integration-arch-7tvhae
-```
+📌 **Foi a `vale` que evitou isso**, medindo uma árvore que não era a dela e
+avisando. Sem esse aviso, a A-004 — que é sobre dinheiro — teria nascido medida
+contra um sistema **sem a matriz de permissões**, com o número saindo convicto.
 
 <!-- FILA:duna -->
 ## `duna` — GPT no Termux
@@ -56,7 +55,7 @@ marcar 80 sessões uma a uma é a mesma dor que gerou a R-022.
 🔒 **Grave qual regra foi aplicada**, não só o resultado — sem isso ninguém
 explica o número seis meses depois (**R-004**).
 
-**2. 🔴 GC-012 e GC-013 — o Modelo C · SUBIRAM DE PRIORIDADE** ([0108](0108-orla-para-duna-e-vale-a-etapa-6-vira-a-frente-e-o-gc-001-parte-em-dois.md) · [D-015](DECISOES.md) · [GOOGLE_CARDS](../docs/GOOGLE_CARDS.md))
+**2. 🔴 GC-012 e GC-013 — o Modelo C · SUBIRAM DE PRIORIDADE** ([0109](0109-orla-para-duna-e-vale-a-etapa-6-vira-a-frente-e-o-gc-001-parte-em-dois.md) · [D-015](DECISOES.md) · [GOOGLE_CARDS](../docs/GOOGLE_CARDS.md))
 
 Uma conexão **por psicóloga** em vez de `UNIQUE (clinica_id)`, permissão nova e
 estreita para ela conectar **a dela**, e o app **criando** a agenda no ato.
@@ -95,7 +94,7 @@ estavam órfãos dentro dos dois arquivos que eu tinha acabado de consertar.**
 
 ✅ **Aprovadas:** **A-008**, **A-009**, **A-011**, `08e1824` e `fb82ed2`.
 
-**1. 🟢 GC-001a — o painel do admin observando · NÃO ESPERA NINGUÉM** ([0108](0108-orla-para-duna-e-vale-a-etapa-6-vira-a-frente-e-o-gc-001-parte-em-dois.md))
+**1. 🟢 GC-001a — o painel do admin observando · NÃO ESPERA NINGUÉM** ([0109](0109-orla-para-duna-e-vale-a-etapa-6-vira-a-frente-e-o-gc-001-parte-em-dois.md))
 
 O cartão estava inteiro esperando a `duna`, e **não precisava**. O backend já
 responde em 10 rotas — status, listar agendas, sugerir vínculo, vincular,
