@@ -18,7 +18,22 @@ import { HORA_DA_SESSAO } from './preparar-dados';
 test.describe('calendário — fuso horário entre visões', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/calendar');
-    await expect(page.getByRole('combobox').first()).toBeVisible();
+    /**
+     * ⚠️ Isto era `expect(page.getByRole('combobox').first()).toBeVisible()`, que
+     * afirma só que **algum** combobox apareceu. Numa tela com vários, isso passa
+     * mesmo que o seletor de visão — o único controle que este arquivo usa — não
+     * tenha renderizado; e aí a falha aparece lá na frente, no `trocarVisao`,
+     * apontando para o lugar errado.
+     *
+     * Agora a espera é pelo controle que o teste realmente precisa, reconhecido
+     * pelo conteúdo. Ele não tem nome acessível ([A11Y-001]) — quando tiver,
+     * isto vira `getByRole('combobox', { name: /visualiza/i })`.
+     */
+    await expect(
+      page.getByRole('combobox').filter({ hasText: /m[êe]s|semana|dia/i }).first(),
+      'o seletor de visão do calendário não apareceu — sem ele o resto do arquivo ' +
+        'não tem o que exercitar'
+    ).toBeVisible();
   });
 
   test('semana e dia mostram o MESMO horário para a mesma sessão', async ({ page }) => {

@@ -67,9 +67,28 @@ async function tentarBloquearPorCimaDaSessao(page: Page) {
   const { dia } = dadosSemeados();
   const dialogo = await abrirDialogoDeBloqueio(page);
 
-  // Psicólogo: combobox do cmdk — as opções só existem depois de abrir.
-  await dialogo.getByRole('combobox').first().click();
+  /**
+   * Psicólogo: combobox do cmdk — as opções só existem depois de abrir.
+   *
+   * ⚠️ `.first()` aqui escolhe entre **dois** controles com `role="combobox"`
+   * neste diálogo: o do psicólogo e o de "Repetição". Hoje acerta por ordem do
+   * DOM, e nada no teste diz que era isso que ele queria.
+   *
+   * Nenhum dos dois tem nome acessível — o do psicólogo é um `<Button
+   * role="combobox">`, e sobrescrever o papel para `combobox` **desliga o
+   * nome-pelo-conteúdo** que um `button` teria. É o [A11Y-001].
+   *
+   * A asserção abaixo prova pelo efeito: depois de escolher, o gatilho tem que
+   * exibir o nome do psicólogo. Se a ordem mudar, isto cai dizendo o que houve.
+   */
+  const gatilhoPsicologo = dialogo.getByRole('combobox').first();
+  await gatilhoPsicologo.click();
   await page.getByRole('option', { name: CONTA.psicologoNome }).first().click();
+  await expect(
+    gatilhoPsicologo,
+    'escolhi o psicólogo e o seletor não passou a mostrá-lo — o `.first()` pode ' +
+      'ter aberto o combobox de "Repetição", que é o outro deste diálogo'
+  ).toContainText(CONTA.psicologoNome);
 
   const datas = dialogo.locator('input[type="datetime-local"]');
   await datas.nth(0).fill(`${dia}T${BLOQUEIO_INICIO}`);

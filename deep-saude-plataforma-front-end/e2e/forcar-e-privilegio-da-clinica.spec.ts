@@ -69,7 +69,17 @@ async function tentarAgendarEmCimaDaSessao(page: import('@playwright/test').Page
     await expect(dialogo).toBeVisible({ timeout: 3_000 });
   }).toPass({ timeout: 60_000 });
 
-  await dialogo.getByRole('combobox').first().click();
+  /**
+   * ⚠️ `.first()` entre os combobox DESTE diálogo, e quantos existem **depende do
+   * caminho**: criando são dois (paciente e "Repetir"), editando é um só — a
+   * recorrência fica atrás de `{!editingAppointment && …}`. Por isso a guarda
+   * aqui não pode ser contagem fixa: seria verde num caminho e vermelha no outro.
+   *
+   * Nenhum deles tem nome acessível ([A11Y-001]), então `{ name }` ainda não é
+   * opção. A guarda é por EFEITO, depois da escolha.
+   */
+  const gatilhoPaciente = dialogo.getByRole('combobox').first();
+  await gatilhoPaciente.click();
 
   // ⚠️ Asserção explícita, e ela existe por um motivo de mecânica, não de estilo.
   //
@@ -94,6 +104,11 @@ async function tentarAgendarEmCimaDaSessao(page: import('@playwright/test').Page
       'chega vazia. Ver docs/REVISAO_PRE_PRODUCAO.md e a mensageria 0061.'
   ).toBeVisible({ timeout: 10_000 });
   await opcaoDoPaciente.click();
+  await expect(
+    gatilhoPaciente,
+    'escolhi o paciente e o seletor não passou a mostrá-lo — o `.first()` pode ' +
+      'ter aberto o combobox de "Repetir", que é o outro deste diálogo'
+  ).toContainText(paciente);
 
   await dialogo.locator('#data_hora_sessao').fill(quando.inicio);
   await dialogo.locator('#data_hora_fim').fill(quando.fim);

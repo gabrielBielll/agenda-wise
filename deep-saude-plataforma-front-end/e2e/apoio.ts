@@ -38,6 +38,24 @@ export async function entrarComoAdmin(page: Page) {
  * role combobox e as opções só existem no DOM depois de abrir.
  */
 export async function trocarVisao(page: Page, visao: 'Mês' | 'Semana' | 'Dia') {
+  /**
+   * ⚠️ `getByRole('combobox')` sem `name`, e `.first()` por cima.
+   *
+   * Não dá para pedir o nome: este controle **não tem nenhum**. `SelectTrigger`
+   * é `role="combobox"`, e `combobox` — ao contrário de `button` — não tira nome
+   * do próprio conteúdo. Sem `id` casando um `<Label htmlFor>`, um leitor de tela
+   * anuncia só "combobox". É o [A11Y-001], que é da `pico` porque exige medir num
+   * navegador.
+   *
+   * Então enquanto isso: em vez de confiar na ORDEM, o helper passa a **provar
+   * pelo efeito** — no fim, o gatilho tem que estar mostrando a visão escolhida.
+   * Se `.first()` pegar outro controle um dia, a falha diz "abri o controle
+   * errado" em vez de "esperei uma opção que nunca apareceu".
+   *
+   * 📌 Quando o A11Y-001 cair, isto vira
+   * `getByRole('combobox', { name: /visualiza/i })` e a asserção de baixo pode
+   * ficar mesmo assim — ela é barata e assere outra coisa (que a troca pegou).
+   */
   const gatilho = page.getByRole('combobox').first();
   const opcao = page.getByRole('option', { name: visao, exact: true });
 
@@ -58,6 +76,15 @@ export async function trocarVisao(page: Page, visao: 'Mês' | 'Semana' | 'Dia') 
   // O Radix desmonta o popover ao escolher; esperar isso evita ler o conteúdo
   // velho na asserção seguinte.
   await expect(opcao).toBeHidden();
+
+  // A prova de que a troca pegou NO CONTROLE CERTO. Sem isto, abrir o combobox
+  // errado e não achar a opção daria "timeout esperando option Semana" — uma
+  // mensagem que aponta para a opção quando o defeito está no gatilho.
+  await expect(
+    gatilho,
+    `pedi a visão "${visao}" e o seletor não passou a mostrá-la — ou a troca não ` +
+      'pegou, ou o `.first()` abriu outro combobox'
+  ).toContainText(visao);
 }
 
 /**

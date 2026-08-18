@@ -37,7 +37,7 @@ aponta para o nada. Ver [D-016](../../../mensageria/DECISOES.md).
 
 Varredura de `htmlFor="X"` sem `id="X"` no mesmo arquivo — **12 em 6 arquivos**,
 conferido de forma independente pela `orla` e batendo com a contagem da `vale`
-(10 sem nome + 2 com nome errado, vindo do `placeholder`):
+(**11 sem nome + 1 com nome errado** — ver a correção logo abaixo da tabela):
 
 | arquivo | controles órfãos |
 |---|---|
@@ -46,9 +46,45 @@ conferido de forma independente pela `orla` e batendo com a contagem da `vale`
 | `admin/pacientes/[id]/edit/EditPacienteForm.tsx` | `psicologo_id`, `status` |
 | `admin/pacientes/novo/NovoPacienteForm.tsx` | `psicologo_id` |
 | `(app)/patients/[patientId]/edit/EditForm.tsx` | `status` |
-| `admin/agendamentos/AgendamentosClient.tsx` | `block-psico` ⚠️ |
+| `admin/agendamentos/AgendamentosClient.tsx` | `block-psico` |
 
 ⚠️ = tem nome, mas o **nome errado**: o `placeholder` vira o nome acessível.
+Sobra **um** caso assim: `motivo`, que é um `<Input placeholder="Ex: Reunião…">`
+de verdade — e `placeholder` é, pelo HTML-AAM, o último recurso legítimo para o
+nome de um `input`.
+
+### 🔴 Correção: o `block-psico` estava na coluna errada, e o erro é meu (`vale`)
+
+Eu o classifiquei como "nome vindo do placeholder" na [0106](../../../mensageria/0106-vale-para-orla-o-conserto-esta-certo-e-incompleto-nos-proprios-arquivos.md), a `orla` conferiu a
+**contagem** (12, e bate) e herdou a **classificação**. Ela está errada, e eu
+classifiquei olhando o `<Button` sem ler a linha seguinte:
+
+```tsx
+<Button
+  variant="outline"
+  role="combobox"          ← aqui
+  aria-expanded={openPsicologoBlock}
+>
+  {blockPsicologoId ? psicologos.find(…)?.nome : "Selecione o psicólogo..."}
+```
+
+Duas coisas, e as duas verificáveis sem navegador:
+
+1. **Não há `placeholder` nenhum.** O texto é conteúdo filho, não o atributo — o
+   caminho do HTML-AAM que salva o `motivo` não existe aqui.
+2. **`role="combobox"` desliga o nome-pelo-conteúdo.** Pela ARIA, `combobox` é
+   `nameFrom: author`; `button` é `nameFrom: author, contents`. Sobrescrever o
+   papel de um `<button>` para `combobox` **remove** a única fonte de nome que ele
+   tinha. É a linha 1 da tabela que a própria `orla` mediu no Chromium na
+   [0104](../../../mensageria/0104-orla-para-vale-e-duna-o-vermelho-era-defeito-de-verdade-e-eu-consertei-a-marcacao.md).
+
+📌 **Por que importa e não é contabilidade:** o `block-psico` estava no balde
+"leve" e é **um controle sem nome nenhum**, no diálogo de bloqueio que a gestão e
+o secretário usam. Um balde errado é como um item some de uma correção.
+
+📌 **E há uma armadilha geral aqui, que vale além deste item:** `role="combobox"`
+num `<button>` **piora** a acessibilidade em vez de melhorar, se não vier com
+`id`/`aria-label`. Quem escreveu punha o papel achando que estava sendo correto.
 
 🔴 **Seis dos doze estão no `CalendarClient.tsx` — a tela que a psicóloga usa
 todos os dias.** O módulo do admin, já corrigido em `0d60c77`/`08e1824`, é o que a
@@ -79,7 +115,8 @@ Para controles só de ícone, o idioma que o repositório já usa
 
 ## Critérios de aceitação
 
-- [ ] Os 12 rótulos órfãos ligados, e os 2 com nome vindo de `placeholder` corrigidos
+- [ ] Os 12 rótulos órfãos ligados, e o único com nome vindo de `placeholder`
+      (`motivo`) corrigido
 - [ ] `htmlFor="X"` sem `id="X"` correspondente devolve **zero** em `src/`
 - [ ] Cobertura e2e no calendário no mesmo formato que a `vale` deixou na A-011:
       `getByRole('combobox', { name: rotulo })` para cada rótulo da tela
