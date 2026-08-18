@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { CardContent } from "@/components/ui/card";
@@ -19,6 +19,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface Psicologo {
   id: string;
@@ -70,9 +80,28 @@ export default function EditarAgendamentoForm({
   const [isRecurrenceDialogOpen, setIsRecurrenceDialogOpen] = useState(false);
   const [pendingFormData, setPendingFormData] = useState<FormData | null>(null);
 
+  /**
+   * A-009 + A-011, e é aqui que as duas se encontram.
+   *
+   * Este formulário é o que a A-011 descreve: ele manda `psicologo_id` e
+   * `data_hora_sessao` **sempre**, porque o `agendamentoSchema` os exige. Contra
+   * o backend antigo, editar qualquer sessão sobreposta dava 409 — inclusive
+   * para marcar pagamento. O botão de forçar sem essa correção criaria sessões
+   * que esta tela não conseguiria mais editar.
+   *
+   * ⚠️ O reenvio guarda o `FormData` em vez de chamar `requestSubmit()`, e a
+   * diferença importa: `requestSubmit()` reabriria o diálogo de recorrência e
+   * perderia o modo que a pessoa já escolheu. É o mesmo caminho que o
+   * `handleConfirmMode` logo abaixo já usa.
+   */
+  const ultimoEnvio = useRef<FormData | null>(null);
+  const [isConflictOpen, setIsConflictOpen] = useState(false);
+  const [isForcaNegadaOpen, setIsForcaNegadaOpen] = useState(false);
+
   const updateWithId = updateAgendamento.bind(null, agendamento.id);
 
   const clientWrapperAction = async (prevState: FormState, formData: FormData): Promise<FormState> => {
+       ultimoEnvio.current = formData;
        // Check recurrence
        if (agendamento.recorrencia_id && !formData.get('mode')) {
            setPendingFormData(formData);
@@ -80,6 +109,16 @@ export default function EditarAgendamentoForm({
            return prevState; // Do nothing yet, wait for user selection
        }
        return updateWithId(prevState, formData);
+  };
+
+  const handleForceSubmit = () => {
+    const dados = ultimoEnvio.current;
+    if (!dados) return;
+    dados.set('force', 'true');
+    React.startTransition(() => {
+      formAction(dados);
+    });
+    setIsConflictOpen(false);
   };
 
   const [state, formAction] = useFormState(clientWrapperAction, initialState);
@@ -130,11 +169,18 @@ export default function EditarAgendamentoForm({
 
   useEffect(() => {
     if (state.message && !state.success) {
-      toast({
-        title: "Erro na Edição",
-        description: state.message,
-        variant: "destructive",
-      });
+      if (state.conflict) {
+        setIsConflictOpen(true);
+      } else if (state.forcaNegada) {
+        setIsConflictOpen(false);
+        setIsForcaNegadaOpen(true);
+      } else {
+        toast({
+          title: "Erro na Edição",
+          description: state.message,
+          variant: "destructive",
+        });
+      }
     }
   }, [state, toast]);
 
@@ -236,6 +282,39 @@ export default function EditarAgendamentoForm({
         <div className="flex justify-end pt-4"><SubmitButton /></div>
       </CardContent>
     </form>
+
+    {/* R-020 (1) — o admin também força ao MOVER, não só ao criar. */}
+    <AlertDialog open={isConflictOpen} onOpenChange={setIsConflictOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Conflito de horário</AlertDialogTitle>
+          <AlertDialogDescription>
+            {state.message} Como gestão da clínica, você pode mover mesmo assim —
+            as duas sessões vão ficar sobrepostas na agenda do psicólogo.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Voltar e ajustar</AlertDialogCancel>
+          <AlertDialogAction onClick={handleForceSubmit}>
+            Sim, mover mesmo assim
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+
+    <AlertDialog open={isForcaNegadaOpen} onOpenChange={setIsForcaNegadaOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Sessão marcada neste horário</AlertDialogTitle>
+          <AlertDialogDescription>
+            {state.message} Procure a gestão da clínica para resolver.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogAction>Entendi</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
 
     <Dialog open={isRecurrenceDialogOpen} onOpenChange={setIsRecurrenceDialogOpen}>
         <DialogContent>

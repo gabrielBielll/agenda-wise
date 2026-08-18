@@ -750,9 +750,10 @@
   (try
     (let [clinica-id (get-in request [:identity :clinica_id])
           papel-id (get-in request [:identity :papel_id])
+          papel (get-in request [:identity :role])
           agendamento-id (java.util.UUID/fromString (get-in request [:params :id]))
           {:keys [paciente_id psicologo_id data_hora_sessao valor_consulta duracao status mode observacoes
-                  status_pagamento valor_repasse status_repasse]} (:body request)
+                  status_pagamento valor_repasse status_repasse force]} (:body request)
           altera-financeiro? (some some? [status_pagamento valor_repasse status_repasse])]
 
       (if (and altera-financeiro?
@@ -760,6 +761,17 @@
         {:status 403
          :body {:erro "Usuário não tem permissão para alterar pagamentos ou repasses."
                 :code "payment_permission_required"}}
+
+        ;; R-020 (1) — *"o admin sempre tem força"*, e o Gabriel confirmou que
+        ;; vale também aqui, no caminho de atualização, onde o campo não existia.
+        ;;
+        ;; A checagem é idêntica à da criação, de propósito: mesma condição,
+        ;; mesmo `code`, mesma frase. Quem forja um `force: true` no corpo sem
+        ;; ser admin leva 403 nos dois caminhos, e a tela lê um contrato só.
+        (if (and force (not= papel "admin_clinica"))
+          {:status 403
+           :body {:erro "Apenas o administrador da clínica pode forçar um agendamento com conflito."
+                  :code "force_requires_admin"}}
 
         (if-let [erro-de-dominio (dominio/validar (:body request))]
         ;; Sem esta checagem o backend gravava qualquer string nas colunas de
@@ -869,21 +881,53 @@
               ;; Calcular fim da sessão
               novo-fim (tempo/->sql (tempo/mais-minutos novo-data-zdt novo-duracao))
               
-              ;; Verificar se há bloqueio conflitante (apenas se houver mudança de horário, duração ou psicólogo, mas por segurança checamos sempre que possível conflito)
-              bloqueio-existente (execute-one! ["SELECT id FROM bloqueios_agenda 
+              ;; ⚠️ A-011 — a diferença entre PRESENÇA e MUDANÇA, que é o defeito inteiro.
+              ;;
+              ;; O comentário que estava aqui dizia que a checagem "dispara quando
+              ;; o intervalo ou o dono mudam". A condição abaixo dele testava
+              ;; `(some? data_hora_sessao)` — ou seja, se o campo **veio no
+              ;; corpo**. Não é a mesma coisa, e a diferença é exatamente o que
+              ;; separa a API da tela:
+              ;;
+              ;;   - o teste-guarda manda UM campo  -> `{:status_pagamento "pago"}`  -> passava
+              ;;   - o formulário do admin manda TUDO, sempre                        -> 409
+              ;;
+              ;; O `agendamentoSchema` de `src/app/admin/agendamentos/actions.ts`
+              ;; **exige** `psicologo_id` e `data_hora_sessao`. Então marcar
+              ;; pagamento pela tela, numa sessão que a própria clínica sobrepôs
+              ;; com `force`, batia em 409 — o caso que o teste jurava proteger.
+              ;;
+              ;; Agora compara VALOR com VALOR. `.isEqual` compara instantes, não
+              ;; representações: a mesma hora vinda como string de parede e como
+              ;; TIMESTAMPTZ lido do banco tem que dar "não mudou".
+              atual-data-zdt (tempo/->zdt (:data_hora_sessao agendamento-atual) fuso)
+              mudou-horario? (not (.isEqual novo-data-zdt atual-data-zdt))
+              mudou-duracao? (not= (long novo-duracao) (long (or (:duracao agendamento-atual) 50)))
+              mudou-psicologo? (not= novo-psicologo-uuid (:psicologo_id agendamento-atual))
+
+              ;; "Quem ocupa qual intervalo." É a única coisa que as duas guardas
+              ;; abaixo protegem — dinheiro, status e observações não mexem nisso.
+              mudou-ocupacao? (or mudou-horario? mudou-duracao? mudou-psicologo?)
+
+              ;; O bloqueio também passa a ser checado só quando a ocupação muda.
+              ;; Antes rodava SEMPRE — nem o `when` da outra ele tinha. Uma sessão
+              ;; cancelada dentro de um bloqueio (a criação de bloqueio ignora
+              ;; canceladas) ficava impossível de editar pela tela: corrigir o
+              ;; valor, anotar o motivo ou DESFAZER o cancelamento, tudo 409.
+              ;;
+              ;; ⚠️ `force` NÃO passa por cima de bloqueio, aqui nem na criação.
+              ;; Lá a checagem de bloqueio vem antes do `force` no mesmo `cond`.
+              ;; Mantido igual de propósito: a R-020 deu ao admin força sobre
+              ;; conflito de agenda, não sobre a agenda fechada de alguém.
+              bloqueio-existente (when mudou-ocupacao?
+                                   (execute-one! ["SELECT id FROM bloqueios_agenda 
                                                   WHERE clinica_id = ? 
                                                   AND psicologo_id = ?
                                                   AND data_inicio < ?::timestamp
                                                   AND data_fim > ?::timestamp"
-                                                 clinica-id novo-psicologo-uuid novo-fim novo-data])
+                                                 clinica-id novo-psicologo-uuid novo-fim novo-data]))
 
-              ;; A checagem guarda quem ocupa qual intervalo: dispara quando o
-              ;; intervalo ou o dono mudam, não quando muda o dinheiro/status.
-              ;; Checar sempre travaria até o pagamento de sessões que um admin
-              ;; sobrepôs legitimamente com `force` na criação.
-              agendamento-conflitante (when (or (some? data_hora_sessao)
-                                                (some? duracao)
-                                                (some? psicologo_id))
+              agendamento-conflitante (when (and mudou-ocupacao? (not force))
                                        (execute-one! ["SELECT id FROM agendamentos 
                                                        WHERE clinica_id = ? 
                                                        AND psicologo_id = ?
@@ -910,11 +954,17 @@
                                   :status_pagamento_origem "manual"))]
           
           (cond
+            ;; Os dois 409 passam a nomear o motivo, como a criação já fazia.
+            ;; Sem `code` a tela não distingue "conflito, te ofereço forçar" de
+            ;; "deu erro" — e o botão de forçar da A-009 não teria onde existir
+            ;; no caminho de edição.
             bloqueio-existente
-            {:status 409 :body {:erro "Não é possível alterar para este horário. O período está bloqueado."}}
+            {:status 409 :body {:erro "Não é possível alterar para este horário. O período está bloqueado."
+                                :code "block_conflict"}}
             
             agendamento-conflitante
-            {:status 409 :body {:erro "Já existe um agendamento neste horário."}}
+            {:status 409 :body {:erro "Já existe um agendamento neste horário."
+                                :code "appointment_conflict"}}
 
             :else
             (let [resultado (sql/update! @datasource :agendamentos update-map {:id agendamento-id :clinica_id clinica-id})]
@@ -922,7 +972,7 @@
                 {:status 500 :body {:erro "Erro ao atualizar agendamento."}}
                 (let [agendamento-atualizado (execute-one! ["SELECT * FROM agendamentos WHERE id = ?" agendamento-id])]
                   {:status 200 :body agendamento-atualizado}))))))
-          {:status 404 :body {:erro "Agendamento não encontrado."}}))))
+          {:status 404 :body {:erro "Agendamento não encontrado."}})))))
     (catch Exception e
       (log/error e "appointment_update_failed")
       {:status 500 :body {:erro "Erro interno."}})))

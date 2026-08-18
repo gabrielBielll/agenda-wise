@@ -17,6 +17,20 @@ const agendamentoSchema = z.object({
   status: z.string().optional(),
   recorrencia_tipo: z.enum(["none", "semanal", "quinzenal"]).optional(),
   quantidade_recorrencia: z.coerce.number().min(1).max(150).optional(),
+  /**
+   * A-009 / R-020 — forçar sobre conflito é privilégio da clínica, e é AQUI que
+   * ele passou a existir.
+   *
+   * A R-006 descreve três passos: a psicóloga tenta, é recusada com um modal
+   * pedindo que procure a gestão, **e a gestão força**. O terceiro passo não
+   * tinha tela: `force` existia no `actions.ts` do calendário — a tela de quem
+   * NÃO pode — e não existia neste, o da gestão. O botão estava do lado errado
+   * da regra.
+   *
+   * Mesma forma do calendário de propósito: `FormData` só carrega string, então
+   * a conversão mora no schema e não em cada chamada.
+   */
+  force: z.string().optional().transform((val) => val === "true"),
 });
 
 export type FormState = {
@@ -32,7 +46,38 @@ export type FormState = {
     quantidade_recorrencia?: string[];
   };
   success: boolean;
+  /** 409 `appointment_conflict` — há sessão no horário, e a clínica pode forçar. */
+  conflict?: boolean;
+  /**
+   * 403 `force_requires_admin`. Não deveria acontecer nesta tela — `/admin` é do
+   * admin desde a A-017 — mas o backend é quem decide, e a tela lê a decisão
+   * dele em vez de deduzir pelo papel que ela acha que tem. Foi exatamente a
+   * dedução por papel no cliente que virou a SEC-005.
+   */
+  forcaNegada?: boolean;
 };
+
+/**
+ * Lê a recusa do backend e separa "conflito" de "erro qualquer".
+ *
+ * Existe uma vez só porque criar e atualizar precisam do MESMO tratamento — e
+ * porque duplicar a leitura de contrato é como os dois módulos passaram a
+ * discordar sobre datas, o defeito que a D-010 fechou.
+ *
+ * ⚠️ `appointment_conflict`, não `session_conflict`. São contratos diferentes e
+ * eu quase copiei o errado: `session_conflict` (+ a lista `sessoes`) é da R-014,
+ * bloqueio-sobre-sessão, e a lista existe lá porque a pessoa precisa saber o que
+ * ajustar. Conflito entre agendamentos não tem lista.
+ */
+function lerRecusaDeAgendamento(status: number, corpo: { erro?: string; code?: string }, padrao: string): FormState {
+  if (status === 409 && corpo.code === "appointment_conflict") {
+    return { message: corpo.erro || "Já existe um agendamento neste horário.", success: false, conflict: true };
+  }
+  if (status === 403 && corpo.code === "force_requires_admin") {
+    return { message: corpo.erro || "Apenas a gestão da clínica pode forçar.", success: false, forcaNegada: true };
+  }
+  return { message: corpo.erro || padrao, success: false };
+}
 
 export async function createAgendamento(prevState: FormState, formData: FormData): Promise<FormState> {
   const rawData = Object.fromEntries(formData.entries());
@@ -81,8 +126,8 @@ export async function createAgendamento(prevState: FormState, formData: FormData
     });
 
     if (!response.ok) {
-        const errorData = await response.json();
-        return { message: errorData.erro || "Falha ao criar agendamento.", success: false };
+        const errorData = await response.json().catch(() => ({}));
+        return lerRecusaDeAgendamento(response.status, errorData, "Falha ao criar agendamento.");
     }
   } catch (error) {
     return { message: "Erro de conexão com o servidor.", success: false };
@@ -159,8 +204,8 @@ export async function updateAgendamento(id: string, prevState: FormState, formDa
     });
 
     if (!response.ok) {
-        const errorData = await response.json();
-        return { message: errorData.erro || "Falha ao atualizar agendamento.", success: false };
+        const errorData = await response.json().catch(() => ({}));
+        return lerRecusaDeAgendamento(response.status, errorData, "Falha ao atualizar agendamento.");
     }
   } catch (error) {
     return { message: "Erro de conexão com o servidor.", success: false };

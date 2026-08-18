@@ -19,12 +19,17 @@ import { CONTA, DURACAO_DA_SESSAO, HORA_DA_SESSAO } from './preparar-dados';
  * e 201 + contagem+1 para o admin, no mesmo teste. É o lugar certo: a
  * autorização mora no backend.
  *
- * ⚠️ **E pela tela o lado permitido não é alcançável**, o que é achado e não
- * limitação de teste: o módulo do admin **nunca manda `force`** (o campo não
- * existe no `actions.ts` dele), e o `/calendar` manda sempre
- * `psicologo_id: userId` — "o psicólogo cria para si mesmo". Então o admin não
- * tem por onde forçar uma sessão *de outra pessoa*, que é exatamente o que o
- * modal desta regra manda a psicóloga ir pedir à gestão. Reportado na mensageria.
+ * ✅ **E o lado permitido passou a ser alcançável pela tela — A-009, 2026-08-17.**
+ *
+ * ⚠️ O texto que estava aqui dizia o contrário: *"o módulo do admin nunca manda
+ * `force`"*. Era verdade quando foi escrito e **deixou de ser** quando a A-009
+ * entrou. Está reescrito, e não riscado, porque comentário que envelhece sem
+ * ninguém notar foi exatamente o defeito da A-011: lá um comentário jurava que a
+ * checagem disparava "quando o intervalo muda" enquanto o código testava
+ * presença de campo, e a garantia falsa sobreviveu a uma revisão.
+ *
+ * O terceiro passo da R-006 agora existe: o admin recebe o mesmo modal de
+ * conflito e pode confirmar. O `describe` do fim deste arquivo exercita isso.
  *
  * ## A recusa é modal, e o teste assere o conteúdo dela
  *
@@ -171,5 +176,100 @@ test.describe('R-006 — a psicóloga é recusada, e a recusa ensina o caminho',
       await contarNoBackend(request, '/api/agendamentos'),
       'a psicóloga foi recusada na tela mas o agendamento entrou — a guarda da R-006 caiu'
     ).toBe(antes);
+  });
+});
+
+/**
+ * A-009 — o terceiro passo da R-006, agora com tela.
+ *
+ * O par fica completo: o `describe` de cima prova que a psicóloga é recusada e
+ * mandada à gestão; este prova que **a gestão consegue resolver**. Provar só o
+ * lado negado deixaria o lado permitido quebrar em silêncio — que é o argumento
+ * que abre este arquivo.
+ *
+ * ⚠️ **Este teste não roda na minha máquina** (`vale`, Termux — sem navegador).
+ * Escrito por leitura do formulário e do contrato do backend, que esse sim eu
+ * exercitei: `atualizar-com-force-e-privilegio-do-admin` e os outros três em
+ * `agendamentos_test.clj`, verdes contra banco de verdade. Quem rodar primeiro é
+ * a `pico`. Se algum seletor estiver errado, o defeito é do seletor — o
+ * comportamento está medido do lado do servidor.
+ */
+test.describe('A-009 — a gestão força, e é ela quem decide', () => {
+  test('o admin recebe o modal de conflito e consegue confirmar', async ({ page, request }) => {
+    const { dia, paciente } = dadosSemeados();
+    const quando = horarioConflitante(dia);
+    const antes = await contarNoBackend(request, '/api/agendamentos');
+
+    await page.goto('/admin/agendamentos/novo');
+
+    // Os dois combobox: abre o popover e escolhe pelo nome.
+    await page.getByRole('combobox', { name: /paciente/i }).click();
+    await page.getByRole('option', { name: paciente }).first().click();
+
+    await page.getByRole('combobox', { name: /psic[óo]logo/i }).click();
+    await page.getByRole('option', { name: CONTA.psicologoNome }).first().click();
+
+    await page.locator('#data_hora_sessao').fill(quando.inicio);
+    await page.locator('#data_hora_sessao_fim').fill(quando.fim);
+    await page.locator('#valor_consulta').fill('200');
+
+    await page.getByRole('button', { name: /confirmar agendamento/i }).click();
+
+    const conflito = page.getByRole('alertdialog').filter({ hasText: /conflito de hor[áa]rio/i });
+    await expect(
+      conflito,
+      'o admin precisa ver o conflito ANTES de forçar — forçar sem avisar é o oposto da R-006'
+    ).toBeVisible();
+
+    // ⚠️ A recusa da psicóloga manda "procure a gestão". Se a gestão vir a MESMA
+    // frase, o sistema manda ela procurar a si mesma — beco sem saída.
+    await expect(
+      conflito,
+      'o modal do admin não pode mandar a gestão procurar a gestão'
+    ).not.toContainText(/gest[ãa]o da cl[íi]nica/i);
+
+    await conflito.getByRole('button', { name: /sim, agendar/i }).click();
+
+    await expect(page).toHaveURL(/\/admin\/agendamentos(\?|$)/);
+    expect(
+      await contarNoBackend(request, '/api/agendamentos'),
+      'o admin confirmou o conflito e a sessão não entrou — a A-009 voltou'
+    ).toBe(antes + 1);
+  });
+
+  /**
+   * A-011 — e a sessão que ele acabou de forçar tem que ser editável.
+   *
+   * É a metade que não pode ser esquecida: sem ela o botão novo produz registros
+   * travados, e o defeito só aparece **depois**, quando alguém tenta marcar o
+   * pagamento e não consegue. O par A-009↔A-011 existe por causa disso.
+   */
+  test('e a sessão forçada continua editável pela própria tela', async ({ page }) => {
+    const { dia } = dadosSemeados();
+    const quando = horarioConflitante(dia);
+
+    await page.goto('/admin/agendamentos');
+
+    // A sessão forçada é a segunda no mesmo horário; qualquer uma das duas serve
+    // para o ponto — as duas estão sobrepostas.
+    const linha = page.getByRole('row').filter({ hasText: CONTA.psicologoNome }).first();
+    await linha.getByRole('link', { name: /editar/i }).click();
+
+    await expect(page).toHaveURL(/\/admin\/agendamentos\/[^/]+\/edit/);
+
+    // Mexe SÓ no dinheiro. O formulário remanda psicologo_id e data_hora_sessao
+    // sempre — é essa a A-011.
+    await page.locator('#valor_consulta').fill('250');
+    await page.getByRole('button', { name: /salvar|atualizar/i }).click();
+
+    await expect(
+      page.getByRole('alertdialog').filter({ hasText: /conflito de hor[áa]rio/i }),
+      'editar o VALOR abriu diálogo de conflito: o backend voltou a checar por presença de campo, não por mudança'
+    ).toHaveCount(0);
+
+    await expect(
+      page,
+      'salvar uma alteração de valor numa sessão sobreposta falhou — é a A-011'
+    ).toHaveURL(/\/admin\/agendamentos(\?|$)/);
   });
 });

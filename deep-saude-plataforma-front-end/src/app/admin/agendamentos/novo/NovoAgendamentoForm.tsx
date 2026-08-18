@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { CardContent } from "@/components/ui/card";
@@ -26,6 +26,16 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 interface Psicologo {
   id: string;
@@ -63,6 +73,23 @@ export default function NovoAgendamentoForm({
   const router = useRouter();
   const { toast } = useToast();
   const [state, formAction] = useFormState(createAgendamento, initialState);
+
+  /**
+   * A-009 — o terceiro passo da R-006, que não tinha tela.
+   *
+   * A psicóloga tenta, é recusada e o modal manda procurar a gestão. A gestão
+   * chegava aqui e **não tinha como forçar**: `force` não existia neste módulo.
+   * O botão morava na tela de quem não pode.
+   *
+   * ⚠️ E ele não vem sozinho. Forçar cria sessões sobrepostas; sem a A-011 elas
+   * nasceriam **impossíveis de editar pela própria tela** — o formulário manda
+   * `psicologo_id` e `data_hora_sessao` sempre, e a checagem do backend disparava
+   * por presença do campo. Por isso as duas saem juntas.
+   */
+  const formRef = useRef<HTMLFormElement>(null);
+  const [forceSubmission, setForceSubmission] = useState(false);
+  const [isConflictOpen, setIsConflictOpen] = useState(false);
+  const [isForcaNegadaOpen, setIsForcaNegadaOpen] = useState(false);
 
   // State
   const [start, setStart] = useState("");
@@ -109,16 +136,40 @@ export default function NovoAgendamentoForm({
 
   useEffect(() => {
     if (state.message && !state.success) {
-      toast({
-        title: "Erro no Agendamento",
-        description: state.message,
-        variant: "destructive",
-      });
+      if (state.conflict) {
+        // Conflito não é erro: é uma decisão que só a clínica pode tomar. Toast
+        // some sozinho e levaria a decisão junto.
+        setIsConflictOpen(true);
+      } else if (state.forcaNegada) {
+        setIsConflictOpen(false);
+        setForceSubmission(false);
+        setIsForcaNegadaOpen(true);
+      } else {
+        toast({
+          title: "Erro no Agendamento",
+          description: state.message,
+          variant: "destructive",
+        });
+      }
     }
   }, [state, toast]);
 
+  /**
+   * Reenvia o MESMO formulário com `force`, em vez de montar o payload à mão.
+   *
+   * Remontar aqui duplicaria as regras de duração, recorrência e parede da
+   * clínica que o formulário já resolve — e as duas cópias divergiriam. O
+   * `setTimeout(0)` espera o React aplicar o estado no input escondido antes do
+   * submit; é o mesmo motivo do calendário.
+   */
+  const handleForceSubmit = () => {
+    setForceSubmission(true);
+    setTimeout(() => formRef.current?.requestSubmit(), 0);
+  };
+
   return (
-    <form action={formAction}>
+    <form action={formAction} ref={formRef}>
+      <input type="hidden" name="force" value={forceSubmission.toString()} />
       <CardContent className="space-y-4 pt-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2 flex flex-col">
@@ -392,6 +443,43 @@ export default function NovoAgendamentoForm({
 
         <div className="flex justify-end pt-4"><SubmitButton /></div>
       </CardContent>
+
+      {/* R-006, terceiro passo: a gestão decide sobre o conflito. */}
+      <AlertDialog open={isConflictOpen} onOpenChange={setIsConflictOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Conflito de horário</AlertDialogTitle>
+            <AlertDialogDescription>
+              {state.message} Como gestão da clínica, você pode agendar mesmo
+              assim — as duas sessões vão ficar sobrepostas na agenda do
+              psicólogo.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setForceSubmission(false)}>
+              Voltar e ajustar
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleForceSubmit}>
+              Sim, agendar mesmo assim
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* O backend recusou o `force`. Não deveria acontecer aqui — ver FormState. */}
+      <AlertDialog open={isForcaNegadaOpen} onOpenChange={setIsForcaNegadaOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Sessão marcada neste horário</AlertDialogTitle>
+            <AlertDialogDescription>
+              {state.message} Procure a gestão da clínica para resolver.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction>Entendi</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </form>
   );
 }
