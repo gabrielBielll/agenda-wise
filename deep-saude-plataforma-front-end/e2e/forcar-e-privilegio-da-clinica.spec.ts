@@ -332,10 +332,38 @@ test.describe('A-009 — a gestão força, e é ela quem decide', () => {
     await page.locator('#valor_consulta').fill('250');
     await page.getByRole('button', { name: /salvar|atualizar/i }).click();
 
-    await expect(
-      page.getByRole('alertdialog').filter({ hasText: /conflito de hor[áa]rio/i }),
-      'editar o VALOR abriu diálogo de conflito: o backend voltou a checar por presença de campo, não por mudança'
-    ).toHaveCount(0);
+    /**
+     * ⚠️ As duas asserções que estavam aqui davam o diagnóstico ao contrário, e
+     * é a mesma inversão da 0104/0111 — desta vez num teste meu.
+     *
+     * `toHaveCount(0)` logo depois do clique passa **na hora**: o diálogo ainda
+     * não teve tempo de aparecer. Se a A-011 regredisse, ele surgiria 200ms
+     * depois, com a contagem já aprovada — e quem falharia seria a asserção de
+     * URL, dizendo *"salvar falhou"* em vez de *"abriu diálogo de conflito"*.
+     * Ausência só quer dizer alguma coisa **depois** de esperar o desfecho.
+     *
+     * Então espera o desfecho primeiro, seja ele qual for, e só então afirma qual
+     * foi. Assim as duas regressões possíveis se reportam pelo próprio nome.
+     */
+    const dialogoDeConflito = page
+      .getByRole('alertdialog')
+      .filter({ hasText: /conflito de hor[áa]rio/i });
+
+    await expect
+      .poll(
+        async () => {
+          if (await dialogoDeConflito.isVisible().catch(() => false)) return 'conflito';
+          if (/\/admin\/agendamentos(\?|$)/.test(page.url())) return 'salvou';
+          return 'esperando';
+        },
+        { timeout: 60_000, message: 'salvar o valor não deu em nada: nem salvou nem acusou conflito' }
+      )
+      .not.toBe('esperando');
+
+    expect(
+      await dialogoDeConflito.isVisible().catch(() => false),
+      'editar o VALOR abriu diálogo de conflito: o backend voltou a checar por presença de campo, não por mudança — é a A-011'
+    ).toBe(false);
 
     await expect(
       page,

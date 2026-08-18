@@ -90,9 +90,23 @@ test.describe('GC-001a — o painel da integração', () => {
     await page.waitForURL(/\/dashboard/, { timeout: 90_000 });
 
     await page.goto('/admin/integracoes');
+
+    /**
+     * ⚠️ Aqui eu tinha escrito `.not.toHaveURL(/\/admin\/integracoes/)`, e a
+     * **D-017** derruba isso: asserção de ausência que passa por qualquer motivo.
+     * App fora do ar, 500, página em branco, `goto` que nem chegou — tudo isso
+     * "não está em /admin/integracoes", e o teste ficaria verde sem ter provado
+     * guarda nenhuma.
+     *
+     * O middleware manda o psicólogo para `/dashboard` (`middleware.ts:120`), e é
+     * isso que dá para afirmar: **onde ele foi parar**, não onde ele não está.
+     * A regra saiu da revisão em que eu derrubei uma decisão da `orla` — e a
+     * primeira coisa que ela pegou foi um teste meu, escrito no mesmo dia.
+     */
     await expect(
       page,
-      'o psicólogo entrou no painel da integração — ele dá acesso à agenda de todos os pacientes'
-    ).not.toHaveURL(/\/admin\/integracoes/);
+      'o psicólogo não foi mandado ao painel dele — ou entrou na integração, que dá ' +
+        'acesso à agenda de todos os pacientes, ou a tela quebrou de outro jeito'
+    ).toHaveURL(/\/dashboard/);
   });
 });
