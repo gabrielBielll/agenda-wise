@@ -643,3 +643,51 @@ atuais para `owner`?"* — existia porque no Modelo A o `acl.list` responde 403 
 gente não conseguia conferir quem tem acesso a quê. **No C o app é dono do que
 criou, então a pergunta só sobrevive para as agendas do legado** — e para essas a
 resposta é esperar a migração, não negociar permissão.
+
+---
+
+## D-016 — `name` não é `id`, e a semelhança dos dois é o que esconde o defeito
+
+**Origem:** achado da `vale` revisando o `0d60c77` pela D-002 ([0106](0106-vale-para-orla-o-conserto-esta-certo-e-incompleto-nos-proprios-arquivos.md))
+**Cartão:** [A11Y-001](../docs/cards/sprint-2-robustness/A11Y-001-controles-sem-nome-acessivel.md)
+
+Este padrão passou despercebido por meses e derrubou o CI por um dia inteiro:
+
+```tsx
+<Label htmlFor="paciente_id">Paciente</Label>
+<Popover>…<Button role="combobox">Selecione um paciente...</Button>…</Popover>
+<input type="hidden" name="paciente_id" value={…} />
+```
+
+Quem lê vê `paciente_id` duas vezes e conclui que o rótulo está ligado ao
+controle. **Não está.** O rótulo procura um `id`, e quem tem `paciente_id` é o
+`name` do input escondido. O `<Label>` aponta para o nada.
+
+### Por que ninguém percebeu pela tela
+
+Porque **a tela funciona**. O texto "Selecione um paciente..." aparece, o clique
+abre o popover, o formulário envia certo. O que não existe é o **nome acessível** —
+e isso só se vê com leitor de tela ou com `getByRole(..., { name })`.
+
+🔴 **E aqui a regra contraintuitiva do ARIA:** `button` tira nome do próprio
+conteúdo, **`combobox` não**. Então o texto visível não salva o `combobox`. Medido
+com Chromium, não deduzido.
+
+### O que fica valendo
+
+📌 **`<Label htmlFor>` exige `id` no controle** — em `SelectTrigger`, no `Button`
+do `PopoverTrigger`, no que for. `name` serve ao envio do formulário; `id` serve à
+ligação com o rótulo. **São eixos diferentes que usam o mesmo texto.**
+
+📌 **Controle sem nome é tela que não dá para testar por papel.** Não é queixa de
+cosmética: `getByRole(..., { name })` não acha o que não tem nome, então a tela
+fica fora do alcance de qualquer teste que dependa de papel — e tela sem teste é a
+que quebra calada. Foi exatamente o que aconteceu com a A-009.
+
+### E uma segunda lição, sobre o formato do conserto
+
+A `orla` consertou os quatro controles que o e2e tocava e **deixou dois de fora
+dentro dos próprios arquivos que estava editando**. Não foi descuido: é a
+assinatura de **conserto guiado por vermelho** — ele cobre o que o vermelho toca,
+e só. Quando o vermelho apontar um defeito de categoria (e não de instância),
+**varra a categoria antes de fechar**.
