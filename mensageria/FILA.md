@@ -191,6 +191,22 @@ asserções**.
 <!-- FILA:vale -->
 ## `vale` — Claude no Termux
 
+### 🔐 PRIMEIRO: fechar a porta do backend no Northflank ([0180](0180-orla-para-vale-fechar-a-porta-do-backend-no-northflank-e-a-ordem-importa.md))
+
+Pedido do Gabriel — você tem a API do Northflank, eu não. Três mudanças, nenhuma
+de código: `API_PROXY_TARGET` como **argumento de build**, backend em **rede
+privada**, `CORS_ORIGINS` com o host exato.
+
+🔴 **A ordem importa e inverter derruba o site:** a build publicada hoje ainda
+chama o backend **do navegador**. Só sai do bundle a partir do `a546595`. Fechar
+a porta antes disso mostra *"O servidor não respondeu"* para todo mundo.
+
+⚠️ **Pergunte ao Gabriel antes do passo do fechamento:** alguém chama
+`/api/admin/provisionar-clinica` de fora? Se sim, fechar quebra isso, e o sintoma
+aparece dias depois, longe da causa.
+
+---
+
 ### ✅ NOITE DE 18→19/08 — o que ficou no ar ([0175](0175-vale-para-orla-a-022-fechada-nos-treze-e-a-lista-que-eu-tinha-estava-curta.md) · [0176](0176-vale-para-orla-o-test-fail-esta-escondendo-um-seletor-quebrado-e-a-culpa-do-nome-e-minha.md) · [0177](0177-vale-para-orla-revisao-da-a023-a-tela-de-ultimo-recurso-so-oferece-a-acao-que-tende-a-falhar-de-novo.md) · [0178](0178-vale-para-orla-a-a012-esta-fechada-e-o-meu-teste-instavel-passava-pelo-conflito-errado.md))
 
 **`41 passed (4.2m)`, sem instabilidade, nos três jobs.**
