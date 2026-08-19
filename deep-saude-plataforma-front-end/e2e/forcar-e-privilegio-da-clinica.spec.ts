@@ -181,43 +181,37 @@ test.describe('R-006 — a psicóloga é recusada, e a recusa ensina o caminho',
   test.use({ storageState: { cookies: [], origins: [] } });
 
   /**
-   * 🔴 **Falha esperada, e a falha É o achado — não mexa sem ler a A-012.**
+   * ✅ **A A-012 CAIU, e este teste passou a passar — o alarme da `orla` tocou.**
    *
-   * Este teste não chega ao 403 que ele existe para provar: ele trava antes,
-   * escolhendo o paciente, porque a psicóloga **não recebe paciente nenhum**.
+   * Este bloco descrevia uma falha esperada: a psicóloga travava ao escolher o
+   * paciente porque `papel_permissoes` não tinha grant nenhum para o papel dela,
+   * e `test.fail()` guardava o defeito até alguém conceder as permissões.
    *
-   * A causa não é a tela nem este arquivo. É que `papel_permissoes` tem **uma
-   * linha em todo o schema** — `admin_clinica` → `gerenciar_integracao_google`.
-   * Não existe grant nenhum para `psicologo` nem para `secretario`. Como
-   * `wrap-checar-permissao` só tem bypass para `admin_clinica`, a psicóloga leva
-   * **403 em toda rota clínica**: pacientes, agendamentos e prontuários.
+   * 📌 **Foi exatamente assim que ele saiu**, e vale registrar porque era o
+   * desenho: *"no dia em que alguém conceder as permissões, este teste passa e o
+   * `test.fail()` faz o CI ficar vermelho — que é o aviso de que a linha abaixo
+   * deve sair. Guarda que se apaga sozinha."*
    *
-   * Ou seja: numa base recém-migrada, **psicóloga não usa o sistema.** O admin
-   * só funciona pelo bypass — que o SEC-006 vai remover, e aí ele cai junto.
+   * A migration `20260817090000-permissoes-papeis` deu ao papel `psicologo`
+   * `visualizar_pacientes`, `gerenciar_pacientes`, `gerenciar_agendamentos_clinica`
+   * e `gerenciar_prontuarios`; nenhuma posterior revoga.
    *
-   * ⚠️ **`test.fail()` e não `test.skip()`, e a diferença é o ponto:** ele
-   * continua rodando e continua sendo executado a cada push. No dia em que
-   * alguém conceder as permissões, este teste **passa** e o `test.fail()` faz o
-   * CI ficar **vermelho** — que é o aviso de que a linha abaixo deve sair.
-   * Guarda que se apaga sozinha quando não for mais necessária.
+   * ⚠️ **O alarme quase não tocou**, e essa é a parte que eu quero deixar escrita.
+   * O helper procurava um botão `/^novo$/i` que eu tinha renomeado para
+   * "Nova sessão" na A-021, e depois deixava `#valor_consulta` — que é
+   * `required` — em branco. O teste morria antes de chegar perto de permissão
+   * nenhuma, e `test.fail()` absorve **qualquer** morte: o ✘ continuava lá,
+   * lido como "a A-012 segue aberta", enquanto ela já tinha caído.
    *
-   * Não é decisão de código quais permissões cada papel recebe: é regra de
-   * negócio, e está com o Gabriel. Ver A-012 em `docs/REVISAO_PRE_PRODUCAO.md`
-   * e a mensageria 0061.
+   * 🔴 **Uma guarda que se apaga sozinha só funciona se ela ainda conseguir
+   * chegar no ponto que mede.** Dois seletores quebrados foram suficientes para
+   * transformar o alarme em decoração — sem nenhum sinal de que isso tinha
+   * acontecido. Ver mensageria 0176, 0185 e 0186.
    *
-   * O timeout curto é de propósito — falha esperada não deve custar 2 minutos
-   * de CI por tentativa.
+   * Provado no run `32260687532`: `✓ (7,1 s)` e `✓ retry (6,7 s)`, com o único
+   * vermelho sendo `Expected to fail, but passed.`
    */
   test('forçar como psicóloga leva modal pedindo contato com a gestão', async ({ page, request }) => {
-    // ⚠️ `test.fail()` sem argumento SÓ funciona dentro do corpo do teste.
-    //
-    // Na primeira tentativa esta chamada estava no corpo do `describe`, logo
-    // acima — que é onde `test.skip()` funciona como modificador de grupo. Para
-    // `test.fail()` a forma de grupo não existe: a chamada não anotou nada, o
-    // teste seguiu contando como falha comum, e o CI ficou vermelho igual.
-    //
-    // Descoberto lendo o log (`16 passed, 1 failed`), não relendo o código.
-    test.fail();
     test.setTimeout(45_000);
     const antes = await contarNoBackend(request, '/api/agendamentos');
 
