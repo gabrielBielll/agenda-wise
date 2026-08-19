@@ -24,21 +24,14 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="space-y-8 max-w-3xl mx-auto">
-      <Card className="shadow-lg">
-        <CardHeader>
-          <CardTitle className="font-headline text-3xl">Configurações do Aplicativo</CardTitle>
-          <CardDescription className="text-lg text-muted-foreground">
-            Personalize sua experiência AgendaWise.
-          </CardDescription>
-        </CardHeader>
-      </Card>
+    <div className="quiet-page max-w-4xl">
+      <section><p className="page-eyebrow mb-2">Seu espaço</p><h2 className="page-title">Preferências com intenção.</h2><p className="page-subtitle">Personalize a AgendaWise para acompanhar o ritmo da sua prática.</p></section>
 
       <IntegracaoGoogleCard />
 
       <Card>
         <CardHeader>
-          <CardTitle className="font-headline text-xl flex items-center"><UserCog className="mr-2 h-6 w-6 text-primary" />Preferências da Conta</CardTitle>
+          <CardTitle className="flex items-center"><span className="soft-icon mr-3"><UserCog className="h-5 w-5" /></span>Preferências da conta</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="space-y-2">
@@ -64,7 +57,7 @@ export default function SettingsPage() {
       
       <Card>
         <CardHeader>
-          <CardTitle className="font-headline text-xl flex items-center"><Palette className="mr-2 h-6 w-6 text-primary" />Aparência</CardTitle>
+          <CardTitle className="flex items-center"><span className="terra-icon mr-3"><Palette className="h-5 w-5" /></span>Aparência</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
             <div className="flex items-center space-x-2">
@@ -77,7 +70,7 @@ export default function SettingsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="font-headline text-xl flex items-center"><ShieldCheck className="mr-2 h-6 w-6 text-primary" />Segurança e Privacidade</CardTitle>
+          <CardTitle className="flex items-center"><span className="soft-icon mr-3"><ShieldCheck className="h-5 w-5" /></span>Segurança e privacidade</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
             <Button variant="outline">Alterar Senha (Espaço reservado)</Button>
@@ -86,7 +79,7 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      <div className="flex justify-end pt-4">
+      <div className="flex justify-end border-t border-border/50 pt-5">
         <Button size="lg" onClick={handleSaveChanges}>Salvar Todas as Configurações</Button>
       </div>
     </div>

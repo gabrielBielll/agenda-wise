@@ -100,7 +100,7 @@ export default function ProntuarioForm({
   };
 
   return (
-    <div className={`space-y-4 border p-4 rounded-md bg-white dark:bg-gray-950 mb-6 ${isEditing ? 'border-primary/50 ring-1 ring-primary/20' : ''}`}>
+    <div className={`mb-6 space-y-4 rounded-[20px] border border-white/70 bg-white/55 p-5 shadow-[0_16px_45px_rgba(74,67,55,.06)] backdrop-blur-md dark:bg-card/60 ${isEditing ? 'border-primary/50 ring-1 ring-primary/20' : ''}`}>
         
         {/* Toggle de Visualização (Header) */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-4">

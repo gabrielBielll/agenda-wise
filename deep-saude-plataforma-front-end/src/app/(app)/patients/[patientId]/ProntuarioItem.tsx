@@ -101,7 +101,7 @@ export default function ProntuarioItem({ data, patientId, appointments }: Prontu
 
   return (
     <Card 
-      className={`bg-background/70 border-l-4 border-l-primary transition-all duration-200 cursor-pointer hover:bg-secondary/10 ${isExpanded ? 'shadow-md' : ''}`}
+      className={`cursor-pointer border-l-[3px] border-l-primary bg-white/45 transition-all duration-300 hover:-translate-y-0.5 hover:bg-white/65 ${isExpanded ? 'shadow-[0_18px_50px_rgba(74,67,55,.1)]' : ''}`}
       onClick={toggleExpand}
     >
       <CardHeader className="pb-2">

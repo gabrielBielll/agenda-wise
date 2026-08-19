@@ -3,7 +3,10 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { Home, Users, CalendarDays, DollarSign, BriefcaseMedical, Settings, LogOut, Building, Plug } from "lucide-react"; // Adicionei mais ícones
+// União dos dois lados do redesign: `Leaf` é a marca nova (8109afc), `Plug` é a
+// entrada "Integrações" da GC-001a. Os dois estão em uso — escolher um lado aqui
+// apagaria ou o logotipo dele ou a rota do painel do Google.
+import { Home, Users, CalendarDays, DollarSign, BriefcaseMedical, Settings, LogOut, Leaf, Plug } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"; // Para tooltips nos ícones
@@ -43,9 +46,9 @@ function NavLink({ href, label, icon: Icon, isCollapsed }: NavLinkItem & { isCol
             href={href}
             className={cn(
               buttonVariants({ variant: isActive ? "default" : "ghost", size: isCollapsed ? "icon" : "default" }),
-              "w-full justify-start gap-2",
-              isActive && "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground",
-              !isActive && "hover:bg-muted hover:text-foreground",
+              "w-full justify-start gap-3 rounded-[13px]",
+              isActive && "bg-primary/10 text-primary shadow-none hover:bg-primary/15 hover:text-primary",
+              !isActive && "text-muted-foreground hover:bg-primary/5 hover:text-primary",
               isCollapsed && "h-9 w-9"
             )}
             aria-current={isActive ? "page" : undefined}
@@ -72,7 +75,7 @@ export default function AdminSidebar({ isCollapsed = false, className }: { isCol
   return (
     <aside
       className={cn(
-        "group flex h-full flex-col gap-4 border-r bg-background py-2 data-[collapsed=true]:py-2",
+        "group flex h-full flex-col gap-4 border-r border-border/45 bg-white/55 py-4 backdrop-blur-xl data-[collapsed=true]:py-4 dark:bg-card/70",
         isCollapsed && "data-[collapsed=true]:w-14", // Largura quando colapsada
         !isCollapsed && "w-64", // Largura quando expandida
         className
@@ -81,8 +84,8 @@ export default function AdminSidebar({ isCollapsed = false, className }: { isCol
     >
       <div className={cn("flex items-center gap-2 px-4", isCollapsed && "h-9 justify-center px-2")}>
         <Link href="/admin/dashboard" className="flex items-center gap-2 overflow-hidden">
-          <Building className={cn("h-6 w-6 text-primary", isCollapsed && "h-5 w-5")} />
-          {!isCollapsed && <h1 className="text-lg font-semibold text-primary">Deep Saúde</h1>}
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[13px_13px_13px_4px] bg-primary text-primary-foreground"><Leaf className={cn("h-5 w-5", isCollapsed && "h-4 w-4")} /></span>
+          {!isCollapsed && <div><h1 className="font-headline text-xl font-normal">Deep Saúde</h1><p className="text-[8px] uppercase tracking-[.14em] text-muted-foreground">Administração</p></div>}
         </Link>
       </div>
 
@@ -129,8 +132,8 @@ export function AdminSidebarSheetContent() {
     <>
       <div className="flex items-center gap-2 border-b px-4 py-3.5">
         <Link href="/admin/dashboard" className="flex items-center gap-2 overflow-hidden">
-          <Building className="h-6 w-6 text-primary" />
-          <h1 className="text-lg font-semibold text-primary">Deep Saúde</h1>
+          <span className="grid h-9 w-9 place-items-center rounded-[13px_13px_13px_4px] bg-primary text-primary-foreground"><Leaf className="h-4 w-4" /></span>
+          <h1 className="font-headline text-xl">Deep Saúde</h1>
         </Link>
       </div>
       <nav className="grid gap-2 p-2 text-base font-medium">
@@ -141,7 +144,7 @@ export function AdminSidebarSheetContent() {
             className={cn(
                 buttonVariants({ variant: usePathname() === link.href ? "default" : "ghost" }),
                 "w-full justify-start gap-2",
-                usePathname() === link.href && "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground",
+                usePathname() === link.href && "bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary",
                 usePathname() !== link.href && "text-muted-foreground hover:text-foreground"
             )}
             aria-current={usePathname() === link.href ? "page" : undefined}
@@ -159,7 +162,7 @@ export function AdminSidebarSheetContent() {
             className={cn(
                 buttonVariants({ variant: usePathname().startsWith(link.href) ? "default" : "ghost" }),
                 "w-full justify-start gap-2",
-                usePathname().startsWith(link.href) && "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground",
+                usePathname().startsWith(link.href) && "bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary",
                 usePathname().startsWith(link.href) !== true && "text-muted-foreground hover:text-foreground"
             )}
             aria-current={usePathname().startsWith(link.href) ? "page" : undefined}

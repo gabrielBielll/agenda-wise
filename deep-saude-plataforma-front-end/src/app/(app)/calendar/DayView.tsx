@@ -86,10 +86,10 @@ export function DayView({ date, appointments, bloqueios = [], onAddAppointment, 
 
   return (
 
-    <div ref={containerRef} className="flex flex-col border rounded-md bg-background overflow-y-auto h-full scroll-smooth">
-      <div className="grid grid-cols-[60px_1fr] divide-x">
+    <div ref={containerRef} className="flex h-full flex-col overflow-y-auto scroll-smooth rounded-[20px] border border-white/70 bg-card/65 shadow-[0_18px_55px_rgba(74,67,55,.08)] backdrop-blur-md">
+      <div className="grid grid-cols-[60px_1fr] divide-x divide-border/35">
         {/* Time Column */}
-        <div className="divide-y bg-muted/30">
+        <div className="divide-y divide-border/35 bg-muted/15">
           {HOURS.map(hour => (
             <div key={hour} className="h-20 flex items-start justify-center pt-2 text-xs text-muted-foreground font-medium">
               {String(hour).padStart(2, '0')}:00
@@ -98,7 +98,7 @@ export function DayView({ date, appointments, bloqueios = [], onAddAppointment, 
         </div>
 
         {/* Events Column */}
-        <div className="divide-y relative">
+        <div className="relative divide-y divide-border/35">
           {HOURS.map(hour => {
             const hourAppointments = getAppointmentsForHour(hour);
             const hourBloqueios = getBloqueiosForHour(hour);

@@ -24,46 +24,46 @@ export default function StatsCard({
   const getVariantClasses = () => {
     switch (colorVariant) {
       case 'primary':
-        return 'bg-blue-50 border-blue-200 dark:bg-blue-950 dark:border-blue-800';
+        return 'bg-primary/10 border-primary/10';
       case 'success':
-        return 'bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800';
+        return 'bg-primary/5 border-primary/10';
       case 'warning':
-        return 'bg-yellow-50 border-yellow-200 dark:bg-yellow-950 dark:border-yellow-800';
+        return 'bg-secondary/15 border-secondary/20';
       case 'danger':
-        return 'bg-red-50 border-red-200 dark:bg-red-950 dark:border-red-800';
+        return 'bg-accent/10 border-accent/15';
       default:
-        return 'bg-white dark:bg-gray-800';
+        return 'bg-card/70 border-white/70';
     }
   };
 
   const getIconColor = () => {
     switch (colorVariant) {
       case 'primary':
-        return 'text-blue-600';
+        return 'text-primary';
       case 'success':
-        return 'text-green-600';
+        return 'text-primary';
       case 'warning':
-        return 'text-yellow-600';
+        return 'text-secondary';
       case 'danger':
-        return 'text-red-600';
+        return 'text-accent';
       default:
-        return 'text-gray-600';
+        return 'text-muted-foreground';
     }
   };
 
   return (
-    <div className={`rounded-lg border shadow-sm p-6 ${getVariantClasses()}`}>
+    <div className={`rounded-[20px] border p-6 shadow-[0_16px_45px_rgba(74,67,55,.06)] backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_22px_55px_rgba(74,67,55,.1)] ${getVariantClasses()}`}>
       <div className="flex items-center justify-between space-y-0 pb-2">
-        <h3 className="text-sm font-medium">{title}</h3>
-        <Icon className={`h-5 w-5 ${getIconColor()}`} />
+        <h3 className="page-eyebrow text-muted-foreground">{title}</h3>
+        <span className="grid h-10 w-10 place-items-center rounded-[13px] bg-white/55 shadow-sm"><Icon className={`h-5 w-5 ${getIconColor()}`} /></span>
       </div>
       <div className="pt-0">
-        <div className="text-2xl font-bold">{value}</div>
+        <div className="font-headline text-4xl font-normal">{value}</div>
         {description && (
-          <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">{description}</p>
+          <p className="mt-1 text-xs text-muted-foreground">{description}</p>
         )}
         {(footerText || FooterIcon) && (
-          <div className="flex items-center mt-2 text-xs text-gray-600 dark:text-gray-400">
+          <div className="mt-2 flex items-center text-xs text-muted-foreground">
             {FooterIcon && <FooterIcon className={`h-3 w-3 mr-1 ${getIconColor()}`} />}
             {footerText && <span>{footerText}</span>}
           </div>

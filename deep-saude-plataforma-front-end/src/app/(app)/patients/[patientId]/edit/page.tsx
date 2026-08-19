@@ -46,23 +46,24 @@ export default async function EditPatientPage({ params }: { params: Promise<{ pa
   const updateAction = updatePaciente.bind(null, patient.id);
 
   return (
-    <div className="space-y-8 max-w-2xl mx-auto">
-      <div className="flex items-center justify-start mb-6">
+    <div className="quiet-page max-w-3xl">
+      <div className="mb-2 flex items-center justify-start">
         <Button variant="outline" size="icon" asChild className="mr-4">
           <Link href="/patients">
             <ArrowLeft className="h-5 w-5" />
           </Link>
         </Button>
         <div>
-          <h1 className="font-headline text-3xl">Editar Paciente</h1>
-          <p className="text-muted-foreground">Atualize as informações do perfil do paciente.</p>
+          <p className="page-eyebrow mb-1">Perfil do paciente</p>
+          <h1 className="page-title text-4xl md:text-4xl">Editar informações</h1>
+          <p className="page-subtitle">Atualize os dados com cuidado. As alterações ficam disponíveis imediatamente.</p>
         </div>
       </div>
       
-      <Card className="shadow-lg">
+      <Card>
         <CardHeader>
-          <CardTitle className="font-headline text-2xl flex items-center">
-            <UserCog className="mr-3 h-7 w-7 text-primary" /> Dados do Paciente
+          <CardTitle className="flex items-center">
+            <span className="soft-icon mr-3"><UserCog className="h-5 w-5" /></span> Dados do paciente
           </CardTitle>
         </CardHeader>
         <CardContent>
