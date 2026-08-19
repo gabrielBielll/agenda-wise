@@ -292,6 +292,39 @@ test.describe('A-022 — o que foi digitado sobrevive à recusa por conflito', (
     await dialogo.locator('#valor_consulta').fill('180');
     await dialogo.locator('#observacoes').fill(NOTA);
 
+    /**
+     * 🔴 As pré-condições, afirmadas ANTES de submeter — e elas entraram porque
+     * este teste ficou instável exatamente aqui.
+     *
+     * Na primeira execução ele morreu na âncora do conflito: *"o backend não
+     * acusou o conflito"*. Passou na repetição, então é corrida, não identidade.
+     * A âncora fez o trabalho dela — disse "a recusa não aconteceu" em vez de
+     * mentir dizendo "o texto foi apagado" —, mas ela avisa **tarde demais**,
+     * quando já não dá para saber qual campo não pegou.
+     *
+     * ⚠️ Agora são campos CONTROLADOS: `fill()` depende de o React confirmar o
+     * estado, e escolher paciente dispara re-render no meio. Se um `fill` não
+     * grudar, o formulário vai incompleto, a ação é recusada por validação — e
+     * validação **não** produz diálogo de conflito. O sintoma seria idêntico ao
+     * de "não houve conflito", e a causa, outra.
+     *
+     * Afirmar antes de submeter separa as duas: se falhar aqui, o problema é o
+     * preenchimento; se falhar na âncora abaixo, é o backend.
+     */
+    await expect(
+      gatilhoPaciente,
+      'o paciente não ficou selecionado — sem ele a submissão é recusada por ' +
+        'VALIDAÇÃO, não por conflito, e o teste mediria outra coisa'
+    ).toContainText(paciente);
+    await expect(
+      dialogo.locator('#data_hora_sessao'),
+      'o horário de início não grudou no campo controlado'
+    ).toHaveValue(inicio);
+    await expect(
+      dialogo.locator('#observacoes'),
+      'a nota não grudou no campo controlado — é ela que precisa sobreviver'
+    ).toHaveValue(NOTA);
+
     await dialogo.getByRole('button', { name: /^agendar$/i }).click();
 
     /**
