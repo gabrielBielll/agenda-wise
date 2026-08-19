@@ -378,33 +378,68 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('deep-saude-plataforma-front-end/package-lock.json') }}
+          # 🔴 O `v2` é uma versão MANUAL da chave, e existe por um motivo
+          # específico: `actions/cache/save` **não sobrescreve** uma chave que já
+          # existe. Se uma entrada gravada pela metade passar a "acertar", o
+          # download roda inteiro toda vez, a gravação é pulada porque houve
+          # acerto, e a entrada ruim fica lá **para sempre**.
+          #
+          # ⚠️ É a 0154 da `vale` numa roupa nova — *"a condição que evita
+          # regravar à toa também impede consertar"*. A gente fechou o caso do
+          # download morto no meio; não fechou o do acerto inútil, e a única
+          # saída para ele é abandonar a chave. Bump aqui quando desconfiar.
+          key: playwright-v2-${{ runner.os }}-${{ hashFiles('deep-saude-plataforma-front-end/package-lock.json') }}
+
+      # 📌 Este passo existe porque em 19/08 eu fiquei sem conseguir distinguir
+      # duas explicações que **produzem o mesmo sintoma**: "o cache acertou e veio
+      # vazio" e "o cache errou e o download está lento". As duas terminam a
+      # restauração em segundos e deixam o passo seguinte penando por 20 minutos.
+      #
+      # Custa nada e transforma a próxima falha em algo legível sem adivinhação.
+      - name: O que a restauração trouxe (diagnóstico)
+        run: |
+          echo "cache-hit: '${{ steps.cache-chromium.outputs.cache-hit }}'"
+          echo "--- conteúdo de ~/.cache/ms-playwright ---"
+          ls -la ~/.cache/ms-playwright 2>/dev/null || echo "(o diretório não existe)"
+          echo "--- o executável do Chromium está lá? ---"
+          ls -la ~/.cache/ms-playwright/chromium-*/chrome-linux/chrome 2>/dev/null \
+            || echo "NÃO — o download vai ter de rodar inteiro"
 
       - name: Instalar o Chromium do Playwright
         id: instalar-chromium
         working-directory: deep-saude-plataforma-front-end
-        timeout-minutes: 22
+        timeout-minutes: 26
         run: |
-          # Duas etapas, e a separação é o ponto — não é organização.
+          # 🔴 QUEM SEGURA ESTE PASSO É O `apt`, NÃO O DOWNLOAD. Provado em 19/08.
           #
-          # A versão anterior repetia `playwright install --with-deps` inteiro sob
-          # `timeout 300`. Em 18/08 (run 32158241456) isso QUEBROU o job: o timeout
-          # matou a tentativa 1 no meio do `apt-get`, o apt seguiu vivo como órfão
-          # segurando `/var/lib/apt/lists/lock`, e as tentativas 2 e 3 morreram no
-          # lock que a tentativa 1 deixou preso. O e2e nem chegou a rodar.
+          # O run 32216984737 morreu no teto de 22 min sem rodar um teste, e a
+          # linha que explica está no fim do log, na limpeza:
           #
-          #   deps  -> mexe em apt. NÃO pode ser morto no meio: matar deixa lock.
-          #   browser -> download puro. Pode ser morto e repetido à vontade.
+          #   Terminate orphan process: pid (3055) (npm exec playwright install-deps chromium)
           #
-          # Por isso só o segundo tem `timeout` e laço. O primeiro é protegido
-          # pelo `timeout-minutes` do passo, que mata o job inteiro em vez de
-          # deixar meio apt para trás.
-          npx playwright install-deps chromium
+          # O processo AINDA VIVO aos 22 minutos era o `install-deps`. Ou seja: o
+          # download nem tinha começado, e o `timeout` que embrulha o download
+          # nunca chegou a valer. Durante horas eu tratei isto como "a rede está
+          # lenta para baixar o Chromium" e mexi no orçamento do passo errado.
+          #
+          # ⚠️ O comentário anterior aqui dizia, com razão, que matar o apt no meio
+          # deixa `/var/lib/apt/lists/lock` preso e derruba as tentativas
+          # seguintes. Isso continua verdadeiro — mas a conclusão que se tirou dele
+          # (deixar o apt SEM teto) trocou "uma tentativa perdida" por "o job
+          # inteiro perdido". O lock só machuca quem for usar apt DEPOIS, e depois
+          # daqui ninguém usa: o download não passa por apt.
+          #
+          # 📌 Então o apt ganha teto e deixa de ser fatal. Se as bibliotecas já
+          # estiverem no runner — e na imagem ubuntu-24.04 elas costumam estar —
+          # o navegador sobe do mesmo jeito. Se não estiverem, o e2e falha dizendo
+          # que o Chromium não abriu, que é um vermelho legível em minutos, em vez
+          # de silêncio por 22.
+          timeout 300 npx playwright install-deps chromium || {
+            echo "::warning::install-deps não terminou em 300s — seguindo assim mesmo."
+            echo "Se o Chromium não abrir no e2e, a causa é esta linha."
+          }
 
-          # ⚠️ 300s era curto demais e o teto de 3 tentativas transformava isso em
-          # 15 minutos de espera garantida antes de desistir. Duas tentativas com
-          # o dobro do tempo cabem no mesmo orçamento e dão ao download a chance
-          # que ele nunca teve de terminar UMA vez — que é tudo que o cache precisa.
+          # O download, este sim, pode ser morto e repetido à vontade.
           for tentativa in 1 2; do
             timeout 600 npx playwright install chromium && exit 0
             echo "download do chromium falhou ou travou (tentativa $tentativa)"
