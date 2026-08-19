@@ -202,14 +202,45 @@
 
   (core/sincronizar-status-global!)
 
-  (let [habilitada (db/execute-one! ["SELECT status, status_pagamento, status_pagamento_origem
+  (let [habilitada (db/execute-one! ["SELECT status, status_pagamento, status_pagamento_origem,
+                                             valor_repasse, modalidade_repasse_aplicada,
+                                             percentual_repasse_aplicado
                                        FROM agendamentos WHERE clinica_id = ?" clinica-a])
         desabilitada (db/execute-one! ["SELECT status, status_pagamento, status_pagamento_origem
                                         FROM agendamentos WHERE clinica_id = ?" clinica-b])]
     (is (= ["realizado" "pago" "automatico"]
            ((juxt :status :status_pagamento :status_pagamento_origem) habilitada)))
+    (is (== 100M (bigdec (:valor_repasse habilitada))))
+    (is (= "percentual" (:modalidade_repasse_aplicada habilitada)))
+    (is (== 50M (bigdec (:percentual_repasse_aplicado habilitada))))
     (is (= ["agendado" "pendente" "desconhecido"]
-           ((juxt :status :status_pagamento :status_pagamento_origem) desabilitada)))))
+           ((juxt :status :status_pagamento :status_pagamento_origem) desabilitada)))
+
+    ;; R-004: mudar a psicóloga para R$40 fixos não reescreve a sessão de R$100
+    ;; calculada acima. Só a próxima sessão recebe a regra nova.
+    (db/execute-one! ["UPDATE usuarios
+                          SET modalidade_repasse = 'fixo', percentual_repasse = NULL,
+                              valor_fixo_repasse = 40
+                        WHERE id = ?" psicologo-a])
+    (let [nova #uuid "aaaaaaaa-0000-0000-0000-0000000000e3"]
+      (db/execute-one! ["INSERT INTO agendamentos
+                         (id, clinica_id, paciente_id, psicologo_id, data_hora_sessao,
+                          duracao, valor_consulta, status, status_pagamento)
+                         VALUES (?, ?, ?, ?, now() - interval '1 day', 50, 300,
+                                 'agendado', 'pendente')"
+                        nova clinica-a paciente-a psicologo-a])
+      (core/sincronizar-status-global!)
+      (let [antiga (db/execute-one! ["SELECT valor_repasse, modalidade_repasse_aplicada
+                                       FROM agendamentos WHERE id = ?"
+                                      #uuid "aaaaaaaa-0000-0000-0000-0000000000e1"])
+            nova-gravada (db/execute-one! ["SELECT valor_repasse, modalidade_repasse_aplicada,
+                                                  valor_fixo_repasse_aplicado
+                                             FROM agendamentos WHERE id = ?" nova])]
+        (is (= [100M "percentual"]
+               ((juxt #(bigdec (:valor_repasse %)) :modalidade_repasse_aplicada) antiga)))
+        (is (= [40M "fixo" 40M]
+               ((juxt #(bigdec (:valor_repasse %)) :modalidade_repasse_aplicada
+                      #(bigdec (:valor_fixo_repasse_aplicado %))) nova-gravada)))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Criação

@@ -18,6 +18,7 @@
             [deep-saude-backend.limites :as limites]
             [deep-saude-backend.logging :as logging]
             [deep-saude-backend.prontuarios :as prontuarios]
+            [deep-saude-backend.remuneracao :as remuneracao]
             [deep-saude-backend.google.rrule :as rrule]
             [deep-saude-backend.google.handlers :as google]
             [ring.middleware.cors :refer [wrap-cors]]
@@ -365,7 +366,12 @@
 ;; --- Handlers de Usuários ---
 (defn criar-usuario-handler [request]
   (let [clinica-id-admin (get-in request [:identity :clinica_id])
-        {:keys [nome email senha papel cpf telefone data_nascimento endereco crp registro_e_psi abordagem area_de_atuacao]} (:body request)]
+        {:keys [nome email senha papel cpf telefone data_nascimento endereco crp registro_e_psi abordagem area_de_atuacao
+                modalidade_repasse percentual_repasse valor_fixo_repasse]} (:body request)
+        regra-repasse (when (or modalidade_repasse (some? percentual_repasse) (some? valor_fixo_repasse))
+                        {:modalidade_repasse modalidade_repasse
+                         :percentual_repasse percentual_repasse
+                         :valor_fixo_repasse valor_fixo_repasse})]
     (cond
       (or (str/blank? nome) (str/blank? email) (str/blank? senha) (str/blank? papel))
       {:status 400, :body {:erro "Nome, email, senha e papel são obrigatórios."}}
@@ -373,23 +379,32 @@
       (execute-one! ["SELECT id FROM usuarios WHERE email = ?" email])
       {:status 409, :body {:erro "Email já cadastrado no sistema."}}
 
+      (and regra-repasse (not= papel "psicologo"))
+      {:status 422 :body {:erro "Regra de repasse só pode ser definida para psicóloga."
+                          :code "regra_repasse_papel_invalido"}}
+
+      (and regra-repasse (remuneracao/validar-regra regra-repasse))
+      {:status 422 :body {:erro (remuneracao/validar-regra regra-repasse)
+                          :code "regra_repasse_invalida"}}
+
       :else
       (if-let [papel-id (:id (execute-one! ["SELECT id FROM papeis WHERE nome_papel = ?" papel]))]
         (let [novo-usuario (sql/insert! @datasource :usuarios
-                                        {:clinica_id clinica-id-admin
-                                         :papel_id   papel-id
-                                         :nome       nome
-                                         :email      email
-                                         :senha_hash (hashers/encrypt senha)
-                                         :cpf cpf
-                                         :telefone telefone
-                                         :data_nascimento (dominio/data-de-formulario data_nascimento)
-                                         :endereco endereco
-                                         :crp crp
-                                         :registro_e_psi registro_e_psi
-                                         :abordagem abordagem
-                                         :area_de_atuacao area_de_atuacao}
-                                        {:builder-fn rs/as-unqualified-lower-maps :return-keys [:id :nome :email :clinica_id :papel_id :cpf :telefone :data_nascimento :endereco :crp :registro_e_psi :abordagem :area_de_atuacao]})]
+                                        (merge {:clinica_id clinica-id-admin
+                                                :papel_id   papel-id
+                                                :nome       nome
+                                                :email      email
+                                                :senha_hash (hashers/encrypt senha)
+                                                :cpf cpf
+                                                :telefone telefone
+                                                :data_nascimento (dominio/data-de-formulario data_nascimento)
+                                                :endereco endereco
+                                                :crp crp
+                                                :registro_e_psi registro_e_psi
+                                                :abordagem abordagem
+                                                :area_de_atuacao area_de_atuacao}
+                                               (or regra-repasse {}))
+                                        {:builder-fn rs/as-unqualified-lower-maps :return-keys true})]
           {:status 201, :body novo-usuario})
         {:status 400, :body {:erro (str "O papel '" papel "' não é válido.")}}))))
 
@@ -404,20 +419,32 @@
 (defn obter-usuario-handler [request]
   (let [clinica-id (get-in request [:identity :clinica_id])
         usuario-id (java.util.UUID/fromString (get-in request [:params :id]))]
-    (if-let [usuario (execute-one! ["SELECT id, nome, email, papel_id, cpf, telefone, data_nascimento, endereco, crp, registro_e_psi, abordagem, area_de_atuacao FROM usuarios WHERE id = ? AND clinica_id = ?" usuario-id clinica-id])]
+    (if-let [usuario (execute-one! ["SELECT id, nome, email, papel_id, cpf, telefone, data_nascimento, endereco, crp, registro_e_psi, abordagem, area_de_atuacao,
+                                           modalidade_repasse, percentual_repasse, valor_fixo_repasse
+                                      FROM usuarios WHERE id = ? AND clinica_id = ?" usuario-id clinica-id])]
       {:status 200 :body usuario}
       {:status 404 :body {:erro "Usuário não encontrado nesta clínica."}})))
 
 (defn atualizar-usuario-handler [request]
   (let [clinica-id (get-in request [:identity :clinica_id])
         usuario-id (java.util.UUID/fromString (get-in request [:params :id]))
-        {:keys [nome email senha cpf telefone data_nascimento endereco crp registro_e_psi abordagem area_de_atuacao]} (:body request)]
+        {:keys [nome email senha cpf telefone data_nascimento endereco crp registro_e_psi abordagem area_de_atuacao
+                modalidade_repasse percentual_repasse valor_fixo_repasse]} (:body request)
+        campos-repasse? (or modalidade_repasse (some? percentual_repasse) (some? valor_fixo_repasse))
+        regra-repasse (when campos-repasse?
+                        {:modalidade_repasse modalidade_repasse
+                         :percentual_repasse percentual_repasse
+                         :valor_fixo_repasse valor_fixo_repasse})]
     (cond
-      (and (str/blank? nome) (str/blank? email) (str/blank? senha))
+      (and (str/blank? nome) (str/blank? email) (str/blank? senha) (not campos-repasse?))
       {:status 400 :body {:erro "Pelo menos um campo (nome, email ou senha) deve ser fornecido para atualização."}}
 
       (and email (execute-one! ["SELECT id FROM usuarios WHERE email = ? AND id != ?" email usuario-id]))
       {:status 409 :body {:erro "O email fornecido já está em uso por outro usuário."}}
+
+      (and regra-repasse (remuneracao/validar-regra regra-repasse))
+      {:status 422 :body {:erro (remuneracao/validar-regra regra-repasse)
+                          :code "regra_repasse_invalida"}}
 
       :else
       (let [update-map (cond-> {}
@@ -431,11 +458,14 @@
                          (some? crp) (assoc :crp crp)
                          (some? registro_e_psi) (assoc :registro_e_psi registro_e_psi)
                          (some? abordagem) (assoc :abordagem abordagem)
-                         (some? area_de_atuacao) (assoc :area_de_atuacao area_de_atuacao))
+                         (some? area_de_atuacao) (assoc :area_de_atuacao area_de_atuacao)
+                         regra-repasse (merge regra-repasse))
             resultado (sql/update! @datasource :usuarios update-map {:id usuario-id :clinica_id clinica-id})]
         (if (zero? (:next.jdbc/update-count resultado))
           {:status 404 :body {:erro "Usuário não encontrado nesta clínica ou nenhum dado foi alterado."}}
-          (let [usuario-atualizado (execute-one! ["SELECT id, nome, email, papel_id, cpf, telefone, data_nascimento, endereco, crp, registro_e_psi, abordagem, area_de_atuacao FROM usuarios WHERE id = ?" usuario-id])]
+          (let [usuario-atualizado (execute-one! ["SELECT id, nome, email, papel_id, cpf, telefone, data_nascimento, endereco, crp, registro_e_psi, abordagem, area_de_atuacao,
+                                                         modalidade_repasse, percentual_repasse, valor_fixo_repasse
+                                                    FROM usuarios WHERE id = ?" usuario-id])]
             {:status 200 :body usuario-atualizado}))))))
 
 ;; --- Handlers de Psicólogos ---
@@ -447,7 +477,9 @@
         (if-not papel-psicologo-id
           {:status 500 :body {:erro "Configuração de papel 'psicologo' não encontrada."}}
           (let [psicologos (execute-query!
-                             ["SELECT id, nome, email, clinica_id, papel_id, cpf, telefone, data_nascimento, endereco, crp, registro_e_psi, abordagem, area_de_atuacao FROM usuarios WHERE clinica_id = ? AND papel_id = ?"
+                             ["SELECT id, nome, email, clinica_id, papel_id, cpf, telefone, data_nascimento, endereco, crp, registro_e_psi, abordagem, area_de_atuacao,
+                                      modalidade_repasse, percentual_repasse, valor_fixo_repasse
+                                 FROM usuarios WHERE clinica_id = ? AND papel_id = ?"
                               clinica-id papel-psicologo-id])]
             {:status 200 :body psicologos}))))))
 
@@ -975,8 +1007,13 @@
             (let [resultado (sql/update! @datasource :agendamentos update-map {:id agendamento-id :clinica_id clinica-id})]
               (if (zero? (:next.jdbc/update-count resultado))
                 {:status 500 :body {:erro "Erro ao atualizar agendamento."}}
-                (let [agendamento-atualizado (execute-one! ["SELECT * FROM agendamentos WHERE id = ?" agendamento-id])]
-                  {:status 200 :body agendamento-atualizado}))))))
+                (do
+                  ;; A R-023 só nasce quando a sessão está realizada e no
+                  ;; passado. A função é idempotente: se já há snapshot, mudar
+                  ;; a configuração da psicóloga não toca neste valor (R-004).
+                  (remuneracao/calcular-pendentes! clinica-id)
+                  (let [agendamento-atualizado (execute-one! ["SELECT * FROM agendamentos WHERE id = ?" agendamento-id])]
+                    {:status 200 :body agendamento-atualizado})))))))
           {:status 404 :body {:erro "Agendamento não encontrado."}})))))
     (catch Exception e
       (log/error e "appointment_update_failed")
@@ -1054,6 +1091,12 @@
                                 agora])
             pagamento-count (get (first pagamento-result) :next.jdbc/update-count 0)]
         
+        ;; Uma clínica pode ter sessões realizadas antes de este deploy. O
+        ;; `IS NULL` do cálculo permite backfill seguro sem recalcular passado.
+        (doseq [{clinica-id :id}
+                (execute-query! ["SELECT id FROM clinicas WHERE pagamento_automatico = true"])]
+          (remuneracao/calcular-pendentes! clinica-id))
+
         (log/with-context {:status_count status-count :payment_count pagamento-count}
           (log/info "global_status_sync_completed"))))
     (catch Exception e
@@ -1095,6 +1138,8 @@
                                 clinica-id agora])
             pagamento-count (get (first pagamento-result) :next.jdbc/update-count 0)]
         
+        (remuneracao/calcular-pendentes! clinica-id)
+
         (log/with-context {:status_count status-count :payment_count pagamento-count}
           (log/info "clinic_status_sync_completed"))
         {:status 200 :body {:message "Sincronização concluída"
