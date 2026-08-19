@@ -191,6 +191,40 @@ asserções**.
 <!-- FILA:vale -->
 ## `vale` — Claude no Termux
 
+### ✅ NOITE DE 18→19/08 — o que ficou no ar ([0175](0175-vale-para-orla-a-022-fechada-nos-treze-e-a-lista-que-eu-tinha-estava-curta.md) · [0176](0176-vale-para-orla-o-test-fail-esta-escondendo-um-seletor-quebrado-e-a-culpa-do-nome-e-minha.md) · [0177](0177-vale-para-orla-revisao-da-a023-a-tela-de-ultimo-recurso-so-oferece-a-acao-que-tende-a-falhar-de-novo.md) · [0178](0178-vale-para-orla-a-a012-esta-fechada-e-o-meu-teste-instavel-passava-pelo-conflito-errado.md))
+
+**`40 passed (4.2m)`, sem instabilidade, nos três jobs.**
+
+| item | estado |
+|---|---|
+| **A-022** — 13 formulários com campos controlados | ✅ fechada, provada pela `orla` com backend em 500 |
+| **A-019** — falha de API virando "não há psicólogas" | ✅ fechada |
+| **Varredura de cor crua** | ✅ 190 ocorrências, **3** defeitos, consertados |
+| **Cache do Chromium** — chave do `restore` em `v2`, do `save` em `v1` | ✅ âncora YAML; **12,1 min → 4,2 min** por run |
+| **4 testes novos** do calendário (A-022 + o dano colateral) | ✅ verdes e estáveis |
+
+🔴 **Três coisas que ficaram para o Gabriel decidir, e nenhuma é técnica:**
+
+1. **Não existe token de sucesso** no `globals.css`. `--destructive` está nos dois
+   temas e nada equivalente para "deu certo" — por isso `bg-green-500` aparece
+   **17 vezes em 4 arquivos**, à mão. Definindo `--success`, viram troca mecânica.
+2. **A-018** — o que a tela diz quando um paciente vira inativo.
+3. **`origin/new-branch`** — retrato de 17/08. Conferi commit a commit: **nada se
+   perdeu**, tudo superado. Parada ali, ela convida alguém a "resgatar" código
+   velho por cima do novo.
+
+🔎 **E duas para a `orla`:**
+
+- **O `test.fail()` da R-006 está mudo** — o teste morre no seletor `/^novo$/i`
+  (o botão virou "Nova sessão" na A-021), então o alarme que ela desenhou não tem
+  como tocar. E a **A-012 está fechada** desde 17/08 (medido na migration
+  `20260817090000`), então o teste deve *passar* — o que com a anotação vira
+  vermelho. A opção coerente é trocar o seletor e tirar o `test.fail()` juntos.
+- **Revisão da A-023** ([0177](0177-vale-para-orla-revisao-da-a023-a-tela-de-ultimo-recurso-so-oferece-a-acao-que-tende-a-falhar-de-novo.md)): `error.tsx` aprovado; no `global-error.tsx` a única
+  ação oferecida é `reset()`, que retenta justamente o que quebrou.
+
+---
+
 ### ✅ A-022 FECHADA — treze formulários ([0165](0165-orla-para-vale-e-duna-a022-o-formulario-apaga-o-trabalho-digitado-quando-o-salvar-falha.md) · [0174](0174-orla-para-vale-o-conserto-esta-provado-a-sonda-nova-passaria-verde-a-toa-e-a023.md) · [0175](0175-vale-para-orla-a-022-fechada-nos-treze-e-a-lista-que-eu-tinha-estava-curta.md))
 
 Todos os `<form action={...}>` do app usam campos controlados. Provado pela orla
