@@ -224,6 +224,50 @@ test.describe('A-022 — o cadastro de paciente sobrevive a uma falha ao salvar'
  * os testes DELE aqui de novo. O lugar certo de compartilhar isso é o `apoio.ts`,
  * e mover para lá é refatoração de infra que não cabe dentro de um conserto.
  */
+/**
+ * Abre o diálogo de sessão nova no calendário.
+ *
+ * 🔴 **Não clica em botão, e isso é o conserto de um erro que me custou um run.**
+ *
+ * Eu tinha copiado a dança de `forcar-e-privilegio-da-clinica`, que clica em
+ * `getByRole('button', { name: /^novo$/i })` até hidratar. Os quatro testes deste
+ * arquivo morreram nela, sempre no mesmo ponto:
+ *
+ * ```
+ * Error: locator.click: Timeout 5000ms exceeded.
+ *   - waiting for getByRole('button', { name: /^novo$/i }).first()
+ * ```
+ *
+ * O botão não se chama "Novo": chama-se **"Nova sessão"**. Fui eu que renomeei,
+ * na A-021, e o seletor de lá ficou para trás.
+ *
+ * ⚠️ **E ninguém viu, porque o único teste que usa aquela dança está marcado com
+ * `test.fail()`** — que absorve qualquer morte. O ✘ dele vinha sendo lido como
+ * "a A-012 continua aberta" quando pode ser só "o botão mudou de nome". Um teste
+ * que pode falhar por dois motivos e só sabe relatar um não distingue os dois.
+ *
+ * 📌 Aqui eu uso `?nova=1`, que é o mecanismo que a própria A-021 criou para
+ * abrir o diálogo na chegada. Não depende de rótulo, não depende de clique, e
+ * não disputa corrida com a hidratação. O clique fica só como segunda tentativa,
+ * agora com o nome certo.
+ */
+async function abrirDialogoDeSessao(page: import('@playwright/test').Page) {
+  const dialogo = page.getByRole('dialog').filter({ hasText: /paciente/i });
+  await page.goto('/calendar?nova=1');
+
+  await expect(async () => {
+    if (!(await dialogo.isVisible().catch(() => false))) {
+      await page
+        .getByRole('button', { name: /nova sess[ãa]o/i })
+        .first()
+        .click({ timeout: 5_000 });
+    }
+    await expect(dialogo).toBeVisible({ timeout: 3_000 });
+  }).toPass({ timeout: 60_000 });
+
+  return dialogo;
+}
+
 test.describe('A-022 — o que foi digitado sobrevive à recusa por conflito', () => {
   test('o diálogo da sessão continua preenchido depois do conflito', async ({ page }) => {
     const { dia, paciente } = dadosSemeados();
@@ -233,17 +277,7 @@ test.describe('A-022 — o que foi digitado sobrevive à recusa por conflito', (
     const inicio = `${dia}T${HORA_DA_SESSAO}`;
     const NOTA = 'Trazer o registro de sono desta semana.';
 
-    await page.goto('/calendar');
-
-    const novo = page.getByRole('button', { name: /^novo$/i });
-    const dialogo = page.getByRole('dialog').filter({ hasText: /paciente/i });
-    // Clique repetido até hidratar — mesmo motivo do `trocarVisao` em apoio.ts.
-    await expect(async () => {
-      if (!(await dialogo.isVisible().catch(() => false))) {
-        await novo.first().click({ timeout: 5_000 });
-      }
-      await expect(dialogo).toBeVisible({ timeout: 3_000 });
-    }).toPass({ timeout: 60_000 });
+    const dialogo = await abrirDialogoDeSessao(page);
 
     const gatilhoPaciente = dialogo.getByRole('combobox').first();
     await expect(
@@ -320,18 +354,6 @@ test.describe('A-022 — o que foi digitado sobrevive à recusa por conflito', (
  * Então este bloco protege exatamente o que eu mexi, e nada além disso.
  */
 test.describe('o que sobrevive à mudança de campo descontrolado para controlado', () => {
-  async function abrirDialogoDeSessao(page: import('@playwright/test').Page) {
-    await page.goto('/calendar');
-    const novo = page.getByRole('button', { name: /^novo$/i });
-    const dialogo = page.getByRole('dialog').filter({ hasText: /paciente/i });
-    await expect(async () => {
-      if (!(await dialogo.isVisible().catch(() => false))) {
-        await novo.first().click({ timeout: 5_000 });
-      }
-      await expect(dialogo).toBeVisible({ timeout: 3_000 });
-    }).toPass({ timeout: 60_000 });
-    return dialogo;
-  }
 
   test('escolher o início ainda preenche o fim sozinho, 50 minutos depois', async ({ page }) => {
     const { dia } = dadosSemeados();
