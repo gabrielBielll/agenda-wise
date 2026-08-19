@@ -328,15 +328,33 @@ jobs:
           cat "$RUNNER_TEMP/backend.log"
           exit 1
 
-      - name: Cache do Chromium do Playwright
-        uses: actions/cache@v4
+      # 🔴 RESTORE e SAVE separados, e o `if: always()` do save é o ponto inteiro.
+      #
+      # Com `actions/cache@v4` (as duas metades juntas), o cache **só é gravado
+      # quando o job termina bem**. Este job nunca terminou bem — e aí o impasse
+      # se alimenta sozinho:
+      #
+      #   download demora  ->  job estoura  ->  cache não grava
+      #        ^                                      |
+      #        +--------------------------------------+
+      #
+      # Medido no run 32209032971: o passo de instalar ficou **17 minutos**, que é
+      # exatamente `apt` + 3 × `timeout 300` + as duas esperas. As três tentativas
+      # estouraram, e nas quatro execuções anteriores foi igual.
+      #
+      # Separando, o save roda mesmo quando o e2e falha ou o job é cancelado: a
+      # primeira execução que **baixar** o Chromium já deixa ele no cache, e a
+      # seguinte pula o download inteiro.
+      - name: Restaurar o Chromium do Playwright
+        id: cache-chromium
+        uses: actions/cache/restore@v4
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('deep-saude-plataforma-front-end/package-lock.json') }}
 
       - name: Instalar o Chromium do Playwright
         working-directory: deep-saude-plataforma-front-end
-        timeout-minutes: 20
+        timeout-minutes: 22
         run: |
           # Duas etapas, e a separação é o ponto — não é organização.
           #
@@ -354,12 +372,25 @@ jobs:
           # deixar meio apt para trás.
           npx playwright install-deps chromium
 
-          for tentativa in 1 2 3; do
-            timeout 300 npx playwright install chromium && exit 0
-            echo "download do chromium falhou ou travou (tentativa $tentativa); nova em $((tentativa * 10))s"
-            sleep $((tentativa * 10))
+          # ⚠️ 300s era curto demais e o teto de 3 tentativas transformava isso em
+          # 15 minutos de espera garantida antes de desistir. Duas tentativas com
+          # o dobro do tempo cabem no mesmo orçamento e dão ao download a chance
+          # que ele nunca teve de terminar UMA vez — que é tudo que o cache precisa.
+          for tentativa in 1 2; do
+            timeout 600 npx playwright install chromium && exit 0
+            echo "download do chromium falhou ou travou (tentativa $tentativa)"
+            sleep 15
           done
           exit 1
+
+      # Grava mesmo se o e2e falhar depois — o que interessa aqui é o binário
+      # baixado, e ele não fica errado por causa de um teste vermelho.
+      - name: Guardar o Chromium no cache
+        if: always() && steps.cache-chromium.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('deep-saude-plataforma-front-end/package-lock.json') }}
 
       - name: npm run e2e
         working-directory: deep-saude-plataforma-front-end
