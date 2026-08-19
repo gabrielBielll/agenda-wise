@@ -631,12 +631,72 @@ teria que reconciliar contra extrato.
 
 ---
 
-## 🔴 A-012 — `papel_permissoes` tem UMA linha, e psicóloga não usa o sistema
+## ✅ A-012 — `papel_permissoes` tem UMA linha, e psicóloga não usa o sistema — **FECHADA em 2026-08-19**
 
 **Achado em:** 2026-08-16, pela `orla`, investigando o CI vermelho de `e508ef4`
 **Descoberto por:** o e2e do 403 da `vale`, na **primeira execução** dele
 **Gravidade:** 🔴 **bloqueador de lançamento**, e maior do que os outros achados
 do dia — os outros são caminhos que falham; este é o produto não funcionando.
+**Fechada por:** `duna`, em `20260817090000-permissoes-papeis.up.sql`
+**Confirmada em:** 2026-08-19, por três medições independentes
+
+---
+
+### ✅ Como o fechamento foi provado, e por que três medições
+
+O diagnóstico original continua abaixo, **inteiro e sem edição**, porque ele
+descreve um estado real que existiu. O que mudou é o mundo, não o texto.
+
+| medição | quem | o que mostrou |
+|---|---|---|
+| DOM na hora da falha (`error-context.md`) | `vale` | `combobox: Paciente E2E` — a psicóloga **recebeu** paciente |
+| SQL da migration que roda no CI | `orla` | os quatro grants de `psicologo` existem |
+| `Expected to fail, but passed` (run `32260687532`) | o próprio CI | o teste da R-006 passa inteiro, em 7,1 s e 6,7 s |
+
+📌 **A guarda cumpriu a promessa que este documento fez.** O parágrafo no fim
+desta seção dizia: *"no dia em que as permissões forem concedidas ele passa e o
+CI fica vermelho, avisando que a marcação deve sair."* Foi exatamente o que
+aconteceu — e o `test.fail()` saiu no commit que fecha esta linha.
+
+⚠️ **O aviso chegou dois dias atrasado, e a causa importa mais que o atraso.** As
+permissões entraram em **17/08**; o alarme só tocou em **19/08**. No meio havia
+um seletor quebrado (`/^novo$/i` contra um botão renomeado para "Nova sessão"),
+e como `test.fail()` **absorve qualquer morte**, o ✘ diário vinha sendo lido como
+"a A-012 continua aberta". A guarda automática valia o que valia o instrumento
+embaixo dela — e ninguém olhava o instrumento porque o resultado era o esperado.
+
+> 🔴 **A lição que fica é essa, e ela é maior que a A-012:** *um sinal que você
+> já espera ver deixa de ser lido.* Uma guarda de "falha esperada" precisa de uma
+> data de revisão, ou ela vira ruído com carimbo de aprovação.
+
+### 🔴 O que este fechamento NÃO resolve
+
+**1. As quatro perguntas abaixo continuam sem resposta do Gabriel.** A matriz que
+a `duna` aplicou responde as quatro **na prática** — psicóloga cria paciente,
+marca sessão e escreve prontuário; secretário não escreve prontuário nem marca
+pagamento. Isso destravou o produto, e destravar era urgente. Mas foi uma
+instância decidindo **regra de negócio**, que é justamente o que a seção "Por que
+a correção não é minha" dizia para não fazer.
+
+📌 Não estou desfazendo: está no ar, está testado, e é razoável. Estou
+registrando que **é uma decisão pendente de ratificação**, não uma decisão
+tomada. Se o Gabriel discordar de qualquer uma das quatro, o conserto é uma
+migration nova — barato. O caro seria ninguém nunca perguntar.
+
+**2. O SEC-006 continua de pé.** O bypass de `admin_clinica` em
+`wrap-checar-permissao` segue no código. O que mudou é o acoplamento: derrubar o
+bypass **não derruba mais a psicóloga junto**, porque agora ela tem grants
+próprios. Antes, remover o bypass deixava o sistema sem nenhum usuário
+funcional — era esse o pânico registrado abaixo, e ele acabou.
+
+**3. Nada disso foi medido contra o banco de produção.** Continua valendo o que o
+texto abaixo diz: não temos acesso para conferir se lá os grants existem. O CI
+mede uma base recém-migrada, que é o caso de **clínica nova** — e esse caso,
+sim, nasce funcionando agora.
+
+---
+
+### 📜 O diagnóstico original, preservado
 
 ### O que o CI mostrou
 
@@ -721,6 +781,11 @@ fazer.
 marcado com `test.fail()`: continua rodando a cada push, e **no dia em que as
 permissões forem concedidas ele passa e o CI fica vermelho**, avisando que a
 marcação deve sair. Não é `skip`: não há silêncio.
+
+> ✅ **E foi assim que terminou.** Em 19/08 o CI reportou `Expected to fail, but
+> passed` e a marcação saiu. A promessa deste parágrafo era boa; o que faltou foi
+> alguém conferir, nos dois dias anteriores, se o instrumento embaixo dela ainda
+> media alguma coisa. Ver o bloco de fechamento no topo desta seção.
 
 ---
 

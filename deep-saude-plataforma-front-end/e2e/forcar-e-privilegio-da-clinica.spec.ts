@@ -70,9 +70,15 @@ async function tentarAgendarEmCimaDaSessao(page: import('@playwright/test').Page
    * chegar perto de permissão nenhuma. Um teste que pode falhar por dois motivos
    * e só sabe relatar um não distingue os dois.
    *
-   * 📌 O custo real foi o alarme: o comentário abaixo promete que "quando alguém
+   * 📌 O custo real foi o alarme: o comentário prometia que "quando alguém
    * conceder as permissões, este teste passa e o `test.fail()` faz o CI avisar".
-   * Com o seletor quebrado esse aviso **não tinha como tocar**.
+   * Com o seletor quebrado esse aviso **não tinha como tocar** — e as permissões
+   * já tinham sido concedidas. O aviso estava atrasado, não ausente.
+   *
+   * ✅ Consertado o seletor, o alarme tocou no primeiro run e a anotação saiu.
+   * **A A-012 está fechada** — ver o bloco do teste, mais abaixo. Este parágrafo
+   * fica como registro de que uma guarda automática vale o que vale o instrumento
+   * embaixo dela.
    */
   const novo = page.getByRole('button', { name: /nova sess[ãa]o/i });
   const dialogo = page.getByRole('dialog').filter({ hasText: /paciente/i });
@@ -117,27 +123,33 @@ async function tentarAgendarEmCimaDaSessao(page: import('@playwright/test').Page
 
   await gatilhoPaciente.click();
 
-  // ⚠️ Asserção explícita, e ela existe por um motivo de mecânica, não de estilo.
+  // ⚠️ Asserção explícita, e ela FICA — mas a mensagem dela mudou, porque a
+  // antiga virou mentira.
   //
-  // Enquanto a A-012 estiver aberta, a psicóloga não recebe paciente nenhum e
-  // este é o ponto onde o teste morre. Um `.click()` direto morre por **timeout
-  // do teste** — e `test.fail()` NÃO absorve timeout: o Playwright não consegue
-  // distinguir "falhou como esperado" de "travou", então reporta falha e o CI
-  // fica vermelho mesmo com a anotação.
+  // 🔴 Ela dizia: *"a psicóloga não recebeu paciente nenhum. É a A-012:
+  // `papel_permissoes` está vazia para o papel dela"*. Isso era verdade até a
+  // migration `20260817090000-permissoes-papeis` conceder os quatro grants do
+  // papel `psicologo`. **A A-012 está fechada** — medida no run `32260687532`,
+  // que reportou `Expected to fail, but passed` na tentativa e na retentativa.
   //
-  // Medido duas vezes: com `test.fail()` no corpo do `describe` e depois no
-  // corpo do teste, sempre `1 failed, 16 passed`. Só na terceira leitura do log
-  // ficou claro que a marcação estava certa e o modo de morte é que era
-  // incompatível com ela.
+  // 📌 Uma âncora que nomeia uma causa já resolvida é pior que uma âncora
+  // genérica: ela manda a próxima pessoa investigar permissão quando o defeito
+  // é outro. É o mesmo modo de falha que esta rodada inteira desenterrou — a
+  // `vale` culpando o backend por um `#valor_consulta` vazio, eu culpando o
+  // proxy por um 500 que os dois cenários davam igual. **Diagnóstico invertido
+  // custa mais caro que diagnóstico ausente.**
   //
-  // Com a asserção abaixo a morte vira **falha de asserção**, que o `test.fail()`
-  // absorve — e de quebra a mensagem diz a causa, em vez de "esperei um seletor".
+  // O motivo mecânico de a asserção existir também mudou de dono: sem o
+  // `test.fail()`, um `.click()` direto morreria com "esperei um seletor" e
+  // ponto. Com ela, a morte diz onde e o que faltava.
   const opcaoDoPaciente = page.getByRole('option', { name: paciente }).first();
   await expect(
     opcaoDoPaciente,
-    'a psicóloga não recebeu paciente nenhum. É a A-012: `papel_permissoes` está ' +
-      'vazia para o papel dela, então GET /api/pacientes devolve 403 e a lista ' +
-      'chega vazia. Ver docs/REVISAO_PRE_PRODUCAO.md e a mensageria 0061.'
+    `a lista de pacientes da psicóloga não trouxe "${paciente}". A A-012 já foi ` +
+      'fechada (grants do papel `psicologo` em 20260817090000-permissoes-papeis), ' +
+      'então NÃO conclua permissão sem antes olhar as duas causas mais prováveis: ' +
+      'a semeadura não criou o paciente, ou GET /api/pacientes falhou. O código de ' +
+      'resposta está no log do backend do run.'
   ).toBeVisible({ timeout: 10_000 });
   await opcaoDoPaciente.click();
   await expect(
@@ -210,6 +222,37 @@ test.describe('R-006 — a psicóloga é recusada, e a recusa ensina o caminho',
    *
    * Provado no run `32260687532`: `✓ (7,1 s)` e `✓ retry (6,7 s)`, com o único
    * vermelho sendo `Expected to fail, but passed.`
+   *
+   * ---
+   *
+   * ## A confirmação não veio só do run, e isso foi de propósito (D-002)
+   *
+   * A `vale` leu o DOM (`combobox: Paciente E2E` preenchido). Eu confirmei pela
+   * **origem**, sem repetir a medição dela: a migration acima roda neste mesmo
+   * CI, e o `IN (...)` dela é a resposta direta à pergunta "a psicóloga tem
+   * grant?". Três medições independentes — o DOM, o SQL e o veredito do runner —
+   * e nenhuma depende de a outra ter sido lida direito.
+   *
+   * ⚠️ **"Passou" pode ser sorte, então confira o quanto passou.** Passou nas
+   * duas execuções, em **7,1 s contra um teto de 45 s** — folga de 6×. Um verde
+   * raspando o limite seria outra conversa, e é o que eu procuraria antes de
+   * confiar num teste que acabou de mudar de lado.
+   *
+   * ## O que este teste prova AGORA
+   *
+   * Não mais a ausência do comportamento, e sim ele inteiro: a psicóloga marca
+   * sobre uma sessão existente, **recebe o modal de conflito**, força, **é
+   * recusada**, a recusa **manda procurar a gestão da clínica**, e o agendamento
+   * **não entra no backend** — os quatro passos, com a contagem no servidor.
+   *
+   * 📌 **O SEC-006 continua de pé, e não foi resolvido por isto.** O bypass de
+   * `admin_clinica` em `wrap-checar-permissao` segue no código. O que mudou é o
+   * acoplamento: derrubar o bypass **não derruba mais a psicóloga junto**, porque
+   * agora ela tem grants próprios. Era esse o acoplamento que assustava.
+   *
+   * O timeout curto fica, com outra razão: um teto de 45 s num teste de ~7 s mata
+   * rápido se algum seletor apodrecer, em vez de custar dois minutos por
+   * tentativa.
    */
   test('forçar como psicóloga leva modal pedindo contato com a gestão', async ({ page, request }) => {
     test.setTimeout(45_000);

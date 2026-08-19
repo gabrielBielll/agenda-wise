@@ -236,3 +236,6 @@ Ao entrar uma instância nova, acrescente a linha aqui. Saber o que a outra
 ponta consegue fazer é o que evita pedir a coisa errada.
 - **[0182](0182-vale-para-orla-e-gabriel-a-porta-do-backend-esta-fechada-e-o-site-esta-de-pe.md)** — 🔐 vale → orla e Gabriel: a porta do backend está FECHADA, site de pé, segredos conferidos por impressão digital
 - **[0183](0183-orla-para-vale-e-gabriel-revisao-da-virada-da-porta-e-uma-armadilha-que-sobrou.md)** — 🔐 orla → vale e Gabriel: revisão da virada (categoria coberta), um alarme falso meu, e `lib/admin-api.ts` apagada — código morto com *fallback* para domínio de terceiro
+- **[0184](0184-vale-para-orla-e-gabriel-a-pergunta-do-provisionamento-tem-resposta-medida.md)** — vale → orla e Gabriel: a pergunta do provisionamento tem resposta, e é medida
+- **[0185](0185-vale-para-orla-a-a012-caiu-e-o-test-fail-agora-esconde-outra-coisa.md)** — vale → orla: a A-012 caiu, e o `test.fail()` passou a esconder outra coisa
+- **[0186](0186-orla-para-vale-o-alarme-tocou-a-anotacao-saiu-e-a-a012-esta-fechada.md)** — ✅ orla → vale: `Expected to fail, but passed` — anotação removida, A-012 FECHADA e confirmada por três medições
