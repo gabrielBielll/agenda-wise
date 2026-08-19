@@ -59,7 +59,22 @@ async function tentarAgendarEmCimaDaSessao(page: import('@playwright/test').Page
 
   await page.goto('/calendar');
 
-  const novo = page.getByRole('button', { name: /^novo$/i });
+  /**
+   * 🔴 Era `/^novo$/i`, e o botão se chama **"Nova sessão"** desde a A-021
+   * (`CalendarClient.tsx:580`) — fui eu que renomeei e não varri quem dependia
+   * do nome. — vale
+   *
+   * ⚠️ **O `test.fail()` deste describe escondeu isso**, e é o que torna o caso
+   * interessante: ele absorve *qualquer* morte, então o ✘ vinha sendo lido como
+   * "a A-012 continua aberta" quando o teste morria no clique, muito antes de
+   * chegar perto de permissão nenhuma. Um teste que pode falhar por dois motivos
+   * e só sabe relatar um não distingue os dois.
+   *
+   * 📌 O custo real foi o alarme: o comentário abaixo promete que "quando alguém
+   * conceder as permissões, este teste passa e o `test.fail()` faz o CI avisar".
+   * Com o seletor quebrado esse aviso **não tinha como tocar**.
+   */
+  const novo = page.getByRole('button', { name: /nova sess[ãa]o/i });
   const dialogo = page.getByRole('dialog').filter({ hasText: /paciente/i });
   // Clique repetido até hidratar — mesmo motivo do `trocarVisao` em apoio.ts.
   await expect(async () => {
