@@ -64,7 +64,68 @@ canal colidiu **quatro** vezes por não fazer isso. Depois,
 
 ---
 
-## O estado, em um parágrafo
+## 📍 O estado em 2026-08-19, fim do dia — LEIA ESTA SEÇÃO PRIMEIRO
+
+⚠️ **Tudo que vem depois desta seção é de 13–16/08 e envelheceu.** Não está
+apagado porque o raciocínio continua valendo; mas onde os dois discordarem sobre
+*o estado*, **este bloco vence**.
+
+### Onde o projeto está
+
+| | |
+|---|---|
+| **PR #7** | ainda **sem merge**, CI verde nos três jobs |
+| **Navegador** | **41 passed, 0 failed** — o primeiro veredito completo do projeto |
+| **No ar** | o site do Northflank roda o **branch**, não a `main` |
+| **Clínica de demonstração** | semeada e no ar: 3 psicólogas, 9 pacientes, 108 sessões, 73 prontuários com humor |
+
+📌 **Recomendação registrada:** mesclar o PR #7 na `main` **depois** da
+demonstração para a CEO. O site já serve o branch, então mesclar antes adiciona
+risco sem trazer ganho.
+
+### O que fechou em 18–19/08
+
+| | |
+|---|---|
+| **A-012** | psicóloga não tinha permissão de nada — nem listar paciente. Fechada, com 3 medições independentes |
+| **A-020 / A-021** | dois itens de menu apontando para rotas mortas, um deles o botão principal |
+| **A-022** | 13 formulários apagavam o que foi digitado quando o salvamento falhava. Corrigido, com 6 testes |
+| **A-023** | exceção no cliente mostrava página branca com uma linha em inglês. Há `error.tsx` e `global-error.tsx` |
+| **A-024** | o navegador deixou de falar com o backend, o que permitiu **fechar a porta dele** |
+| **Porta do backend** | **fechada** — rede privada, `CORS_ORIGINS` no host exato do front. Medido pela `vale` |
+
+### 🔴 O que está aberto e importa
+
+| # | o quê | dono |
+|---|---|---|
+| **A-025** | financeiro e prontuário formatam data no **fuso de quem olha** — sessão de 31/08 às 22:00 sai do fechamento do mês. Invisível no Brasil | em aberto |
+| **A-026** | *"sucesso sem efeito"*: `migrations_completed` incondicional e `sincronizar-status` que responde "concluída" tendo feito zero | backend |
+| **A-027** | `/api/auth/login` não atravessa o proxy, então **semear obriga a reabrir o backend para a internet** | em aberto |
+| **A-018** | decisão do Gabriel, item 4.3 de `docs/MANHA_19_08.md` | Gabriel |
+| **GC-000** | Google Console: redirect URI e usuários de teste | Gabriel |
+| **Tokens** | revogar os que passaram pelo chat | Gabriel |
+| **Matriz de permissões** | aplicada por uma instância, **pendente de ratificação** do Gabriel — 4 perguntas em `REVISAO_PRE_PRODUCAO.md` | Gabriel |
+
+### Dívidas registradas, nenhuma urgente
+
+- `NEXT_PUBLIC_API_URL` virou nome enganoso: guarda endereço **interno**.
+  Renomear mexe em 27 arquivos de servidor.
+- As migrations **nunca rodaram contra CockroachDB** fora de produção.
+- `axios` ficou sem consumidor em `src/` depois que `lib/admin-api.ts` foi
+  apagada (era código morto com *fallback* para um domínio de terceiro).
+
+### ⚠️ Duas armadilhas operacionais que custaram caro
+
+1. **Reabrir a porta do backend no Northflank não recria o DNS.** O ciclo é
+   `abrir → restart → semear → fechar`. Sem o restart o nome não resolve, e a
+   espera é infinita.
+2. **`migrations_completed` no log não significa que alguma migration entrou.**
+   Se uma tela quebrar com `PSQLException`, confira `schema_migracoes` por uma
+   linha `id = -1` com `applied` nulo — é a reserva órfã do migratus.
+
+---
+
+## O estado, em um parágrafo *(escrito em 15/08 — histórico)*
 
 O PR #7 começou como arquitetura de Google Agenda, virou preparação para
 produção e, em 2026-08-15, virou também **preparação para vender**: o Gabriel
