@@ -478,7 +478,7 @@ export default function GoogleClient({
                 if (!aDesconectar) return;
                 avisar(await desconectarGoogle(aDesconectar.usuario_id));
                 setADesconectar(null);
-              })
+              })}
             >
               Desconectar
             </AlertDialogAction>
