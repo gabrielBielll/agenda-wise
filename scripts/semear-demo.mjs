@@ -567,6 +567,31 @@ async function main() {
   }
   ok(`${totalSessoes} sessões novas (as repetidas já estavam lá)`);
 
+  /**
+   * 🔴 **De qual sessão é cada evolução — e sem isto o gráfico de humor mente.**
+   *
+   * `prontuarios.data_registro` é `DEFAULT CURRENT_TIMESTAMP`: é a hora em que o
+   * registro foi **escrito**, não a da sessão. Semeando tudo de uma vez, os 70
+   * prontuários nascem com o mesmo carimbo, e a "Evolução do Humor" desenha a
+   * curva inteira empilhada num único dia. A curva aparece — e a linha do tempo
+   * é falsa.
+   *
+   * 📌 O produto já resolve isso, e eu só precisei usar: o prontuário aceita
+   * `agendamento_id`, a listagem faz `LEFT JOIN agendamentos` e devolve
+   * `data_sessao` (`prontuarios.clj:117`), e a tela **prefere** essa data —
+   * `ProntuarioList.tsx:50`: `p.data_sessao ? ... : p.data_registro`.
+   *
+   * Vinculando, a evolução passa a valer pela data da sessão que ela descreve,
+   * que é o que uma psicóloga espera ler.
+   */
+  const agendaDepois = exigir(
+    await api('/api/agendamentos', { token: tokenAdmin }),
+    'Releitura da agenda para vincular prontuários'
+  );
+  const idDaSessao = new Map(
+    agendaDepois.map((a) => [`${a.paciente_id}:${paredeEmSaoPaulo(a.data_hora_sessao)}`, a.id])
+  );
+
   /* 7. Prontuários — logando como cada psicóloga --------------------------- */
   passo('Prontuários e humor');
 
@@ -609,8 +634,10 @@ async function main() {
       const sessoes = sessoesPorPaciente.get(pac.nome) ?? [];
       for (let i = 0; i < sessoes.length; i++) {
         const semente = pac.nome.length + i;
+        const agendamentoId = idDaSessao.get(`${pacienteId}:${sessoes[i].data}T${pac.hora}`);
         const corpo = {
           paciente_id: pacienteId,
+          agendamento_id: agendamentoId,
           tipo: 'sessao',
           humor: humorDaSessao(pac.humorBase, pac.tendencia, i),
           conteudo:
@@ -633,6 +660,20 @@ async function main() {
         totalProntuarios++;
       }
       nota(`${pac.nome}: ${sessoes.length} evoluções`);
+      /**
+       * ⚠️ Vínculo que falha em silêncio volta a empilhar tudo num dia só, e o
+       * gráfico continua parecendo certo. Se sobrar evolução sem sessão, isto
+       * grita — em vez de deixar a descoberta para quem for olhar a curva.
+       */
+      const semVinculo = sessoes.filter(
+        (s) => !idDaSessao.get(`${pacienteId}:${s.data}T${pac.hora}`)
+      ).length;
+      if (semVinculo > 0) {
+        throw new Error(
+          `${semVinculo} evoluções de ${pac.nome} ficariam sem sessão vinculada.\n` +
+            `  A data delas cairia no dia da semeadura e a linha do tempo do humor seria falsa.`
+        );
+      }
     }
   }
   ok(`${totalProntuarios} prontuários novos`);

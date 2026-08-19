@@ -28,7 +28,14 @@ interface Patient {
   endereco: string | null;
   data_nascimento: string | null;
   avatar_url?: string | null;
-  data_cadastro: string;
+  /**
+   * ⚠️ **Este campo NÃO chega hoje** — a coluna não existe em `pacientes` e o
+   * backend nunca a devolve. Estava tipado como `string` obrigatório, e foi
+   * essa promessa que o TypeScript aceitou e a tela imprimiu como
+   * `Invalid Date`. Tipo que mente sobre o que vem da rede não protege nada:
+   * ele só transfere a confiança do desenvolvedor para o lugar errado.
+   */
+  data_cadastro?: string | null;
   historico_familiar?: string | null;
   uso_medicamentos?: string | null;
   diagnostico?: string | null;
@@ -159,7 +166,41 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
             <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-xs text-muted-foreground">
               <span className="flex items-center"><Mail className="h-4 w-4 mr-1 text-primary" /> {patient.email || 'N/A'}</span>
               <span className="flex items-center"><Phone className="h-4 w-4 mr-1 text-primary" /> {patient.telefone || 'N/A'}</span>
-              <span className="flex items-center"><CalendarDays className="h-4 w-4 mr-1 text-primary" /> Cadastrado em: {new Date(patient.data_cadastro).toLocaleDateString('pt-BR')}</span>
+              {/*
+                🔴 **Esta linha mostrava "Cadastrado em: Invalid Date" para TODO
+                paciente, sempre.** Não às vezes, não em dado ruim: sempre.
+
+                `patient.data_cadastro` não existe. Não existe na tabela
+                `pacientes` (nenhuma migration cria a coluna), não existe em
+                nenhuma resposta do backend, e `new Date(undefined)` é
+                `Invalid Date` — que o `toLocaleDateString` imprime tal e qual.
+
+                📌 O `status.md` do backend afirma que a coluna foi adicionada
+                *"para armazenar dados mais completos do paciente"*. **A
+                afirmação está lá; a migration, não.** É documentação que
+                envelheceu na direção mais cara: alguém leu, acreditou, e
+                escreveu tela em cima.
+
+                ⚠️ A correção aqui é **não mostrar o que não temos**. Inventar
+                uma data — `created_at` novo com backfill — carimbaria em todo
+                paciente antigo uma data de cadastro falsa, num prontuário. Se a
+                clínica quiser esse dado, ele nasce numa migration com decisão
+                explícita sobre o passado, não num conserto de tela.
+
+                A guarda é por VALOR e não por presença do campo: `data_cadastro`
+                pode voltar a existir amanhã vindo torto, e `Invalid Date` na
+                cara da psicóloga é o mesmo defeito de novo.
+              */}
+              {(() => {
+                const quando = patient.data_cadastro ? new Date(patient.data_cadastro) : null;
+                if (!quando || Number.isNaN(quando.getTime())) return null;
+                return (
+                  <span className="flex items-center">
+                    <CalendarDays className="h-4 w-4 mr-1 text-primary" /> Cadastrado em:{' '}
+                    {quando.toLocaleDateString('pt-BR')}
+                  </span>
+                );
+              })()}
             </div>
             <div className="mt-5">
                <Button variant="outline" size="sm" asChild>
