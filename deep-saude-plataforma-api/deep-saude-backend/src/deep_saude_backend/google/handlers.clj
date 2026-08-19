@@ -244,6 +244,9 @@
      :body {:conectada (boolean (seq conexoes))
             :conexoes_total (count conexoes)
             :conexoes_ativas (count ativas)
+            :conexoes (mapv #(select-keys % [:usuario_id :nome_psicologa
+                                             :google_account_email :status])
+                            conexoes)
             :conexoes_com_problema quebradas
             :agendas (into {} (map (juxt :status :total)) vincs)
             ;; A regra mora em `precisa-atencao?`, acima — o handler só a aplica.
@@ -267,23 +270,37 @@
             :precisa_atencao (precisa-atencao? conexao vincs)}}))
 
 (defn desconectar-handler
-  "Desconecta de verdade: revoga no Google antes de apagar localmente.
+  "Desconecta somente a psicóloga nomeada, sempre dentro da clínica do JWT.
 
-   Apagar só a linha deixaria o acesso vivo do lado do Google — desconexão que
-   não desconecta (spec seção 7)."
+   A conexão passou a ser por psicóloga no GC-012. Pausar a clínica inteira ao
+   revogar uma linha deixava as outras conexões ativas no banco e mudas na
+   prática. O alvo explícito também impede que uma ação destrutiva escolha uma
+   pessoa pela ordem arbitrária do banco."
   [request]
-  (let [clinica-id (get-in request [:identity :clinica_id])]
-    (if-let [conexao (conexao-da-clinica clinica-id)]
-      (do
-        (try
-          (oauth/revogar (cripto/decifrar-token (:refresh_token_cifrado conexao)))
-          (catch Exception e
-            (log/warn e "google_token_revoke_failed")))
-        (jdbc/with-transaction [tx @datasource]
-          (sql/update! tx :vinculo_agenda {:status "pausado"} {:clinica_id clinica-id})
-          (sql/delete! tx :google_conexao {:id (:id conexao)}))
-        {:status 200 :body {:message "Google Agenda desconectado."}})
-      {:status 404 :body {:erro "Nenhuma conexão com o Google para esta clínica."}})))
+  (let [clinica-id (get-in request [:identity :clinica_id])
+        usuario-id (try
+                     (some-> (get-in request [:body :usuario_id]) str
+                             java.util.UUID/fromString)
+                     (catch Exception _ nil))]
+    (cond
+      (nil? usuario-id)
+      {:status 400 :body {:erro "usuario_id é obrigatório."
+                          :code "usuario_id_invalido"}}
+
+      :else
+      (if-let [conexao (conexao-do-usuario clinica-id usuario-id)]
+        (do
+          (try
+            (oauth/revogar (cripto/decifrar-token (:refresh_token_cifrado conexao)))
+            (catch Exception e
+              (log/warn e "google_token_revoke_failed")))
+          (jdbc/with-transaction [tx @datasource]
+            (sql/update! tx :vinculo_agenda {:status "pausado"}
+                         {:clinica_id clinica-id :usuario_id usuario-id})
+            (sql/delete! tx :google_conexao {:id (:id conexao)}))
+          {:status 200 :body {:message "Google Agenda da psicóloga desconectado."}})
+        {:status 404 :body {:erro "Conexão da psicóloga não encontrada nesta clínica."
+                            :code "conexao_nao_encontrada"}}))))
 
 ;; ---------------------------------------------------------------------------
 ;; Agendas e vínculos
