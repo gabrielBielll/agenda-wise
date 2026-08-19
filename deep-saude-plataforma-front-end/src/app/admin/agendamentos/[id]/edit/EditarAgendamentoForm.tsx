@@ -123,6 +123,27 @@ export default function EditarAgendamentoForm({
 
   const [state, formAction] = useFormState(clientWrapperAction, initialState);
 
+  /**
+   * ## A-022 — por que estes campos são controlados
+   *
+   * `<form action={formAction}>` **reseta os campos descontrolados quando a ação
+   * termina, e não distingue sucesso de falha.** Em tela de edição o reset devolve
+   * os campos ao `defaultValue` — aos dados antigos. A alteração some e a tela
+   * fica com cara de intacta, que é pior de notar do que um campo em branco.
+   *
+   * Mesma causa e mesmo conserto da A-010.
+   */
+  const [campos, setCampos] = React.useState({
+    valor_consulta: String((agendamento.valor_consulta) ?? ""),
+    paciente_id: String((agendamento.paciente_id) ?? ""),
+    psicologo_id: String((agendamento.psicologo_id) ?? ""),
+    status: String((agendamento.status || "agendado") ?? ""),
+  });
+  const mudar =
+    (nome: keyof typeof campos) =>
+    (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+      setCampos((c) => ({ ...c, [nome]: e.target.value }));
+
   const handleConfirmMode = (mode: string) => {
     if (pendingFormData) {
         pendingFormData.set('mode', mode);
@@ -191,7 +212,7 @@ export default function EditarAgendamentoForm({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="paciente_id">Paciente</Label>
-            <Select name="paciente_id" defaultValue={agendamento.paciente_id} required>
+            <Select name="paciente_id" required value={campos.paciente_id} onValueChange={(v) => setCampos((c) => ({ ...c, paciente_id: v }))}>
               {/* id liga ao <Label htmlFor="paciente_id">: o SelectTrigger é um
                   combobox, e combobox não tira nome do conteúdo. */}
               <SelectTrigger id="paciente_id">
@@ -208,7 +229,7 @@ export default function EditarAgendamentoForm({
 
           <div className="space-y-2">
             <Label htmlFor="psicologo_id">Psicólogo</Label>
-            <Select name="psicologo_id" defaultValue={agendamento.psicologo_id} required>
+            <Select name="psicologo_id" required value={campos.psicologo_id} onValueChange={(v) => setCampos((c) => ({ ...c, psicologo_id: v }))}>
               {/* Mesmo motivo do paciente_id acima. */}
               <SelectTrigger id="psicologo_id">
                 <SelectValue placeholder="Selecione um psicólogo" />
@@ -261,15 +282,13 @@ export default function EditarAgendamentoForm({
                     type="number" 
                     step="0.01" 
                     min="0" 
-                    placeholder="0.00" 
-                    defaultValue={agendamento.valor_consulta}
-                    required 
-                />
+                    placeholder="0.00"
+                    required value={campos.valor_consulta} onChange={mudar("valor_consulta")} />
                 {state.errors?.valor_consulta && <p className="text-sm font-medium text-destructive">{state.errors.valor_consulta[0]}</p>}
             </div>
             <div className="space-y-2">
               <Label htmlFor="status">Status</Label>
-              <Select name="status" defaultValue={agendamento.status || "agendado"}>
+              <Select name="status" value={campos.status} onValueChange={(v) => setCampos((c) => ({ ...c, status: v }))}>
                 {/* Mesmo motivo do paciente_id: sem id, este combobox fica sem nome. */}
                 <SelectTrigger id="status">
                   <SelectValue placeholder="Selecione o status" />

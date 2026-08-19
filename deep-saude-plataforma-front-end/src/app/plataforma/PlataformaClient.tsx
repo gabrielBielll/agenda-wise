@@ -87,6 +87,28 @@ export default function PlataformaClient({ estado }: { estado: Estado }) {
   const [dialogoAberto, setDialogoAberto] = useState(false);
   const [state, formAction] = useFormState(criarClinica, estadoInicial);
 
+  /**
+   * ## A-022 — por que estes campos são controlados
+   *
+   * `<form action={formAction}>` **reseta os campos descontrolados quando a ação
+   * termina, e não distingue sucesso de falha.** Numa tela de criação isso apaga
+   * tudo que foi digitado quando o salvamento é recusado.
+   *
+   * Com `value`/`onChange` o React reaplica o estado depois do reset. Mesma causa
+   * e mesmo conserto da A-010.
+   */
+  const [campos, setCampos] = React.useState({
+    nome_clinica: "",
+    limite_psicologos: "5",
+    nome_admin: "",
+    email_admin: "",
+    senha_admin: "",
+  });
+  const mudar =
+    (nome: keyof typeof campos) =>
+    (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+      setCampos((c) => ({ ...c, [nome]: e.target.value }));
+
   useEffect(() => {
     if (!state.message) return;
     if (state.success) {
@@ -164,7 +186,7 @@ export default function PlataformaClient({ estado }: { estado: Estado }) {
             <form action={formAction} className="grid gap-4 py-2">
               <div className="grid gap-2">
                 <Label htmlFor="nome_clinica">Nome da clínica</Label>
-                <Input id="nome_clinica" name="nome_clinica" required />
+                <Input id="nome_clinica" name="nome_clinica" required value={campos.nome_clinica} onChange={mudar("nome_clinica")} />
                 {state.errors?.nome_clinica && (
                   <p className="text-xs text-destructive">{state.errors.nome_clinica[0]}</p>
                 )}
@@ -172,7 +194,7 @@ export default function PlataformaClient({ estado }: { estado: Estado }) {
 
               <div className="grid gap-2">
                 <Label htmlFor="limite_psicologos">Limite de psicólogos</Label>
-                <Input id="limite_psicologos" name="limite_psicologos" type="number" min={1} max={1000} defaultValue={5} required />
+                <Input id="limite_psicologos" name="limite_psicologos" type="number" min={1} max={1000} required value={campos.limite_psicologos} onChange={mudar("limite_psicologos")} />
                 {state.errors?.limite_psicologos && (
                   <p className="text-xs text-destructive">{state.errors.limite_psicologos[0]}</p>
                 )}
@@ -180,7 +202,7 @@ export default function PlataformaClient({ estado }: { estado: Estado }) {
 
               <div className="grid gap-2">
                 <Label htmlFor="nome_admin">Nome do administrador</Label>
-                <Input id="nome_admin" name="nome_admin" required />
+                <Input id="nome_admin" name="nome_admin" required value={campos.nome_admin} onChange={mudar("nome_admin")} />
                 {state.errors?.nome_admin && (
                   <p className="text-xs text-destructive">{state.errors.nome_admin[0]}</p>
                 )}
@@ -188,7 +210,7 @@ export default function PlataformaClient({ estado }: { estado: Estado }) {
 
               <div className="grid gap-2">
                 <Label htmlFor="email_admin">E-mail do administrador</Label>
-                <Input id="email_admin" name="email_admin" type="email" required />
+                <Input id="email_admin" name="email_admin" type="email" required value={campos.email_admin} onChange={mudar("email_admin")} />
                 {state.errors?.email_admin && (
                   <p className="text-xs text-destructive">{state.errors.email_admin[0]}</p>
                 )}
@@ -196,7 +218,7 @@ export default function PlataformaClient({ estado }: { estado: Estado }) {
 
               <div className="grid gap-2">
                 <Label htmlFor="senha_admin">Senha do administrador</Label>
-                <Input id="senha_admin" name="senha_admin" type="password" minLength={8} required />
+                <Input id="senha_admin" name="senha_admin" type="password" minLength={8} required value={campos.senha_admin} onChange={mudar("senha_admin")} />
                 <p className="text-xs text-muted-foreground">Ao menos 8 caracteres.</p>
                 {state.errors?.senha_admin && (
                   <p className="text-xs text-destructive">{state.errors.senha_admin[0]}</p>

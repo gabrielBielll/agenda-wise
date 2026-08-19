@@ -75,6 +75,40 @@ export default function NovoAgendamentoForm({
   const [state, formAction] = useFormState(createAgendamento, initialState);
 
   /**
+   * ## A-022 — por que estes campos são controlados
+   *
+   * `<form action={formAction}>` **reseta os campos descontrolados quando a ação
+   * termina, e não distingue sucesso de falha.** Numa tela de criação isso apaga
+   * tudo que foi digitado quando o salvamento é recusado.
+   *
+   * Com `value`/`onChange` o React reaplica o estado depois do reset. Mesma causa
+   * e mesmo conserto da A-010.
+   */
+  const [campos, setCampos] = React.useState({
+    valor_consulta: "",
+    quantidade_recorrencia: "4",
+  });
+  /**
+   * ⚠️ O teto de 150 vivia em três escritas diretas no DOM: um `onInput` que
+   * fazia `input.value = "150"` e dois atalhos com `getElementById(...).value`.
+   *
+   * Num campo controlado nada disso gruda — o React reaplica o estado no render
+   * seguinte e o valor escrito à mão some. Então o limite passa a morar aqui, no
+   * único lugar que manda agora, e os três caminhos usam a mesma função.
+   */
+  const setQuantidade = (bruto: string) =>
+    setCampos((c) => ({
+      ...c,
+      quantidade_recorrencia:
+        bruto && parseInt(bruto) > 150 ? "150" : bruto,
+    }));
+
+  const mudar =
+    (nome: keyof typeof campos) =>
+    (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+      setCampos((c) => ({ ...c, [nome]: e.target.value }));
+
+  /**
    * A-009 — o terceiro passo da R-006, que não tinha tela.
    *
    * A psicóloga tenta, é recusada e o modal manda procurar a gestão. A gestão
@@ -374,7 +408,7 @@ export default function NovoAgendamentoForm({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="valor_consulta">Valor (R$)</Label>
-            <Input id="valor_consulta" name="valor_consulta" type="number" step="0.01" min="0" placeholder="0.00" required />
+            <Input id="valor_consulta" name="valor_consulta" type="number" step="0.01" min="0" placeholder="0.00" required value={campos.valor_consulta} onChange={mudar("valor_consulta")} />
             {state.errors?.valor_consulta && <p className="text-sm font-medium text-destructive">{state.errors.valor_consulta[0]}</p>}
           </div>
 
@@ -405,14 +439,10 @@ export default function NovoAgendamentoForm({
                   type="number" 
                   min="2" 
                   max="150" 
-                  defaultValue="4" 
                   required={recorrenciaTipo !== "none"}
                   className="w-24"
-                  onInput={(e) => {
-                      const input = e.currentTarget;
-                      if (input.value && parseInt(input.value) > 150) input.value = "150";
-                  }}
-                />
+                  value={campos.quantidade_recorrencia}
+                  onChange={(e) => setQuantidade(e.target.value)} />
                  <div className="flex flex-col justify-center text-xs gap-1">
                       <button 
                           type="button"
@@ -433,8 +463,7 @@ export default function NovoAgendamentoForm({
                                   count = Math.floor(diffDays / 14);
                               }
                               
-                              const input = document.getElementById('quantidade_recorrencia') as HTMLInputElement;
-                              if (input) input.value = Math.min(Math.max(count, 1), 150).toString();
+                              setQuantidade(Math.min(Math.max(count, 1), 150).toString());
                           }}
                       >
                           Até o fim de {new Date().getFullYear()}
@@ -458,8 +487,7 @@ export default function NovoAgendamentoForm({
                                   count = Math.floor(diffDays / 14);
                               }
                               
-                              const input = document.getElementById('quantidade_recorrencia') as HTMLInputElement;
-                              if (input) input.value = Math.min(Math.max(count, 1), 150).toString();
+                              setQuantidade(Math.min(Math.max(count, 1), 150).toString());
                           }}
                       >
                           Até o fim de {new Date().getFullYear() + 1}
