@@ -65,34 +65,40 @@
           (log/error e "prontuario_create_failed")
           {:status 500 :body {:erro "Erro interno."}})))))
 
-(defn- pode-ler?
-  "Só o psicólogo do paciente lê. Nem o admin da clínica, nem outro psicólogo.
-   A exceção de emergência é recebida explicitamente do código que compõe a
-   aplicação; ela não vem de ambiente nem de configuração externa."
-  [super-admin-le? papel usuario-id paciente]
+(defn- pode-ler-normalmente? [papel usuario-id paciente]
+  (and (= papel "psicologo")
+       (= (:psicologo_id paciente) usuario-id)))
+
+(defn- flag-foi-decisiva? [super-admin-le? papel usuario-id paciente]
+  (and super-admin-le?
+       (not (pode-ler-normalmente? papel usuario-id paciente))))
+
+(defn- pode-ler? [super-admin-le? papel usuario-id paciente]
   (or super-admin-le?
-      (and (= papel "psicologo")
-           (= (:psicologo_id paciente) usuario-id))))
+      (pode-ler-normalmente? papel usuario-id paciente)))
+
+(defn- registrar-acesso-por-flag! [clinica-id paciente-id usuario-id papel]
+  (try
+    (execute-one!
+     ["INSERT INTO acesso_prontuario
+         (clinica_id, paciente_id, usuario_id, papel, motivo)
+       VALUES (?, ?, ?, ?, 'flag_super_admin')"
+      clinica-id paciente-id usuario-id papel])
+    (catch Exception e
+      (log/with-context {:auditoria "acesso_prontuario"}
+        (log/error e "prontuario_audit_write_failed")))))
 
 (defn listar-handler
   "Lista os prontuários de um paciente. A aridade de 1 é a segura, e é a que
    qualquer chamador novo deve usar.
 
-   ⚠️ **A aridade de 2 é a saída de emergência da R-012, e ela é perigosa por
-   ser fácil de escrever.** Passar `true` ali libera a leitura de prontuário
-   alheio, e o call site fica com cara de detalhe de implementação — muito mais
-   fácil de aprovar numa revisão do que a alternativa, que é ligar a flag
-   documentada em `core.clj`.
+   ⚠️ A aridade de 2 é a saída de emergência da R-012. Passar `true` libera a
+   leitura alheia apenas porque a flag documentada em `core.clj` foi ligada em
+   código e implantada. O acesso é registrado quando a flag foi decisiva; falha
+   ao registrar aparece como erro alto, mas não derruba a leitura de emergência.
 
-   Hoje existe **um único** chamador legítimo com dois argumentos:
-   `core/listar-prontuarios-handler`, que passa `super-admin-le-prontuario?` —
-   um `def` privado, `false`, com o aviso da R-012 ao lado e um teste que o
-   fixa desligado.
-
-   **Se você está prestes a escrever `(listar-handler req true)` em qualquer
-   outro lugar, não escreva.** A R-012 diz que ler prontuário alheio exige
-   alteração de código e implantação, e é a inconveniência que dá sentido à
-   regra; um argumento booleano não é inconveniência nenhuma."
+   Existe um único chamador legítimo com dois argumentos:
+   `core/listar-prontuarios-handler`. Não crie outro call site com `true`."
   ([request] (listar-handler request false))
   ([request super-admin-le?]
    (let [identity (:identity request)
@@ -115,6 +121,8 @@
                               WHERE p.paciente_id = ? AND p.clinica_id = ?
                               ORDER BY p.data_registro DESC"
                              paciente-id clinica-id])]
+           (when (flag-foi-decisiva? super-admin-le? papel usuario-id paciente)
+             (registrar-acesso-por-flag! clinica-id paciente-id usuario-id papel))
            {:status 200 :body prontuarios}))))))
 
 (defn remover-handler [request]

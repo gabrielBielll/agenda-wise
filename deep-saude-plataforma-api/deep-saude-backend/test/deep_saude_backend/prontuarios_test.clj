@@ -21,8 +21,10 @@
             [environ.core :refer [env]]
             [migratus.core :as migratus]
             [next.jdbc :as jdbc]
+            [taoensso.timbre :as log]
             [deep-saude-backend.core :as core]
             [deep-saude-backend.db :as db]
+            [deep-saude-backend.prontuarios :as prontuarios]
             ;; Só pela guarda `exigir-banco-de-teste!`. Ela é o que impede um
             ;; DELETE de cair no banco errado, e duplicar função de segurança é
             ;; pior do que depender de outro namespace de teste.
@@ -53,6 +55,7 @@
                       paciente clinica psicologo])))
 
 (defn- limpar! []
+  (db/execute-one! ["DELETE FROM acesso_prontuario"])
   (db/execute-one! ["DELETE FROM prontuarios"]))
 
 (defn com-banco-de-teste [f]
@@ -103,6 +106,9 @@
 
 (defn- quantos [] (:c (db/execute-one! ["SELECT count(*) AS c FROM prontuarios"])))
 
+(defn- quantos-acessos []
+  (:c (db/execute-one! ["SELECT count(*) AS c FROM acesso_prontuario"])))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Leitura — A-003
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -141,6 +147,57 @@
       (finally
         (alter-var-root v (constantly false))))))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Auditoria da saída de emergência
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(deftest flag-decisiva-grava-o-acesso
+  (semear-prontuario!)
+  (let [resp (prontuarios/listar-handler
+              {:identity (identidade admin "admin_clinica")
+               :params {:paciente-id (str paciente)}} true)
+        acesso (db/execute-one!
+                ["SELECT clinica_id, paciente_id, usuario_id, papel, motivo, lido_em
+                    FROM acesso_prontuario LIMIT 1"])]
+    (is (= 200 (:status resp)))
+    (is (= 1 (quantos-acessos)))
+    (is (= clinica (:clinica_id acesso)))
+    (is (= paciente (:paciente_id acesso)))
+    (is (= admin (:usuario_id acesso)))
+    (is (= "admin_clinica" (:papel acesso)))
+    (is (= "flag_super_admin" (:motivo acesso)))
+    (is (some? (:lido_em acesso)))))
+
+(deftest flag-ligada-nao-grava-acesso-normal-do-autor
+  (semear-prontuario!)
+  (let [resp (prontuarios/listar-handler
+              {:identity (identidade psicologo "psicologo")
+               :params {:paciente-id (str paciente)}} true)]
+    (is (= 200 (:status resp)))
+    (is (zero? (quantos-acessos)))))
+
+(deftest leitura-negada-nao-grava-acesso
+  (semear-prontuario!)
+  (is (= 403 (:status (listar-como admin "admin_clinica"))))
+  (is (zero? (quantos-acessos))))
+(deftest falha-ao-gravar-auditoria-nao-derruba-leitura-e-aparece-no-log
+  (semear-prontuario!)
+  (let [execute-original db/execute-one!
+        eventos (atom [])]
+    (log/with-config {:min-level :trace
+                      :appenders {:captura {:enabled? true
+                                            :fn #(swap! eventos conj %)}}}
+      (with-redefs [db/execute-one!
+                    (fn [sql-params]
+                      (if (re-find #"INSERT INTO acesso_prontuario" (first sql-params))
+                        (throw (ex-info "falha de auditoria de teste" {}))
+                        (execute-original sql-params)))]
+        (is (= 200 (:status
+                    (prontuarios/listar-handler
+                     {:identity (identidade admin "admin_clinica")
+                      :params {:paciente-id (str paciente)}} true))))))
+    (is (some #(= "prontuario_audit_write_failed" (force (:msg_ %))) @eventos)
+        "falha de auditoria precisa aparecer no log estruturado")))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Exclusão
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
