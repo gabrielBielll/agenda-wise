@@ -51,8 +51,18 @@ spinner. Corrigido em `1ce5f79`.
 
 ## 2. O que foi feito com o seu redesign
 
-✅ **Está no branch do PR #7**, junto com as 280 correções. O Northflank constrói
-esse branch — confirmado por um status de build chegando no sha do branch.
+✅ **Está no branch do PR #7**, junto com as 280 correções.
+
+⚠️ **O que eu NÃO consigo confirmar daqui, e é a sua primeira conferência:** se o
+Northflank está mesmo construindo **este branch**. Eu vi um status de build
+chegar no sha do branch mais cedo na noite, mas fui olhar de novo agora e não há
+status nenhum no topo — o que pode ser só *"o commit é recente demais"* ou pode
+ser *"parou de construir"*. **Não dá para distinguir os dois daqui**: o proxy
+desta sandbox nega `*.code.run`, então eu não abro nem o painel nem o site.
+
+📌 **Se o link abrir com o design antigo**, a pergunta não é "o trabalho não
+subiu" — é **qual branch o serviço está construindo**. Todo o trabalho da noite
+está em `claude/google-calendar-integration-arch-7tvhae`, não em `main`.
 
 **O que a `vale` fechou:** as oito telas que o seu commit não alcançou. E ela
 restilizou o **primitivo** `components/ui/table.tsx`, então **toda tabela do app
