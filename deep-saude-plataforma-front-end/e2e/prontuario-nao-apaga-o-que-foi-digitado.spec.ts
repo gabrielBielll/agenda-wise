@@ -251,6 +251,15 @@ test.describe('A-022 — o cadastro de paciente sobrevive a uma falha ao salvar'
  * não disputa corrida com a hidratação. O clique fica só como segunda tentativa,
  * agora com o nome certo.
  */
+/** Entra como a psicóloga dona da agenda semeada. */
+async function entrarComoPsicologa(page: import('@playwright/test').Page) {
+  await page.goto('/');
+  await page.locator('#email').fill(CONTA.psicologoEmail);
+  await page.locator('#password').fill(CONTA.psicologoSenha);
+  await page.getByRole('button', { name: /^entrar/i }).click();
+  await page.waitForURL(/\/dashboard/, { timeout: 90_000 });
+}
+
 async function abrirDialogoDeSessao(page: import('@playwright/test').Page) {
   const dialogo = page.getByRole('dialog').filter({ hasText: /paciente/i });
   await page.goto('/calendar?nova=1');
@@ -269,6 +278,29 @@ async function abrirDialogoDeSessao(page: import('@playwright/test').Page) {
 }
 
 test.describe('A-022 — o que foi digitado sobrevive à recusa por conflito', () => {
+  /**
+   * 🔴 **Como a psicóloga, e não com a sessão de admin salva. Isto é o conserto
+   * de uma instabilidade que passava verde pelo motivo errado.**
+   *
+   * O diálogo do calendário **não tem seletor de psicólogo** — conferido, zero
+   * ocorrências de `name="psicologo_id"` em `CalendarClient.tsx`. A sessão nasce
+   * para quem está logado. Rodando como admin, ela ia para a agenda do ADMIN, e
+   * a sessão semeada é da PSICÓLOGA: agendas diferentes, conflito nenhum.
+   *
+   * ⚠️ E aí o teste ficava instável de um jeito perverso: a primeira tentativa
+   * **criava** a sessão em silêncio, e a repetição conflitava com o que a
+   * primeira tinha acabado de criar. Ele passava — pelo conflito errado, e
+   * deixando um agendamento fantasma no banco a cada execução do CI.
+   *
+   * 📌 Dois runs dizendo `1 flaky` foram o que me fez olhar: falhar sempre no
+   * mesmo ponto e passar sempre na segunda não é ruído, é estado mudando entre
+   * as duas.
+   *
+   * Como a psicóloga, o conflito é com a sessão semeada — que é o cenário que a
+   * A-022 quer, e não depende de nada ter sido criado antes.
+   */
+  test.use({ storageState: { cookies: [], origins: [] } });
+
   test('o diálogo da sessão continua preenchido depois do conflito', async ({ page }) => {
     const { dia, paciente } = dadosSemeados();
     const [h, m] = HORA_DA_SESSAO.split(':').map(Number);
@@ -277,6 +309,7 @@ test.describe('A-022 — o que foi digitado sobrevive à recusa por conflito', (
     const inicio = `${dia}T${HORA_DA_SESSAO}`;
     const NOTA = 'Trazer o registro de sono desta semana.';
 
+    await entrarComoPsicologa(page);
     const dialogo = await abrirDialogoDeSessao(page);
 
     const gatilhoPaciente = dialogo.getByRole('combobox').first();
