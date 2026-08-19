@@ -276,7 +276,7 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
         toast({
             title: "Sucesso",
             description: state.message,
-            className: "bg-green-500 text-white",
+            className: "bg-success text-success-foreground",
         });
         
         // Step 1: close dialogs (starts Radix close animation)
@@ -426,7 +426,7 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
     hideLoading();
 
     if (result?.success) {
-      toast({ title: "Sucesso", description: result.message, className: "bg-green-500 text-white" });
+      toast({ title: "Sucesso", description: result.message, className: "bg-success text-success-foreground" });
       setIsBlockDialogOpen(false);
       setNewAppointmentDate(null);
       return;
@@ -452,7 +452,7 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
     const result = await deleteBloqueio(id, mode);
     hideLoading();
     if (result.success) {
-      toast({ title: "Sucesso", description: result.message, className: "bg-green-500 text-white" });
+      toast({ title: "Sucesso", description: result.message, className: "bg-success text-success-foreground" });
       setIsConfirmDeleteBlockOpen(false);
     } else {
       toast({ title: "Erro", description: result.message, variant: "destructive" });
@@ -494,7 +494,7 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
           toast({
               title: "Sucesso",
               description: result.message,
-              className: "bg-green-500 text-white",
+              className: "bg-success text-success-foreground",
           });
           setApptToDelete(null);
           setIsDialogOpen(false);
@@ -539,7 +539,7 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
       toast({
         title: "Sessão Reativada",
         description: result.message,
-        className: "bg-green-500 text-white",
+        className: "bg-success text-success-foreground",
       });
       setIsDialogOpen(false);
       setEditingAppointment(null);
@@ -845,7 +845,7 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                                 type="button" 
                                 variant="outline" 
                                 size="sm" 
-                                className="h-8 border-green-600 text-green-600 hover:bg-green-50"
+                                className="h-8 border-success text-success hover:bg-success/10"
                                 onClick={() => handleReactivate(editingAppointment.id)}
                             >
                                 ⟳ Reativar

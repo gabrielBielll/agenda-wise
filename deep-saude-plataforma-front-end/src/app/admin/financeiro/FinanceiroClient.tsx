@@ -256,7 +256,7 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
           toast({
               title: "Sessão atualizada",
               description: `Status alterado para ${newStatus === 'realizado' ? 'Realizada' : newStatus === 'cancelado' ? 'Cancelada' : 'Agendada'}.`,
-              className: "bg-green-500 text-white"
+              className: "bg-success text-success-foreground"
           });
 
       } catch (error: any) {
@@ -294,7 +294,7 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
           toast({
               title: "Pagamento atualizado",
               description: newStatus === 'pago' ? 'Marcado como Pago.' : 'Marcado como Pendente.',
-              className: "bg-green-500 text-white"
+              className: "bg-success text-success-foreground"
           });
 
       } catch (error: any) {
@@ -337,7 +337,7 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
           toast({
               title: "Repasse atualizado",
               description: newStatus === 'transferido' ? 'Marcado como Transferido.' : 'Marcado como Disponível.',
-              className: "bg-green-500 text-white"
+              className: "bg-success text-success-foreground"
           });
 
       } catch (error: any) {
@@ -376,7 +376,7 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
           toast({
               title: "Valor atualizado",
               description: `Novo valor: ${formatCurrency(newValor)}`,
-              className: "bg-green-500 text-white"
+              className: "bg-success text-success-foreground"
           });
 
       } catch (error: any) {
@@ -473,7 +473,7 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
     toast({
       title: "Exportado!",
       description: `${filteredData.length} registros exportados para CSV.`,
-      className: "bg-green-500 text-white"
+      className: "bg-success text-success-foreground"
     });
   };
 
@@ -552,7 +552,7 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
     toast({
       title: "Transferência em lote concluída",
       description: `${successCount} repasse(s) transferido(s)${errorCount > 0 ? `, ${errorCount} erro(s)` : ''}.`,
-      className: successCount > 0 ? "bg-green-500 text-white" : "bg-red-500 text-white"
+      className: successCount > 0 ? "bg-success text-success-foreground" : "bg-destructive text-destructive-foreground"
     });
   };
 
@@ -610,7 +610,7 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
     toast({
       title: "Atualização em lote concluída",
       description: `${successCount} item(s) atualizado(s)${errorCount > 0 ? `, ${errorCount} erro(s)` : ''}.`,
-      className: successCount > 0 ? "bg-green-500 text-white" : "bg-red-500 text-white"
+      className: successCount > 0 ? "bg-success text-success-foreground" : "bg-destructive text-destructive-foreground"
     });
   };
 
@@ -675,7 +675,7 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
         toast({
           title: "Atualizado!",
           description: `Campo ${field === 'nota_fiscal' ? 'Nota Fiscal' : field === 'tipo_pagamento' ? 'Tipo' : field === 'origem' ? 'Origem' : 'Vencimento'} atualizado com sucesso.`,
-          className: "bg-green-500 text-white"
+          className: "bg-success text-success-foreground"
         });
       } else {
         toast({
@@ -942,7 +942,7 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
                         <TableRow key={name}>
                             <TableCell className="font-medium">{name}</TableCell>
                             <TableCell className="text-right">{stats.count}</TableCell>
-                            <TableCell className="text-right font-bold text-green-700">
+                            <TableCell className="text-right font-bold text-success">
                                 {formatCurrency(stats.total)}
                             </TableCell>
                             <TableCell className="text-right font-medium text-orange-600">
@@ -1075,7 +1075,7 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
                             size="sm"
                             className={cn(
                                 "h-8 px-2 text-xs font-medium",
-                                getEffectivePagamento(ag) === 'pago' ? "text-green-600 hover:text-green-700" : "text-red-500 hover:text-red-600"
+                                getEffectivePagamento(ag) === 'pago' ? "text-success hover:text-success/80" : "text-destructive hover:text-destructive/80"
                             )}
                             onClick={() => handleUpdatePagamento(ag.id, ag.status_pagamento)}
                         >
@@ -1092,7 +1092,7 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
                                 size="sm"
                                 className={cn(
                                     "h-8 px-2 text-xs font-medium",
-                                    ag.status_repasse === 'transferido' ? "text-green-600 hover:text-green-700" : "text-blue-600 hover:text-blue-700"
+                                    ag.status_repasse === 'transferido' ? "text-success hover:text-success/80" : "text-blue-600 hover:text-blue-700"
                                 )}
                                 onClick={() => handleUpdateRepasseStatus(ag.id, ag.status_repasse)}
                             >
@@ -1107,7 +1107,7 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
                         size="sm"
                         className={cn(
                           "h-7 px-2 text-xs font-medium",
-                          ag.nota_fiscal ? "text-green-600 hover:text-green-700" : "text-muted-foreground hover:text-foreground"
+                          ag.nota_fiscal ? "text-success hover:text-success/80" : "text-muted-foreground hover:text-foreground"
                         )}
                         onClick={() => handleUpdatePatientField(ag.paciente_id, 'nota_fiscal', !ag.nota_fiscal)}
                       >
@@ -1177,12 +1177,12 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
                                     setEditingValorId(null);
                                 }}
                                 onKeyDown={(e) => handleValorKeyPress(e, ag.id)}
-                                className="w-24 h-8 text-right font-bold text-green-700"
+                                className="w-24 h-8 text-right font-bold text-success"
                                 autoFocus
                             />
                         ) : (
                             <span 
-                                className="font-bold text-green-700 cursor-pointer hover:bg-gray-100 px-2 py-1 rounded"
+                                className="font-bold text-success cursor-pointer hover:bg-gray-100 px-2 py-1 rounded"
                                 onClick={() => {
                                     setEditingValorId(ag.id);
                                     setEditingValorValue(String(Number(ag.valor_consulta)));

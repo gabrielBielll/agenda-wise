@@ -254,6 +254,24 @@ jobs:
           NEXTAUTH_URL: http://localhost:9002
         run: npm run build
 
+      - name: os tokens de cor materializaram no CSS
+        # 🔴 `next build` verde NAO prova esta parte, e por isso este passo existe.
+        # Classe de Tailwind que nao esta na config nao vira erro de build: vira
+        # CSS nenhum. O toast ficaria transparente e o build seguiria verde — a
+        # familia de defeito deste projeto, sinal de sucesso sem verificacao.
+        # Este passo e o controle positivo do `--success`: ele falha se a classe
+        # nao existir de verdade no bundle.
+        run: |
+          set -euo pipefail
+          css=$(find .next -name '*.css' -path '*static*' | tr '\n' ' ')
+          test -n "$css" || { echo "::error::o build nao emitiu CSS nenhum"; exit 1; }
+          faltou=0
+          for alvo in '--success:' '--success-foreground:' '.bg-success{' '.text-success{' '.bg-destructive{'; do
+            grep -qF -- "$alvo" $css || { echo "::error::faltou no CSS compilado: $alvo"; faltou=1; }
+          done
+          test "$faltou" -eq 0 || exit 1
+          echo "ok: --success nos dois temas, .bg-success e .text-success gerados"
+
   navegador:
     name: Navegador — Playwright (o que a pico levou embora)
     runs-on: ubuntu-24.04

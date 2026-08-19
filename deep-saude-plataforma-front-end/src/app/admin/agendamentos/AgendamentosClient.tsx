@@ -129,7 +129,7 @@ export default function AgendamentosClient({
     const result = await createBloqueioAdmin(blockStart, blockEnd, blockPsicologoId, blockMotivo, false, blockRecurrenceType, blockRecurrenceCount);
 
     if (result.success) {
-        toast({ title: "Sucesso", description: result.message, className: "bg-green-500 text-white" });
+        toast({ title: "Sucesso", description: result.message, className: "bg-success text-success-foreground" });
         setIsBlockDialogOpen(false);
         // Reset fields
         setBlockStart("");
@@ -162,7 +162,7 @@ export default function AgendamentosClient({
 
       const result = await deleteBloqueioAdmin(deleteData.id, mode);
       if (result.success) {
-          toast({ title: "Sucesso", description: result.message, className: "bg-green-500 text-white" });
+          toast({ title: "Sucesso", description: result.message, className: "bg-success text-success-foreground" });
           setIsDeleteDialogOpen(false);
           setDeleteData(null);
       } else {
@@ -185,7 +185,7 @@ export default function AgendamentosClient({
           toast({
               title: "Sucesso",
               description: result.message,
-              className: "bg-green-500 text-white",
+              className: "bg-success text-success-foreground",
           });
           setIsDeleteAgendamentoOpen(false);
           setAgendamentoToDelete(null);
