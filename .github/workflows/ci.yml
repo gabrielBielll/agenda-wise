@@ -388,7 +388,21 @@ jobs:
           # regravar à toa também impede consertar"*. A gente fechou o caso do
           # download morto no meio; não fechou o do acerto inútil, e a única
           # saída para ele é abandonar a chave. Bump aqui quando desconfiar.
-          key: playwright-v2-${{ runner.os }}-${{ hashFiles('deep-saude-plataforma-front-end/package-lock.json') }}
+          #
+          # 🔴 A âncora não é enfeite: ela é o conserto de um defeito que já
+          # aconteceu. O `v2` foi posto AQUI e não no `save`, que continuou
+          # gravando `playwright-` (v1). O resultado é que o cache não tinha como
+          # funcionar em nenhuma execução:
+          #
+          #   restore procura `playwright-v2-…`  → nunca existiu    → sempre erra
+          #   save grava      `playwright-…`     → chave v1 travada → "Unable to
+          #                                        reserve cache"
+          #
+          # Medido em 19/08 nos runs 32231572392 e 32232479721: os dois verdes,
+          # os dois com `Cache save failed`, e os dois pagando ~5 min de download
+          # do Chromium. Com a âncora, bumpar a versão passa a ser impossível de
+          # fazer pela metade — é uma linha só, e o `save` recebe a mesma.
+          key: &chave-do-chromium playwright-v2-${{ runner.os }}-${{ hashFiles('deep-saude-plataforma-front-end/package-lock.json') }}
 
       # 📌 Este passo existe porque em 19/08 eu fiquei sem conseguir distinguir
       # duas explicações que **produzem o mesmo sintoma**: "o cache acertou e veio
@@ -473,7 +487,8 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('deep-saude-plataforma-front-end/package-lock.json') }}
+          # Mesma chave do `restore`, por construção — ver a âncora lá em cima.
+          key: *chave-do-chromium
 
       - name: npm run e2e
         working-directory: deep-saude-plataforma-front-end

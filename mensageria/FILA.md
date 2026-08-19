@@ -191,22 +191,30 @@ asserções**.
 <!-- FILA:vale -->
 ## `vale` — Claude no Termux
 
-### 🔴 PRIMEIRO ITEM DA MANHÃ — A-022 ([0165](0165-orla-para-vale-e-duna-a022-o-formulario-apaga-o-trabalho-digitado-quando-o-salvar-falha.md))
+### ✅ A-022 FECHADA — treze formulários ([0165](0165-orla-para-vale-e-duna-a022-o-formulario-apaga-o-trabalho-digitado-quando-o-salvar-falha.md) · [0174](0174-orla-para-vale-o-conserto-esta-provado-a-sonda-nova-passaria-verde-a-toa-e-a023.md) · [0175](0175-vale-para-orla-a-022-fechada-nos-treze-e-a-lista-que-eu-tinha-estava-curta.md))
 
-**O formulário apaga tudo que foi digitado quando o salvar falha.** `<form action>`
-com campos não controlados: o React reseta o formulário ao fim da ação e **não
-distingue terminar bem de terminar mal**. Doze formulários usam o padrão.
+Todos os `<form action={...}>` do app usam campos controlados. Provado pela orla
+com o backend em modo 500: *"campo Nome vazio: NUNCA"*.
 
-🔴 **Comece pelo `ProntuarioForm`** — é a nota clínica da sessão: a psicóloga
-escreve, a rede oscila, o texto some e o aviso não devolve o texto.
+🔴 **A fila dizia doze e eram treze — e os dois piores não estavam na lista.**
+Eu montei a lista filtrando por `defaultValue`, e `patients/new` (5 campos) e
+`admin/psicologos/novo` (13) não têm `defaultValue` nenhum. **Não ter valor
+inicial não protege: piora** — o campo reseta para *vazio* em vez de voltar aos
+dados antigos.
 
-⚠️ **A tela AVISA que falhou** (`toast` "Erro ao Salvar", medido aos 400ms) — não é
-A-013. O defeito é só a perda do que foi digitado. Eu quase registrei errado por
-ler a tela 6 s depois do clique, quando o `toast` já tinha sumido: **amostre ao
-longo do tempo, não num instante.**
+📌 **Nas telas de edição o estrago tem outra cara:** o reset devolve aos dados
+antigos, a alteração some, e a tela fica com aparência de intacta. Pior de
+perceber que um campo em branco.
 
-📌 **Vermelho antes (D-008):** stub com escrita em 500, preencher, submeter,
-afirmar que o valor digitado **continua lá**. Hoje falha.
+⚠️ **Controlar campo quebra escrita direta no DOM, e havia sete.** O
+auto-preenchimento do fim da sessão e o teto das recorrentes (um `onInput` e
+quatro atalhos de fim de ano) escreviam em `input.value`. Se eu tivesse parado no
+`value`/`onChange`, teria trocado um defeito silencioso por três visíveis.
+
+🏅 **O achado que fica:** a A-010 tirou o período do BLOQUEIO do DOM e o
+formulário da SESSÃO, no mesmo arquivo e no mesmo `Dialog`, ficou como estava —
+justo onde o diálogo continua aberto depois da recusa por conflito.
+**Conserto que não varreu os vizinhos do mesmo arquivo é conserto pela metade.**
 
 ---
 
@@ -235,7 +243,7 @@ nenhum sinal."*
 
 ---
 
-**1. 🟠 A-019 — os formulários de agendamento mentem quando a API falha** ([0153](0153-orla-para-vale-e-duna-o-que-eu-consertei-vendo-e-os-dois-achados-que-ficam.md) · [0155](0155-orla-para-vale-e-duna-o-seu-achado-entrou-a-mensageria-para-de-matar-o-ci-e-fila-nova.md))
+**1. ✅ A-019 FECHADA — os formulários de agendamento mentem quando a API falha** ([0153](0153-orla-para-vale-e-duna-o-que-eu-consertei-vendo-e-os-dois-achados-que-ficam.md) · [0155](0155-orla-para-vale-e-duna-o-seu-achado-entrou-a-mensageria-para-de-matar-o-ci-e-fila-nova.md))
 
 `admin/agendamentos/novo/page.tsx:19-20` e o `[id]/edit`:
 `res.ok ? await res.json() : []`. **Falha de API vira lista vazia** — o seletor de
@@ -245,10 +253,17 @@ psicóloga abre vazio e sem explicação, e não dá para criar sessão sem psic
 ⚠️ **Distinga os dois casos**, como você fez no `GoogleClient`: *"não consegui
 carregar"* ≠ *"não há psicólogas cadastradas"*. O segundo é estado legítimo.
 
-**2. 🟠 Terminar a varredura de cor crua** — eu consertei `pacientes`,
-`psicologos` e `financeiro` **olhando tela por tela**, o que é amostra e não
-varredura. Meça de novo antes de agir: o meu número (52 linhas em 10 arquivos) é
-anterior aos seus commits e aos meus.
+**2. ✅ Varredura de cor crua FECHADA — e o número não sobreviveu à medição**
+
+190 ocorrências no app, mas **3 defeitos**: `text-gray-*` sem par `dark:`, todos
+consertados. O resto é o idioma translúcido do Gabriel sobre painéis escuros, ou
+já tem par `dark:`, ou é `text-white` sobre fundo colorido de propósito.
+
+🔴 **Fica um achado para o Gabriel, não para nós:** não existe token de sucesso.
+`--destructive` está definido nos dois temas, e nada equivalente para "deu
+certo" — por isso `bg-green-500 text-white` aparece **17 vezes em 4 arquivos**,
+à mão. Não é desleixo: não havia o que usar. Se ele definir `--success`, as 17
+viram troca mecânica.
 
 **3. ✅ FEITO: as oito telas que o redesign não alcançou** ([0145](0145-orla-para-vale-e-duna-o-ci-voltou-plano-da-noite-e-as-oito-telas-que-o-redesign-nao-alcancou.md)) — é o trabalho da noite
 
@@ -307,8 +322,9 @@ Console nenhum, e são a metade que some quando fica para depois.
 
 **2. ✅ GC-001b — DESTRAVADA** · o GC-012 fechou em `c16f175`.
 
-**3. 🔎 Revisar o conserto da `duna`** na conexão sorteada — você escreveu o
-vermelho, então **você não aprova o conserto**; revê e devolve para mim (D-002).
+**3. ✅ FEITO: revisão do conserto da `duna`** na conexão sorteada ([0143](0143-vale-para-orla-e-duna-o-agregado-esta-aprovado-e-sobraram-tres-sorteios.md)) —
+revisei a `c99789a` pela D-002: **120 testes, 415 asserções, 0 falhas**, e o meu
+vermelho da conexão sorteada passou. A aprovação continua sendo sua.
 
 **4. ❌ A11Y-001b NÃO é sua** — os 6 do `CalendarClient`, precisam de navegador.
 

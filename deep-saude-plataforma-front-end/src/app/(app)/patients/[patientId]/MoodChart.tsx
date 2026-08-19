@@ -35,7 +35,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
           {MOOD_LABELS[moodValue] || `Nota: ${moodValue}`}
         </p>
         {payload[0].payload.note && (
-           <p className="text-gray-500 text-xs italic mt-1 max-w-[200px] truncate">
+           <p className="text-muted-foreground text-xs italic mt-1 max-w-[200px] truncate">
             {payload[0].payload.note}
            </p>
         )}

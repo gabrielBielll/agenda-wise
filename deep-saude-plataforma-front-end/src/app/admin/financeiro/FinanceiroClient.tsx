@@ -1085,7 +1085,7 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
                     {/* Coluna Repasse (Psi) - Clickável se pagamento OK */}
                     <TableCell>
                         {getEffectivePagamento(ag) !== 'pago' ? (
-                            <span className="text-sm text-gray-400">🔒 Bloqueado</span>
+                            <span className="text-sm text-muted-foreground">🔒 Bloqueado</span>
                         ) : (
                             <Button 
                                 variant="ghost" 
@@ -1107,7 +1107,7 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
                         size="sm"
                         className={cn(
                           "h-7 px-2 text-xs font-medium",
-                          ag.nota_fiscal ? "text-green-600 hover:text-green-700" : "text-gray-500 hover:text-gray-600"
+                          ag.nota_fiscal ? "text-green-600 hover:text-green-700" : "text-muted-foreground hover:text-foreground"
                         )}
                         onClick={() => handleUpdatePatientField(ag.paciente_id, 'nota_fiscal', !ag.nota_fiscal)}
                       >

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { CONTA } from './preparar-dados';
+import { CONTA, DURACAO_DA_SESSAO, HORA_DA_SESSAO } from './preparar-dados';
 import { dadosSemeados } from './apoio';
 
 /**
@@ -197,5 +197,220 @@ test.describe('A-022 — o cadastro de paciente sobrevive a uma falha ao salvar'
       page.locator('#telefone'),
       'o telefone também foi apagado — o reset do `<form action>` não escolhe campo'
     ).toHaveValue('(21) 99999-8888', { timeout: 15_000 });
+  });
+});
+
+/**
+ * # A-022 no calendário — o caso em que a recusa é do PRODUTO, não da validação
+ *
+ * Os dois testes acima forçam a recusa por schema, que é determinístico mas
+ * sintético: ninguém usa o app querendo escrever duas letras. Este exercita a
+ * A-022 num caminho que acontece de verdade e com frequência — **marcar em cima
+ * de uma sessão que já existe.**
+ *
+ * É o teste que eu mais queria ter, por três motivos:
+ *
+ * 1. O diálogo **fica aberto** depois da recusa, de propósito, para a pessoa
+ *    decidir. Era exatamente ali que o reset apagava o que ela tinha acabado de
+ *    preencher — numa tela cujo assunto é não perder o caminho de volta.
+ * 2. A recusa vem do **backend**, então prova a via completa (`useActionState`
+ *    devolvendo estado de erro), não só o ramo de validação do cliente.
+ * 3. É o formulário que a A-010 deixou para trás: ela tirou o período do
+ *    BLOQUEIO do DOM e o da SESSÃO, no mesmo arquivo e dentro do mesmo `Dialog`,
+ *    ficou como estava.
+ *
+ * ⚠️ A dança de abrir o diálogo é copiada de `forcar-e-privilegio-da-clinica`,
+ * de propósito e não por descuido: importar de um spec faz o Playwright registrar
+ * os testes DELE aqui de novo. O lugar certo de compartilhar isso é o `apoio.ts`,
+ * e mover para lá é refatoração de infra que não cabe dentro de um conserto.
+ */
+test.describe('A-022 — o que foi digitado sobrevive à recusa por conflito', () => {
+  test('o diálogo da sessão continua preenchido depois do conflito', async ({ page }) => {
+    const { dia, paciente } = dadosSemeados();
+    const [h, m] = HORA_DA_SESSAO.split(':').map(Number);
+    const fimMin = h * 60 + m + DURACAO_DA_SESSAO;
+    const fim = `${String(Math.floor(fimMin / 60)).padStart(2, '0')}:${String(fimMin % 60).padStart(2, '0')}`;
+    const inicio = `${dia}T${HORA_DA_SESSAO}`;
+    const NOTA = 'Trazer o registro de sono desta semana.';
+
+    await page.goto('/calendar');
+
+    const novo = page.getByRole('button', { name: /^novo$/i });
+    const dialogo = page.getByRole('dialog').filter({ hasText: /paciente/i });
+    // Clique repetido até hidratar — mesmo motivo do `trocarVisao` em apoio.ts.
+    await expect(async () => {
+      if (!(await dialogo.isVisible().catch(() => false))) {
+        await novo.first().click({ timeout: 5_000 });
+      }
+      await expect(dialogo).toBeVisible({ timeout: 3_000 });
+    }).toPass({ timeout: 60_000 });
+
+    const gatilhoPaciente = dialogo.getByRole('combobox').first();
+    await expect(
+      gatilhoPaciente,
+      'o primeiro combobox do diálogo não é o de paciente — a ordem do DOM mudou'
+    ).toContainText(/selecione/i);
+    await gatilhoPaciente.click();
+    await page.getByRole('option', { name: paciente }).first().click();
+
+    await dialogo.locator('#data_hora_sessao').fill(inicio);
+    await dialogo.locator('#data_hora_fim').fill(`${dia}T${fim}`);
+    await dialogo.locator('#valor_consulta').fill('180');
+    await dialogo.locator('#observacoes').fill(NOTA);
+
+    await dialogo.getByRole('button', { name: /^agendar$/i }).click();
+
+    /**
+     * 🔴 A âncora, e ela é a parte que faz este teste valer alguma coisa.
+     *
+     * Sem exigir a recusa ANTES, "os campos continuam preenchidos" fica
+     * compatível com "a submissão nunca aconteceu" — e o teste passaria verde
+     * sem exercitar nada. Foi assim que a sonda anterior deste arquivo me
+     * enganou duas vezes: uma fabricando o sintoma, outra sendo barrada pela
+     * validação nativa do navegador antes de existir ação.
+     */
+    const conflito = page.getByRole('alertdialog').filter({ hasText: /conflito de hor[áa]rio/i });
+    await expect(
+      conflito,
+      'o backend não acusou o conflito — sem a recusa não há A-022 para exercitar aqui'
+    ).toBeVisible({ timeout: 30_000 });
+
+    // "Cancelar" é o caminho de quem decidiu ajustar em vez de forçar.
+    await conflito.getByRole('button', { name: /^cancelar$/i }).click();
+
+    await expect(
+      dialogo,
+      'o diálogo da sessão fechou junto com a recusa — quem cancelou perdeu a tela ' +
+        'inteira, não só o texto'
+    ).toBeVisible({ timeout: 10_000 });
+
+    await expect(
+      dialogo.locator('#observacoes'),
+      'a nota da sessão foi apagada quando o agendamento foi recusado por conflito — ' +
+        'é a A-022 no calendário: `<form action>` reseta campo descontrolado sem ' +
+        'distinguir sucesso de falha, e aqui o diálogo fica aberto justamente para ' +
+        'a pessoa ajustar o que ela não tem mais'
+    ).toHaveValue(NOTA, { timeout: 10_000 });
+
+    await expect(
+      dialogo.locator('#data_hora_sessao'),
+      'o horário digitado foi apagado pela recusa — quem for ajustar tem que ' +
+        'redescobrir qual horário já tentou'
+    ).toHaveValue(inicio);
+
+    await expect(
+      dialogo.locator('#valor_consulta'),
+      'o valor da consulta foi apagado pela recusa'
+    ).toHaveValue('180');
+  });
+});
+
+/**
+ * # O que eu religuei ao controlar os campos — e que não tinha teste nenhum
+ *
+ * Controlar campo **quebra escrita direta no DOM**, e o calendário tinha quatro
+ * delas. Eu as movi para o estado, e o teste acima não olha para nenhuma: ele
+ * prova que o texto sobrevive à recusa, não que o horário ainda se autopreenche
+ * nem que o teto de recorrência ainda existe.
+ *
+ * 🔴 Isso é o buraco clássico: o conserto tem teste, o dano colateral não. Se eu
+ * tivesse errado a religação, a suíte ficaria verde e a psicóloga descobriria
+ * sozinha que o fim da sessão parou de aparecer.
+ *
+ * Então este bloco protege exatamente o que eu mexi, e nada além disso.
+ */
+test.describe('o que sobrevive à mudança de campo descontrolado para controlado', () => {
+  async function abrirDialogoDeSessao(page: import('@playwright/test').Page) {
+    await page.goto('/calendar');
+    const novo = page.getByRole('button', { name: /^novo$/i });
+    const dialogo = page.getByRole('dialog').filter({ hasText: /paciente/i });
+    await expect(async () => {
+      if (!(await dialogo.isVisible().catch(() => false))) {
+        await novo.first().click({ timeout: 5_000 });
+      }
+      await expect(dialogo).toBeVisible({ timeout: 3_000 });
+    }).toPass({ timeout: 60_000 });
+    return dialogo;
+  }
+
+  test('escolher o início ainda preenche o fim sozinho, 50 minutos depois', async ({ page }) => {
+    const { dia } = dadosSemeados();
+    const dialogo = await abrirDialogoDeSessao(page);
+
+    const inicio = dialogo.locator('#data_hora_sessao');
+    const fim = dialogo.locator('#data_hora_fim');
+
+    // Limpo o fim primeiro: o auto-preenchimento só age quando ele está vazio,
+    // porque a regra é "sugerir", não "sobrescrever o que a pessoa escolheu".
+    await fim.fill('');
+    await inicio.fill(`${dia}T09:00`);
+
+    await expect(
+      fim,
+      'o fim da sessão parou de se preencher sozinho. Isto NÃO é a A-022: é o ' +
+        'efeito colateral de controlar o campo — antes o `onChange` do início ' +
+        'escrevia em `endInput.value` direto, e num campo controlado o React ' +
+        'reaplica o estado no render seguinte e a escrita some. Tem que passar ' +
+        'pelo `setSessao`.'
+    ).toHaveValue(`${dia}T09:50`, { timeout: 10_000 });
+  });
+
+  test('o fim já escolhido não é sobrescrito quando o início muda', async ({ page }) => {
+    const { dia } = dadosSemeados();
+    const dialogo = await abrirDialogoDeSessao(page);
+
+    await dialogo.locator('#data_hora_fim').fill(`${dia}T11:30`);
+    await dialogo.locator('#data_hora_sessao').fill(`${dia}T09:00`);
+
+    /**
+     * ⚠️ A metade que é fácil perder ao mover a regra para o estado: sugerir o
+     * fim é útil, apagar a escolha de quem já decidiu é o oposto. Sem esta
+     * asserção, um `setSessao` que ignorasse o valor atual passaria verde no
+     * teste de cima e estragaria a sessão de 2h30 de alguém.
+     */
+    await expect(
+      dialogo.locator('#data_hora_fim'),
+      'mudar o início apagou o fim que já tinha sido escolhido — a sugestão virou ' +
+        'sobrescrita'
+    ).toHaveValue(`${dia}T11:30`);
+  });
+
+  test('o teto de 120 sessões recorrentes continua valendo', async ({ page }) => {
+    const dialogo = await abrirDialogoDeSessao(page);
+
+    // A quantidade só existe depois de escolher uma recorrência.
+    const repetir = dialogo.getByRole('combobox').nth(1);
+    /**
+     * ⚠️ Âncora antes do clique, pelo mesmo motivo da `orla` no
+     * `forcar-e-privilegio-da-clinica`: nenhum destes combobox tem nome
+     * acessível (A11Y-001b), então o alvo é posicional. Se a ordem do DOM mudar,
+     * o `.nth(1)` abre o seletor de PACIENTE, a opção "Semanalmente" não existe
+     * ali, e a morte seria um timeout culpando o teto de 120 por um defeito de
+     * seletor. O de recorrência nasce "Não repetir"; o de paciente, "Selecione".
+     */
+    await expect(
+      repetir,
+      'o segundo combobox do diálogo não é o de recorrência — a ordem do DOM ' +
+        'mudou. NÃO é o teto de 120.'
+    ).toContainText(/n[ãa]o (se )?repet/i);
+    await repetir.click();
+    await page.getByRole('option', { name: /semanalmente/i }).first().click();
+
+    const quantidade = dialogo.locator('#quantidade_recorrencia_input');
+    await expect(
+      quantidade,
+      'o campo de quantidade não apareceu depois de escolher "Semanalmente" — sem ' +
+        'ele não há teto para exercitar'
+    ).toBeVisible({ timeout: 10_000 });
+
+    await quantidade.fill('999');
+
+    await expect(
+      quantidade,
+      'o teto de 120 sumiu. Antes ele vivia num `onInput` fazendo ' +
+        '`input.value = "120"`, que num campo controlado não gruda. Agora tem que ' +
+        'estar no `setQuantidadeSessao` — se não estiver, dá para pedir 999 ' +
+        'sessões de uma vez.'
+    ).toHaveValue('120', { timeout: 10_000 });
   });
 });
