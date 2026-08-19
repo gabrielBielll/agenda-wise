@@ -60,6 +60,48 @@ export default function EditPsicologoForm({
   // Usamos .bind para pré-preencher a action com o ID do psicólogo
   const updatePsicologoWithId = updatePsicologo.bind(null, psicologo.id);
   const [state, formAction] = useFormState(updatePsicologoWithId, initialState);
+
+  /**
+   * ## A-022 — por que estes campos são controlados
+   *
+   * `<form action={formAction}>` **reseta os campos descontrolados quando a ação
+   * termina, e não distingue sucesso de falha.** Num formulário de edição o
+   * estrago tem outra cara, e é mais traiçoeiro que o do cadastro: o reset não
+   * esvazia a tela — ele devolve os campos ao `defaultValue`, ou seja, **aos
+   * dados antigos**. As alterações somem e o formulário fica com aparência de
+   * intacto, como se nada tivesse sido digitado.
+   *
+   * ⚠️ Isso é pior de perceber do que um campo em branco. Um campo vazio grita;
+   * um campo com o valor antigo de volta parece normal, e quem estava editando
+   * pode nem notar que perdeu a correção do CRP até salvar de novo.
+   *
+   * Com `value`/`onChange` o React reaplica o que foi digitado depois do reset.
+   * O caminho de sucesso continua saindo da tela (`router.push`).
+   *
+   * Mesma causa e mesmo conserto da A-010.
+   */
+  const [campos, setCampos] = React.useState({
+    nome: psicologo.nome,
+    email: psicologo.email,
+    senha: "",
+    cpf: psicologo.cpf || '',
+    telefone: psicologo.telefone || '',
+    data_nascimento: psicologo.data_nascimento || '',
+    crp: psicologo.crp || '',
+    registro_e_psi: psicologo.registro_e_psi || '',
+    abordagem: psicologo.abordagem || '',
+    area_de_atuacao: psicologo.area_de_atuacao || '',
+    endereco: psicologo.endereco || '',
+    percentual_repasse: String(psicologo.percentual_repasse ?? 50),
+    // ⚠️ `?? undefined` aqui seria um conserto que não conserta: `value={undefined}`
+    // faz o React tratar o campo como DESCONTROLADO, que é o defeito da A-022.
+    // Campo controlado precisa de string, e a string vazia é o "sem valor" dele.
+    valor_fixo_repasse: String(psicologo.valor_fixo_repasse ?? ""),
+  });
+  const mudar =
+    (nome: keyof typeof campos) =>
+    (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+      setCampos((c) => ({ ...c, [nome]: e.target.value }));
   const [modalidade, setModalidade] = useState<"percentual" | "fixo">(
     psicologo.modalidade_repasse ?? "percentual"
   );
@@ -105,12 +147,12 @@ export default function EditPsicologoForm({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="nome">Nome</Label>
-              <Input id="nome" name="nome" defaultValue={psicologo.nome} disabled={readOnly} />
+              <Input id="nome" name="nome" disabled={readOnly} value={campos.nome} onChange={mudar("nome")} />
               {state.errors?.nome && <p className="text-sm font-medium text-destructive">{state.errors.nome[0]}</p>}
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
-              <Input id="email" name="email" type="email" defaultValue={psicologo.email} disabled={readOnly} />
+              <Input id="email" name="email" type="email" disabled={readOnly} value={campos.email} onChange={mudar("email")} />
                {state.errors?.email && <p className="text-sm font-medium text-destructive">{state.errors.email[0]}</p>}
             </div>
             {!readOnly && (
@@ -120,8 +162,7 @@ export default function EditPsicologoForm({
                   id="senha" 
                   name="senha" 
                   type="password" 
-                  placeholder="Mínimo 6 caracteres. Deixe em branco para manter a atual." 
-                />
+                  placeholder="Mínimo 6 caracteres. Deixe em branco para manter a atual." value={campos.senha} onChange={mudar("senha")} />
                  {state.errors?.senha && <p className="text-sm font-medium text-destructive">{state.errors.senha[0]}</p>}
               </div>
             )}
@@ -130,44 +171,44 @@ export default function EditPsicologoForm({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
              <div className="space-y-2">
               <Label htmlFor="cpf">CPF</Label>
-              <Input id="cpf" name="cpf" defaultValue={psicologo.cpf || ''} placeholder="000.000.000-00" disabled={readOnly} />
+              <Input id="cpf" name="cpf" placeholder="000.000.000-00" disabled={readOnly} value={campos.cpf} onChange={mudar("cpf")} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="telefone">Telefone</Label>
-              <Input id="telefone" name="telefone" defaultValue={psicologo.telefone || ''} placeholder="(00) 00000-0000" disabled={readOnly} />
+              <Input id="telefone" name="telefone" placeholder="(00) 00000-0000" disabled={readOnly} value={campos.telefone} onChange={mudar("telefone")} />
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="data_nascimento">Data de Nascimento</Label>
-              <Input id="data_nascimento" name="data_nascimento" type="date" defaultValue={psicologo.data_nascimento || ''} disabled={readOnly} />
+              <Input id="data_nascimento" name="data_nascimento" type="date" disabled={readOnly} value={campos.data_nascimento} onChange={mudar("data_nascimento")} />
             </div>
              <div className="space-y-2">
               <Label htmlFor="crp">CRP</Label>
-              <Input id="crp" name="crp" defaultValue={psicologo.crp || ''} placeholder="00/00000" disabled={readOnly} />
+              <Input id="crp" name="crp" placeholder="00/00000" disabled={readOnly} value={campos.crp} onChange={mudar("crp")} />
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="registro_e_psi">Registro e-Psi</Label>
-              <Input id="registro_e_psi" name="registro_e_psi" defaultValue={psicologo.registro_e_psi || ''} placeholder="Ex: Cadastro aprovado" disabled={readOnly} />
+              <Input id="registro_e_psi" name="registro_e_psi" placeholder="Ex: Cadastro aprovado" disabled={readOnly} value={campos.registro_e_psi} onChange={mudar("registro_e_psi")} />
             </div>
              <div className="space-y-2">
               <Label htmlFor="abordagem">Abordagem Terapêutica</Label>
-              <Input id="abordagem" name="abordagem" defaultValue={psicologo.abordagem || ''} placeholder="Ex: TCC, Psicanálise..." disabled={readOnly} />
+              <Input id="abordagem" name="abordagem" placeholder="Ex: TCC, Psicanálise..." disabled={readOnly} value={campos.abordagem} onChange={mudar("abordagem")} />
             </div>
           </div>
 
           <div className="space-y-2">
                <Label htmlFor="area_de_atuacao">Área de Atuação</Label>
-               <Input id="area_de_atuacao" name="area_de_atuacao" defaultValue={psicologo.area_de_atuacao || ''} placeholder="Ex: Infanto-juvenil, Casal..." disabled={readOnly} />
+               <Input id="area_de_atuacao" name="area_de_atuacao" placeholder="Ex: Infanto-juvenil, Casal..." disabled={readOnly} value={campos.area_de_atuacao} onChange={mudar("area_de_atuacao")} />
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="endereco">Endereço Completo</Label>
-            <Input id="endereco" name="endereco" defaultValue={psicologo.endereco || ''} placeholder="Rua, Número, Bairro, Cidade - UF" disabled={readOnly} />
+            <Input id="endereco" name="endereco" placeholder="Rua, Número, Bairro, Cidade - UF" disabled={readOnly} value={campos.endereco} onChange={mudar("endereco")} />
           </div>
 
           <section className="space-y-4 rounded-2xl border border-border/60 bg-muted/25 p-5">
@@ -195,15 +236,13 @@ export default function EditPsicologoForm({
               {modalidade === "percentual" ? (
                 <div className="space-y-2">
                   <Label htmlFor="percentual_repasse">Percentual (%)</Label>
-                  <Input id="percentual_repasse" name="percentual_repasse" type="number" min="0" max="100" step="0.01"
-                    defaultValue={psicologo.percentual_repasse ?? 50} disabled={readOnly} required />
+                  <Input id="percentual_repasse" name="percentual_repasse" type="number" min="0" max="100" step="0.01" disabled={readOnly} required value={campos.percentual_repasse} onChange={mudar("percentual_repasse")} />
                   {state.errors?.percentual_repasse && <p className="text-sm text-destructive">{state.errors.percentual_repasse[0]}</p>}
                 </div>
               ) : (
                 <div className="space-y-2">
                   <Label htmlFor="valor_fixo_repasse">Valor por sessão (R$)</Label>
-                  <Input id="valor_fixo_repasse" name="valor_fixo_repasse" type="number" min="0" step="0.01"
-                    defaultValue={psicologo.valor_fixo_repasse ?? undefined} disabled={readOnly} required />
+                  <Input id="valor_fixo_repasse" name="valor_fixo_repasse" type="number" min="0" step="0.01" disabled={readOnly} required value={campos.valor_fixo_repasse} onChange={mudar("valor_fixo_repasse")} />
                   {state.errors?.valor_fixo_repasse && <p className="text-sm text-destructive">{state.errors.valor_fixo_repasse[0]}</p>}
                 </div>
               )}

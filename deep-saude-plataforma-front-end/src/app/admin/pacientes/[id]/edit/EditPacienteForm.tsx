@@ -60,6 +60,32 @@ export default function EditPacienteForm({
   const updatePacienteWithId = updatePaciente.bind(null, paciente.id);
   const [state, formAction] = useActionState(updatePacienteWithId, initialState);
 
+  /**
+   * ## A-022 — por que estes campos são controlados
+   *
+   * `<form action={formAction}>` **reseta os campos descontrolados quando a ação
+   * termina, e não distingue sucesso de falha.** Em tela de edição o reset não
+   * esvazia: devolve os campos ao `defaultValue`, isto é, **aos dados antigos**.
+   * A alteração some e o formulário fica com cara de intacto — o que é pior de
+   * notar do que um campo em branco, porque nada parece errado.
+   *
+   * Com `value`/`onChange` (e `onValueChange` no `Select`) o React reaplica o que
+   * foi digitado depois do reset. Mesma causa e mesmo conserto da A-010.
+   */
+  const [campos, setCampos] = React.useState({
+    nome: paciente.nome ?? "",
+    data_nascimento: paciente.data_nascimento || '',
+    telefone: paciente.telefone || '',
+    email: paciente.email || '',
+    endereco: paciente.endereco || '',
+    status: paciente.status || "ativo",
+    psicologo_id: paciente.psicologo_id || "none",
+  });
+  const mudar =
+    (nome: keyof typeof campos) =>
+    (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+      setCampos((c) => ({ ...c, [nome]: e.target.value }));
+
   useEffect(() => {
     if (state.message && !state.success) {
       toast({
@@ -95,12 +121,12 @@ export default function EditPacienteForm({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="nome">Nome Completo</Label>
-              <Input id="nome" name="nome" defaultValue={paciente.nome} disabled={readOnly} />
+              <Input id="nome" name="nome" disabled={readOnly} value={campos.nome} onChange={mudar("nome")} />
               {state.errors?.nome && <p className="text-sm font-medium text-destructive">{state.errors.nome[0]}</p>}
             </div>
             <div className="space-y-2">
               <Label htmlFor="status">Status</Label>
-               <Select name="status" defaultValue={paciente.status || "ativo"} disabled={readOnly}>
+               <Select name="status" disabled={readOnly} value={campos.status} onValueChange={(v) => setCampos((c) => ({ ...c, status: v }))}>
                  {/* id casa o <Label htmlFor>: `combobox` não tira nome do conteúdo (D-016). */}
                  <SelectTrigger id="status">
                    <SelectValue placeholder="Selecione o status" />
@@ -115,23 +141,23 @@ export default function EditPacienteForm({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="data_nascimento">Data de Nascimento</Label>
-              <Input id="data_nascimento" name="data_nascimento" type="date" defaultValue={paciente.data_nascimento || ''} disabled={readOnly} />
+              <Input id="data_nascimento" name="data_nascimento" type="date" disabled={readOnly} value={campos.data_nascimento} onChange={mudar("data_nascimento")} />
             </div>
              <div className="space-y-2">
               <Label htmlFor="telefone">Telefone</Label>
-              <Input id="telefone" name="telefone" defaultValue={paciente.telefone || ''} disabled={readOnly} />
+              <Input id="telefone" name="telefone" disabled={readOnly} value={campos.telefone} onChange={mudar("telefone")} />
             </div>
           </div>
           
           <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
-              <Input id="email" name="email" type="email" defaultValue={paciente.email || ''} disabled={readOnly} />
+              <Input id="email" name="email" type="email" disabled={readOnly} value={campos.email} onChange={mudar("email")} />
               {state.errors?.email && <p className="text-sm font-medium text-destructive">{state.errors.email[0]}</p>}
           </div>
 
           <div className="space-y-2">
              <Label htmlFor="psicologo_id">Psicólogo Responsável</Label>
-             <Select name="psicologo_id" defaultValue={paciente.psicologo_id || "none"} disabled={readOnly}>
+             <Select name="psicologo_id" disabled={readOnly} value={campos.psicologo_id} onValueChange={(v) => setCampos((c) => ({ ...c, psicologo_id: v }))}>
                {/* id casa o <Label htmlFor>: `combobox` não tira nome do conteúdo (D-016). */}
                <SelectTrigger id="psicologo_id">
                  <SelectValue placeholder="Selecione um psicólogo..." />
@@ -149,7 +175,7 @@ export default function EditPacienteForm({
 
           <div className="space-y-2">
             <Label htmlFor="endereco">Endereço</Label>
-            <Textarea id="endereco" name="endereco" defaultValue={paciente.endereco || ''} disabled={readOnly} />
+            <Textarea id="endereco" name="endereco" disabled={readOnly} value={campos.endereco} onChange={mudar("endereco")} />
           </div>
           {!readOnly && (
             <div className="flex justify-end pt-4"><SubmitButton /></div>
