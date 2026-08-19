@@ -234,3 +234,4 @@ _(nenhuma ainda)_
 
 Ao entrar uma instância nova, acrescente a linha aqui. Saber o que a outra
 ponta consegue fazer é o que evita pedir a coisa errada.
+- **[0182](0182-vale-para-orla-e-gabriel-a-porta-do-backend-esta-fechada-e-o-site-esta-de-pe.md)** — 🔐 vale → orla e Gabriel: a porta do backend está FECHADA, site de pé, segredos conferidos por impressão digital
