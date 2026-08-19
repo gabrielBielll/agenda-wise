@@ -125,6 +125,51 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
    * e não perdia nada. Era o grupo de controle que provou o mecanismo sem
    * precisar de teste vermelho antes — ver mensageria 0062 e 0063.
    */
+  /**
+   * A-022 — o diálogo da SESSÃO tinha o mesmo defeito do diálogo do bloqueio.
+   *
+   * A A-010 tirou o período do bloqueio do DOM e ninguém foi olhar o vizinho:
+   * paciente, início, fim, valor, notas e quantidade continuavam em
+   * `defaultValue`, dentro do mesmo `Dialog` do Radix, que desmonta o conteúdo
+   * ao fechar.
+   *
+   * 🔴 Isso custa em dois caminhos desta tela, e os dois são de recusa:
+   *
+   * 1. `<form action={...}>` reseta os campos descontrolados quando a ação
+   *    termina, **sem distinguir sucesso de falha**. Backend fora do ar, valor
+   *    recusado, sessão expirada — o formulário voltava em branco.
+   * 2. Na recusa por conflito o diálogo continua aberto para a psicóloga
+   *    decidir. Era exatamente aí que o reset apagava o que ela tinha acabado
+   *    de preencher, numa tela cujo assunto é não perder o caminho de volta.
+   *
+   * O período nasce semeado em `handleOpenNew`/`handleOpenEdit` — o que o
+   * `defaultValue` fazia, só que num lugar que sobrevive ao diálogo fechar. É a
+   * mesma solução da A-010, agora no formulário que ficou de fora.
+   */
+  const sessaoVazia = {
+    paciente_id: "",
+    data_hora_sessao: "",
+    data_hora_fim: "",
+    valor_consulta: "",
+    observacoes: "",
+    quantidade_recorrencia: "4",
+  };
+  const [sessao, setSessao] = useState(sessaoVazia);
+  const mudarSessao =
+    (nome: keyof typeof sessaoVazia) =>
+    (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+      setSessao((c) => ({ ...c, [nome]: e.target.value }));
+  /**
+   * ⚠️ O teto de 120 vivia em três escritas diretas no DOM (um `onInput` e os
+   * dois atalhos de fim de ano). Num campo controlado nada disso gruda: o React
+   * reaplica o estado no render seguinte. O limite passa a morar aqui.
+   */
+  const setQuantidadeSessao = (bruto: string) =>
+    setSessao((c) => ({
+      ...c,
+      quantidade_recorrencia: bruto && parseInt(bruto) > 120 ? "120" : bruto,
+    }));
+
   const [blockStart, setBlockStart] = useState("");
   const [blockEnd, setBlockEnd] = useState("");
   const [blockToDelete, setBlockToDelete] = useState<{ id: string, recorrencia_id?: string } | null>(null);
@@ -286,8 +331,15 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
   const handleOpenNew = (selectedDate?: Date) => {
     setSlotAction(null); // Close context menu
     setEditingAppointment(null);
-    setNewAppointmentDate(selectedDate || date);
+    const quando = selectedDate || date;
+    setNewAppointmentDate(quando);
     setRecurrenceType("none");
+    // A-022: semeia o período com o slot clicado — o que o `defaultValue` fazia.
+    setSessao({
+      ...sessaoVazia,
+      data_hora_sessao: paredeParaInput(quando),
+      data_hora_fim: paredeParaInput(addMinutes(quando, 50)),
+    });
     setIsDialogOpen(true);
   };
 
@@ -323,6 +375,15 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
     setEditingAppointment(app);
     setNewAppointmentDate(null);
     setRecurrenceType("none");
+    // A-022: os dados da sessão em edição nascem no estado, não no DOM.
+    setSessao({
+      ...sessaoVazia,
+      paciente_id: app.paciente_id || "",
+      data_hora_sessao: paraInputLocal(app.data_hora_sessao),
+      data_hora_fim: paraInputLocal(maisMinutos(app.data_hora_sessao, app.duracao || 50)),
+      valor_consulta: String(app.valor_consulta ?? ""),
+      observacoes: app.observacoes || "",
+    });
     setIsDialogOpen(true);
   };
 
@@ -554,8 +615,11 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                     <Select 
                         name="paciente_id" 
                         required 
-                        defaultValue={editingAppointment?.paciente_id || ""}
-                        onValueChange={setSelectedPatientId}
+                        value={sessao.paciente_id}
+                        onValueChange={(v) => {
+                          setSessao((c) => ({ ...c, paciente_id: v }));
+                          setSelectedPatientId(v);
+                        }}
                     >
                         <SelectTrigger>
                             <SelectValue placeholder="Selecione..." />
@@ -584,20 +648,22 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                     name="data_hora_sessao"
                     type="datetime-local"
                     required
-                    defaultValue={editingAppointment ? (() => {
-                      return paraInputLocal(editingAppointment.data_hora_sessao);
-                    })() : (newAppointmentDate ? paredeParaInput(newAppointmentDate) : "")}
+                    value={sessao.data_hora_sessao}
                     onChange={(e) => {
                         // O valor do input é parede da clínica: somar 50min com
                         // `new Date` leria no fuso do navegador.
-                        const form = e.target.form;
-                        if (form) {
-                            const fim = paredeMaisMinutos(e.target.value, 50);
-                            const endInput = form.elements.namedItem("data_hora_fim") as HTMLInputElement;
-                            if (fim && endInput && !endInput.value) {
-                                endInput.value = fim;
-                            }
-                        }
+                        //
+                        // ⚠️ Antes o fim era preenchido escrevendo em
+                        // `endInput.value` direto. Num campo controlado isso não
+                        // gruda — o React reaplica o estado no render seguinte.
+                        // Agora os dois viajam juntos, no mesmo `setSessao`.
+                        const inicio = e.target.value;
+                        const fim = paredeMaisMinutos(inicio, 50);
+                        setSessao((c) => ({
+                            ...c,
+                            data_hora_sessao: inicio,
+                            data_hora_fim: !c.data_hora_fim && fim ? fim : c.data_hora_fim,
+                        }));
                     }}
                     />
                       {state.errors?.data_hora_sessao && <p className="text-xs text-destructive mt-1">{state.errors.data_hora_sessao[0]}</p>}
@@ -614,10 +680,8 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                     name="data_hora_fim"
                     type="datetime-local"
                     required
-                    defaultValue={editingAppointment ? (() => {
-                      const duration = editingAppointment.duracao || 50;
-                      return paraInputLocal(maisMinutos(editingAppointment.data_hora_sessao, duration));
-                    })() : (newAppointmentDate ? paredeParaInput(addMinutes(newAppointmentDate, 50)) : "")}
+                    value={sessao.data_hora_fim}
+                    onChange={mudarSessao("data_hora_fim")}
                     />
                 </div>
               </div>
@@ -651,12 +715,9 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                                         className="w-20" 
                                         min="2" 
                                     max="120" 
-                                    defaultValue="4"
                                     id="quantidade_recorrencia_input"
-                                    onInput={(e) => {
-                                        const input = e.currentTarget;
-                                        if (input.value && parseInt(input.value) > 120) input.value = "120";
-                                    }}
+                                    value={sessao.quantidade_recorrencia}
+                                    onChange={(e) => setQuantidadeSessao(e.target.value)}
                                 />
                                 </div>
                             )}
@@ -681,8 +742,7 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                                             count = Math.floor(diffDays / 14);
                                         }
                                         
-                                        const input = document.getElementById('quantidade_recorrencia_input') as HTMLInputElement;
-                                        if (input) input.value = Math.min(Math.max(count, 1), 120).toString();
+                                        setQuantidadeSessao(Math.min(Math.max(count, 1), 120).toString());
                                     }}
                                 >
                                     Até o fim de {newAppointmentDate?.getFullYear() || agoraNaClinica().getFullYear()}
@@ -705,8 +765,7 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                                             count = Math.floor(diffDays / 14);
                                         }
                                         
-                                        const input = document.getElementById('quantidade_recorrencia_input') as HTMLInputElement;
-                                        if (input) input.value = Math.min(Math.max(count, 1), 120).toString();
+                                        setQuantidadeSessao(Math.min(Math.max(count, 1), 120).toString());
                                     }}
                                 >
                                     Até o fim de {(newAppointmentDate?.getFullYear() || agoraNaClinica().getFullYear()) + 1}
@@ -730,7 +789,8 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                     min="0"
                     placeholder="0.00"
                     required
-                    defaultValue={editingAppointment?.valor_consulta || ""}
+                    value={sessao.valor_consulta}
+                    onChange={mudarSessao("valor_consulta")}
                     />
                     {state.errors?.valor_consulta && <p className="text-xs text-destructive mt-1">{state.errors.valor_consulta[0]}</p>}
                 </div>
@@ -746,7 +806,8 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                         name="observacoes" 
                         placeholder="Adicione observações sobre a sessão..."
                         className="min-h-[80px]"
-                        defaultValue={editingAppointment?.observacoes || ""}
+                        value={sessao.observacoes}
+                        onChange={mudarSessao("observacoes")}
                     />
                 </div>
               </div>
