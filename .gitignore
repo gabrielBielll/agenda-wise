@@ -5,3 +5,8 @@
 backups/
 *.sql.gz
 backup_*.sql
+
+# Worktrees da `duna` (GPT local): ela cria .worktrees/* dentro do proprio repo.
+# Sem esta linha eles entram no index como gitlink (modo 160000) e viajam num
+# commit distraido — aconteceu em 2026-08-19.
+.worktrees/

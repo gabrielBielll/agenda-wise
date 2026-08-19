@@ -18,7 +18,7 @@ export function DeleteAgendamentoButton({ id }: { id: string }) {
           toast({
             title: "Sucesso",
             description: result.message,
-            className: "bg-green-500 text-white",
+            className: "bg-success text-success-foreground",
           });
         } else {
           toast({
