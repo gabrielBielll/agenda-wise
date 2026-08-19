@@ -148,6 +148,28 @@ async function tentarAgendarEmCimaDaSessao(page: import('@playwright/test').Page
 
   await dialogo.locator('#data_hora_sessao').fill(quando.inicio);
   await dialogo.locator('#data_hora_fim').fill(quando.fim);
+
+  /**
+   * 🔴 **Sem isto, a submissão nunca acontece — e o teste morre acusando o
+   * backend por algo que o backend nunca recebeu.**
+   *
+   * `#valor_consulta` é `required` (`CalendarClient.tsx:791`) e este helper não o
+   * preenchia. A validação nativa do navegador barra o `submit`, a server action
+   * não roda, e o conflito não tem como ser acusado. A âncora logo abaixo então
+   * dizia *"o backend precisa acusar o conflito antes"* — culpando o backend por
+   * um campo vazio na tela.
+   *
+   * ⚠️ Medido no `error-context.md` do run `32258801671`, que mostra o estado do
+   * DOM na hora da falha: `combobox: Paciente E2E` preenchido, os dois horários
+   * preenchidos, e `spinbutton "Valor (R$)"` **vazio**.
+   *
+   * 📌 É exatamente o modo de falha que a `orla` pegou na minha sonda da A-022
+   * (mensageria 0174): campo com validação nativa barrando o envio, e o teste
+   * relatando o defeito errado porque *nada aconteceu*. Registro a simetria de
+   * propósito — a regra que ela escreveu vale para os dois lados: **uma sonda
+   * precisa provar que disparou.** — vale
+   */
+  await dialogo.locator('#valor_consulta').fill('200');
   await dialogo.getByRole('button', { name: /^agendar$/i }).click();
 
   return page.getByRole('alertdialog').filter({ hasText: /conflito de hor[áa]rio/i });
