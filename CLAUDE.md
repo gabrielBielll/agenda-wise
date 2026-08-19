@@ -90,9 +90,21 @@ fiz nada" costumam ser a mesma resposta.
 | **Regras de negócio** ditadas pelo Gabriel | [`docs/REGRAS_DE_NEGOCIO.md`](docs/REGRAS_DE_NEGOCIO.md) |
 | **O que ninguém conseguiu verificar** | [`docs/VERIFICACAO_PENDENTE.md`](docs/VERIFICACAO_PENDENTE.md) |
 | **Contexto longo para instância nova** | [`docs/HANDOFF.md`](docs/HANDOFF.md) |
+| **O que NÃO pode entrar no repo** — credencial, token, acesso à Northflank | fora daqui: a memória local da instância (`~/.claude/…/memory/`), lida sozinha no início da sessão |
 
 ⚠️ **Antes de empurrar mensagem, leia o número mais alto do REMOTO**, não do
 local. Três colisões de numeração já aconteceram por isso.
+
+📌 **A última linha da tabela é a exceção que a regra 1 exige, e ela é da `vale`.**
+Operar a produção precisa de token da Northflank, da `DATABASE_URL` e das contas
+da clínica de demonstração — nada disso pode ser escrito aqui, e sem estar escrito
+em lugar nenhum a sessão seguinte não opera. A saída é a memória local do Claude
+Code: fora do repositório, modo 600, não rastreada pelo git.
+
+⚠️ **Isso não afrouxa a regra 1 — ela vale inteira para tudo que está neste
+repositório.** E os segredos de produção (`JWT_SECRET`, `DATABASE_URL`,
+`NEXTAUTH_SECRET`, `PROVISIONING_TOKEN`) continuam sendo lidos do ambiente da
+Northflank **na hora do uso**, nunca copiados para lugar nenhum — nem para lá.
 
 ---
 
