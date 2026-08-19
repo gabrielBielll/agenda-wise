@@ -181,3 +181,65 @@ test.describe('A-013 — 403 diz "sem acesso", e não esconde o que a pessoa pod
     ).not.toContainText(/nenhum registro/i);
   });
 });
+
+/**
+ * # A-019 — o agendamento novo dizia "não há psicólogas" quando a sessão vencia
+ *
+ * A mesma doença da A-013, num endereço que a recepção usa todo dia:
+ * `admin/agendamentos/novo/page.tsx` fazia `res.ok ? await res.json() : []` nos
+ * dois carregamentos. Qualquer desfecho ruim — 401, 403, backend fora do ar —
+ * virava **lista vazia**.
+ *
+ * 🔴 **O estrago não é o formulário quebrado, é o formulário plausível.** Uma
+ * clínica sem psicóloga cadastrada é estado legítimo do sistema, então o seletor
+ * vazio não parece defeito: parece resposta. Quem está atendendo conclui que a
+ * psicóloga foi removida do cadastro e vai procurar quem a apagou.
+ *
+ * ⚠️ **Este teste existe porque o conserto subiu sem ele.** Eu troquei o
+ * `res.ok ? … : []` pelo `carregar` e empurrei; o comportamento novo não tinha
+ * nada segurando. É o mesmo buraco que eu venho apontando a noite toda — o
+ * conserto tem prova, o vizinho não tem — e desta vez o vizinho era o meu.
+ *
+ * 📌 **Dos quatro desfechos, o 401 é o único forçável daqui**, e é por isso que
+ * ele é o escolhido: o 403 exigiria um papel que alcance `/admin/*` sem ter
+ * `visualizar_todos_agendamentos`, e o middleware só deixa `admin_clinica`
+ * entrar — que tem tudo. O 500 continua sendo a P-002 da `pico`.
+ */
+test.describe('A-019 — sessão recusada no agendamento novo manda ao login, não a um seletor vazio', () => {
+  test.use({ storageState: { cookies: [], origins: [] } });
+
+  test('o formulário não pode abrir com a lista de psicólogas vazia', async ({ page, baseURL }) => {
+    const cookie = await encode({
+      token: {
+        role: 'admin_clinica',
+        backendToken: backendTokenQueAApiRecusa(),
+        sub: 'a019',
+      },
+      secret: SEGREDO,
+    });
+
+    await page.context().addCookies([
+      { name: 'next-auth.session-token', value: cookie, url: baseURL! },
+    ]);
+
+    await page.goto('/admin/agendamentos/novo');
+
+    /**
+     * ⚠️ A porta é `/admin/login`, e não `/`, de propósito: esta tela é do módulo
+     * administrativo, e mandar a recepção para a porta do psicólogo seria trocar
+     * um beco por outro — a credencial dela não serve lá.
+     */
+    await expect(
+      page,
+      'a sessão foi recusada pela API e a tela ficou no formulário de agendamento — ' +
+        'é a A-019: o seletor de psicóloga abre vazio e quem atende conclui que ' +
+        'ela foi removida do cadastro, quando o certo é entrar de novo'
+    ).toHaveURL(/\/admin\/login/);
+
+    await expect(
+      page.locator('#email'),
+      'depois do 401 a pessoa tem que cair no login administrativo, não num ' +
+        'formulário que ela não consegue preencher'
+    ).toBeVisible({ timeout: 30_000 });
+  });
+});
