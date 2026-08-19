@@ -77,13 +77,74 @@
    :migration-table-name "schema_migracoes"
    :db                   {:datasource @datasource}})
 
+(defn- diagnostico-de-bloqueio
+  "Traduz o desfecho do migratus na próxima ação de quem está de plantão.
+
+   Existe porque em 2026-08-19 a causa estava a cinco saltos da tela quebrada:
+   `/admin/psicologos` → 500 → PSQLException → colunas de repasse ausentes →
+   migration não aplicada → reserva órfã. Quem lê o log às 3 da manhã merece o
+   último salto escrito, não deduzido."
+  [desfecho]
+  (case desfecho
+    :ignore  (str "O migratus desistiu porque a reserva de migração está tomada "
+                  "(\"Migration reserved by another instance\"). Se nenhuma outra "
+                  "instância está migrando agora, a reserva é órfã de um processo "
+                  "que morreu no meio: a linha `id = -1` de `schema_migracoes`. "
+                  "ANTES de apagá-la, confira se a migration interrompida deixou "
+                  "rastro parcial no schema — é o passo que separa \"consertei\" de "
+                  "\"consertei e sei que não quebrei outra coisa\".")
+    :failure (str "O migratus relatou falha ao aplicar as migrations. O erro real "
+                  "está no log imediatamente acima desta linha.")
+    (str "As migrations terminaram sem erro relatado e mesmo assim sobrou "
+         "pendência: o schema do banco não é o que este build espera.")))
+
 (defn migrar!
   "Aplica as migrations pendentes. Roda de forma síncrona no boot: subir a
-   aplicação com o schema desatualizado é pior do que não subir."
+   aplicação com o schema desatualizado é pior do que não subir.
+
+   🔴 **`migrations_completed` era incondicional, e mentiu por 17 horas.**
+
+   Em 2026-08-19 uma migration quebrou às 03:13 segurando a reserva do migratus.
+   A partir dali toda subida encontrava a reserva de um processo morto e
+   desistia — e esta função anunciava sucesso do mesmo jeito, porque saía logo
+   depois do `migratus/migrate` sem olhar se sobrou pendência:
+
+       Running up for [20260819080000 20260819090000 20260819100000]
+       Migration reserved by another instance. Ignoring.
+       migrations_completed          <- sucesso tendo aplicado ZERO
+
+   Um sinal que diz \"está tudo bem\" sem ter verificado é pior que sinal nenhum:
+   ele consome a atenção que iria para o problema. Foram 17 horas de log verde
+   com a tela de psicólogos em 500.
+
+   📌 **A checagem é por EFEITO, não por código de retorno.** `migratus/migrate`
+   devolve `nil` no sucesso, `:ignore` com a reserva tomada e `:failure` no
+   resto — mas nenhum desses três responde à única pergunta que importa, que é
+   *\"sobrou migration por aplicar?\"*. `:ignore` com pendência zero é benigno
+   (outra instância migrou primeiro e terminou); `nil` com pendência é o defeito.
+   Por isso o veredito sai de `pending-list`, e o desfecho entra só no
+   diagnóstico.
+
+   ⚠️ Lançar aqui derruba o boot, e é de propósito: é a D-001, e a promessa que
+   a docstring desta função já fazia sem o código cumprir."
   []
   (log/info "migrations_started")
-  (migratus/migrate (migratus-config))
-  (log/info "migrations_completed"))
+  (let [config    (migratus-config)
+        antes     (migratus/pending-list config)
+        desfecho  (migratus/migrate config)
+        depois    (migratus/pending-list config)]
+    (if (seq depois)
+      (do
+        (log/with-context {:pendentes  (vec depois)
+                           :quantidade (count depois)
+                           :desfecho   (name (or desfecho :sem_erro))}
+          (log/error "migrations_bloqueadas"))
+        (throw (ex-info (str "Boot abortado: " (count depois) " migration(s) continuam "
+                             "pendentes depois de migrar (" (str/join ", " depois) "). "
+                             (diagnostico-de-bloqueio desfecho))
+                        {:pendentes (vec depois) :desfecho desfecho})))
+      (log/with-context {:aplicadas (count antes)}
+        (log/info "migrations_completed")))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -277,7 +338,12 @@
   [_request]
   {:status 200
    :body (execute-query!
+          ;; `pagamento_automatico` está aqui porque é configuração invisível:
+          ;; desligada, a clínica não fecha o próprio mês e a sincronização
+          ;; responde zero sem que ninguém saiba por quê (A-026). Não é dado
+          ;; clínico — é o modo de operação da conta.
           ["SELECT c.id, c.nome_da_clinica, c.limite_psicologos, c.timezone,
+                   c.pagamento_automatico,
                    (SELECT count(*) FROM usuarios u WHERE u.clinica_id = c.id) AS usuarios,
                    (SELECT count(*) FROM pacientes p WHERE p.clinica_id = c.id) AS pacientes,
                    (SELECT count(*) FROM agendamentos a WHERE a.clinica_id = c.id) AS agendamentos
@@ -1103,18 +1169,65 @@
                 (execute-query! ["SELECT id FROM clinicas WHERE pagamento_automatico = true"])]
           (remuneracao/calcular-pendentes! clinica-id))
 
-        (log/with-context {:status_count status-count :payment_count pagamento-count}
-          (log/info "global_status_sync_completed"))))
+        ;; 📌 Contar só o que foi tocado esconde o que NÃO foi. Uma clínica em
+        ;; pagamento manual é invisível neste log, e foi assim que ninguém
+        ;; percebeu que a flag existia — ver A-026.
+        (let [manuais (:manuais (execute-one!
+                                 ["SELECT count(*) AS manuais FROM clinicas
+                                    WHERE pagamento_automatico = false"]))]
+          (log/with-context {:status_count   status-count
+                             :payment_count  pagamento-count
+                             :clinicas_manuais manuais}
+            (log/info "global_status_sync_completed")))))
     (catch Exception e
       (log/error e "global_status_sync_failed"))))
 
 ;; Handler para sincronizar status de agendamentos passados (por clínica)
 ;; Atualiza no banco: status='realizado' e status_pagamento='pago' para sessões passadas não canceladas
-(defn sincronizar-status-agendamentos-handler [request]
+(defn clinica-em-pagamento-automatico?
+  "A clínica fecha o mês sozinha, ou o financeiro é marcado à mão?
+
+   A coluna nasceu em `20260817100000-pagamento-automatico`, que ligou a flag
+   para as clínicas que já existiam e deixou o default em `false` — está escrito
+   lá que clínica nova herda *\"o default seguro (desligado)\"*. Ou seja: manual
+   é uma CONFIGURAÇÃO, não um defeito, e a sincronização não deve tratá-la como
+   erro. Ela só não pode chamar de \"concluída\" o que nem tentou fazer."
+  [clinica-id]
+  (boolean (:pagamento_automatico
+            (execute-one! ["SELECT pagamento_automatico FROM clinicas WHERE id = ?" clinica-id]))))
+
+(defn sincronizar-status-agendamentos-handler
+  "🔴 **A-026 — esta rota respondia sucesso sem ter feito nada.**
+
+   Em 2026-08-19, com 54 das 108 sessões da clínica de demonstração já no
+   passado, ela respondeu, palavra por palavra:
+
+       {\"message\":\"Sincronização concluída\",\"status_atualizados\":0,
+        \"pagamentos_atualizados\":0}
+
+   Os dois UPDATE filtram por `pagamento_automatico = true`, e a clínica estava
+   com a flag desligada. O `200` era honesto sobre o HTTP e mudo sobre o mundo:
+   **\"zero porque não havia o que fazer\" e \"zero porque eu não faço isso aqui\"
+   chegavam como a mesma resposta.** Quem chamou não tinha como distinguir, e
+   ninguém tinha como saber que a flag existia.
+
+   📌 O conserto **não** é ligar a flag no provisionamento: o default desligado
+   é decisão escrita na migration. É a resposta dizer em qual dos dois mundos
+   ela está — `:modo` `\"automatico\"` ou `\"manual\"`. O número zero continua
+   podendo aparecer nos dois; o que deixa de existir é a ambiguidade."
+  [request]
   (try
     (let [clinica-id (get-in request [:identity :clinica_id])
           agora (java.sql.Timestamp. (System/currentTimeMillis))]
       (log/info "clinic_status_sync_started")
+      (if-not (clinica-em-pagamento-automatico? clinica-id)
+        (do
+          (log/with-context {:motivo "pagamento_manual"}
+            (log/info "clinic_status_sync_skipped"))
+          {:status 200 :body {:message "Nada a sincronizar: esta clínica fecha o pagamento manualmente."
+                              :modo "manual"
+                              :status_atualizados 0
+                              :pagamentos_atualizados 0}})
       
       ;; Atualiza status para 'realizado' em sessões passadas que ainda estão como 'agendado'
       (let [status-result (jdbc/execute! @datasource 
@@ -1149,8 +1262,9 @@
         (log/with-context {:status_count status-count :payment_count pagamento-count}
           (log/info "clinic_status_sync_completed"))
         {:status 200 :body {:message "Sincronização concluída"
+                            :modo "automatico"
                             :status_atualizados status-count
-                            :pagamentos_atualizados pagamento-count}}))
+                            :pagamentos_atualizados pagamento-count}})))
     (catch Exception e
       (log/error e "clinic_status_sync_failed")
       {:status 500 :body {:erro "Erro ao sincronizar."}})))

@@ -737,13 +737,28 @@ async function main() {
   const realizadas = passadas.filter((a) => a.status === 'realizado');
 
   if (passadas.length > 0 && realizadas.length === 0) {
+    /**
+     * 📌 **`modo` nasceu da A-026 e é o que transforma isto em diagnóstico.**
+     *
+     * Quando eu escrevi este bloco, a rota não sabia dizer por que devolvia
+     * zero, e o melhor que dava para afirmar era *"causa quase certa"*. Agora
+     * ela responde `modo: "manual"` ou `modo: "automatico"`, então o script para
+     * de adivinhar: com `manual` a causa é certa, e só com `automatico` é que
+     * sobra mistério de verdade para investigar.
+     */
+    const manual = sincronia.modo === 'manual';
     throw new Error(
       `A sincronização respondeu "${sincronia.message ?? 'sucesso'}" e não realizou nada.\n` +
         `  ${passadas.length} sessões já passaram e nenhuma virou 'realizado'.\n\n` +
-        `  Causa quase certa: a clínica está com 'pagamento_automatico = false'.\n` +
-        `  Os UPDATE de sincronizar-status filtram por essa flag (core.clj:1081),\n` +
-        `  e provisionar-clinica não a liga. Ligue-a para esta clínica e rode de novo.\n\n` +
-        `  (Medido em produção em 19/08 — ver mensageria/0189.)`
+        (manual
+          ? `  Causa CONFIRMADA pela própria resposta (modo: "manual"): a clínica está\n` +
+            `  com 'pagamento_automatico = false', e os UPDATE de sincronizar-status\n` +
+            `  filtram por essa flag. O default desligado é decisão da migration\n` +
+            `  20260817100000 — não é defeito. Ligue a flag para ESTA clínica e rode de novo.\n`
+          : `  A resposta veio com modo "${sincronia.modo ?? '(ausente)'}", ou seja, a clínica\n` +
+            `  ESTÁ em pagamento automático e mesmo assim nada mudou. Aqui a flag não\n` +
+            `  explica — investigue os UPDATE e o fuso de 'data_hora_sessao'.\n`) +
+        `\n  (Medido em produção em 19/08 — ver mensageria/0189.)`
     );
   }
   ok(

@@ -14,6 +14,9 @@
             [cheshire.core :as json]
             [deep-saude-backend.core :as core]
             [deep-saude-backend.db :as db]
+            [migratus.core :as migratus]
+            [next.jdbc :as jdbc]
+            [deep-saude-backend.remuneracao :as remuneracao]
             [environ.core]))
 
 (deftest app-esta-montado
@@ -168,6 +171,85 @@
       (is (thrown? java.sql.SQLException (core/aguardar-banco! 2))
           "banco que não volta tem que derrubar o boot, não repetir para sempre")
       (is (= 2 @tentativas) "deve ter tentado exatamente o número pedido"))))
+
+(deftest migrar-so-anuncia-sucesso-quando-nao-sobra-pendencia
+  ;; 🔴 A-026 — o defeito que custou 17 horas de log verde em 2026-08-19.
+  ;;
+  ;; `migrations_completed` saía logo depois do `migratus/migrate`, sem olhar se
+  ;; sobrou pendência. Uma reserva órfã fazia o migratus desistir em silêncio e
+  ;; o boot anunciava sucesso tendo aplicado ZERO migration.
+  ;;
+  ;; 📌 Os três casos abaixo são um par de controle, não três testes soltos: o
+  ;; primeiro prova que a guarda DEIXA passar o boot saudável, os outros dois
+  ;; que ela BARRA. Guarda que só foi vista barrando pode estar barrando tudo.
+  (testing "saudável: havia pendência, migrou, não sobrou nada — não pode lançar"
+    (let [chamada (atom 0)]
+      (with-redefs [core/migratus-config (constantly {})
+                    migratus/migrate     (constantly nil)
+                    migratus/pending-list (fn [_] (if (= 1 (swap! chamada inc))
+                                                    ["20260819080000-repasse"]
+                                                    []))]
+        (is (do (core/migrar!) true)
+            "boot com schema em dia não pode ser derrubado pela guarda"))))
+
+  (testing "a reserva está tomada e sobrou pendência — derruba o boot e nomeia a reserva órfã"
+    (with-redefs [core/migratus-config (constantly {})
+                  migratus/migrate     (constantly :ignore)
+                  migratus/pending-list (constantly ["20260819080000-repasse"
+                                                     "20260819090000-oauth-state"])]
+      (let [e (try (core/migrar!) nil (catch clojure.lang.ExceptionInfo e e))]
+        (is (some? e) "pendência restante tem que derrubar o boot — é a D-001")
+        (is (= 2 (count (:pendentes (ex-data e)))))
+        (is (= :ignore (:desfecho (ex-data e))))
+        (is (re-find #"id = -1" (.getMessage e))
+            "o log tem que entregar o último salto do diagnóstico, não deixar deduzir")
+        (is (re-find #"rastro parcial" (.getMessage e))
+            "apagar a reserva sem conferir rastro parcial é o passo que faltava"))))
+
+  (testing "o migratus não relatou erro nenhum e AINDA ASSIM sobrou pendência"
+    ;; Este é o caso que o código antigo não tinha como ver: o veredito vem do
+    ;; efeito (`pending-list`), não do código de retorno. `nil` quer dizer
+    ;; "terminei sem erro", e não "apliquei o que faltava".
+    (with-redefs [core/migratus-config (constantly {})
+                  migratus/migrate     (constantly nil)
+                  migratus/pending-list (constantly ["20260819100000-acesso-prontuario"])]
+      (let [e (try (core/migrar!) nil (catch clojure.lang.ExceptionInfo e e))]
+        (is (some? e) "sucesso relatado com pendência restante é o defeito, não a exceção")
+        (is (re-find #"sem erro relatado" (.getMessage e)))))))
+
+(deftest sincronizar-nao-chama-de-concluida-o-que-nao-tentou-fazer
+  ;; 🔴 A-026 — a rota respondia `{"message":"Sincronização concluída",
+  ;; "status_atualizados":0}` para uma clínica com 54 sessões no passado, porque
+  ;; os UPDATE filtram por `pagamento_automatico = true` e a flag estava
+  ;; desligada. "Zero porque não havia o que fazer" e "zero porque eu não faço
+  ;; isso aqui" chegavam como a MESMA resposta.
+  ;;
+  ;; 📌 Os dois casos abaixo são um par: o número zero pode aparecer nos dois
+  ;; mundos, então testar só o manual não provaria nada. O que o par prova é que
+  ;; a resposta passou a DIZER em qual mundo está.
+  (let [pedido {:identity {:clinica_id (java.util.UUID/randomUUID)}}]
+
+    (testing "clínica em pagamento manual — não pode dizer que concluiu"
+      (with-redefs [db/datasource   (delay :sem-banco)
+                    db/execute-one! (fn [_] {:pagamento_automatico false})]
+        (let [resp (core/sincronizar-status-agendamentos-handler pedido)]
+          (is (= 200 (:status resp)) "modo manual é configuração, não erro")
+          (is (= "manual" (get-in resp [:body :modo])))
+          (is (nil? (re-find #"(?i)conclu" (get-in resp [:body :message])))
+              "a palavra 'concluída' para quem não tentou nada é a mentira inteira")
+          (is (zero? (get-in resp [:body :status_atualizados]))))))
+
+    (testing "clínica em pagamento automático — conclui, diz o modo e devolve o efeito"
+      (with-redefs [db/datasource   (delay :sem-banco)
+                    db/execute-one! (fn [_] {:pagamento_automatico true})
+                    jdbc/execute!   (fn [_ _] [{:next.jdbc/update-count 7}])
+                    remuneracao/calcular-pendentes! (fn [_] nil)]
+        (let [resp (core/sincronizar-status-agendamentos-handler pedido)]
+          (is (= 200 (:status resp)))
+          (is (= "automatico" (get-in resp [:body :modo])))
+          (is (re-find #"(?i)conclu" (get-in resp [:body :message])))
+          (is (= 7 (get-in resp [:body :status_atualizados]))
+              "o efeito medido tem que chegar em quem chamou, não só o código de status"))))))
 
 (deftest limite-de-payload-nao-atrapalha-requisicao-pequena
   (testing "corpo pequeno passa direto pelo limite e chega na autenticação"
