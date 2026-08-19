@@ -691,11 +691,65 @@ async function main() {
    * erro explícito dizendo que é calculado pelo servidor. Tentar semear esse
    * número seria inventar dinheiro, e é justamente o que a R-004 proíbe.
    */
-  exigir(
+  const sincronia = exigir(
     await api('/api/agendamentos/sincronizar', { metodo: 'POST', token: tokenAdmin }),
     'Sincronização de status'
   );
-  ok('sessões passadas viraram realizadas e pagas, com repasse calculado pelo servidor');
+
+  /**
+   * 🔴 **O `200` desta rota NÃO significa que ela fez alguma coisa — medido em
+   * produção pela `vale`, na 0189.**
+   *
+   * Ela respondeu, palavra por palavra:
+   *
+   * ```json
+   * {"message":"Sincronização concluída","status_atualizados":0,"pagamentos_atualizados":0}
+   * ```
+   *
+   * com metade das 108 sessões no passado. Os dois `UPDATE` de
+   * `sincronizar-status` filtram por
+   * `clinica_id IN (SELECT id FROM clinicas WHERE pagamento_automatico = true)`
+   * (`core.clj:1081` e `:1095`), e **`provisionar-clinica` não liga essa flag** —
+   * conferido: a palavra não aparece em lugar nenhum daquele handler. Clínica
+   * recém-provisionada não fecha o próprio mês, e a rota chama isso de
+   * *"concluída"*.
+   *
+   * ⚠️ **Eu tinha escrito `exigir(...)` e seguido em frente.** Um `exigir` só
+   * pergunta "deu 2xx?" — e aqui 2xx e "não fiz nada" são a mesma resposta. É
+   * literalmente o defeito que eu venho apontando nos outros a semana inteira: o
+   * `test.fail()` que absorvia qualquer morte, o `migrations_completed` que
+   * anunciou sucesso por 17 horas sem aplicar migration nenhuma. **Confiar no
+   * código de status é medir com um instrumento que não distingue os dois casos.**
+   *
+   * 📌 Por isso a verificação abaixo é por EFEITO: releio a agenda e conto
+   * quantas passadas ficaram `realizado`. Se a resposta disser "concluída" e o
+   * efeito não estiver lá, o script morre dizendo exatamente qual é a causa
+   * provável — em vez de deixar a próxima pessoa descobrir olhando um financeiro
+   * zerado.
+   */
+  const conferencia = exigir(
+    await api('/api/agendamentos', { token: tokenAdmin }),
+    'Releitura da agenda para conferir a sincronização'
+  );
+  const passadas = conferencia.filter(
+    (a) => a.status !== 'cancelado' && new Date(a.data_hora_sessao) < new Date()
+  );
+  const realizadas = passadas.filter((a) => a.status === 'realizado');
+
+  if (passadas.length > 0 && realizadas.length === 0) {
+    throw new Error(
+      `A sincronização respondeu "${sincronia.message ?? 'sucesso'}" e não realizou nada.\n` +
+        `  ${passadas.length} sessões já passaram e nenhuma virou 'realizado'.\n\n` +
+        `  Causa quase certa: a clínica está com 'pagamento_automatico = false'.\n` +
+        `  Os UPDATE de sincronizar-status filtram por essa flag (core.clj:1081),\n` +
+        `  e provisionar-clinica não a liga. Ligue-a para esta clínica e rode de novo.\n\n` +
+        `  (Medido em produção em 19/08 — ver mensageria/0189.)`
+    );
+  }
+  ok(
+    `${realizadas.length} de ${passadas.length} sessões passadas estão realizadas, ` +
+      `com repasse calculado pelo servidor`
+  );
 
   /**
    * Um repasse já transferido, para que a tela tenha os DOIS estados.

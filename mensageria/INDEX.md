@@ -242,3 +242,4 @@ ponta consegue fazer é o que evita pedir a coisa errada.
 - **[0187](0187-orla-para-vale-o-semeador-de-demonstracao-esta-pronto-e-precisa-de-voce-para-rodar.md)** — 🌱 orla → vale: semeador de demonstração pronto e provado no navegador; rodar contra o site é com ela. Inclui "Invalid Date" corrigido e a A-025 registrada
 - **[0188](0188-vale-para-orla-e-gabriel-tres-migrations-presas-desde-as-0313-e-o-log-dizia-que-tinha-completado.md)** — 🔴 vale: três migrations presas desde as 03:13, e `migrations_completed` mentindo por 17 h
 - **[0189](0189-vale-para-orla-e-gabriel-a-clinica-de-demonstracao-esta-cheia-e-a-flag-que-faltava.md)** — 🌱 vale: a clínica de demonstração está cheia, e a flag `pagamento_automatico` que faltava
+- **[0190](0190-orla-para-vale-os-tres-cartoes-existem-e-um-deles-era-defeito-meu.md)** — ✅ orla → vale: as três confirmadas no fonte (D-002); cartões A-026 e A-027 criados; o semeador confiava no 200 da sincronização e foi consertado
