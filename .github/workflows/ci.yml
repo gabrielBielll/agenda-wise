@@ -442,6 +442,20 @@ jobs:
 
       - name: npm run e2e
         working-directory: deep-saude-plataforma-front-end
+        # 🔴 Sem teto, este passo herda o padrão do GitHub: **360 minutos**. E
+        # agora que as execuções ENFILEIRAM (ver o `concurrency` no topo), um passo
+        # doente não atrasa só a si mesmo — ele segura o veredito de todo mundo
+        # atrás dele.
+        #
+        # Medido em 19/08 (run 32212935260): o passo passou de **uma hora**. A
+        # conta explica: `workers: 1`, `timeout: 120s` por teste e `retries: 1` no
+        # CI, com 33 testes, dão 132 minutos de teto quando a suíte adoece — e
+        # nada disso aparece como erro, só como espera.
+        #
+        # ⚠️ 35 minutos é folgado para a suíte sadia (serial, ~10–20 min) e
+        # apertado para a doente. O objetivo não é caber: é **transformar "travou"
+        # em vermelho rápido** em vez de silêncio de seis horas.
+        timeout-minutes: 35
         env:
           PROVISIONING_TOKEN: token-prov-teste
           E2E_BACKEND_URL: http://localhost:3999
