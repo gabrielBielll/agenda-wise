@@ -100,11 +100,35 @@ cada tela**. Não está provado pelos 30 testes de navegador.
 
 ### Achados registrados e não consertados
 
-- **A-019** — os formulários de agendamento transformam falha de API em **lista
-  vazia**: o seletor de psicóloga abre vazio, sem explicação. É a A-013 num
-  endereço novo. Fica para a `vale`.
 - **A-018** — marcar paciente como inativo faz ele **sumir da listagem** sem
   aviso, na mesma linha onde fica o excluir de verdade. Espera decisão sua.
+
+### ✅ Fechados depois que este documento foi escrito (madrugada de 19/08)
+
+*Atualizado pela `vale` às 03:35 — o documento tinha sido escrito antes destes.*
+
+- **A-019 — consertado.** O formulário de novo agendamento transformava falha de
+  API em *"não há psicólogas cadastradas"*; como o campo é obrigatório, a
+  recepção ficava com um seletor vazio e nenhuma explicação. Agora distingue
+  *"não consegui carregar"* de *"não há nenhuma"*.
+  ⚠️ A tela de **edição** já estava correta — a fila citava as duas, e só uma
+  tinha o defeito.
+
+- 🔴 **O backend ficou vermelho e voltou.** O primeiro veredito completo do CI na
+  noite acusou **6 erros** com uma mensagem que não aponta para nada:
+  `PSQLException: Too many update results were returned`. Não eram seis defeitos:
+  a migration nova do `state` OAuth tinha dois comandos sem o separador `--;;` do
+  migratus, e o erro estourava na rotina que prepara o banco — derrubando todo
+  teste que precisa dele. **Consertado: 126 testes, 436 asserções, 0 falhas.**
+
+- **Cor de estado por token.** Os selos do painel do Google (*sincronizando*,
+  *sem acesso*…) usavam cores fixas claras, que viravam manchas no **modo
+  escuro** do seu redesign. Passaram a usar os tokens que você definiu, mantendo
+  os quatro estados distinguíveis entre si.
+  📌 E uma correção de rota minha: eu tinha contado `bg-white/30` como defeito, e
+  **não é** — branco translúcido é o seu idioma (`bg-white/55`, `border-white/70`,
+  o `.quiet-card`). É película sobre fundo por token, e inverte sozinho. Só troquei
+  o que era **opaco e claro**.
 
 ---
 
