@@ -138,6 +138,26 @@ test.describe('A-022 — o cadastro de paciente sobrevive a uma falha ao salvar'
 
     await page.getByRole('button', { name: /salvar paciente/i }).click();
 
+    /**
+     * ⚠️ ÂNCORA ANTES DAS ASSERÇÕES — e ela existe porque a primeira versão deste
+     * teste foi **instável** (run 32228458848: falhou, passou no retry).
+     *
+     * O erro era `element(s) not found` no `#telefone`: o campo não estava vazio,
+     * ele **não existia**. Ou seja, a tela tinha saído do formulário — o
+     * formulário navega para a listagem quando a criação dá certo, então numa das
+     * tentativas a interceptação não pegou a submissão e o cadastro passou.
+     *
+     * 🔴 Sem esta âncora, esse caso se disfarça de "o campo foi apagado", que é o
+     * defeito oposto do que o teste investiga. É a **D-017** aplicada a mim: eu
+     * afirmei sobre o conteúdo de um campo sem antes garantir que a página onde
+     * ele mora ainda estava aberta.
+     */
+    await expect(
+      page,
+      'a tela saiu do formulário: a criação foi aceita, então a falha não chegou a ' +
+        'ser exercitada — isto NÃO é o defeito da A-022, é o teste não ter forçado o erro'
+    ).toHaveURL(/\/admin\/pacientes\/novo/, { timeout: 20_000 });
+
     await expect(
       page.locator('#nome'),
       'o nome digitado foi apagado quando a criação falhou — quem cadastra perde ' +
@@ -147,6 +167,6 @@ test.describe('A-022 — o cadastro de paciente sobrevive a uma falha ao salvar'
     await expect(
       page.locator('#telefone'),
       'o telefone também foi apagado — o reset do `<form action>` não escolhe campo'
-    ).toHaveValue('(21) 99999-8888');
+    ).toHaveValue('(21) 99999-8888', { timeout: 15_000 });
   });
 });
