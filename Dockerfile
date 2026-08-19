@@ -27,9 +27,38 @@ COPY --from=deps /app/node_modules ./node_modules
 # Ajuste: Copia todo o código do frontend para a pasta de trabalho
 COPY deep-saude-plataforma-front-end .
 
-# Aceitar variáveis de build
+# 🔴 ESTAS SÃO VARIÁVEIS DE **BUILD**, NÃO DE EXECUÇÃO — e a diferença já custou
+# uma noite de "o novo design não subiu".
+#
+# Definir qualquer uma delas só como variável de execução no provedor **não tem
+# efeito nenhum**, e o sintoma não parece configuração: parece a aplicação
+# quebrada. Medido neste repositório, não deduzido:
+#
+#   NEXT_PUBLIC_API_URL  → o Next embute variáveis `NEXT_PUBLIC_*` usadas em
+#                          componente de cliente dentro do bundle durante o
+#                          `next build`. Conferido: o valor aparece em
+#                          `.next/static/chunks/app/admin/layout-*.js`. Sem ela,
+#                          o chunk sai com `undefined` e o health check do
+#                          `AdminLayout` nunca passa — reiniciar não conserta,
+#                          só um build novo.
+#
+#   API_PROXY_TARGET     → alimenta os `rewrites()` do `next.config.ts`, e o Next
+#                          CONGELA o destino em `.next/routes-manifest.json`
+#                          durante o build. Conferido: o destino aparece lá
+#                          resolvido. Sem ela, todo o módulo financeiro — que
+#                          chama `/api/...` em caminho relativo — aponta para
+#                          `localhost:3000`, ou seja, para a máquina de quem
+#                          abriu o navegador.
+#
+# ⚠️ No Northflank/App Runner: **Build arguments**, não *Environment variables*.
 ARG NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+
+# Faltava. Sem este ARG o valor definido no provedor não atravessava o build, e
+# os rewrites caíam no encadeamento de fallback do `next.config.ts`
+# (`API_PROXY_TARGET ?? NEXT_PUBLIC_API_URL ?? localhost:3000`) sem ninguém notar.
+ARG API_PROXY_TARGET
+ENV API_PROXY_TARGET=$API_PROXY_TARGET
 
 RUN npm run build
 

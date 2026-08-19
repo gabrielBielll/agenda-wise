@@ -151,11 +151,33 @@ falha. Se ficar vermelho logo depois de subir, o suspeito nº 1 é a `DATABASE_U
 ⚠️ **O contexto é a raiz**, e o `Dockerfile` da pasta do front foi apagado em
 17/08 porque não construía. Se a interface oferecer os dois, é o da raiz.
 
-### Argumento de **build** (não é variável de runtime)
+### Argumentos de **build** (não são variáveis de runtime)
 
 | Argumento | Valor |
 |---|---|
 | `NEXT_PUBLIC_API_URL` | a URL pública do **backend**, do serviço 1 |
+| `API_PROXY_TARGET` | **a mesma URL do backend** |
+
+🔴 **Os dois são de BUILD, e definir no lugar errado não dá erro — dá aplicação
+quebrada com cara de bug.** Medido neste repositório em 19/08, não deduzido:
+
+| se faltar | o que acontece |
+|---|---|
+| `NEXT_PUBLIC_API_URL` | o Next embute variáveis `NEXT_PUBLIC_*` de componente de cliente **dentro do bundle** durante o `next build` — o valor aparece em `.next/static/chunks/app/admin/layout-*.js`. Sem ela o chunk sai com `undefined`, o health check do admin nunca passa, e **reiniciar não conserta**: só um build novo |
+| `API_PROXY_TARGET` | o Next **congela** o destino dos `rewrites()` em `.next/routes-manifest.json` durante o build. Sem ela, todo o módulo financeiro — que chama `/api/...` em caminho relativo — aponta para `localhost:3000`, isto é, **para a máquina de quem abriu o navegador** |
+
+⚠️ **Na interface do Northflank isso é "Build arguments", não "Environment
+variables".** O `ARG API_PROXY_TARGET` faltava no `Dockerfile` até 19/08 — antes
+disso, definir a variável não adiantava nem no lugar certo, porque ela não
+atravessava o build.
+
+📌 **Como conferir sem adivinhar**, depois de qualquer build:
+
+```sh
+grep -o 'https://[^"]*' .next/routes-manifest.json | head -2
+```
+
+Se aparecer `localhost:3000`, o argumento não chegou.
 
 ### Variáveis de runtime
 
