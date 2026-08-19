@@ -107,3 +107,46 @@ test.describe('A-022 — a nota clínica sobrevive a uma falha ao salvar', () =>
     ).toHaveValue(TEXTO, { timeout: 15_000 });
   });
 });
+
+/**
+ * O mesmo defeito no grupo de CRIAÇÃO, onde o estrago é maior.
+ *
+ * 📌 Na edição o formulário volta ao valor **salvo** — some a alteração. Na
+ * criação ele volta **em branco**: some tudo, e não há nada no banco para
+ * reconstruir a partir.
+ *
+ * Este é o formulário que a `orla` mediu de verdade com o backend em modo 500
+ * (0165), então é o que fecha o círculo entre a medição dela e o conserto.
+ */
+test.describe('A-022 — o cadastro de paciente sobrevive a uma falha ao salvar', () => {
+  test('os campos preenchidos continuam lá quando a criação falha', async ({ page }) => {
+    const nome = `Paciente A-022 ${Date.now().toString(36)}`;
+
+    await page.goto('/admin/pacientes/novo');
+
+    await page.locator('#nome').fill(nome);
+    await page.locator('#telefone').fill('(21) 99999-8888');
+
+    await page.route('**/*', async (rota) => {
+      const req = rota.request();
+      if (req.method() === 'POST' && req.headers()['next-action']) {
+        await rota.fulfill({ status: 500, contentType: 'text/plain', body: 'falha forçada pelo teste' });
+        return;
+      }
+      await rota.continue();
+    });
+
+    await page.getByRole('button', { name: /salvar paciente/i }).click();
+
+    await expect(
+      page.locator('#nome'),
+      'o nome digitado foi apagado quando a criação falhou — quem cadastra perde ' +
+        'tudo junto com o aviso de erro (A-022, grupo de criação)'
+    ).toHaveValue(nome, { timeout: 15_000 });
+
+    await expect(
+      page.locator('#telefone'),
+      'o telefone também foi apagado — o reset do `<form action>` não escolhe campo'
+    ).toHaveValue('(21) 99999-8888');
+  });
+});
