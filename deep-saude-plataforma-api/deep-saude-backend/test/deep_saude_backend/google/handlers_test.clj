@@ -20,7 +20,55 @@
   (:require [clojure.test :refer [deftest is testing]]
             [clojure.string]
             [deep-saude-backend.db :as db]
+            [deep-saude-backend.google.api :as api]
             [deep-saude-backend.google.handlers :as handlers]))
+
+(deftest sincronizacao-nao-sorteia-uma-conexao-quando-a-clinica-tem-varias
+  (let [clinica #uuid "aaaaaaaa-1000-0000-0000-000000000001"
+        chamadas (atom [])]
+    (with-redefs [handlers/conexoes-da-clinica
+                  (constantly [{:id 1 :usuario_id #uuid "aaaaaaaa-1000-0000-0000-000000000011"}
+                               {:id 2 :usuario_id #uuid "aaaaaaaa-1000-0000-0000-000000000012"}])
+                  handlers/conexao-da-clinica (constantly {:id 1})
+                  handlers/access-token-valido #(str "token-" (:id %))
+                  api/listar-calendarios
+                  (fn [token]
+                    (swap! chamadas conj token)
+                    (if (= token "token-2")
+                      {:erro true :detalhe "falha medida"}
+                      {:calendarios []}))]
+      (let [resp (handlers/sincronizar-agendas-handler
+                  {:identity {:clinica_id clinica}})]
+        (is (= 502 (:status resp)))
+        (is (= #{"token-1" "token-2"} (set @chamadas))
+            "as N conexões precisam votar; uma linha arbitrária não representa a clínica")))))
+
+(deftest sugestao-une-criadores-vistos-pelas-conexoes-da-clinica
+  (let [clinica #uuid "bbbbbbbb-1000-0000-0000-000000000001"
+        vinculo #uuid "bbbbbbbb-1000-0000-0000-000000000002"
+        chamadas (atom [])]
+    (with-redefs [db/execute-one!
+                  (constantly {:id vinculo :google_calendar_id "agenda@google"
+                               :nome_no_google "Agenda Ana"})
+                  db/execute-query!
+                  (fn [q]
+                    (if (clojure.string/includes? (str (first q)) "google_conexao")
+                      [{:id 1 :usuario_id #uuid "bbbbbbbb-1000-0000-0000-000000000011"}
+                       {:id 2 :usuario_id #uuid "bbbbbbbb-1000-0000-0000-000000000012"}]
+                      [{:id #uuid "bbbbbbbb-1000-0000-0000-000000000021"
+                        :nome "Ana" :email "ana@local"}]))
+                  handlers/access-token-valido #(str "token-" (:id %))
+                  api/listar-eventos-recentes
+                  (fn [token calendar-id & {:keys [quota-user]}]
+                    (swap! chamadas conj [token calendar-id quota-user])
+                    {:criadores #{(str token "@google.local")}})]
+      (let [resp (handlers/sugerir-vinculo-handler
+                  {:identity {:clinica_id clinica}
+                   :params {:id (str vinculo)}})]
+        (is (= 200 (:status resp)))
+        (is (= #{"token-1" "token-2"} (set (map first @chamadas))))
+        (is (= 2 (count @chamadas))
+            "a sugestão não pode depender do token de uma psicóloga sorteada")))))
 
 (def ativa {:status "ativa"})
 

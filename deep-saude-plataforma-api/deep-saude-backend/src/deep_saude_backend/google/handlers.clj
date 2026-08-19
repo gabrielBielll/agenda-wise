@@ -306,40 +306,57 @@
 ;; Agendas e vínculos
 ;; ---------------------------------------------------------------------------
 
+(defn- conexoes-com-token
+  "Resolve todas as conexões da clínica sem escolher uma linha arbitrária."
+  [clinica-id]
+  (mapv #(assoc % :access-token (access-token-valido %))
+        (conexoes-da-clinica clinica-id)))
+
 (defn sincronizar-agendas-handler
-  "Lê o calendarList e reconcilia com vinculo_agenda.
+  "Lê o calendarList de todas as conexões e reconcilia com vinculo_agenda.
 
    É o 'Buscar novas agendas' do painel, e também o que detecta
-   descompartilhamento."
+   descompartilhamento. Uma visão parcial não pode marcar agendas das outras
+   psicólogas como sem acesso."
   [request]
-  (let [clinica-id (get-in request [:identity :clinica_id])]
-    (if-let [conexao (conexao-da-clinica clinica-id)]
-      (if-let [token (access-token-valido conexao)]
-        (let [resultado (api/listar-calendarios token)]
-          (if (:erro resultado)
-            {:status 502 :body {:erro "Falha ao listar agendas no Google."
-                                :detalhe (:detalhe resultado)}}
-            (let [atuais (execute-query! ["SELECT * FROM vinculo_agenda WHERE clinica_id = ?" clinica-id])
-                  plano (vinculos/reconciliar (:calendarios resultado) atuais)]
-              (jdbc/with-transaction [tx @datasource]
-                (doseq [novo (:novos plano)]
-                  (sql/insert! tx :vinculo_agenda (assoc novo :clinica_id clinica-id)))
-                (doseq [{:keys [id]} (:sem-acesso plano)]
-                  (sql/update! tx :vinculo_agenda {:status "sem_acesso"} {:id id}))
-                (doseq [{:keys [id status access_role]} (:reativados plano)]
-                  (sql/update! tx :vinculo_agenda
-                               {:status status :access_role access_role} {:id id}))
-                (doseq [{:keys [id para]} (:papel-mudou plano)]
-                  (sql/update! tx :vinculo_agenda {:access_role para} {:id id})))
-              {:status 200
-               :body {:novas (count (:novos plano))
-                      :sem_acesso (count (:sem-acesso plano))
-                      :reativadas (count (:reativados plano))
-                      :papel_alterado (:papel-mudou plano)
-                      :ignoradas (:ignorados plano)}})))
-        {:status 409 :body {:erro "Conexão com o Google inválida. É necessário reconectar."
-                            :code "conexao_invalida"}})
-      {:status 404 :body {:erro "Nenhuma conexão com o Google para esta clínica."}})))
+  (let [clinica-id (get-in request [:identity :clinica_id])
+        conexoes (conexoes-com-token clinica-id)]
+    (cond
+      (empty? conexoes)
+      {:status 404 :body {:erro "Nenhuma conexão com o Google para esta clínica."}}
+
+      (some (comp nil? :access-token) conexoes)
+      {:status 409 :body {:erro "Uma conexão com o Google está inválida. É necessário reconectar."
+                          :code "conexao_invalida"}}
+
+      :else
+      (let [resultados (mapv #(api/listar-calendarios (:access-token %)) conexoes)]
+        (if-let [falha (first (filter :erro resultados))]
+          {:status 502 :body {:erro "Falha ao listar agendas no Google."
+                              :detalhe (:detalhe falha)}}
+          (let [calendarios (->> resultados
+                                 (mapcat :calendarios)
+                                 (map (juxt :id identity))
+                                 (into {})
+                                 vals)
+                atuais (execute-query! ["SELECT * FROM vinculo_agenda WHERE clinica_id = ?" clinica-id])
+                plano (vinculos/reconciliar calendarios atuais)]
+            (jdbc/with-transaction [tx @datasource]
+              (doseq [novo (:novos plano)]
+                (sql/insert! tx :vinculo_agenda (assoc novo :clinica_id clinica-id)))
+              (doseq [{:keys [id]} (:sem-acesso plano)]
+                (sql/update! tx :vinculo_agenda {:status "sem_acesso"} {:id id}))
+              (doseq [{:keys [id status access_role]} (:reativados plano)]
+                (sql/update! tx :vinculo_agenda
+                             {:status status :access_role access_role} {:id id}))
+              (doseq [{:keys [id para]} (:papel-mudou plano)]
+                (sql/update! tx :vinculo_agenda {:access_role para} {:id id})))
+            {:status 200
+             :body {:novas (count (:novos plano))
+                    :sem_acesso (count (:sem-acesso plano))
+                    :reativadas (count (:reativados plano))
+                    :papel_alterado (:papel-mudou plano)
+                    :ignoradas (:ignorados plano)}}))))))
 
 (defn listar-agendas-handler [request]
   (let [clinica-id (get-in request [:identity :clinica_id])]
@@ -360,11 +377,15 @@
         vinculo-id (java.util.UUID/fromString (get-in request [:params :id]))]
     (if-let [vinculo (execute-one! ["SELECT * FROM vinculo_agenda WHERE id = ? AND clinica_id = ?"
                                     vinculo-id clinica-id])]
-      (let [conexao (conexao-da-clinica clinica-id)
-            token (some-> conexao access-token-valido)
-            criadores (if token
-                        (:criadores (api/listar-eventos-recentes token (:google_calendar_id vinculo)))
-                        #{})
+      (let [conexoes (conexoes-com-token clinica-id)
+            criadores (->> conexoes
+                           (keep (fn [{:keys [access-token usuario_id]}]
+                                   (when access-token
+                                     (:criadores
+                                      (api/listar-eventos-recentes
+                                       access-token (:google_calendar_id vinculo)
+                                       :quota-user (str usuario_id))))))
+                           (reduce into #{}))
             usuarios (execute-query!
                       ["SELECT u.id, u.nome, u.email FROM usuarios u
                           JOIN papeis p ON p.id = u.papel_id
