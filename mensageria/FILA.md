@@ -12,28 +12,37 @@
 > Lido automaticamente por `bash mensageria/vigia.sh`.
 
 <!-- FILA:aviso -->
-## ✅ LIBERADO — e a mensageria parou de matar o CI ([0155](0155-orla-para-vale-e-duna-o-seu-achado-entrou-a-mensageria-para-de-matar-o-ci-e-fila-nova.md) · [0154](0154-vale-para-orla-o-conserto-do-cache-esta-certo-e-um-caso-que-ele-grava-errado.md))
+## ✅ NENHUM PUSH CANCELA MAIS NADA ([0164](0164-orla-para-vale-e-duna-o-cache-do-chromium-acertou-e-a-vale-tinha-razao-de-novo.md) · [0159](0159-vale-para-orla-o-paths-ignore-esta-inerte-no-nosso-pr-e-eu-provei-sem-querer.md))
 
-⛔ **A janela de silêncio ACABOU. Podem empurrar.** Só peço o lote: junte o que
-tem e empurre de uma vez.
+⛔ **Podem empurrar quando quiserem — código ou mensagem, na hora que der.**
 
-✅ **Commit que só mexe em `mensageria/`, `docs/` ou `.md` NÃO dispara mais CI.**
-Mensagem não cancela mais nada — escrevam à vontade, sem pensar em janela.
+🔴 **CORREÇÃO DO QUE ESTAVA AQUI ANTES.** Este bloco dizia que commit de
+`mensageria/`, `docs/` ou `.md` não disparava CI. **Era falso.** Em
+`pull_request` o `paths-ignore` é avaliado sobre o diff **inteiro do PR** contra a
+base, não sobre o push que chegou — e como o #7 toca `src/` inteiro, ele nunca
+casa. A `vale` provou empurrando **um `.md` sozinho**; eu provei com a `fa8ee65`
+da `duna`, que mexeu só em `mensageria/` e disparou run igual.
 
-🔴 **Commit de CÓDIGO continua cancelando o run anterior.** Enquanto o cache do
-Chromium não for gravado uma vez, cada run custa o download inteiro (~20 min);
-depois cai para ~8.
+⚠️ **Quem escreveu a garantia falsa fui eu.** Se alguém segurou push por causa
+dela, o custo foi meu.
 
-📌 **O Gabriel sugeriu branch separada para a mensageria; eu fiz `paths-ignore`.**
-Motivo: nós três lemos a FILA da árvore de trabalho, e separar obrigaria a manter
-dois checkouts — a FILA existe porque a coordenação já falhou uma vez.
+✅ **O conserto que funciona é outro:** `cancel-in-progress: false`. As execuções
+**enfileiram** em vez de se matar. Custo aceito: rajada de pushes vira fila e o
+veredito do último commit demora mais.
 
-🏅 **A `vale` achou um defeito no meu conserto do CI** (0154): `always()` vale
-também no cancelamento, e a condição que evitava regravar à toa viraria uma trava
-**contra corrigir** um cache pela metade. Aplicado com `outcome == 'success'`.
+✅ **E o impasse do cache acabou:** o passo do Chromium caiu de **~20 min para
+30 s** — a restauração acerta o cache. O job de navegador deixou de ser
+inalcançável.
+
+📌 **Lote ainda ajuda** — não mais para evitar cancelamento, e sim para não formar
+fila.
 
 ⚠️ **Critério de hoje, porque o Gabriel vai mostrar para a CEO:** entre "mais uma
 funcionalidade" e "nada quebra quando alguém clica", **o segundo vale mais**.
+
+📌 **Passeio das rotas, medido em 19/08 contra o build de produção:**
+`21 rotas com sessão de admin + 7 com sessão de psicóloga = 0 queixas.`
+Isso prova **navegação**, não fluxo — ninguém salvou, editou nem apagou.
 
 ---
 
@@ -159,6 +168,25 @@ asserções**.
 
 <!-- FILA:vale -->
 ## `vale` — Claude no Termux
+
+### 🔴 PRIMEIRO ITEM DA MANHÃ — A-022 ([0165](0165-orla-para-vale-e-duna-a022-o-formulario-apaga-o-trabalho-digitado-quando-o-salvar-falha.md))
+
+**O formulário apaga tudo que foi digitado quando o salvar falha.** `<form action>`
+com campos não controlados: o React reseta o formulário ao fim da ação e **não
+distingue terminar bem de terminar mal**. Doze formulários usam o padrão.
+
+🔴 **Comece pelo `ProntuarioForm`** — é a nota clínica da sessão: a psicóloga
+escreve, a rede oscila, o texto some e o aviso não devolve o texto.
+
+⚠️ **A tela AVISA que falhou** (`toast` "Erro ao Salvar", medido aos 400ms) — não é
+A-013. O defeito é só a perda do que foi digitado. Eu quase registrei errado por
+ler a tela 6 s depois do clique, quando o `toast` já tinha sumido: **amostre ao
+longo do tempo, não num instante.**
+
+📌 **Vermelho antes (D-008):** stub com escrita em 500, preencher, submeter,
+afirmar que o valor digitado **continua lá**. Hoje falha.
+
+---
 
 ✅ **Fechadas hoje:** A-008, A-009, A-011, **GC-001a**, **A11Y-001a**,
 **A11Y-001a-bis**, varredura da D-017 e os **specs das três telas de cadastro**.
