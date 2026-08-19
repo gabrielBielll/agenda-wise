@@ -130,17 +130,42 @@ test.describe('A-022 — a nota clínica sobrevive a uma falha ao salvar', () =>
  */
 test.describe('A-022 — o cadastro de paciente sobrevive a uma falha ao salvar', () => {
   test('os campos preenchidos continuam lá quando a criação falha', async ({ page }) => {
-    const nome = `Paciente A-022 ${Date.now().toString(36)}`;
-
     await page.goto('/admin/pacientes/novo');
 
-    await page.locator('#nome').fill(nome);
+    // 🔴 NOME CURTO, e NÃO e-mail inválido. A diferença é a única coisa que
+    // separa este teste de um falso verde.
+    //
+    // O gatilho anterior era `#email` com `isto-nao-e-email`. Medido em 19/08
+    // contra o build de produção:
+    //
+    //   checkValidity() do #email          false   → o navegador BARRA
+    //   a server action chegou a rodar?    NÃO
+    //   os campos continuam preenchidos?   sim     → o teste PASSARIA
+    //
+    // ⚠️ Ou seja: verde sem exercitar nada. `#email` é `type="email"`, e a
+    // validação nativa do navegador recusa a submissão antes de a ação existir —
+    // então os campos sobrevivem porque nada aconteceu, não porque o conserto
+    // funciona. É o defeito que este arquivo inteiro existe para caçar, do lado
+    // de dentro do próprio teste.
+    //
+    // ✅ `nome` com 2 caracteres passa pela validação do navegador (não há
+    // `minlength`) e é recusado pelo `pacienteSchema`, que exige 3. Medido: a
+    // ação roda, devolve `success: false`, e a mensagem aparece na tela.
+    await page.locator('#nome').fill('Jo');
     await page.locator('#telefone').fill('(21) 99999-8888');
-    // E-mail inválido: o `pacienteSchema` recusa e a ação devolve
-    // `success: false`, sem tocar no nome nem no telefone — que é o ponto.
-    await page.locator('#email').fill('isto-nao-e-email');
 
     await page.getByRole('button', { name: /salvar paciente/i }).click();
+
+    /**
+     * 🔴 A ÂNCORA QUE IMPEDE O FALSO VERDE: esta mensagem só existe se a ação
+     * rodou **e** devolveu `success: false`. Sem ela, "os campos continuam
+     * preenchidos" é compatível com "a submissão nunca aconteceu".
+     */
+    await expect(
+      page.getByText(/pelo menos 3 caracteres/i),
+      'a recusa do servidor não apareceu — a submissão não chegou a ser avaliada, ' +
+        'então a A-022 não foi exercitada (e um "campo preenchido" aqui não prova nada)'
+    ).toBeVisible({ timeout: 20_000 });
 
     /**
      * ⚠️ ÂNCORA ANTES DAS ASSERÇÕES — e ela existe porque a primeira versão deste
@@ -166,7 +191,7 @@ test.describe('A-022 — o cadastro de paciente sobrevive a uma falha ao salvar'
       page.locator('#nome'),
       'o nome digitado foi apagado quando a criação falhou — quem cadastra perde ' +
         'tudo junto com o aviso de erro (A-022, grupo de criação)'
-    ).toHaveValue(nome, { timeout: 15_000 });
+    ).toHaveValue('Jo', { timeout: 15_000 });
 
     await expect(
       page.locator('#telefone'),
