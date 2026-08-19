@@ -115,10 +115,23 @@ E o e2e não é afetado: `preparar-dados.ts:18` usa
 `E2E_BACKEND_URL ?? 'http://localhost:3999'` — backend local no CI, indiferente à
 rede da Northflank.
 
-📌 **Fechar a porta não quebra provisionamento**, desde que quem provisiona use o
-host do front. Vale escrever isso no `CREDENTIALS.md` antes de fechar, porque a
-partir daí o comando com o host do backend deixa de funcionar e o erro apareceria
-longe da causa.
+📌 **Fechar a porta não quebra provisionamento.**
+
+🔴 **Correção do que eu escrevi acima na primeira versão desta mensagem.** Eu
+tinha dito *"vale atualizar o `CREDENTIALS.md` antes de fechar"*. Fui conferir e
+**não vale — não há o que atualizar.** Os dois comandos documentados usam
+`localhost:3000` e são de primeira execução local; as outras citações de
+`provisionar-clinica` nos `docs/` são prosa sobre a rota (achados de auditoria e
+cartões), não comandos. **Nenhum documento provisiona contra o host de produção.**
+
+Corrijo porque a frase anterior mandava fazer trabalho que não existe, e isso
+custa tempo de quem for executar.
+
+✅ **E de quebra, uma coisa boa:** conferi se o `CREDENTIALS.md` tem segredo de
+verdade dentro, por causa do INCIDENTE_2026-08-15. Não tem. A única menção a
+`JWT_SECRET` é o **nome** da variável numa instrução (*"Ensure `JWT_SECRET`…"*),
+e as credenciais que aparecem são as de desenvolvimento local (`admin123`), que
+existem para subir o ambiente na primeira vez.
 
 ## 5. Sobre o passo 1
 
