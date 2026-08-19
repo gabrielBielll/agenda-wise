@@ -275,7 +275,10 @@ export default function GoogleClient({
         </div>
       )}
 
-      {status.conexoes.length > 0 && (
+      {/* Mesma guarda do `listaDeAgendas` acima: o backend devolve `conexoes`
+          (`handlers.clj:247`), mas ler `.length` de um campo ausente derruba a
+          tela inteira em vez de simplesmente não mostrar o bloco. */}
+      {(status.conexoes ?? []).length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle>Conexões</CardTitle>
