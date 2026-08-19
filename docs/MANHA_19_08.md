@@ -22,11 +22,42 @@ No Northflank → serviço **`deep-saude-frontend`** → **Build arguments**
 
 **Por que são de build, e não de execução** — medido neste repositório:
 
-- `NEXT_PUBLIC_API_URL` é **embutida no bundle** durante o `next build`. Conferido:
-  o valor aparece dentro de `.next/static/chunks/app/admin/layout-*.js`.
 - `API_PROXY_TARGET` alimenta os `rewrites()`, e o Next **congela o destino** em
   `.next/routes-manifest.json` durante o build. Conferido nos dois sentidos: sem
   a variável o manifesto sai com `localhost:3000`; com ela, sai com a URL real.
+  Ela também define a bandeira que liga a rede de segurança abaixo.
+- `NEXT_PUBLIC_API_URL` é lida por **27 arquivos de servidor** em tempo de
+  execução. Mantenha definida; serve ainda de reserva para o proxy.
+
+### 🔒 E o endereço do backend saiu do navegador (A-024)
+
+Você perguntou se a porta do backend estava aberta para a internet. Estava — e
+por causa de **um** arquivo. Medido:
+
+```
+arquivos que usam NEXT_PUBLIC_API_URL      28
+dos quais rodavam no NAVEGADOR              1   → o health check do admin
+chamadas diretas do navegador ao backend    1
+```
+
+✅ **Agora são zero.** O health check passou a usar caminho relativo, encaminhado
+pelo nosso servidor. Conferido no build: **0 arquivos** do bundle do cliente
+contêm o endereço do backend (controle: 63 no build inteiro, todos do lado do
+servidor).
+
+📌 **O que isso te libera:** o backend pode ir para **rede privada** no Northflank
+— só o serviço do front o alcança, e ninguém na internet chega nele. Essa parte
+é sua, no painel.
+
+⚠️ **E o que NÃO dá para fazer, para não perdermos tempo procurando:** não existe
+"autenticar o front". Aplicação pública não guarda segredo — qualquer chave
+embutida viaja no bundle e qualquer pessoa copia. As duas respostas reais são
+não expor (acima) e proteger o que precisa ficar público: o `/api/auth/login` já
+tem limite de tentativas **por IP e por e-mail tentado**.
+
+🟡 **Um ajuste que sobra e é seu, sem código:** a lista de CORS padrão aceita
+`https://*.code.run` — qualquer app hospedado no Northflank, de qualquer pessoa.
+A variável `CORS_ORIGINS` sobrescreve; ponha só o host exato do seu front.
 
 ⚠️ **O `ARG API_PROXY_TARGET` faltava no `Dockerfile` até esta noite.** Ou seja,
 antes disso, definir a variável no lugar certo **não tinha efeito** — ela não
@@ -39,8 +70,17 @@ a variável, execução com ela) e a tela do admin diz:
 
 > **Esta build saiu sem o endereço da API**
 > O endereço do servidor é gravado **durante a construção** desta página, e esta
-> foi construída sem ele. Recarregar não resolve — é preciso construir de novo
-> com `NEXT_PUBLIC_API_URL` definida como variável **de build**.
+> foi construída sem ele — o pedido voltou para a própria aplicação em vez de
+> chegar ao servidor. Recarregar não resolve: é preciso construir de novo com
+> `API_PROXY_TARGET` definida como variável **de build**.
+
+⚠️ **Eu quase quebrei essa rede ao fechar a porta do backend, e vale saber por
+quê:** ela lia o endereço no navegador — justamente o que saiu. Tentei trocar por
+detecção pela resposta, supondo que o proxy mal configurado devolveria 404.
+Medido: **os dois casos devolvem 500** (proxy apontando para si mesmo, e backend
+derrubado). A guarda nunca dispararia. O sinal voltou a vir do build, mas como
+**booleano** — o navegador aprende *se* havia endereço, nunca *qual*. Os três
+estados estão provados contra o build de produção.
 
 📌 **E o `/admin/login` agora abre mesmo sem backend nenhum.** Era isto que fazia
 parecer que o redesign não tinha subido: a porta do admin exigia que o backend
