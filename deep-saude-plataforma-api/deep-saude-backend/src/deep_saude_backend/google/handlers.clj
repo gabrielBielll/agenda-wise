@@ -16,7 +16,9 @@
             [deep-saude-backend.google.cripto :as cripto]
             [deep-saude-backend.google.oauth :as oauth]
             [deep-saude-backend.google.vinculos :as vinculos])
-  (:import (java.time Instant)))
+  (:import (java.nio.charset StandardCharsets)
+           (java.security MessageDigest)
+           (java.time Instant)))
 
 (defn- config []
   {:client-id     (env :google-client-id)
@@ -30,6 +32,28 @@
 ;; ---------------------------------------------------------------------------
 ;; Conexão OAuth da clínica
 ;; ---------------------------------------------------------------------------
+
+(defn- hash-state [state]
+  (let [digest (.digest (MessageDigest/getInstance "SHA-256")
+                        (.getBytes state StandardCharsets/UTF_8))]
+    (apply str (map #(format "%02x" (bit-and (int %) 0xff)) digest))))
+
+(defn guardar-state!
+  "Guarda somente o hash do state, ligado à identidade do JWT por 10 minutos."
+  [state clinica-id usuario-id]
+  (execute-one!
+   ["INSERT INTO google_oauth_state (state_hash, clinica_id, usuario_id, expira_em)
+     VALUES (?, ?, ?, now() + interval '10 minutes')"
+    (hash-state state) clinica-id usuario-id]))
+
+(defn consumir-state!
+  "Consome o state uma única vez e só para a mesma clínica e pessoa do JWT."
+  [state clinica-id usuario-id]
+  (execute-one!
+   ["DELETE FROM google_oauth_state
+      WHERE state_hash = ? AND clinica_id = ? AND usuario_id = ? AND expira_em > now()
+      RETURNING state_hash"
+    (hash-state state) clinica-id usuario-id]))
 
 (defn conexao-da-clinica [clinica-id]
   (execute-one! ["SELECT * FROM google_conexao WHERE clinica_id = ?" clinica-id]))
@@ -108,7 +132,8 @@
         ;; texto claro não é opção (é acesso à agenda de todos os pacientes).
         {:status 503 :body {:erro "GOOGLE_TOKEN_KEY ausente ou inválida."
                             :code "chave_ausente"}}
-        (let [state (str clinica-id ":" (java.util.UUID/randomUUID))]
+        (let [state (str (java.util.UUID/randomUUID))]
+          (guardar-state! state clinica-id (get-in request [:identity :user_id]))
           {:status 200
            :body {:url (oauth/url-de-autorizacao (assoc (config) :state state))
                   :state state}})))))
@@ -118,10 +143,19 @@
   [request]
   (let [clinica-id (get-in request [:identity :clinica_id])
         usuario-id (get-in request [:identity :user_id])
-        code (get-in request [:params :code])]
+        code (get-in request [:params :code])
+        state (get-in request [:params :state])]
     (cond
       (str/blank? code)
       {:status 400 :body {:erro "code é obrigatório."}}
+
+      (str/blank? state)
+      {:status 400 :body {:erro "state é obrigatório."
+                          :code "oauth_state_obrigatorio"}}
+
+      (nil? (consumir-state! state clinica-id usuario-id))
+      {:status 400 :body {:erro "state OAuth inválido, expirado ou já utilizado."
+                          :code "oauth_state_invalido"}}
 
       (not (configurado?))
       {:status 503 :body {:erro "Integração com Google não configurada neste ambiente."}}

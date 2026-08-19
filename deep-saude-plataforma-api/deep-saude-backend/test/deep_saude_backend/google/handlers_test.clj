@@ -21,7 +21,35 @@
             [clojure.string]
             [deep-saude-backend.db :as db]
             [deep-saude-backend.google.api :as api]
-            [deep-saude-backend.google.handlers :as handlers]))
+            [deep-saude-backend.google.handlers :as handlers]
+            [deep-saude-backend.google.oauth :as oauth]))
+
+(deftest callback-oauth-recusa-state-invalido-antes-de-falar-com-google
+  (let [trocas (atom [])]
+    (with-redefs [handlers/consumir-state! (constantly nil)
+                  oauth/trocar-codigo (fn [config]
+                                        (swap! trocas conj config)
+                                        {:status 200 :json {:access_token "nao-deveria-existir"}})]
+      (let [resp (handlers/callback-handler
+                  {:identity {:clinica_id #uuid "aaaaaaaa-2000-0000-0000-000000000001"
+                              :user_id #uuid "aaaaaaaa-2000-0000-0000-000000000002"}
+                   :params {:code "codigo-do-atacante"
+                            :state "state-do-atacante"}})]
+        (is (= 400 (:status resp)))
+        (is (= "oauth_state_invalido" (get-in resp [:body :code])))
+        (is (empty? @trocas)
+            "state invalido precisa parar antes da troca e de qualquer gravacao")))))
+
+(deftest callback-oauth-exige-state
+  (let [trocas (atom [])]
+    (with-redefs [oauth/trocar-codigo #(swap! trocas conj %)]
+      (let [resp (handlers/callback-handler
+                  {:identity {:clinica_id #uuid "aaaaaaaa-3000-0000-0000-000000000001"
+                              :user_id #uuid "aaaaaaaa-3000-0000-0000-000000000002"}
+                   :params {:code "codigo-sem-state"}})]
+        (is (= 400 (:status resp)))
+        (is (= "oauth_state_obrigatorio" (get-in resp [:body :code])))
+        (is (empty? @trocas))))))
 
 (deftest sincronizacao-nao-sorteia-uma-conexao-quando-a-clinica-tem-varias
   (let [clinica #uuid "aaaaaaaa-1000-0000-0000-000000000001"
