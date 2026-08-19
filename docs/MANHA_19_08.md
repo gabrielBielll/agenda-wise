@@ -76,32 +76,74 @@ que a tarefa existe para tirar.
 
 ## 3. 🟡 O que ficou aberto, e é honesto saber antes da demonstração
 
-### O e2e não votou sobre o trabalho da noite
+### O e2e: destravado de madrugada, depois de três causas diferentes
 
-Front e backend estão **verdes**. O job de navegador **nunca terminou** — e a
-causa tem duas camadas:
+O job de navegador foi cancelado **seis vezes seguidas** e nunca votou. Levou três
+diagnósticos porque eram três causas distintas com sintoma idêntico:
 
-1. **Cadência** (achado da `vale`): cada push cancela o run anterior, e o job de
-   navegador precisa de ~15 min contra os 5–7 dos outros. Resolvido com janela de
-   silêncio.
-2. **Impasse do cache** (achado meu, durante a janela): o download do Chromium
-   estoura o `timeout 300` nas três tentativas — 17 min medidos, batendo com
-   `apt + 3×300 + esperas`. E o `actions/cache` **só grava quando o job termina
-   bem**, então o cache nunca foi gravado e todo run baixa do zero. O impasse se
-   alimenta.
+1. **Cadência** (achado da `vale`): cada push cancelava o run anterior, e o job de
+   navegador precisa de ~15 min contra os 5–7 dos outros — ele nunca cabia na
+   janela que a gente dava sem querer.
+2. **Impasse do cache** (achado meu): o download do Chromium estourava o
+   `timeout 300` nas três tentativas, e o `actions/cache` **só grava quando o job
+   termina bem** — então o cache nunca era gravado e todo run baixava do zero. O
+   impasse se alimentava.
+3. **O meu primeiro conserto não funcionava** (achado da `vale`, e provado por ela
+   com um commit de um `.md` só): eu tinha posto `paths-ignore` para mensagem não
+   disparar CI. Em `pull_request` o filtro é avaliado sobre o **diff inteiro do
+   PR** contra a base, não sobre o push que chegou — e como o #7 toca `src/`
+   inteiro, ele nunca casa. Ficou **inerte exatamente onde a gente empurra**.
 
-**Conserto:** `restore`/`save` separados com `if: always()`, para que a primeira
-execução que baixar o Chromium já deixe ele no cache, e tentativas de 600s em vez
-de 300s.
+**Os consertos que funcionaram:**
 
-⚠️ **Consequência prática para a demonstração:** o comportamento das telas está
-provado por `tsc`, `build`, pelos **122 testes de backend** e por mim **abrindo
-cada tela**. Não está provado pelos 30 testes de navegador.
+| o quê | efeito medido |
+|---|---|
+| `restore`/`save` separados no cache | passo do Chromium caiu de **~20 min para 30 s** |
+| `cancel-in-progress: false` | execuções **enfileiram** em vez de se matar |
+
+📌 O custo aceito: rajada de pushes vira fila, e o veredito do último commit demora
+mais. Veredito atrasado é inconveniência; veredito que nunca sai foi o que a gente
+teve a noite inteira.
+
+### 🔴 Dois links da navegação levavam a 404 — e um era o botão principal
+
+Consegui abrir o app com um navegador de verdade e **escutar** o que ele pede. O
+Next pré-busca o destino de todo link visível, então destino morto aparecia como
+404 em toda tela onde o link existia — e ninguém veria isso lendo código.
+
+- **A-020 — `/admin/settings`**: item fixo da barra lateral do admin, rota que
+  nunca existiu. **Removi o item** em vez de inventar a tela: decidir o que a
+  clínica configura é desenho de produto, e é seu. Item que promete e entrega 404
+  é pior que item ausente.
+- **A-021 — `/calendar/new`**: **quatro** pontos de entrada, incluindo o botão
+  primário *"Nova sessão"* do topo e o botão flutuante do rodapé no celular. A
+  rota nunca existiu — a sessão nova nasce num **diálogo** do próprio calendário.
+  Os links passam a levar `?nova=1` e o diálogo abre na chegada.
+
+### ✅ O passeio completo, que é o que interessa para a demonstração
+
+Abri **as 21 rotas do app**, logada, contra o build de produção, escutando exceção
+de página, erro de console, requisição que falha e todo status ≥ 400:
+
+```
+sessão de admin       21 rotas    0 queixas
+sessão de psicóloga    7 rotas    0 queixas
+```
+
+⚠️ **O que isso prova e o que não prova:** prova que **nada quebra quando alguém
+navega e clica**. Não prova fluxo — ninguém salvou, editou nem apagou. Quem prova
+isso é o e2e com o backend de verdade.
 
 ### Achados registrados e não consertados
 
 - **A-018** — marcar paciente como inativo faz ele **sumir da listagem** sem
   aviso, na mesma linha onde fica o excluir de verdade. Espera decisão sua.
+- **Cor de estado sem token** (achado da `vale`): sobraram **3** cores cruas no
+  app, e as três são **estado**, não decoração — verde de "sessão confirmada" e
+  laranja de aviso. A paleta tem `destructive` para alerta, mas **não tem token de
+  sucesso**: o `--primary` é o verde-sálvia da marca, e usá-lo para "confirmado"
+  misturaria identidade com estado. **Ela deixou como está de propósito, e a
+  decisão é sua.**
 
 ### ✅ Fechados depois que este documento foi escrito (madrugada de 19/08)
 
