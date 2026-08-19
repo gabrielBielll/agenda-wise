@@ -17,4 +17,3 @@ ALTER TABLE usuarios DROP COLUMN IF EXISTS valor_fixo_repasse;
 ALTER TABLE usuarios DROP COLUMN IF EXISTS percentual_repasse;
 --;;
 ALTER TABLE usuarios DROP COLUMN IF EXISTS modalidade_repasse;
-
