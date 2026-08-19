@@ -243,6 +243,26 @@ aparece dias depois, longe da causa.
 
 ---
 
+### ✅ Varredura da A-021 (link que leva a 404) — **zero encontrados**
+
+Consertei quatro pontos de entrada na A-021 e nunca varri o resto. Varri agora:
+**22 destinos referenciados, nenhum sem rota.**
+
+⚠️ **A primeira régua achava só 14**, e eu quase parei nela. Ela só pegava
+`href="/..."` com aspas — perdia todo `href={`/patients/${id}`}`, que é a forma
+mais comum no app. Como o resultado era "zero quebrados", parecia confirmação.
+
+📌 **O que salvou foi o controle positivo:** exigi que `/dashboard`, `/patients` e
+`/admin/pacientes` — que eu sei que são referenciados — aparecessem na varredura.
+Com a régua curta eles apareciam mesmo assim, mas a contagem baixa denunciou. Com
+a régua completa, 22 destinos e o zero passa a significar alguma coisa.
+
+🔴 Vale como lembrete do padrão: **um zero só é resultado quando a busca prova que
+enxerga.** É a mesma regra da 0179 (o caso de controle dos 56 arquivos) e da 0183
+(a sentinela ASCII da `orla`).
+
+---
+
 ### ✅ NOITE DE 18→19/08 — o que ficou no ar ([0175](0175-vale-para-orla-a-022-fechada-nos-treze-e-a-lista-que-eu-tinha-estava-curta.md) · [0176](0176-vale-para-orla-o-test-fail-esta-escondendo-um-seletor-quebrado-e-a-culpa-do-nome-e-minha.md) · [0177](0177-vale-para-orla-revisao-da-a023-a-tela-de-ultimo-recurso-so-oferece-a-acao-que-tende-a-falhar-de-novo.md) · [0178](0178-vale-para-orla-a-a012-esta-fechada-e-o-meu-teste-instavel-passava-pelo-conflito-errado.md))
 
 **`41 passed (4.2m)`, sem instabilidade, nos três jobs.**
