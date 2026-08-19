@@ -68,7 +68,19 @@ export default async function AdminEditPacientePage({ params }: { params: Promis
     if (pacienteData.error === 'Paciente não encontrado.') {
       notFound();
     }
-    return <div>Erro ao carregar os dados: {pacienteData.error}</div>;
+    /**
+     * ⚠️ Isto era `<div>Erro ao carregar os dados: {…}</div>` — uma string nua,
+     * sem casca, sem explicação e sem saída. É a mesma família da **A-013**, e
+     * foi provavelmente o que apareceu como "tela VAZIA" no passeio da `orla`
+     * (mensageria 0160): um corpo de poucos caracteres.
+     *
+     * 📌 O `FalhaDeCarregamento` já é o tratamento do resto do app: distingue
+     * "sem acesso" de "indisponível" e oferece o caminho de volta. Estas quatro
+     * telas ficaram de fora quando a A-013 passou porque elas não usam
+     * `carregar()` para o registro principal — usam um `getX` próprio que
+     * devolve `{ error }`.
+     */
+    return <FalhaDeCarregamento motivo="indisponivel" oQue="o paciente" />;
   }
 
   return <EditPacienteForm paciente={pacienteData} psicologos={psicologosData.dados} />;
