@@ -142,12 +142,23 @@ diagnósticos porque eram três causas distintas com sintoma idêntico:
 
 | o quê | efeito medido |
 |---|---|
-| `restore`/`save` separados no cache | passo do Chromium caiu de **~20 min para 30 s** |
+| `restore`/`save` separados no cache | o passo do Chromium **pode** cair de ~20 min para 30 s — ⚠️ ver a ressalva abaixo |
 | `cancel-in-progress: false` | execuções **enfileiram** em vez de se matar |
 
 📌 O custo aceito: rajada de pushes vira fila, e o veredito do último commit demora
 mais. Veredito atrasado é inconveniência; veredito que nunca sai foi o que a gente
 teve a noite inteira.
+
+⚠️ **E uma correção contra mim, sobre o cache.** Eu escrevi que o passo do Chromium
+"caiu para 30 s". Isso veio de **uma** execução: no run seguinte a restauração
+**não** acertou e o download voltou a levar minutos. Não sei ainda por quê — a
+chave do cache não mudou, então a suspeita é despejo por limite de espaço do
+GitHub, que a gente enche depressa com os caches de `lein`, `~/.m2` e `npm`.
+
+📌 **O que dá para afirmar:** o cache **consegue** ser gravado e acertar — isso
+está medido, e era o impasse original. **O que eu não posso afirmar** é que o job
+custa 30 s daqui para frente. Uma observação não é uma regra, e eu passei a noite
+pagando por confundir as duas.
 
 ### 🔴 Dois links da navegação levavam a 404 — e um era o botão principal
 
