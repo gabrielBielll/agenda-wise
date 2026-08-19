@@ -80,17 +80,42 @@ export type Psicologo = { id: string; nome: string; email: string };
  * Por isso `sem_acesso` e `orfao` não têm só cor: eles sobem para uma **faixa no
  * topo**, com o nome da agenda e o que parou de funcionar.
  */
+/**
+ * ⚠️ **Por token, não por cor crua** — e aqui não é preferência de estilo.
+ *
+ * A versão anterior usava `bg-emerald-100`, `bg-amber-100`, `bg-red-100`. Elas
+ * são claras por definição: no modo escuro do `8109afc` viravam **manchas claras
+ * numa página escura**, e ninguém percebe isso lendo o diff — só abrindo a tela
+ * no tema certo, que é o que eu não consigo fazer.
+ *
+ * O mapeamento usa os tokens que **ele** definiu nos dois temas, então inverte
+ * sozinho:
+ *
+ *   ativo             -> `primary`      (o verde-sálvia dele)
+ *   pendente/convite  -> `accent`       (a terracota — o idioma do `terra-icon`)
+ *   pausado           -> `muted`        (neutro, é decisão de alguém e não falha)
+ *   sem_acesso/orfao  -> `destructive`  (definido em `:root` E em `.dark`)
+ *
+ * 🔴 **Os quatro continuam distintos entre si**, que é o requisito real: o selo
+ * precisa separar "sincronizando" de "parou" num relance. Trocar por token sem
+ * manter a distinção seria perder a informação para ganhar coerência.
+ */
 const APARENCIA: Record<string, { rotulo: string; classe: string; grave?: boolean }> = {
-  ativo: { rotulo: "Sincronizando", classe: "bg-emerald-100 text-emerald-900 border-emerald-300" },
-  pendente: { rotulo: "Sem dono definido", classe: "bg-amber-100 text-amber-900 border-amber-300" },
-  convite_pendente: { rotulo: "Convite pendente", classe: "bg-amber-100 text-amber-900 border-amber-300" },
-  pausado: { rotulo: "Pausada", classe: "bg-slate-100 text-slate-900 border-slate-300" },
-  sem_acesso: { rotulo: "SEM ACESSO", classe: "bg-red-100 text-red-900 border-red-400 font-semibold", grave: true },
-  orfao: { rotulo: "ÓRFÃ NO GOOGLE", classe: "bg-red-100 text-red-900 border-red-400 font-semibold", grave: true },
+  ativo: { rotulo: "Sincronizando", classe: "bg-primary/10 text-primary border-primary/30" },
+  pendente: { rotulo: "Sem dono definido", classe: "bg-accent/15 text-accent border-accent/30" },
+  convite_pendente: { rotulo: "Convite pendente", classe: "bg-accent/15 text-accent border-accent/30" },
+  pausado: { rotulo: "Pausada", classe: "bg-muted text-muted-foreground border-border" },
+  sem_acesso: { rotulo: "SEM ACESSO", classe: "bg-destructive/10 text-destructive border-destructive/50 font-semibold", grave: true },
+  orfao: { rotulo: "ÓRFÃ NO GOOGLE", classe: "bg-destructive/10 text-destructive border-destructive/50 font-semibold", grave: true },
 };
 
 function Selo({ status }: { status: string }) {
-  const a = APARENCIA[status] ?? { rotulo: status, classe: "bg-slate-100 text-slate-900 border-slate-300" };
+  /**
+   * ⚠️ O padrão é para status que a tela ainda não conhece — e ele também tem de
+   * inverter. `bg-slate-100` era claro por definição: no tema escuro, um status
+   * novo apareceria como mancha clara, que é o oposto de "neutro".
+   */
+  const a = APARENCIA[status] ?? { rotulo: status, classe: "bg-muted text-muted-foreground border-border" };
   return (
     <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs ${a.classe}`}>
       {a.grave && <AlertTriangle className="mr-1 h-3 w-3" aria-hidden="true" />}
@@ -244,7 +269,11 @@ export default function GoogleClient({
       {status.precisa_atencao && (
         <div
           role="alert"
-          className="rounded-lg border-2 border-red-400 bg-red-50 p-4 text-red-950"
+          /* A faixa que grita, agora por token: `destructive` existe em `:root` e
+             em `.dark`, então ela continua alta nos dois temas. Com `bg-red-50`
+             ela era um retângulo claro no meio da página escura — chamava
+             atenção pelo motivo errado. */
+          className="rounded-lg border-2 border-destructive/60 bg-destructive/10 p-4 text-foreground"
         >
           <div className="flex items-start gap-3">
             <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />

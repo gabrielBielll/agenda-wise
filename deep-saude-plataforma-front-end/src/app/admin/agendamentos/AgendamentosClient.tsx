@@ -350,7 +350,9 @@ export default function AgendamentosClient({
             
             <Dialog open={isBlockDialogOpen} onOpenChange={setIsBlockDialogOpen}>
               <DialogTrigger asChild>
-                <Button variant="outline" className="gap-2 border-orange-200 hover:bg-orange-50 text-orange-700">
+                {/* Por token: o laranja cru não conhece o tema escuro, e `accent` é
+                    exatamente a terracota que ele usa para chamar atenção sem alarmar. */}
+                <Button variant="outline" className="gap-2 border-accent/40 text-accent hover:bg-accent/10">
                   <Lock className="h-4 w-4" />
                   Bloquear Horário
                 </Button>
