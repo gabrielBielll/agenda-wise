@@ -683,12 +683,13 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
   };
 
   return (
-    <div className="space-y-6">
+    <div className="quiet-page">
       <div className="flex flex-col gap-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
-            <h1 className="text-3xl font-bold tracking-tight">Financeiro</h1>
-            <p className="text-muted-foreground">Gestão de repasses e lucro líquido.</p>
+            <p className="page-eyebrow mb-2">Dinheiro da clínica</p>
+            <h1 className="page-title">O que entra e o que sai.</h1>
+            <p className="page-subtitle">Repasses das psicólogas e o que fica com a clínica.</p>
             </div>
             <div className="flex gap-2">
               <Button onClick={exportToCSV} variant="outline" className="gap-2">
@@ -753,8 +754,8 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
                 </SelectTrigger>
                 <SelectContent>
                     <SelectItem value="all">Todos os Status</SelectItem>
-                    <SelectItem value="pago">✅ Pagos</SelectItem>
-                    <SelectItem value="pendente">⏳ Pendentes</SelectItem>
+                    <SelectItem value="pago">Pagos</SelectItem>
+                    <SelectItem value="pendente">Pendentes</SelectItem>
                 </SelectContent>
             </Select>
 
@@ -770,7 +771,7 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
                         <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="date">📅 Por Data</SelectItem>
+                        <SelectItem value="date">Por data</SelectItem>
                         <SelectItem value="patient">👤 Por Paciente</SelectItem>
                     </SelectContent>
                 </Select>
@@ -802,10 +803,10 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Receita Bruta</CardTitle>
-            <DollarSign className="h-4 w-4 text-green-600" />
+            <span className="soft-icon h-9 w-9 rounded-[12px]"><DollarSign className="h-4 w-4" /></span>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">
+            <div className="font-headline text-3xl font-normal tracking-[-0.02em]">
               {formatCurrency(totalReceita)}
             </div>
           </CardContent>
@@ -814,10 +815,10 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Repasse (Est.)</CardTitle>
-            <DollarSign className="h-4 w-4 text-orange-600" />
+            <span className="terra-icon h-9 w-9 rounded-[12px]"><DollarSign className="h-4 w-4" /></span>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-orange-600">
+            <div className="font-headline text-3xl font-normal tracking-[-0.02em]">
                 {formatCurrency(totalRepasse)}
             </div>
             <p className="text-xs text-muted-foreground">
@@ -829,10 +830,10 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Previsão de Lucro</CardTitle>
-            <TrendingUpIcon className="h-4 w-4 text-blue-600" />
+            <span className="soft-icon h-9 w-9 rounded-[12px]"><TrendingUpIcon className="h-4 w-4" /></span>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600">
+            <div className="font-headline text-3xl font-normal tracking-[-0.02em]">
                 {formatCurrency(lucroLiquido)}
             </div>
             <p className="text-xs text-muted-foreground">
@@ -844,10 +845,10 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Atendimentos</CardTitle>
-            <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+            <span className="soft-icon h-9 w-9 rounded-[12px]"><CalendarIcon className="h-4 w-4" /></span>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalAtendimentos}</div>
+            <div className="font-headline text-3xl font-normal tracking-[-0.02em]">{totalAtendimentos}</div>
           </CardContent>
         </Card>
       </div>
@@ -989,10 +990,10 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="start">
                       <DropdownMenuItem onClick={handleBulkSessaoRealizada}>
-                        ✅ Marcar todos como Realizada
+                        Marcar todos como realizada
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={handleBulkSessaoCancelada}>
-                        ❌ Marcar todos como Cancelada
+                        Marcar todos como Cancelada
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -1006,10 +1007,10 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="start">
                       <DropdownMenuItem onClick={handleBulkPagamentoPago}>
-                        ✅ Marcar todos como Pago
+                        Marcar todos como pago
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={handleBulkPagamentoPendente}>
-                        ⏳ Marcar todos como Pendente
+                        Marcar todos como Pendente
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -1065,9 +1066,9 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="agendado">📅 Agendada</SelectItem>
-                                <SelectItem value="realizado">✅ Realizada</SelectItem>
-                                <SelectItem value="cancelado">❌ Cancelada</SelectItem>
+                                <SelectItem value="agendado">Agendada</SelectItem>
+                                <SelectItem value="realizado">Realizada</SelectItem>
+                                <SelectItem value="cancelado">Cancelada</SelectItem>
                             </SelectContent>
                         </Select>
                     </TableCell>
@@ -1082,7 +1083,7 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
                             )}
                             onClick={() => handleUpdatePagamento(ag.id, ag.status_pagamento)}
                         >
-                            {getEffectivePagamento(ag) === 'pago' ? '✅ Pago' : '⏳ Pendente'}
+                            {getEffectivePagamento(ag) === 'pago' ? 'Pago' : 'Pendente'}
                         </Button>
                     </TableCell>
                     {/* Coluna Repasse (Psi) - Clickável se pagamento OK */}
@@ -1099,7 +1100,7 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
                                 )}
                                 onClick={() => handleUpdateRepasseStatus(ag.id, ag.status_repasse, Number(ag.valor_consulta))}
                             >
-                                {ag.status_repasse === 'transferido' ? '✅ Transferido' : '💵 Disponível'}
+                                {ag.status_repasse === 'transferido' ? 'Transferido' : 'Disponível'}
                             </Button>
                         )}
                     </TableCell>
@@ -1114,7 +1115,7 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
                         )}
                         onClick={() => handleUpdatePatientField(ag.paciente_id, 'nota_fiscal', !ag.nota_fiscal)}
                       >
-                        {ag.nota_fiscal ? '✅ SIM' : '❌ NÃO'}
+                        {ag.nota_fiscal ? 'Sim' : 'Não'}
                       </Button>
                     </TableCell>
                     <TableCell className="text-center">
