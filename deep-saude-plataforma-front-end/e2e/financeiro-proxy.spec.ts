@@ -73,7 +73,10 @@ test.describe('financeiro', () => {
     });
 
     await page.reload();
-    await expect(page.getByRole('heading', { name: /financeiro/i }).first()).toBeVisible();
+    // Mesma razão do `beforeEach`: esperar a tela voltar, sem depender da copy
+    // do título. Depois do `reload` a URL não muda, então quem prova o render é
+    // o cabeçalho existir.
+    await expect(page.getByRole('heading').first()).toBeVisible();
     await page.waitForLoadState('networkidle');
 
     expect(falhas, `chamadas com erro:\n${falhas.join('\n')}`).toEqual([]);

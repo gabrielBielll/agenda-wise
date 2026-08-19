@@ -54,8 +54,14 @@ test.describe('GC-001b — o cartão da psicóloga', () => {
     await entrarComoPsicologa(page);
     await page.goto('/settings');
 
+    /**
+     * ⚠️ A âncora era `/integração com google agenda/i`. O redesign renomeou o
+     * cartão para **"Integração com calendário"** e ela passou a encontrar zero
+     * elementos — medido em 19/08. Ficou o prefixo, que nomeia o cartão sem
+     * apostar na última palavra.
+     */
     await expect(
-      page.getByRole('heading', { name: /integra[çc][ãa]o com google agenda/i }),
+      page.getByRole('heading', { name: /integra[çc][ãa]o com/i }),
       'o cartão da integração sumiu de /settings'
     ).toBeVisible();
 
@@ -98,7 +104,7 @@ test.describe('GC-001b — o cartão da psicóloga', () => {
     ).toBeVisible();
 
     await expect(
-      page.getByRole('heading', { name: /integra[çc][ãa]o com google agenda/i }),
+      page.getByRole('heading', { name: /integra[çc][ãa]o com/i }),
       'o secretário vê o cartão de conectar agenda — ele não tem `conectar_agenda_propria`, ' +
         'e oferecer o botão a quem o backend vai recusar é prometer o que não se cumpre'
     ).toHaveCount(0);

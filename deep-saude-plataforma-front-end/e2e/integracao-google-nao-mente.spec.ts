@@ -57,10 +57,26 @@ test.describe('GC-001a — o painel da integração', () => {
   test('o admin abre o painel e ele declara o estado em vez de ficar vazio', async ({ page }) => {
     await page.goto('/admin/integracoes');
 
+    /**
+     * ⚠️ Aqui havia `getByRole('heading', { name: /google agenda/i })`, e o
+     * redesign tirou essa palavra do título: hoje a página se chama
+     * *"A agenda de cada uma, junta."*. Medido em 19/08 — a âncora encontrava
+     * **zero** elementos.
+     *
+     * 📌 O que este passo precisa provar é *"o painel abriu para o admin"*, e o
+     * título nunca foi essa prova: título é copy. Se a permissão faltasse, o
+     * `wrap-checar-permissao` recusaria e a rota devolveria a pessoa para outro
+     * lugar — então **a URL é a afirmação**, e o cabeçalho existir prova que a
+     * página renderizou em vez de voltar vazia.
+     *
+     * 🔴 A asserção que dá sentido ao teste é a de baixo, sobre o TEXTO — e essa
+     * fica intocada, porque ali o texto é o objeto do teste, não a âncora.
+     */
     await expect(
-      page.getByRole('heading', { name: /google agenda/i }),
+      page,
       'o painel não abriu para o admin — ele tem `gerenciar_integracao_google` pela migration de permissões'
-    ).toBeVisible();
+    ).toHaveURL(/\/admin\/integracoes\/?$/);
+    await expect(page.getByRole('heading').first()).toBeVisible();
 
     /**
      * O ponto do teste. Sem conta conectada, a tela precisa **dizer** que não há
