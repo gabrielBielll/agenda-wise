@@ -76,7 +76,41 @@ que a tarefa existe para tirar.
 
 ## 3. 🟡 O que ficou aberto, e é honesto saber antes da demonstração
 
-### O e2e: destravado de madrugada, depois de três causas diferentes
+### ✅ O e2e VOTOU — e o que ele acusou não é defeito do produto
+
+```
+16 falharam · 18 passaram · 47,8 min
+```
+
+🔴 **Antes de qualquer coisa: o app não está quebrado.** As 16 falhas são **testes
+descrevendo telas que o seu redesign renomeou**. Duas causas:
+
+| quantas | causa |
+|---|---|
+| **12** | O botão de login passou de *"Entrar"* para *"Entrar com segurança"*. Seis specs procuravam a palavra exata e pararam de achar o botão |
+| **4** | **Minha.** Eu troquei `<h1>Financeiro</h1>` por `<h1>O que entra e o que sai.</h1>`, e o teste do financeiro esperava a palavra "Financeiro" na tela |
+
+⚠️ **O sintoma enganava:** `Test timeout of 120000ms exceeded` — que parece
+*"a tela quebrou"*, não *"o rótulo mudou"*. E cada teste esperava 120 s, com
+repetição: é isso que fez o job durar 47,8 minutos.
+
+✅ **Consertado, e a correção foi além do que falhou.** Os specs do Google morriam
+no login e por isso nunca chegavam nas asserções deles — fui medir antes de
+empurrar e achei **mais dois títulos renomeados** (o painel de integrações e o
+cartão de `/settings`). Sem isso, seriam mais 48 minutos para descobrir a mesma
+coisa num lugar diferente. Depois conferi os **33 padrões de texto** da suíte
+inteira contra o código: todos existem.
+
+📌 **A lição que fica no código:** o rótulo do botão de login morava em **oito
+lugares**, e é por isso que uma palavra sua derrubou doze testes. Agora mora em
+um. Você pode renomear à vontade — quebra uma linha, não a suíte.
+
+⚠️ **O veredito do código consertado ainda não saiu** quando este documento foi
+escrito. Se ele estiver verde, é a primeira prova de comportamento da noite.
+
+---
+
+### Como ele chegou a votar: três causas diferentes, mesmo sintoma
 
 O job de navegador foi cancelado **seis vezes seguidas** e nunca votou. Levou três
 diagnósticos porque eram três causas distintas com sintoma idêntico:
