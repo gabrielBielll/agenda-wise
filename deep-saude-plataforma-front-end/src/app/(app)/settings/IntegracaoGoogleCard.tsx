@@ -39,6 +39,24 @@ import {
  * pode resolver.** Se a conexão dela cair e esta tela ficar quieta, ela segue
  * atendendo enquanto as sessões param de sincronizar — a A-013 na tela de quem é
  * dona do problema.
+ *
+ * ## O visual é do `8109afc`, e não foi escolha de gosto
+ *
+ * O redesign do Gabriel trouxe um cartão *"Integração com calendário"* para esta
+ * mesma tela — mas o dele é **maquete**: `isCalendarSynced` é um `useState` local,
+ * o switch não vai a lugar nenhum. Na árvore dele isso era honesto (não havia
+ * backend de integração); aqui seria a A-013 de novo, agora escrita por nós.
+ *
+ * ✅ **Ficou o comportamento daqui, com o vocabulário visual dele:** `soft-icon`
+ * no título, painéis `rounded-2xl border-border/60 bg-white/30 p-5`, e o
+ * `CardTitle` sem sobrescrever o tamanho — o componente já traz
+ * `font-headline text-2xl` desde o redesign, e o `text-xl` que estava aqui
+ * deixava este cartão menor que os irmãos na mesma página.
+ *
+ * ⚠️ **E a faixa de alerta deixou de usar `red-400/red-50` crus.** O Gabriel
+ * definiu `--destructive` nas DUAS metades do `globals.css`; cor crua ignora isso
+ * e a faixa vermelho-clarinho sobreviveria no modo escuro, virando o único bloco
+ * aceso numa tela escura. Token resolve os dois temas de uma vez.
  */
 export default function IntegracaoGoogleCard() {
   const { toast } = useToast();
@@ -55,9 +73,11 @@ export default function IntegracaoGoogleCard() {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="font-headline text-xl flex items-center">
-            <CalendarCog className="mr-2 h-6 w-6 text-primary" aria-hidden="true" />
-            Integração com Google Agenda
+          <CardTitle className="flex items-center">
+            <span className="soft-icon mr-3" aria-hidden="true">
+              <CalendarCog className="h-5 w-5" />
+            </span>
+            Integração com calendário
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -78,9 +98,11 @@ export default function IntegracaoGoogleCard() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="font-headline text-xl flex items-center">
-          <CalendarCog className="mr-2 h-6 w-6 text-primary" aria-hidden="true" />
-          Integração com Google Agenda
+        <CardTitle className="flex items-center">
+          <span className="soft-icon mr-3" aria-hidden="true">
+            <CalendarCog className="h-5 w-5" />
+          </span>
+          Integração com calendário
         </CardTitle>
         <CardDescription>
           Conecte a sua conta do Google para que as suas sessões apareçam na sua agenda.
@@ -90,7 +112,7 @@ export default function IntegracaoGoogleCard() {
       <CardContent className="space-y-4">
         {!estado.ok ? (
           /* A-013: falha classificada, nunca "não há nada". */
-          <div className="rounded-lg border p-4">
+          <div className="rounded-2xl border border-border/60 bg-white/30 p-5">
             <p className="font-medium">Não consegui verificar sua conexão</p>
             <p className="text-sm text-muted-foreground">{estado.mensagem}</p>
           </div>
@@ -98,12 +120,20 @@ export default function IntegracaoGoogleCard() {
           <>
             {/* 🔴 A faixa que grita — o motivo de existir desta tela. */}
             {estado.dados.precisa_atencao && (
-              <div role="alert" className="rounded-lg border-2 border-red-400 bg-red-50 p-4 text-red-950">
+              <div
+                role="alert"
+                className="rounded-2xl border border-destructive/35 bg-destructive/10 p-5"
+              >
                 <div className="flex items-start gap-3">
-                  <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
+                  <AlertTriangle
+                    className="mt-0.5 h-5 w-5 shrink-0 text-destructive"
+                    aria-hidden="true"
+                  />
                   <div>
-                    <p className="font-semibold">Sua agenda parou de sincronizar.</p>
-                    <p className="text-sm">
+                    <p className="font-semibold text-destructive">
+                      Sua agenda parou de sincronizar.
+                    </p>
+                    <p className="text-sm text-foreground/80">
                       {estado.dados.status_conexao && estado.dados.status_conexao !== "ativa"
                         ? "A conexão com a sua conta do Google não está mais válida — é preciso conectar de novo."
                         : "O acesso à sua agenda no Google foi removido, ou a agenda foi apagada. As sessões novas não estão chegando lá."}
@@ -113,11 +143,15 @@ export default function IntegracaoGoogleCard() {
               </div>
             )}
 
-            <div className="rounded-lg border p-4">
+            <div className="flex flex-col justify-between gap-4 rounded-2xl border border-border/60 bg-white/30 p-5 sm:flex-row sm:items-center">
               {estado.dados.conectada ? (
                 <div className="flex items-start gap-2">
                   {!estado.dados.precisa_atencao && (
-                    <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" aria-hidden="true" />
+                    /* Sucesso também é token: `emerald-600` cru não conhece o tema escuro. */
+                    <CheckCircle2
+                      className="mt-0.5 h-5 w-5 shrink-0 text-primary"
+                      aria-hidden="true"
+                    />
                   )}
                   <div>
                     <p className="font-medium">
@@ -136,35 +170,39 @@ export default function IntegracaoGoogleCard() {
                   existem só aqui.
                 </p>
               )}
-            </div>
 
-            <Button
-              disabled={pendente}
-              onClick={() =>
-                iniciar(async () => {
-                  const r = await conectarMinhaAgenda();
-                  if (r.ok) {
-                    window.location.href = r.url;
-                    return;
-                  }
-                  /**
-                   * ⚠️ `google_nao_configurado` e `chave_ausente` não melhoram
-                   * tentando de novo — são ambiente sem credencial. Dizer "tente
-                   * mais tarde" mandaria a pessoa repetir para sempre.
-                   */
-                  toast({
-                    title:
-                      r.code === "google_nao_configurado" || r.code === "chave_ausente"
-                        ? "A integração ainda não está disponível neste ambiente"
-                        : "Não consegui iniciar a conexão",
-                    description: r.mensagem,
-                    variant: "destructive",
-                  });
-                })
-              }
-            >
-              {estado.dados.conectada ? "Conectar de novo" : "Conectar minha conta do Google"}
-            </Button>
+              {/* ⚠️ O botão vive DENTRO do painel, como no `8109afc`: no desenho dele
+                  a ação fica na mesma faixa do estado que ela muda, e não solta
+                  embaixo do cartão. `sm:flex-row` é o que junta os dois. */}
+              <Button
+                className="shrink-0"
+                disabled={pendente}
+                onClick={() =>
+                  iniciar(async () => {
+                    const r = await conectarMinhaAgenda();
+                    if (r.ok) {
+                      window.location.href = r.url;
+                      return;
+                    }
+                    /**
+                     * ⚠️ `google_nao_configurado` e `chave_ausente` não melhoram
+                     * tentando de novo — são ambiente sem credencial. Dizer "tente
+                     * mais tarde" mandaria a pessoa repetir para sempre.
+                     */
+                    toast({
+                      title:
+                        r.code === "google_nao_configurado" || r.code === "chave_ausente"
+                          ? "A integração ainda não está disponível neste ambiente"
+                          : "Não consegui iniciar a conexão",
+                      description: r.mensagem,
+                      variant: "destructive",
+                    });
+                  })
+                }
+              >
+                {estado.dados.conectada ? "Conectar de novo" : "Conectar minha conta do Google"}
+              </Button>
+            </div>
           </>
         )}
       </CardContent>
