@@ -180,8 +180,13 @@ isso é o e2e com o backend de verdade.
 
 ### Achados registrados e não consertados
 
-- **A-018** — marcar paciente como inativo faz ele **sumir da listagem** sem
-  aviso, na mesma linha onde fica o excluir de verdade. Espera decisão sua.
+- **A-018** — ver a decisão pronta no item 4.3. **Medi o mecanismo**, e ele é
+  diferente do que eu tinha escrito: o paciente não é escondido por acidente —
+  a listagem tem um seletor **Ativos / Inativos / Todos** bem visível, que nasce
+  em "Ativos". 🔴 **O que não existe é confirmação de que salvou:** o caminho de
+  sucesso faz `redirect()` **do servidor**, o componente desmonta, e nenhum aviso
+  do cliente chega a aparecer. Você salva, não recebe nada, e cai numa lista onde
+  a pessoa não está.
 - **Cor de estado sem token** (achado da `vale`): sobraram **3** cores cruas no
   app, e as três são **estado**, não decoração — verde de "sessão confirmada" e
   laranja de aviso. A paleta tem `destructive` para alerta, mas **não tem token de
@@ -226,7 +231,25 @@ isso é o e2e com o backend de verdade.
 2. 🟡 **Revogar os tokens do Northflank** que passaram pelo chat. O ritual de
    trocar senhas antes da produção **não cobre** esse: ele não é senha da
    aplicação, é a chave da conta que executa a virada.
-3. 🟡 **A-018** — decidir o que a tela diz quando um paciente vira inativo.
+3. 🟡 **A-018 — uma escolha entre duas, e as duas são pequenas.**
+
+   **O que acontece hoje, medido:** você edita a paciente, marca "inativo",
+   salva. O servidor faz `revalidatePath` + `redirect("/admin/pacientes")`. A
+   listagem abre filtrada por "Ativos" — então ela não está lá, e **nenhuma
+   mensagem diz que deu certo**. Fica indistinguível de "salvou", "não salvou" e
+   "apaguei sem querer".
+
+   | | o que muda | custo |
+   |---|---|---|
+   | **(a)** *(recomendo)* | o `redirect` leva `?salvo=Marina`, e a listagem mostra uma faixa: *"Marina Alcântara agora está inativa e saiu desta lista."* com um atalho **Ver inativos** | pequeno, e resolve os dois problemas: confirma o salvamento **e** explica o sumiço |
+   | **(b)** | o filtro passa a nascer em **"Todos"**; a inativa continua na lista com o selo cinza que já existe | menor ainda, mas muda a tela que a recepção usa o dia inteiro — passa a mostrar gente que ela não atende mais |
+
+   📌 **Eu recomendo (a)** porque o defeito principal é o **silêncio**, não o
+   filtro. (b) esconde o silêncio em vez de resolvê-lo: você continuaria sem
+   saber se salvou, só que veria a pessoa na lista.
+
+   ⚠️ **Não implementei nenhuma das duas** — o texto da faixa é a sua voz, e
+   trocar o padrão de uma listagem de uso diário é decisão de produto.
 
 ---
 
