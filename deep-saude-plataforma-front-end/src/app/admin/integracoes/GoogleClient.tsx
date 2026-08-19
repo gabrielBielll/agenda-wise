@@ -32,9 +32,15 @@ import {
 
 export type StatusDaIntegracao = {
   conectada: boolean;
-  status_conexao?: string | null;
-  conta?: string | null;
-  ultimo_erro?: string | null;
+  conexoes_total: number;
+  conexoes_ativas: number;
+  conexoes_com_problema: Array<{
+    usuario_id?: string;
+    nome_psicologa?: string | null;
+    google_account_email?: string | null;
+    status: string;
+    ultimo_erro?: string | null;
+  }>;
   agendas: Record<string, number>;
   precisa_atencao: boolean;
 };
@@ -147,7 +153,7 @@ export default function GoogleClient({
           <h1 className="font-headline text-3xl">Google Agenda</h1>
           <p className="text-muted-foreground">
             {status.conectada
-              ? `Conectado como ${status.conta ?? "conta desconhecida"}`
+              ? `${status.conexoes_ativas} de ${status.conexoes_total} psicólogas com agenda conectada`
               : "Nenhuma conta do Google conectada."}
           </p>
         </div>
@@ -203,13 +209,13 @@ export default function GoogleClient({
             <div className="space-y-2">
               <p className="font-semibold">A integração com o Google parou de funcionar em parte.</p>
 
-              {status.status_conexao && status.status_conexao !== "ativa" && (
-                <p>
-                  A conexão da clínica está <strong>{status.status_conexao}</strong>
-                  {status.ultimo_erro ? ` — ${status.ultimo_erro}` : ""}. Enquanto isso, nenhuma
-                  agenda sincroniza. É preciso conectar a conta de novo.
+              {status.conexoes_com_problema.map((conexao) => (
+                <p key={conexao.usuario_id ?? conexao.google_account_email ?? conexao.status}>
+                  <strong>{conexao.nome_psicologa ?? conexao.google_account_email ?? "Psicóloga"}</strong>
+                  {" — "}
+                  {conexao.ultimo_erro ?? `conexão ${conexao.status}; é preciso conectar a conta de novo.`}
                 </p>
-              )}
+              ))}
 
               {quebradas.length > 0 && (
                 <div>

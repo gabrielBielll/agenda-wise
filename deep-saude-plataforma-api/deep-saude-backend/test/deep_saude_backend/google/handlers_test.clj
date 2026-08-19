@@ -101,6 +101,11 @@
                       [{:status "ativo" :total 3}]))]
       (let [resp (handlers/status-handler {:identity {:clinica_id clinica}})]
         (is (= 200 (:status resp)))
+        (is (= 3 (get-in resp [:body :conexoes_total])))
+        (is (= 2 (get-in resp [:body :conexoes_ativas])))
+        (is (= ["b@google.local"]
+               (mapv :google_account_email
+                     (get-in resp [:body :conexoes_com_problema]))))
         (is (true? (:precisa_atencao (:body resp)))
             (str "uma das conexões da clínica está `invalida` e o painel ficou mudo — "
                  "o handler olha UMA linha arbitrária de N, e a que ele sorteou estava sadia"))))))

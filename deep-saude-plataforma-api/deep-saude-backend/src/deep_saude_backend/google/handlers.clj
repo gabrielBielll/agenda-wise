@@ -34,6 +34,17 @@
 (defn conexao-da-clinica [clinica-id]
   (execute-one! ["SELECT * FROM google_conexao WHERE clinica_id = ?" clinica-id]))
 
+(defn conexoes-da-clinica
+  "Todas as conexões da clínica, com a identidade necessária para o admin
+   apontar quem precisa reconectar."
+  [clinica-id]
+  (execute-query! ["SELECT gc.*, u.nome AS nome_psicologa
+                       FROM google_conexao gc
+                       JOIN usuarios u ON u.id = gc.usuario_id
+                      WHERE gc.clinica_id = ?
+                      ORDER BY u.nome, gc.usuario_id"
+                   clinica-id]))
+
 (defn conexao-do-usuario [clinica-id usuario-id]
   (execute-one! ["SELECT * FROM google_conexao
                    WHERE clinica_id = ? AND usuario_id = ?"
@@ -207,26 +218,36 @@
    ⚠️ **O vocabulário é fechado** — a migration `20260811100200-google-integracao`
    lista os seis. Status novo entra aqui **se for benigno**, com teste dos dois
    lados em `handlers_test.clj`."
-  [conexao vinculos]
-  (boolean
-   (or (and conexao (not= "ativa" (:status conexao)))
-       (some #(not (contains? status-de-agenda-benignos (:status %))) vinculos))))
+  [conexao-ou-conexoes vinculos]
+  (let [conexoes (cond
+                   (nil? conexao-ou-conexoes) []
+                   (map? conexao-ou-conexoes) [conexao-ou-conexoes]
+                   :else conexao-ou-conexoes)]
+    (boolean
+     (or (some #(not= "ativa" (:status %)) conexoes)
+         (some #(not (contains? status-de-agenda-benignos (:status %))) vinculos)))))
 
 (defn status-handler
   "Estado da integração para o painel do admin."
   [request]
   (let [clinica-id (get-in request [:identity :clinica_id])
-        conexao (conexao-da-clinica clinica-id)
+        conexoes (conexoes-da-clinica clinica-id)
+        ativas (filterv #(= "ativa" (:status %)) conexoes)
+        quebradas (->> conexoes
+                       (remove #(= "ativa" (:status %)))
+                       (mapv #(select-keys % [:usuario_id :nome_psicologa
+                                              :google_account_email :status
+                                              :ultimo_erro])))
         vincs (execute-query! ["SELECT status, count(*) AS total FROM vinculo_agenda
                                 WHERE clinica_id = ? GROUP BY status" clinica-id])]
     {:status 200
-     :body {:conectada (boolean conexao)
-            :status_conexao (:status conexao)
-            :conta (:google_account_email conexao)
-            :ultimo_erro (:ultimo_erro conexao)
+     :body {:conectada (boolean (seq conexoes))
+            :conexoes_total (count conexoes)
+            :conexoes_ativas (count ativas)
+            :conexoes_com_problema quebradas
             :agendas (into {} (map (juxt :status :total)) vincs)
             ;; A regra mora em `precisa-atencao?`, acima — o handler só a aplica.
-            :precisa_atencao (precisa-atencao? conexao vincs)}}))
+            :precisa_atencao (precisa-atencao? conexoes vincs)}}))
 
 (defn status-conexao-propria-handler
   "Estado da conexão e dos vínculos da própria psicóloga, sempre pelo JWT."
