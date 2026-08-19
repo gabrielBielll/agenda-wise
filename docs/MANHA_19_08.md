@@ -86,13 +86,21 @@ que a tarefa existe para tirar.
 
 ## 3. 🟡 O que ficou aberto, e é honesto saber antes da demonstração
 
-### ✅ O e2e VOTOU — e o que ele acusou não é defeito do produto
+### ✅ O e2e VOTOU — e depois ficou VERDE
 
 ```
-16 falharam · 18 passaram · 47,8 min
+05:28Z   34 passaram · 3,6 min · os três jobs verdes   ← o estado agora
+04:32Z   16 falharam · 18 passaram · 47,8 min          ← o primeiro voto
 ```
 
-🔴 **Antes de qualquer coisa: o app não está quebrado.** As 16 falhas são **testes
+🏅 **Está tudo verde.** As 16 falhas eram testes descrevendo telas que o seu
+redesign renomeou; foram corrigidas de madrugada e o run seguinte passou inteiro.
+
+📌 **E a suíte voltou a ser rápida junto:** cada falha custava 2 minutos de espera
+(tempo-limite + repetição), então as 16 eram ~32 min de nada acontecendo. **3,6
+min é a suíte sadia.**
+
+🔴 **O app nunca esteve quebrado.** As 16 falhas são **testes
 descrevendo telas que o seu redesign renomeou**. Duas causas:
 
 | quantas | causa |
