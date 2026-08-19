@@ -24,7 +24,10 @@ você tinha dito.
 
 ## O número que conta a história
 
-
+```
+antes:  16 failed, 18 passed  —  47,8 min
+agora:  34 passed             —   3,6 min
+```
 
 📌 **A suíte não ficou 13× mais rápida por mágica.** Cada falha custava 2 minutos
 — `timeout: 120s` mais `retries: 1` — então 16 falhas eram ~32 minutos de espera
