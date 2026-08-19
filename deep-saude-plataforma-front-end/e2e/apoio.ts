@@ -19,6 +19,33 @@ export function dadosSemeados(): DadosSemeados {
   return JSON.parse(readFileSync(join(__dirname, '.dados-semeados.json'), 'utf8'));
 }
 
+/**
+ * O botão que envia o formulário de login — nas DUAS telas, `/` e `/admin/login`.
+ *
+ * 🔴 Existe num lugar só porque em 19/08 ele existia em **oito**, e o custo
+ * apareceu de uma vez: o redesign renomeou o botão de "Entrar" para
+ * **"Entrar com segurança"**, e os seis specs que procuravam por
+ * `/^entrar$/i` — regex ancorada nos dois lados — pararam de encontrá-lo.
+ * Deu **12 testes** falhando por 120 s cada, com retry, num job de 47,8 min.
+ *
+ * ⚠️ E o sintoma não dizia "o rótulo mudou": dizia
+ * `locator.click: Test timeout exceeded`. Quem lesse rápido concluiria que a
+ * tela de login quebrou — ela não quebrou; nós é que a descrevemos por uma
+ * palavra que o dono do produto tem todo direito de trocar.
+ *
+ * 📌 Por que prefixo e não âncora dupla: o nome acessível do botão é a frase
+ * inteira, e a frase é copy. Ancorar no fim é apostar que ninguém acrescenta
+ * uma palavra — e alguém acrescentou. O prefixo continua excluindo o que a
+ * âncora protegia: o outro botão da tela chama-se **"Google"**, e "Esqueceu sua
+ * senha?" é link, não botão.
+ *
+ * 🏅 A observação do outro botão é da `vale`, que chegou a esta mesma causa em
+ * paralelo (`7f1015f`) e consertou inline nos seis arquivos. Ficou a versão
+ * centralizada porque o defeito **é** a repetição; o raciocínio dela ficou aqui.
+ */
+export const botaoEntrar = (page: Page) =>
+  page.getByRole('button', { name: /^entrar/i });
+
 /** Entra pelo formulário real de login e espera o dashboard carregar. */
 export async function entrarComoAdmin(page: Page) {
   const { email, senha } = dadosSemeados();
@@ -26,7 +53,7 @@ export async function entrarComoAdmin(page: Page) {
   await page.goto('/admin/login');
   await page.getByLabel(/e-?mail/i).fill(email);
   await page.locator('input[type="password"]').fill(senha);
-  await page.getByRole('button', { name: /entrar|acessar|login/i }).click();
+  await botaoEntrar(page).click();
 
   await page.waitForURL(/\/admin\/dashboard/, { timeout: 30_000 });
 }

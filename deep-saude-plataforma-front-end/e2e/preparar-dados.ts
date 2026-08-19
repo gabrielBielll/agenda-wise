@@ -1,6 +1,7 @@
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { chromium, type FullConfig } from '@playwright/test';
+import { botaoEntrar } from './apoio';
 
 /**
  * Semeia o backend antes da suíte, usando SÓ a API pública.
@@ -314,7 +315,7 @@ async function autenticarEAquecer(baseURL: string) {
   await pagina.goto('/admin/login');
   await pagina.getByLabel(/e-?mail/i).fill(CONTA.email);
   await pagina.locator('input[type="password"]').fill(CONTA.senha);
-  await pagina.getByRole('button', { name: /entrar|acessar|login/i }).click();
+  await botaoEntrar(pagina).click();
   await pagina.waitForURL(/\/admin\/dashboard/, { timeout: 120_000 });
 
   for (const rota of ['/calendar', '/admin/financeiro']) {

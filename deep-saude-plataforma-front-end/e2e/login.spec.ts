@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { dadosSemeados, entrarComoAdmin } from './apoio';
+import { botaoEntrar, dadosSemeados, entrarComoAdmin } from './apoio';
 
 // Contexto limpo: aqui o objeto do teste é o próprio formulário de login, então
 // a sessão pré-autenticada do globalSetup atrapalharia.
@@ -32,7 +32,7 @@ test('senha errada não entra e avisa', async ({ page }) => {
   await page.goto('/admin/login');
   await page.getByLabel(/e-?mail/i).fill(email);
   await page.locator('input[type="password"]').fill('senha-obviamente-errada');
-  await page.getByRole('button', { name: /entrar|acessar|login/i }).click();
+  await botaoEntrar(page).click();
 
   await expect(avisoDeErro(page)).toBeVisible();
   await expect(page).not.toHaveURL(/dashboard/);
@@ -47,13 +47,13 @@ test('e-mail inexistente devolve a MESMA mensagem de senha errada', async ({ pag
   await page.goto('/admin/login');
   await page.getByLabel(/e-?mail/i).fill(email);
   await page.locator('input[type="password"]').fill('senha-obviamente-errada');
-  await page.getByRole('button', { name: /entrar|acessar|login/i }).click();
+  await botaoEntrar(page).click();
   const comSenhaErrada = await avisoDeErro(page).innerText();
 
   await page.goto('/admin/login');
   await page.getByLabel(/e-?mail/i).fill('ninguem-aqui@teste.local');
   await page.locator('input[type="password"]').fill('qualquer-coisa');
-  await page.getByRole('button', { name: /entrar|acessar|login/i }).click();
+  await botaoEntrar(page).click();
   const comEmailInexistente = await avisoDeErro(page).innerText();
 
   expect(

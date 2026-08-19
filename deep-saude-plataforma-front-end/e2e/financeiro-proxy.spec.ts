@@ -22,7 +22,25 @@ import { test, expect } from '@playwright/test';
 test.describe('financeiro', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/admin/financeiro');
-    await expect(page.getByRole('heading', { name: /financeiro/i }).first()).toBeVisible();
+
+    /**
+     * 🔴 Aqui havia `getByRole('heading', { name: /financeiro/i })`, e em 19/08
+     * isso derrubou os quatro testes deste arquivo — **por minha causa**: eu
+     * troquei o `<h1>Financeiro</h1>` por `<h1>O que entra e o que sai.</h1>` ao
+     * aplicar o redesign, e o `beforeEach` deixou de encontrar a âncora.
+     *
+     * ⚠️ O que este passo precisa provar é **"a tela do financeiro carregou"**, e
+     * a palavra do título nunca foi essa prova. Título é copy: pertence ao dono
+     * do produto, muda quando ele quiser, e não deve derrubar teste de proxy.
+     *
+     * As duas afirmações abaixo são as que valem, e nenhuma delas é editorial:
+     *   1. a URL continua em `/admin/financeiro` — se a sessão tivesse caído, o
+     *      middleware teria mandado para `/admin/login`;
+     *   2. existe um cabeçalho renderizado — se a página tivesse voltado vazia
+     *      ou explodido, não haveria nenhum.
+     */
+    await expect(page).toHaveURL(/\/admin\/financeiro\/?$/);
+    await expect(page.getByRole('heading').first()).toBeVisible();
   });
 
   test('o rewrite entrega as chamadas relativas ao backend', async ({ page }) => {
