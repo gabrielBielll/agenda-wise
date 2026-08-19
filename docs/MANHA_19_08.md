@@ -89,9 +89,15 @@ que a tarefa existe para tirar.
 ### ✅ O e2e VOTOU — e depois ficou VERDE
 
 ```
-05:28Z   34 passaram · 3,6 min · os três jobs verdes   ← o estado agora
+10:12Z   41 passaram · 4,2 min · os três jobs verdes   ← o estado agora
+05:28Z   34 passaram · 3,6 min · os três jobs verdes
 04:32Z   16 falharam · 18 passaram · 47,8 min          ← o primeiro voto
 ```
+
+📌 **Sete testes a mais que às 05:28**, e os 4,2 min não são acaso: a chave do
+cache do Chromium tinha o `v2` só na ponta que LÊ, e a que GRAVA continuou em
+`v1`. O cache nunca funcionou em execução nenhuma, e cada run pagava ~5 min
+baixando o navegador. As duas pontas agora usam a mesma chave por construção.
 
 🏅 **Está tudo verde.** As 16 falhas eram testes descrevendo telas que o seu
 redesign renomeou; foram corrigidas de madrugada e o run seguinte passou inteiro.
@@ -140,9 +146,25 @@ backend Clojure de verdade, contra Postgres de verdade, exercitando login,
 cadastro de paciente, agenda, financeiro, permissões dos três papéis e os
 caminhos de erro do Google.
 
-⚠️ **O que ele ainda não cobre:** a A-022 (o formulário apaga o que foi digitado
-quando o salvar falha) não tem teste — foi achada por mim injetando falha, e o
-vermelho dela ainda precisa ser escrito.
+✅ **A A-022 FECHOU, e com teste.** Quando esta linha foi escrita ela era o
+buraco da suíte: *"o formulário apaga o que foi digitado quando o salvar falha"*,
+achada injetando falha e sem vermelho escrito.
+
+Agora são **treze formulários** com campos controlados — todos os que o app tem —
+e cinco testes segurando. A `orla` mediu o conserto com o backend recusando toda
+escrita: *"campo Nome vazio: NUNCA"*.
+
+🔴 **Duas coisas que a varredura mostrou e valem para você saber:**
+
+- **Os dois piores casos não estavam na lista original.** `patients/new` (5
+  campos) e `admin/psicologos/novo` (13, o formulário mais longo do app) não
+  tinham valor inicial nenhum — e é isso que piora: campo sem valor inicial
+  reseta para **vazio**, em vez de voltar ao dado antigo. Quem cadastrasse um
+  paciente inteiro e esbarrasse numa recusa recomeçava do zero.
+- **Nas telas de edição o estrago tem outra cara**, e é mais difícil de ver: o
+  reset devolve os campos aos **dados antigos**, a alteração some, e a tela fica
+  com aparência de intacta. Campo vazio grita; campo com o valor velho de volta
+  parece normal.
 
 ---
 
@@ -217,7 +239,17 @@ isso é o e2e com o backend de verdade.
 
 ### Achados registrados e não consertados
 
-- 🔴 **A-023 — o app não tem tela de erro, e a que aparece é em inglês.**
+- ✅ **A-023 — CONSERTADA pela `orla` (`8dc3610`), depois que esta seção foi
+  escrita.** O app ganhou `error.tsx` e `global-error.tsx`: cartão em português,
+  com "Tentar de novo" e "Voltar ao início", e o identificador do erro no rodapé
+  para ligar a tela à linha do log. **O risco de demonstração descrito abaixo não
+  vale mais** — fica o registro do que era.
+
+  🔎 Revisei pela D-002 e aprovei o `error.tsx`; deixei um achado no
+  `global-error.tsx` (a tela de último recurso só oferece `reset()`, que retenta
+  justamente o que quebrou). Está na mensageria 0177.
+
+- 🔴 ~~**A-023 — o app não tem tela de erro, e a que aparece é em inglês.**~~
   Qualquer exceção não tratada no cliente substitui a tela inteira por:
 
   > *"Application error: a client-side exception has occurred while loading…"*
