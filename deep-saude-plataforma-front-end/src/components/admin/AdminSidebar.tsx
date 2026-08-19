@@ -6,7 +6,7 @@ import { signOut } from "next-auth/react";
 // União dos dois lados do redesign: `Leaf` é a marca nova (8109afc), `Plug` é a
 // entrada "Integrações" da GC-001a. Os dois estão em uso — escolher um lado aqui
 // apagaria ou o logotipo dele ou a rota do painel do Google.
-import { Home, Users, CalendarDays, DollarSign, BriefcaseMedical, Settings, LogOut, Leaf, Plug } from "lucide-react";
+import { Home, Users, CalendarDays, DollarSign, BriefcaseMedical, LogOut, Leaf, Plug } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"; // Para tooltips nos ícones
@@ -29,10 +29,21 @@ const mainNavLinks: NavLinkItem[] = [
   { href: "/admin/integracoes", label: "Integrações", icon: Plug },
 ];
 
-const secondaryNavLinks: NavLinkItem[] = [
-  { href: "/admin/settings", label: "Configurações", icon: Settings },
-  // Adicionar link para login/logout ou info de usuário aqui se necessário
-];
+/**
+ * A-020 — aqui havia "Configurações" apontando para `/admin/settings`, e essa
+ * rota nunca existiu. Medido em 19/08 abrindo o app: o Next pré-buscava o
+ * destino de toda tela do admin e recebia 404 em todas; clicar levava à página
+ * de erro.
+ *
+ * ⚠️ Removi em vez de criar a tela, e a escolha é deliberada: inventar uma tela
+ * de configurações do admin é decidir o que a clínica configura, e isso é
+ * desenho de produto, não conserto de link. Item que promete e entrega 404 é
+ * pior que item ausente — a ausência não mente.
+ *
+ * 📌 O que existe hoje e é configuração de verdade mora em `/admin/integracoes`,
+ * que já está na lista principal.
+ */
+const secondaryNavLinks: NavLinkItem[] = [];
 
 function NavLink({ href, label, icon: Icon, isCollapsed }: NavLinkItem & { isCollapsed: boolean }) {
   const pathname = usePathname();

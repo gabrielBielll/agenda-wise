@@ -91,7 +91,7 @@ export function CalendarHeader({ date, setDate, view, setView, onToday }: Calend
             <SelectItem value="day">Dia</SelectItem>
           </SelectContent>
         </Select>
-        <Button asChild className="lg:hidden"><Link href="/calendar/new"><CalendarPlus />Nova sessão</Link></Button>
+        <Button asChild className="lg:hidden"><Link href="/calendar?nova=1"><CalendarPlus />Nova sessão</Link></Button>
       </div>
     </div>
   );

@@ -99,7 +99,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <button className="relative grid h-10 w-10 place-items-center rounded-xl border border-border/60 bg-white/45 text-muted-foreground transition-all hover:-translate-y-0.5 hover:bg-white hover:text-primary dark:bg-card/60" aria-label="Notificações">
               <Bell className="h-[18px] w-[18px]" /><span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full border border-background bg-accent" />
             </button>
-            <Button asChild className="hidden sm:inline-flex"><Link href="/calendar/new"><Plus className="h-4 w-4" />Nova sessão</Link></Button>
+            <Button asChild className="hidden sm:inline-flex"><Link href="/calendar?nova=1"><Plus className="h-4 w-4" />Nova sessão</Link></Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild><button className="md:hidden"><Avatar className="h-10 w-10"><AvatarFallback className="bg-accent/15 text-xs text-accent">AW</AvatarFallback></Avatar></button></DropdownMenuTrigger>
               <DropdownMenuContent align="end"><DropdownMenuLabel>Minha conta</DropdownMenuLabel><DropdownMenuSeparator /><DropdownMenuItem asChild><Link href="/settings">Preferências</Link></DropdownMenuItem><DropdownMenuItem onClick={() => signOut({ callbackUrl: '/' })}>Sair</DropdownMenuItem></DropdownMenuContent>
@@ -113,7 +113,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       <nav className="fixed bottom-3 left-3 right-3 z-40 flex h-[62px] items-center justify-around rounded-[18px] border border-white/75 bg-background/90 px-2 shadow-[0_14px_36px_rgba(65,60,50,.16)] backdrop-blur-xl md:hidden">
         {navItems.map(item => { const Icon = item.icon; const active = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href)); return <Link key={item.href} href={item.href} className={cn('flex min-w-16 flex-col items-center gap-1 text-[9px] text-muted-foreground', active && 'text-primary')}><Icon className="h-[19px] w-[19px]" /><span>{item.label}</span></Link>; })}
-        <Link href="/calendar/new" className="-translate-y-3 grid h-12 w-12 place-items-center rounded-[15px] bg-primary text-primary-foreground shadow-[0_9px_24px_rgba(104,113,91,.3)]" aria-label="Nova sessão"><Plus className="h-5 w-5" /></Link>
+        <Link href="/calendar?nova=1" className="-translate-y-3 grid h-12 w-12 place-items-center rounded-[15px] bg-primary text-primary-foreground shadow-[0_9px_24px_rgba(104,113,91,.3)]" aria-label="Nova sessão"><Plus className="h-5 w-5" /></Link>
       </nav>
     </div>
   );

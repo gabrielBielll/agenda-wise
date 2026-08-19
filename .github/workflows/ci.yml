@@ -51,31 +51,40 @@ on:
   push:
     branches: [main, staging, prod]
     paths-ignore: &so-conversa
-      # 🔴 Commit que só mexe em conversa NÃO dispara CI, e isto não é economia:
-      # é o que impede a mensageria de matar o próprio veredito.
+      # Commit que só mexe em conversa não precisa de CI. Vale para `push`,
+      # onde o filtro olha o diff DO COMMIT.
       #
-      # Medido em 18→19/08: o job de navegador precisa de ~15 min e cada push
-      # novo cancela o run anterior. Front e backend cabem em 5–7 e por isso
-      # sempre passavam; o navegador morreu CINCO vezes seguidas, e em pelo menos
-      # duas quem cancelou foi uma mensagem — texto puro, incapaz de quebrar
-      # código, derrubando a única prova de comportamento que a gente tem.
-      #
-      # ⚠️ O Gabriel sugeriu separar a mensageria numa branch própria. Resolveria,
-      # mas as três instâncias leem `mensageria/FILA.md` da árvore de trabalho —
-      # separar obrigaria cada uma a manter dois checkouts, e a FILA existe
-      # justamente porque a coordenação já falhou uma vez. `paths-ignore` dá o
-      # mesmo resultado sem mudar nada no jeito de trabalhar.
+      # ⚠️ E NÃO vale para `pull_request`, que é o nosso caso — ver o bloco do
+      # `concurrency` abaixo, onde está a medição.
       - 'mensageria/**'
       - 'docs/**'
       - '**/*.md'
   pull_request:
     paths-ignore: *so-conversa
 
-# Push novo cancela a execução anterior do mesmo ref. Sem isto, uma sequência de
-# commits enfileira execuções que ninguém vai ler.
+# 🔴 AS EXECUÇÕES ENFILEIRAM, NÃO SE CANCELAM. E a razão é uma medição, não uma
+# preferência.
+#
+# Medido em 18→19/08: o job de navegador precisa de ~15–20 min; front e backend
+# terminam em 5–7. Com `cancel-in-progress: true`, todo push novo matava o run
+# anterior — e como os rápidos cabiam na janela e o navegador não, o placar da
+# noite ficou **front e backend verdes, navegador cancelado SEIS vezes seguidas**.
+# A única prova de comportamento que este projeto tem nunca chegou a votar.
+#
+# ⚠️ A minha primeira tentativa de conserto foi `paths-ignore`, e ela NÃO
+# funciona aqui. Em `pull_request` o filtro de caminho é avaliado sobre o diff
+# INTEIRO do PR contra a base — não sobre o push que chegou. Como o PR #7 toca
+# código em todo lugar, o filtro nunca casa e o run sai do mesmo jeito.
+# Prova: `fa8ee65` mexeu só em `mensageria/**` e `INDEX.md`, casando com duas
+# regras de uma vez, e disparou o run 32211223219 assim mesmo.
+#
+# 📌 O custo de enfileirar é conhecido e aceito: uma rajada de quatro pushes vira
+# quatro execuções em sequência, e o veredito do último commit demora mais a sair.
+# Veredito atrasado é uma inconveniência; veredito que nunca sai é o que a gente
+# vinha tendo. A conta não é próxima.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   backend:

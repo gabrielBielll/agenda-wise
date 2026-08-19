@@ -291,6 +291,34 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
     setIsDialogOpen(true);
   };
 
+  /**
+   * A-021 — o botão "Nova sessão" apontava para `/calendar/new`, que não existe.
+   *
+   * 🔴 Medido em 19/08 abrindo o app: quatro pontos de entrada levavam a 404 —
+   * o botão primário do topo, o botão flutuante do rodapé no celular, o
+   * "Adicionar horário" do painel e o botão do cabeçalho do calendário. É a
+   * ação principal da psicóloga, e a mais provável de alguém clicar numa
+   * demonstração.
+   *
+   * A tela nunca precisou dessa rota: a sessão nova nasce num diálogo daqui.
+   * Então os links passam a trazer `?nova=1` e o diálogo abre na chegada.
+   *
+   * ⚠️ Leio de `window.location` e não de `useSearchParams` de propósito: o
+   * hook exige fronteira de Suspense para a renderização estática, e trocar o
+   * desenho de renderização de uma tela grande para consertar um link é preço
+   * que não combina com o tamanho do defeito. Aqui já é código de cliente.
+   *
+   * O `replaceState` limpa o parâmetro para que recarregar a página, ou voltar
+   * para ela, não reabra o diálogo sozinho.
+   */
+  useEffect(() => {
+    if (!new URLSearchParams(window.location.search).has('nova')) return;
+    window.history.replaceState(null, '', window.location.pathname);
+    handleOpenNew();
+    // Só na montagem: é a intenção que veio na URL, não um estado contínuo.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleOpenEdit = (app: Appointment) => {
     setEditingAppointment(app);
     setNewAppointmentDate(null);
