@@ -151,8 +151,11 @@ buraco da suíte: *"o formulário apaga o que foi digitado quando o salvar falha
 achada injetando falha e sem vermelho escrito.
 
 Agora são **treze formulários** com campos controlados — todos os que o app tem —
-e cinco testes segurando. A `orla` mediu o conserto com o backend recusando toda
-escrita: *"campo Nome vazio: NUNCA"*.
+e **seis testes** segurando: três provam que o que foi digitado sobrevive à
+recusa, e três protegem o que a mudança para campos controlados quase quebrou
+junto (o horário de fim que se autopreenche, o fim já escolhido que não pode ser
+sobrescrito, e o teto de sessões recorrentes). A `orla` mediu o conserto com o
+backend recusando toda escrita: *"campo Nome vazio: NUNCA"*.
 
 🔴 **Duas coisas que a varredura mostrou e valem para você saber:**
 
