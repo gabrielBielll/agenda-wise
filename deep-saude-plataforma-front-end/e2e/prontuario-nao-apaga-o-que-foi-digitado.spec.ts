@@ -1,3 +1,25 @@
+    // Menos de 3 caracteres: o `prontuarioSchema` recusa, e a ação devolve
+    // `success: false` pelo caminho normal. Nenhuma interceptação envolvida.
+    await conteudo.fill('ab');
+
+    const queixa = page.locator('#queixa_principal');
+    if (await queixa.isVisible().catch(() => false)) {
+      await queixa.fill(TEXTO);
+    }
+
+    await page.getByRole('button', { name: /salvar anota/i }).click();
+
+    /**
+     * ⚠️ Âncora antes da asserção (D-017): prova que a tela continua no
+     * formulário. Se a gravação tivesse sido aceita, o campo sumiria e a falha
+     * apareceria como "texto apagado" — o defeito oposto ao investigado.
+     */
+    await expect(
+      conteudo,
+      'o formulário de evolução sumiu da tela — a submissão não foi recusada como ' +
+        'esperado, então a A-022 não chegou a ser exercitada'
+    ).toBeVisible({ timeout: 20_000 });
+
 import { test, expect } from '@playwright/test';
 import { CONTA } from './preparar-dados';
 import { dadosSemeados } from './apoio';
@@ -29,18 +51,26 @@ import { dadosSemeados } from './apoio';
  *
  * ---
  *
- * ## ⚠️ Como este teste força a falha, e por que aqui `page.route` FUNCIONA
+ * ## ⚠️ Como este teste força a falha — e a sonda que eu tive que jogar fora
  *
- * Eu escrevi na mensageria 0072 que `page.route` **não** alcança os oito arquivos
- * da A-013 — e continua verdade: lá o `fetch` sai do **servidor** Next para o
- * Clojure e nunca toca o navegador.
+ * 🔴 **Primeira versão: interceptar a server action com `page.route` e devolver
+ * 500.** Passou uma vez, ficou instável, e depois falhou sempre — sempre com
+ * `element(s) not found`.
  *
- * ✅ **Aqui é outra coisa.** A submissão de uma *server action* é uma requisição
- * que **o navegador faz** — um POST para a própria URL com o cabeçalho
- * `Next-Action`. Isso o Playwright intercepta.
+ * O motivo é que a sonda estava errada, não o conserto: um `500 text/plain` **não
+ * é resposta válida de server action**. O Next trata como erro fatal, troca a
+ * página pela fronteira de erro, e aí o campo some. O teste então dizia *"o texto
+ * foi apagado"* — que é exatamente o defeito que ele investiga. **A sonda
+ * fabricava o sintoma que deveria medir.**
  *
- * 🔴 A distinção importa e é fácil de errar: não é "server component não dá para
- * interceptar", é **"o que o navegador não pede, o navegador não intercepta"**.
+ * ✅ **Versão atual: falha de VERDADE, sem interceptação.** O `prontuarioSchema`
+ * exige `conteudo` com pelo menos 3 caracteres. Submeter com menos faz a própria
+ * ação devolver `{ success: false }` pelo caminho normal — que é o caminho que a
+ * A-022 protege.
+ *
+ * 📌 Isso é melhor que o stub por dois motivos: é **determinístico** (não depende
+ * de corrida com o roteamento) e exercita **a mesma via** que uma falha de rede
+ * exercitaria — `useActionState` devolvendo estado de erro para um `<form action>`.
  *
  * ## O que este teste NÃO prova
  *
@@ -73,21 +103,6 @@ test.describe('A-022 — a nota clínica sobrevive a uma falha ao salvar', () =>
 
     await conteudo.fill(TEXTO);
 
-    /**
-     * Derruba **a submissão da server action**, não a leitura da página: o filtro
-     * é o cabeçalho `next-action`, que só existe no POST da ação.
-     *
-     * ⚠️ Interceptar tudo faria a própria navegação falhar, e aí o teste provaria
-     * "página quebrada preserva texto", que é outra coisa.
-     */
-    await page.route('**/*', async (rota) => {
-      const req = rota.request();
-      if (req.method() === 'POST' && req.headers()['next-action']) {
-        await rota.fulfill({ status: 500, contentType: 'text/plain', body: 'falha forçada pelo teste' });
-        return;
-      }
-      await rota.continue();
-    });
 
     await page.getByRole('button', { name: /salvar anota/i }).click();
 
@@ -104,7 +119,7 @@ test.describe('A-022 — a nota clínica sobrevive a uma falha ao salvar', () =>
       conteudo,
       'o texto da evolução foi apagado quando o salvamento falhou — a psicóloga ' +
         'perde a nota clínica junto com o aviso de erro (A-022)'
-    ).toHaveValue(TEXTO, { timeout: 15_000 });
+    ).toHaveValue('ab', { timeout: 15_000 });
   });
 });
 
@@ -126,15 +141,9 @@ test.describe('A-022 — o cadastro de paciente sobrevive a uma falha ao salvar'
 
     await page.locator('#nome').fill(nome);
     await page.locator('#telefone').fill('(21) 99999-8888');
-
-    await page.route('**/*', async (rota) => {
-      const req = rota.request();
-      if (req.method() === 'POST' && req.headers()['next-action']) {
-        await rota.fulfill({ status: 500, contentType: 'text/plain', body: 'falha forçada pelo teste' });
-        return;
-      }
-      await rota.continue();
-    });
+    // E-mail inválido: o `pacienteSchema` recusa e a ação devolve
+    // `success: false`, sem tocar no nome nem no telefone — que é o ponto.
+    await page.locator('#email').fill('isto-nao-e-email');
 
     await page.getByRole('button', { name: /salvar paciente/i }).click();
 
