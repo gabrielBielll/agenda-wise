@@ -58,9 +58,11 @@ function Aviso({
   icone, titulo, children,
 }: { icone: React.ReactNode; titulo: string; children: React.ReactNode }) {
   return (
+    /* Mesmo estado vazio de `(app)/patients/page.tsx`: `soft-icon` redondo e
+       `section-title`. O ícone recebido vira o conteúdo do selo. */
     <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3 p-8 text-center">
-      {icone}
-      <h2 className="text-xl font-semibold">{titulo}</h2>
+      <span className="soft-icon mb-1 h-16 w-16 rounded-full">{icone}</span>
+      <h2 className="section-title">{titulo}</h2>
       <p className="max-w-md text-sm text-muted-foreground">{children}</p>
     </div>
   );
@@ -123,11 +125,25 @@ export default function PlataformaClient({ estado }: { estado: Estado }) {
   const { metricas, clinicas } = estado;
 
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
+    /*
+      Redesign — vocabulário do `8109afc`.
+
+      Esta tela também não existia na base de maio dele. A casca segue
+      `(app)/patients/page.tsx`: `quiet-page`, eyebrow com o traço de `bg-accent`,
+      `page-title` e `page-subtitle`.
+
+      📌 O subtítulo continua dizendo o que a tela NÃO mostra — "contagens, não
+      nomes" — porque essa frase é a promessa de privacidade da D-009, não
+      decoração. Redesenhar não é lugar de perder texto que carrega regra.
+    */
+    <div className="quiet-page page-enter">
+      <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Plataforma</h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="mb-2 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[.12em] text-muted-foreground">
+            <span className="h-px w-6 bg-accent" /> Operação
+          </p>
+          <h2 className="page-title">As clínicas, de longe.</h2>
+          <p className="page-subtitle">
             Uso por clínica. Sem dado clínico — contagens, não nomes.
           </p>
         </div>
