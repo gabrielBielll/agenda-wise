@@ -150,7 +150,11 @@ test.describe('A-013 — 403 diz "sem acesso", e não esconde o que a pessoa pod
     await page.goto('/');
     await page.locator('#email').fill(CONTA.secretarioEmail);
     await page.locator('#password').fill(CONTA.secretarioSenha);
-    await page.getByRole('button', { name: /^entrar$/i }).click();
+    // ⚠️ `/^entrar/i` e nao `/^entrar$/i`: o redesign (8109afc) trocou o rotulo do
+    // botao para "Entrar com seguranca", e a ancora do fim derrubou SETE specs de
+    // uma vez — 16 testes, todos os que fazem login por formulario. A ancora do
+    // inicio fica: o outro botao da tela chama-se "Google".
+    await page.getByRole('button', { name: /^entrar/i }).click();
     await expect
       .poll(
         async () =>
