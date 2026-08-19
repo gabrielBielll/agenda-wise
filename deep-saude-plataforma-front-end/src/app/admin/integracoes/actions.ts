@@ -147,8 +147,12 @@ export async function pausarAgenda(vinculoId: string, pausado: boolean): Promise
   return r;
 }
 
-export async function desconectarGoogle(): Promise<Resultado> {
-  const r = await chamar("/desconectar", { method: "POST" }, "Não consegui desconectar.");
+export async function desconectarGoogle(usuarioId: string): Promise<Resultado> {
+  const r = await chamar(
+    "/desconectar",
+    { method: "POST", body: JSON.stringify({ usuario_id: usuarioId }) },
+    "Não consegui desconectar."
+  );
   revalidatePath("/admin/integracoes");
   return r;
 }

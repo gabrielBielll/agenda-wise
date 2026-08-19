@@ -34,6 +34,12 @@ export type StatusDaIntegracao = {
   conectada: boolean;
   conexoes_total: number;
   conexoes_ativas: number;
+  conexoes: Array<{
+    usuario_id: string;
+    nome_psicologa?: string | null;
+    google_account_email?: string | null;
+    status: string;
+  }>;
   conexoes_com_problema: Array<{
     usuario_id?: string;
     nome_psicologa?: string | null;
@@ -112,7 +118,7 @@ export default function GoogleClient({
   const [aVincular, setAVincular] = useState<Agenda | null>(null);
   const [escolhido, setEscolhido] = useState<string>("");
   const [sugestoes, setSugestoes] = useState<Sugestao[]>([]);
-  const [aDesconectar, setADesconectar] = useState(false);
+  const [aDesconectar, setADesconectar] = useState<StatusDaIntegracao["conexoes"][number] | null>(null);
 
   const quebradas = (agendas ?? []).filter((a) => APARENCIA[a.status]?.grave);
 
@@ -182,11 +188,7 @@ export default function GoogleClient({
                 <RefreshCw className="mr-2 h-4 w-4" aria-hidden="true" />
                 Sincronizar agendas
               </Button>
-              <Button variant="outline" onClick={() => setADesconectar(true)}>
-                <Unplug className="mr-2 h-4 w-4" aria-hidden="true" />
-                Desconectar
-              </Button>
-            </>
+             </>
           )}
           {!status.conectada && (
             <Button
@@ -254,6 +256,35 @@ export default function GoogleClient({
             </div>
           </div>
         </div>
+      )}
+
+      {status.conexoes.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Conexões</CardTitle>
+            <CardDescription>
+              Cada psicóloga controla a própria conta do Google. Desconectar uma pessoa não interrompe as demais.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="divide-y">
+              {status.conexoes.map((conexao) => (
+                <div key={conexao.usuario_id} className="flex flex-wrap items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
+                  <div>
+                    <p className="font-medium">{conexao.nome_psicologa ?? "Psicóloga"}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {conexao.google_account_email ?? "Conta Google sem e-mail"} · {conexao.status}
+                    </p>
+                  </div>
+                  <Button size="sm" variant="outline" disabled={pendente} onClick={() => setADesconectar(conexao)}>
+                    <Unplug className="mr-2 h-4 w-4" aria-hidden="true" />
+                    Desconectar
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       <Card>
@@ -430,19 +461,24 @@ export default function GoogleClient({
         </AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog open={aDesconectar} onOpenChange={setADesconectar}>
+      <AlertDialog open={aDesconectar !== null} onOpenChange={(aberto) => !aberto && setADesconectar(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Desconectar do Google?</AlertDialogTitle>
+            <AlertDialogTitle>Desconectar {aDesconectar?.nome_psicologa ?? "esta psicóloga"}?</AlertDialogTitle>
             <AlertDialogDescription>
-              Todas as agendas param de sincronizar e os vínculos são perdidos. Para voltar,
-              será preciso conectar a conta e definir os donos de novo.
+              Somente a agenda de <strong>{aDesconectar?.nome_psicologa ?? "esta psicóloga"}</strong> para de
+              sincronizar. As outras conexões da clínica continuam ativas. Para voltar, ela precisará
+              conectar a própria conta novamente.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => iniciar(async () => { avisar(await desconectarGoogle()); setADesconectar(false); })}
+              onClick={() => iniciar(async () => {
+                if (!aDesconectar) return;
+                avisar(await desconectarGoogle(aDesconectar.usuario_id));
+                setADesconectar(null);
+              })
             >
               Desconectar
             </AlertDialogAction>
