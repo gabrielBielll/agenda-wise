@@ -57,21 +57,52 @@ export default function GlobalError({
           já estava salvo se perdeu.
         </p>
 
-        <button
-          onClick={reset}
-          style={{
-            marginTop: "0.5rem",
-            padding: "0.5rem 1rem",
-            borderRadius: "0.75rem",
-            border: "1px solid hsl(60 3% 22% / 0.2)",
-            background: "transparent",
-            color: "inherit",
-            font: "inherit",
-            cursor: "pointer",
-          }}
-        >
-          Tentar de novo
-        </button>
+        {/*
+          🔴 DUAS saídas, e a segunda existe por um achado da `vale` (0177).
+
+          `reset()` remonta a árvore a partir daqui — mas esta tela só aparece
+          quando o **layout raiz** falhou, então ela oferece exatamente "tentar
+          de novo a coisa que acabou de quebrar". Se a falha for determinística —
+          um `undefined` na montagem, um provedor que estourou, o CSS que não
+          veio — o botão devolve a mesma tela e a pessoa fica num laço.
+
+          ⚠️ A âncora é `<a>` e **não** `<Link>`, pelo mesmo motivo que o resto
+          deste arquivo não usa Tailwind: o roteador do cliente é parte do que
+          pode ter quebrado. Navegação de documento inteiro descarta o estado
+          podre e recarrega do zero — a única saída que não depende do que
+          falhou.
+        */}
+        <div style={{ marginTop: "0.5rem", display: "flex", gap: "0.5rem", flexWrap: "wrap", justifyContent: "center" }}>
+          <button
+            onClick={reset}
+            style={{
+              padding: "0.5rem 1rem",
+              borderRadius: "0.75rem",
+              border: "1px solid hsl(60 3% 22% / 0.2)",
+              background: "transparent",
+              color: "inherit",
+              font: "inherit",
+              cursor: "pointer",
+            }}
+          >
+            Tentar de novo
+          </button>
+
+          <a
+            href="/"
+            style={{
+              padding: "0.5rem 1rem",
+              borderRadius: "0.75rem",
+              border: "1px solid transparent",
+              color: "inherit",
+              font: "inherit",
+              textDecoration: "none",
+              lineHeight: "normal",
+            }}
+          >
+            Voltar ao início
+          </a>
+        </div>
 
         {error.digest && (
           <p style={{ marginTop: "1rem", fontSize: "0.75rem", color: "hsl(60 3% 44%)" }}>

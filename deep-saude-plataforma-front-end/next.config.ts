@@ -25,6 +25,39 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  /**
+   * 🔴 Um BOOLEANO, não o endereço — e a diferença é o ponto (A-024).
+   *
+   * A tela do admin precisa distinguir *"o backend está fora do ar"* de *"esta
+   * build saiu sem endereço nenhum"*, porque a primeira melhora esperando e a
+   * segunda **nunca** melhora.
+   *
+   * ⚠️ **Medido em 19/08, e derrubou o desenho anterior:** eu tinha suposto que
+   * o proxy apontando para si mesmo devolveria **404** e que isso identificaria
+   * a build incompleta. Os dois casos devolvem **500**:
+   *
+   * ```
+   * proxy -> ele mesmo (sem variável)      500
+   * proxy correto, backend fora do ar      500
+   * ```
+   *
+   * Ou seja: a resposta não distingue nada, e a guarda que eu tinha escrito
+   * nunca dispararia. O sinal precisa vir do tempo de build — como vinha antes.
+   *
+   * 📌 **O que muda em relação ao desenho antigo:** antes o cliente lia
+   * `NEXT_PUBLIC_API_URL`, e por isso o **endereço** do backend ia no bundle e a
+   * porta dele tinha de ficar aberta para a internet. Aqui vai `'1'` ou `''`.
+   * O navegador aprende *se* havia endereço, nunca *qual* — e o backend pode
+   * viver em rede privada.
+   *
+   * E cobre as DUAS variáveis: a guarda antiga só olhava uma, e acusaria falta
+   * de configuração numa build que tivesse apenas `API_PROXY_TARGET`.
+   */
+  env: {
+    NEXT_PUBLIC_API_CONFIGURADA:
+      (process.env.API_PROXY_TARGET ?? process.env.NEXT_PUBLIC_API_URL) ? '1' : '',
+  },
+
   async rewrites() {
     // ⚠️ Estes rewrites NÃO são opcionais: todo o módulo financeiro
     // (FinanceiroClient) chama `/api/agendamentos/...` e `/api/pacientes/...`
@@ -50,10 +83,26 @@ const nextConfig: NextConfig = {
       'google',
     ];
 
-    return rotas.map((rota) => ({
-      source: `/api/${rota}/:path*`,
-      destination: `${apiUrl}/api/${rota}/:path*`,
-    }));
+    return [
+      /**
+       * 🔴 `health` entra aqui para que o NAVEGADOR pare de falar com o backend
+       * direto (A-024).
+       *
+       * Era a última chamada do cliente que usava `NEXT_PUBLIC_API_URL`, e por
+       * causa dela o endereço do backend ia embutido no bundle e a porta dele
+       * precisava estar aberta para a internet. Medido em 19/08: das 28 origens
+       * que usam a variável, **uma** rodava no navegador — esta.
+       *
+       * ⚠️ Sem sub-rota: `/api/health` é folha. Fica explícito em vez de entrar
+       * na lista de prefixos, porque `/api/health/:path*` casaria com caminhos
+       * que não existem e mascararia um 404 legítimo.
+       */
+      { source: '/api/health', destination: `${apiUrl}/api/health` },
+      ...rotas.map((rota) => ({
+        source: `/api/${rota}/:path*`,
+        destination: `${apiUrl}/api/${rota}/:path*`,
+      })),
+    ];
   },
 };
 
