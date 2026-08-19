@@ -56,6 +56,13 @@
       (db/execute-one! ["INSERT INTO pacientes (id, clinica_id, nome, psicologo_id)
                          VALUES (?, ?, ?, ?) ON CONFLICT (id) DO NOTHING"
                         pac cli (str "Paciente " nome) psi])))
+  ;; A regra pode mudar dentro de um teste; fixture precisa devolver o legado
+  ;; de 50% para o próximo, assim como devolve as tabelas transacionais.
+  (db/execute-one! ["UPDATE usuarios
+                        SET modalidade_repasse = 'percentual', percentual_repasse = 50,
+                            valor_fixo_repasse = NULL
+                      WHERE id IN (?, ?, ?)"
+                    psicologo-a psicologo-a2 psicologo-b])
   (let [papel (:id (db/execute-one! ["SELECT id FROM papeis WHERE nome_papel = 'admin_clinica'"]))]
     (db/execute-one! ["INSERT INTO usuarios (id, clinica_id, papel_id, nome, email, senha_hash)
                        VALUES (?, ?, ?, 'Psi A2', 'psi-a2@teste.local', 'x')
@@ -241,6 +248,40 @@
         (is (= [40M "fixo" 40M]
                ((juxt #(bigdec (:valor_repasse %)) :modalidade_repasse_aplicada
                       #(bigdec (:valor_fixo_repasse_aplicado %))) nova-gravada)))))))
+
+(deftest repasse-mensal-e-em-lote-por-periodo-e-psicologa
+  (let [dentro #uuid "aaaaaaaa-0000-0000-0000-0000000000f1"
+        fora #uuid "aaaaaaaa-0000-0000-0000-0000000000f2"]
+    (doseq [[id data] [[dentro "2026-07-15 14:00:00"]
+                       [fora "2026-08-01 14:00:00"]]]
+      (db/execute-one! ["INSERT INTO agendamentos
+                         (id, clinica_id, paciente_id, psicologo_id, data_hora_sessao,
+                          valor_consulta, status, status_pagamento, status_repasse,
+                          valor_repasse, modalidade_repasse_aplicada,
+                          percentual_repasse_aplicado, repasse_calculado_em)
+                         VALUES (?, ?, ?, ?, ?::timestamp, 200, 'realizado', 'pago',
+                                 'disponivel', 100, 'percentual', 50, now())"
+                        id clinica-a paciente-a psicologo-a data]))
+    (let [resp (core/marcar-repasses-transferidos-handler
+                {:identity {:clinica_id clinica-a}
+                 :body {:psicologo_id (str psicologo-a)
+                        :data_inicio "2026-07-01"
+                        :data_fim "2026-07-31"}})]
+      (is (= 200 (:status resp)))
+      (is (= 1 (get-in resp [:body :quantidade])))
+      (is (== 100M (bigdec (get-in resp [:body :valor_total]))))
+      (is (= "transferido" (:status_repasse
+                             (db/execute-one! ["SELECT status_repasse FROM agendamentos WHERE id = ?" dentro]))))
+      (is (= "disponivel" (:status_repasse
+                            (db/execute-one! ["SELECT status_repasse FROM agendamentos WHERE id = ?" fora]))))
+      ;; Repetir o mesmo lote é idempotente, não paga duas vezes.
+      (let [segunda (core/marcar-repasses-transferidos-handler
+                     {:identity {:clinica_id clinica-a}
+                      :body {:psicologo_id (str psicologo-a)
+                             :data_inicio "2026-07-01"
+                             :data_fim "2026-07-31"}})]
+        (is (= 0 (get-in segunda [:body :quantidade])))
+        (is (zero? (bigdec (get-in segunda [:body :valor_total]))))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Criação

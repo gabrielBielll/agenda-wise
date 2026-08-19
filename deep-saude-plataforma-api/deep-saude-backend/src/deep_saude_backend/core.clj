@@ -1149,6 +1149,61 @@
       (log/error e "clinic_status_sync_failed")
       {:status 500 :body {:erro "Erro ao sincronizar."}})))
 
+(defn marcar-repasses-transferidos-handler
+  "Marca em lote o pagamento mensal de uma psicóloga.
+
+   O cálculo continua por sessão (R-023); este handler só muda o segundo eixo,
+   pagamento, por psicóloga e período. Sessão não realizada, não paga pelo
+   paciente ou ainda sem snapshot não entra silenciosamente no lote."
+  [request]
+  (let [clinica-id (get-in request [:identity :clinica_id])
+        {:keys [psicologo_id data_inicio data_fim]} (:body request)]
+    (try
+      (let [psicologo-id (java.util.UUID/fromString (or psicologo_id ""))
+            inicio (java.time.LocalDate/parse (or data_inicio ""))
+            fim (java.time.LocalDate/parse (or data_fim ""))]
+        (cond
+          (.isAfter inicio fim)
+          {:status 422 :body {:erro "data_inicio não pode ser posterior a data_fim."
+                              :code "periodo_invalido"}}
+
+          (not (execute-one! ["SELECT id FROM usuarios WHERE id = ? AND clinica_id = ?"
+                              psicologo-id clinica-id]))
+          {:status 404 :body {:erro "Psicóloga não encontrada nesta clínica."}}
+
+          :else
+          (let [zona (tempo/zona (fuso-da-clinica clinica-id))
+                inicio-instante (tempo/->sql (.atStartOfDay inicio zona))
+                fim-exclusivo (tempo/->sql (.atStartOfDay (.plusDays fim 1) zona))
+                transferidos (jdbc/execute!
+                              @datasource
+                              ["UPDATE agendamentos
+                                   SET status_repasse = 'transferido'
+                                 WHERE clinica_id = ?
+                                   AND psicologo_id = ?
+                                   AND data_hora_sessao >= ?
+                                   AND data_hora_sessao < ?
+                                   AND status = 'realizado'
+                                   AND status_pagamento = 'pago'
+                                   AND valor_repasse IS NOT NULL
+                                   AND status_repasse <> 'transferido'
+                              RETURNING valor_repasse"
+                               clinica-id psicologo-id inicio-instante fim-exclusivo]
+                              {:builder-fn rs/as-unqualified-lower-maps})
+                total (reduce + 0M (map #(bigdec (:valor_repasse %)) transferidos))]
+            {:status 200
+             :body {:quantidade (count transferidos)
+                    :valor_total total
+                    :psicologo_id psicologo-id
+                    :data_inicio data_inicio
+                    :data_fim data_fim}})))
+      (catch java.time.format.DateTimeParseException _
+        {:status 422 :body {:erro "data_inicio e data_fim devem usar AAAA-MM-DD."
+                            :code "periodo_invalido"}})
+      (catch IllegalArgumentException _
+        {:status 422 :body {:erro "psicologo_id é obrigatório e deve ser um UUID válido."
+                            :code "psicologo_invalido"}}))))
+
 (defn listar-agendamentos-handler [request]
   (let [identity (:identity request)
         clinica-id (:clinica_id identity)
@@ -1439,6 +1494,10 @@
   (PUT  "/:id" request (wrap-checar-permissao atualizar-agendamento-handler "gerenciar_agendamentos_clinica"))
   (DELETE "/:id" request (wrap-checar-permissao remover-agendamento-handler "gerenciar_agendamentos_clinica")))
 
+(defroutes repasses-routes
+  (POST "/transferir" request
+    (wrap-checar-permissao marcar-repasses-transferidos-handler "gerenciar_pagamentos")))
+
 ;; ROTAS DE BLOQUEIOS DE AGENDA
 (defroutes bloqueios-routes
   (POST "/verificar-conflitos" request (wrap-jwt-autenticacao verificar-conflitos-handler))
@@ -1483,6 +1542,8 @@
   (context "/api/pacientes" [] pacientes-routes)
 
   (context "/api/agendamentos" [] agendamentos-routes)
+
+  (context "/api/repasses" [] repasses-routes)
 
   (context "/api/bloqueios" [] bloqueios-routes)
 
