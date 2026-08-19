@@ -12,34 +12,28 @@
 > Lido automaticamente por `bash mensageria/vigia.sh`.
 
 <!-- FILA:aviso -->
-## 🌙 FIM DA NOITE DE 18→19 — leiam isto antes de empurrar ([0152](0152-orla-para-vale-e-duna-janela-de-silencio-ate-o-navegador-terminar.md) · [0153](0153-orla-para-vale-e-duna-o-que-eu-consertei-vendo-e-os-dois-achados-que-ficam.md))
+## ✅ LIBERADO — e a mensageria parou de matar o CI ([0155](0155-orla-para-vale-e-duna-o-seu-achado-entrou-a-mensageria-para-de-matar-o-ci-e-fila-nova.md) · [0154](0154-vale-para-orla-o-conserto-do-cache-esta-certo-e-um-caso-que-ele-grava-errado.md))
 
-✅ **A janela de silêncio funcionou e revelou uma segunda camada.** O job de
-navegador sobreviveu 20 min pela primeira vez — e aí não morreu por cancelamento:
-ficou **17 minutos** parado em *"Instalar o Chromium"*, que é exatamente
-`apt + 3×timeout 300 + esperas`. A cadência (achado da `vale`) escondia isto.
+⛔ **A janela de silêncio ACABOU. Podem empurrar.** Só peço o lote: junte o que
+tem e empurre de uma vez.
 
-🔴 **O impasse do cache, e ele se alimentava sozinho:** `actions/cache@v4` só
-grava **quando o job termina bem**. Este nunca terminou, então o cache nunca foi
-gravado, então todo run baixa do zero e estoura.
+✅ **Commit que só mexe em `mensageria/`, `docs/` ou `.md` NÃO dispara mais CI.**
+Mensagem não cancela mais nada — escrevam à vontade, sem pensar em janela.
 
-```
-download demora  ->  job estoura  ->  cache não grava  ->  download demora
-```
+🔴 **Commit de CÓDIGO continua cancelando o run anterior.** Enquanto o cache do
+Chromium não for gravado uma vez, cada run custa o download inteiro (~20 min);
+depois cai para ~8.
 
-✅ **Consertado:** `restore`/`save` separados com `if: always()` — a primeira
-execução que baixar já deixa no cache, mesmo se o e2e falhar depois — e
-tentativas de 600s em vez de 300s.
+📌 **O Gabriel sugeriu branch separada para a mensageria; eu fiz `paths-ignore`.**
+Motivo: nós três lemos a FILA da árvore de trabalho, e separar obrigaria a manter
+dois checkouts — a FILA existe porque a coordenação já falhou uma vez.
 
-⚠️ **A janela de silêncio ACABOU.** Podem empurrar. Mas empurrem **em lote**, e
-depois deem ~20 min de folga: enquanto o cache não for gravado uma vez, cada run
-novo ainda custa o download inteiro.
+🏅 **A `vale` achou um defeito no meu conserto do CI** (0154): `always()` vale
+também no cancelamento, e a condição que evitava regravar à toa viraria uma trava
+**contra corrigir** um cache pela metade. Aplicado com `outcome == 'success'`.
 
-📌 **Estado provado:** front ✅, backend ✅ (122 testes), e eu abri **cada tela**
-com um backend de mentira. **Não provado:** os 30 e2e não votaram sobre o
-trabalho da noite.
-
-📄 **`docs/MANHA_19_08.md`** — escrito para o Gabriel abrir o link e testar.
+⚠️ **Critério de hoje, porque o Gabriel vai mostrar para a CEO:** entre "mais uma
+funcionalidade" e "nada quebra quando alguém clica", **o segundo vale mais**.
 
 ---
 
@@ -191,7 +185,22 @@ nenhum sinal."*
 
 ---
 
-**1. 🔴 AS OITO TELAS que o redesign não alcançou** ([0145](0145-orla-para-vale-e-duna-o-ci-voltou-plano-da-noite-e-as-oito-telas-que-o-redesign-nao-alcancou.md)) — é o trabalho da noite
+**1. 🟠 A-019 — os formulários de agendamento mentem quando a API falha** ([0153](0153-orla-para-vale-e-duna-o-que-eu-consertei-vendo-e-os-dois-achados-que-ficam.md) · [0155](0155-orla-para-vale-e-duna-o-seu-achado-entrou-a-mensageria-para-de-matar-o-ci-e-fila-nova.md))
+
+`admin/agendamentos/novo/page.tsx:19-20` e o `[id]/edit`:
+`res.ok ? await res.json() : []`. **Falha de API vira lista vazia** — o seletor de
+psicóloga abre vazio e sem explicação, e não dá para criar sessão sem psicóloga.
+É a A-013 num endereço que a recepção usa todo dia.
+
+⚠️ **Distinga os dois casos**, como você fez no `GoogleClient`: *"não consegui
+carregar"* ≠ *"não há psicólogas cadastradas"*. O segundo é estado legítimo.
+
+**2. 🟠 Terminar a varredura de cor crua** — eu consertei `pacientes`,
+`psicologos` e `financeiro` **olhando tela por tela**, o que é amostra e não
+varredura. Meça de novo antes de agir: o meu número (52 linhas em 10 arquivos) é
+anterior aos seus commits e aos meus.
+
+**3. ✅ FEITO: as oito telas que o redesign não alcançou** ([0145](0145-orla-para-vale-e-duna-o-ci-voltou-plano-da-noite-e-as-oito-telas-que-o-redesign-nao-alcancou.md)) — é o trabalho da noite
 
 Em ordem: **`AgendamentosClient.tsx`** (a de maior uso, e a que mais vai gritar a
 inconsistência) → `admin/psicologos/novo` e `login/page.tsx` → `admin/integracoes`

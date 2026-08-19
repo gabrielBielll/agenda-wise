@@ -50,7 +50,26 @@ on:
   # pull request — são grupos diferentes por definição.
   push:
     branches: [main, staging, prod]
+    paths-ignore: &so-conversa
+      # 🔴 Commit que só mexe em conversa NÃO dispara CI, e isto não é economia:
+      # é o que impede a mensageria de matar o próprio veredito.
+      #
+      # Medido em 18→19/08: o job de navegador precisa de ~15 min e cada push
+      # novo cancela o run anterior. Front e backend cabem em 5–7 e por isso
+      # sempre passavam; o navegador morreu CINCO vezes seguidas, e em pelo menos
+      # duas quem cancelou foi uma mensagem — texto puro, incapaz de quebrar
+      # código, derrubando a única prova de comportamento que a gente tem.
+      #
+      # ⚠️ O Gabriel sugeriu separar a mensageria numa branch própria. Resolveria,
+      # mas as três instâncias leem `mensageria/FILA.md` da árvore de trabalho —
+      # separar obrigaria cada uma a manter dois checkouts, e a FILA existe
+      # justamente porque a coordenação já falhou uma vez. `paths-ignore` dá o
+      # mesmo resultado sem mudar nada no jeito de trabalhar.
+      - 'mensageria/**'
+      - 'docs/**'
+      - '**/*.md'
   pull_request:
+    paths-ignore: *so-conversa
 
 # Push novo cancela a execução anterior do mesmo ref. Sem isto, uma sequência de
 # commits enfileira execuções que ninguém vai ler.
@@ -353,6 +372,7 @@ jobs:
           key: playwright-${{ runner.os }}-${{ hashFiles('deep-saude-plataforma-front-end/package-lock.json') }}
 
       - name: Instalar o Chromium do Playwright
+        id: instalar-chromium
         working-directory: deep-saude-plataforma-front-end
         timeout-minutes: 22
         run: |
@@ -385,8 +405,27 @@ jobs:
 
       # Grava mesmo se o e2e falhar depois — o que interessa aqui é o binário
       # baixado, e ele não fica errado por causa de um teste vermelho.
+      #
+      # 🔴 MAS `always()` vale também quando o job é CANCELADO — achado da `vale`
+      # na 0154, e ela está certa. O job vinha sendo cancelado **no meio do
+      # download**, nas cinco vezes. Sem a guarda abaixo existiria esta sequência:
+      #
+      #   1. baixa o Chromium pela metade
+      #   2. alguém empurra -> cancelamento no meio
+      #   3. `always()` grava um diretório INCOMPLETO
+      #   4. run seguinte: cache-hit = true
+      #   5. o save é pulado por `cache-hit != 'true'` -> o lixo nunca se corrige
+      #
+      # ⚠️ O passo 5 é o que dói: a condição que evita regravar à toa também
+      # impede consertar, e a chave só muda quando o `package-lock.json` mudar.
+      #
+      # `outcome == 'success'` separa exatamente o que precisa ser separado: "o
+      # e2e falhou" (grava, o binário está bom) de "o download não terminou"
+      # (não grava).
       - name: Guardar o Chromium no cache
-        if: always() && steps.cache-chromium.outputs.cache-hit != 'true'
+        if: always()
+          && steps.instalar-chromium.outcome == 'success'
+          && steps.cache-chromium.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
           path: ~/.cache/ms-playwright
