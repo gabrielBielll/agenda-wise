@@ -17,6 +17,16 @@ const psicologoSchema = z.object({
   registro_e_psi: z.string().optional(),
   abordagem: z.string().optional(),
   area_de_atuacao: z.string().optional(),
+  modalidade_repasse: z.enum(["percentual", "fixo"]),
+  percentual_repasse: z.coerce.number().min(0).max(100).optional(),
+  valor_fixo_repasse: z.coerce.number().min(0).optional(),
+}).superRefine((dados, ctx) => {
+  if (dados.modalidade_repasse === "percentual" && dados.percentual_repasse == null) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["percentual_repasse"], message: "Informe o percentual." });
+  }
+  if (dados.modalidade_repasse === "fixo" && dados.valor_fixo_repasse == null) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["valor_fixo_repasse"], message: "Informe o valor por sessão." });
+  }
 });
 
 export type FormState = {
@@ -25,6 +35,8 @@ export type FormState = {
     nome?: string[];
     email?: string[];
     senha?: string[];
+    percentual_repasse?: string[];
+    valor_fixo_repasse?: string[];
     _form?: string[];
   };
   success: boolean;
@@ -47,6 +59,9 @@ export async function updatePsicologo(
     registro_e_psi: formData.get("registro_e_psi") || undefined,
     abordagem: formData.get("abordagem") || undefined,
     area_de_atuacao: formData.get("area_de_atuacao") || undefined,
+    modalidade_repasse: formData.get("modalidade_repasse"),
+    percentual_repasse: formData.get("percentual_repasse") || undefined,
+    valor_fixo_repasse: formData.get("valor_fixo_repasse") || undefined,
   });
 
   if (!validatedFields.success) {
@@ -73,7 +88,13 @@ export async function updatePsicologo(
         "Content-Type": "application/json",
         "Authorization": `Bearer ${token}`,
       },
-      body: JSON.stringify(validatedFields.data),
+      body: JSON.stringify({
+        ...validatedFields.data,
+        percentual_repasse: validatedFields.data.modalidade_repasse === "percentual"
+          ? validatedFields.data.percentual_repasse : null,
+        valor_fixo_repasse: validatedFields.data.modalidade_repasse === "fixo"
+          ? validatedFields.data.valor_fixo_repasse : null,
+      }),
     });
 
     if (!response.ok) {

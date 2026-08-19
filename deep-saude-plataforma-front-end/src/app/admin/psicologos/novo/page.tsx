@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useFormState, useFormStatus } from "react-dom";
@@ -32,6 +32,7 @@ export default function AdminNovoPsicologoPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [state, formAction] = useFormState(createPsicologo, initialState);
+  const [modalidade, setModalidade] = useState<"percentual" | "fixo">("fixo");
 
   useEffect(() => {
     if (state.success) {
@@ -133,6 +134,43 @@ export default function AdminNovoPsicologoPage() {
             <Label htmlFor="endereco">Endereço Completo</Label>
             <Input id="endereco" name="endereco" placeholder="Rua, Número, Bairro, Cidade - UF" />
           </div>
+
+          <section className="space-y-4 rounded-2xl border border-border/60 bg-muted/25 p-5">
+            <div>
+              <h2 className="font-headline text-xl">Remuneração por sessão</h2>
+              <p className="text-sm text-muted-foreground">
+                A regra será copiada para cada sessão realizada. Mudanças futuras não alteram o passado.
+              </p>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="modalidade_repasse">Modalidade *</Label>
+                <select
+                  id="modalidade_repasse"
+                  name="modalidade_repasse"
+                  value={modalidade}
+                  onChange={(event) => setModalidade(event.target.value as "percentual" | "fixo")}
+                  className="h-11 w-full rounded-xl border border-input bg-background px-3 text-sm"
+                >
+                  <option value="fixo">Valor fixo por sessão</option>
+                  <option value="percentual">Percentual da sessão</option>
+                </select>
+              </div>
+              {modalidade === "percentual" ? (
+                <div className="space-y-2">
+                  <Label htmlFor="percentual_repasse">Percentual (%) *</Label>
+                  <Input id="percentual_repasse" name="percentual_repasse" type="number" min="0" max="100" step="0.01" required />
+                  {state.errors?.percentual_repasse && <p className="text-sm text-destructive">{state.errors.percentual_repasse[0]}</p>}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Label htmlFor="valor_fixo_repasse">Valor por sessão (R$) *</Label>
+                  <Input id="valor_fixo_repasse" name="valor_fixo_repasse" type="number" min="0" step="0.01" required />
+                  {state.errors?.valor_fixo_repasse && <p className="text-sm text-destructive">{state.errors.valor_fixo_repasse[0]}</p>}
+                </div>
+              )}
+            </div>
+          </section>
           <div className="flex justify-end pt-4">
             <SubmitButton />
           </div>

@@ -793,12 +793,19 @@
                   status_pagamento valor_repasse status_repasse force]} (:body request)
           altera-financeiro? (some some? [status_pagamento valor_repasse status_repasse])]
 
-      (if (and altera-financeiro?
-               (not (tem-permissao? papel-id "gerenciar_pagamentos")))
+      (cond
+        (some? valor_repasse)
+        {:status 422
+         :body {:erro "valor_repasse é calculado pelo servidor a partir da regra da psicóloga."
+                :code "repasse_calculado_pelo_servidor"}}
+
+        (and altera-financeiro?
+             (not (tem-permissao? papel-id "gerenciar_pagamentos")))
         {:status 403
          :body {:erro "Usuário não tem permissão para alterar pagamentos ou repasses."
                 :code "payment_permission_required"}}
 
+        :else
         ;; R-020 (1) — *"o admin sempre tem força"*, e o Gabriel confirmou que
         ;; vale também aqui, no caminho de atualização, onde o campo não existia.
         ;;
@@ -984,7 +991,6 @@
                            (some? duracao) (assoc :duracao duracao)
                            (some? status) (assoc :status status)
                            (some? observacoes) (assoc :observacoes observacoes)
-                           (some? (:valor_repasse (:body request))) (assoc :valor_repasse (:valor_repasse (:body request)))
                            (some? (:status_repasse (:body request))) (assoc :status_repasse (:status_repasse (:body request)))
                            (some? (:status_pagamento (:body request)))
                            (assoc :status_pagamento (:status_pagamento (:body request))

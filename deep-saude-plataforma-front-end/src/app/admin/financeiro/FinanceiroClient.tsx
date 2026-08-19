@@ -107,9 +107,6 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
   // State to track local updates to agendamentos (optimistic UI)
   const [agendamentos, setAgendamentos] = useState<Agendamento[]>(initialAgendamentos);
   
-  // Commission Percentage State (default 50%)
-  const [commissionRate, setCommissionRate] = useState<number>(50);
-  
   // State for editing valor
   const [editingValorId, setEditingValorId] = useState<string | null>(null);
   const [editingValorValue, setEditingValorValue] = useState<string>("");
@@ -213,10 +210,10 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
     setCurrentPage(1);
   }, [dateRange, selectedPsicologo, selectedPaciente, selectedRepasse, sortBy]);
 
-  // Calculate Repasse Stats
-  // If valor_repasse is set in DB, use it. Otherwise, calculate based on simulation rate.
+  // A-004: dinheiro vem do snapshot persistido da regra da psicóloga. Ausência
+  // de cálculo não autoriza o navegador a inventar 50%.
   const totalRepasse = filteredData.reduce((acc, curr) => {
-      const repasse = curr.valor_repasse ?? (Number(curr.valor_consulta || 0) * (commissionRate / 100));
+      const repasse = curr.valor_repasse ?? 0;
       return acc + repasse;
   }, 0);
   
@@ -315,13 +312,12 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
   };
 
   // Function to toggle Repasse Status (Disponivel/Transferido)
-  const handleUpdateRepasseStatus = async (id: string, currentStatus: string | undefined, valorConsulta: number) => {
+  const handleUpdateRepasseStatus = async (id: string, currentStatus: string | undefined) => {
       const newStatus = currentStatus === 'transferido' ? 'disponivel' : 'transferido';
-      const repasseValue = valorConsulta * (commissionRate / 100);
       
       // Optimistic update
       setAgendamentos(prev => prev.map(ag => 
-          ag.id === id ? { ...ag, status_repasse: newStatus, valor_repasse: ag.valor_repasse ?? repasseValue } : ag
+          ag.id === id ? { ...ag, status_repasse: newStatus } : ag
       ));
 
       try {
@@ -332,8 +328,7 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
                   'Authorization': `Bearer ${token}`
               },
               body: JSON.stringify({ 
-                  status_repasse: newStatus,
-                  valor_repasse: repasseValue 
+                  status_repasse: newStatus
               })
           });
           
@@ -485,8 +480,9 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
   // Bulk Transfer: Marcar todos os repasses visíveis como "transferido"
   const handleTransferAll = async () => {
     // Filtrar apenas os que estão disponíveis para transferência (pago + não transferido)
-    const eligibleItems = filteredData.filter(ag => 
-      getEffectivePagamento(ag) === 'pago' && ag.status_repasse !== 'transferido'
+    const eligibleItems = filteredData.filter(ag =>
+      ag.status === 'realizado' && getEffectivePagamento(ag) === 'pago' &&
+      ag.valor_repasse != null && ag.status_repasse !== 'transferido'
     );
 
     if (eligibleItems.length === 0) {
@@ -499,7 +495,7 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
     }
 
     // Calcular valor total
-    const totalValue = eligibleItems.reduce((sum, ag) => sum + (Number(ag.valor_consulta) || 0), 0);
+    const totalValue = eligibleItems.reduce((sum, ag) => sum + Number(ag.valor_repasse), 0);
 
     // Confirmação
     const confirmed = window.confirm(
@@ -508,34 +504,50 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
 
     if (!confirmed) return;
 
-    // Atualização em lote
+    if (!dateRange?.from || eligibleItems.some((ag) => !ag.psicologo_id)) {
+      toast({ title: "Não foi possível formar o lote", description: "Selecione um período e confira as psicólogas das sessões.", variant: "destructive" });
+      return;
+    }
+
+    const idsPorPsicologa = new Map<string, Set<string>>();
+    eligibleItems.forEach((ag) => {
+      const ids = idsPorPsicologa.get(ag.psicologo_id!) ?? new Set<string>();
+      ids.add(ag.id);
+      idsPorPsicologa.set(ag.psicologo_id!, ids);
+    });
+
     let successCount = 0;
     let errorCount = 0;
-
-    for (const ag of eligibleItems) {
+    const transferidos = new Set<string>();
+    for (const [psicologoId, ids] of idsPorPsicologa) {
       try {
-        const res = await fetch(`/api/agendamentos/${ag.id}`, {
-          method: 'PUT',
+        const res = await fetch('/api/repasses/transferir', {
+          method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
           },
-          body: JSON.stringify({ status_repasse: 'transferido' })
+          body: JSON.stringify({
+            psicologo_id: psicologoId,
+            data_inicio: format(dateRange.from, 'yyyy-MM-dd'),
+            data_fim: format(dateRange.to ?? dateRange.from, 'yyyy-MM-dd'),
+          })
         });
-        
         if (res.ok) {
-          successCount++;
-          // Optimistic update
-          setAgendamentos(prev => prev.map(item => 
-            item.id === ag.id ? { ...item, status_repasse: 'transferido' } : item
-          ));
+          const resultado = await res.json();
+          successCount += resultado.quantidade ?? 0;
+          ids.forEach((id) => transferidos.add(id));
         } else {
-          errorCount++;
+          errorCount += ids.size;
         }
       } catch (error) {
-        errorCount++;
+        errorCount += ids.size;
       }
     }
+
+    setAgendamentos(prev => prev.map(item =>
+      transferidos.has(item.id) ? { ...item, status_repasse: 'transferido' } : item
+    ));
 
     toast({
       title: "Transferência em lote concluída",
@@ -699,22 +711,6 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
             </div>
         </div>
 
-        {/* Global Controls */}
-         <div className="flex items-center gap-4 p-4 border rounded-lg bg-card">
-            <div className="flex items-center gap-2">
-                <span className="text-sm font-medium">Comissão Padrão (%):</span>
-                <Input 
-                    type="number" 
-                    value={commissionRate} 
-                    onChange={(e) => setCommissionRate(Number(e.target.value))}
-                    className="w-20"
-                />
-            </div>
-            <p className="text-xs text-muted-foreground">
-                Define a % do psicólogo para simulação se não houver valor definido.
-            </p>
-         </div>
-
         {/* Filters */}
         <div className="flex flex-wrap gap-4 items-center bg-card p-4 rounded-lg border">
             <div className="flex items-center gap-2 mr-2">
@@ -822,7 +818,7 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
                 {formatCurrency(totalRepasse)}
             </div>
             <p className="text-xs text-muted-foreground">
-              {commissionRate}% destinado aos psicólogos
+              Conforme a regra gravada de cada psicóloga
             </p>
           </CardContent>
         </Card>
@@ -907,7 +903,7 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
       <Card>
         <CardHeader>
             <CardTitle>Faturamento e Repasse por Psicólogo</CardTitle>
-            <CardDescription>Receita total e valor a repassar com taxa de {commissionRate}%.</CardDescription>
+            <CardDescription>Receita e repasse calculado pela regra individual aplicada em cada sessão.</CardDescription>
         </CardHeader>
         <CardContent>
             <Table>
@@ -927,7 +923,7 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
                             if (!acc[name]) acc[name] = { total: 0, count: 0, repasse: 0, paid: 0 };
                             
                             const val = Number(curr.valor_consulta) || 0;
-                            const rep = curr.valor_repasse ?? (val * (commissionRate / 100));
+                            const rep = curr.valor_repasse ?? 0;
                             
                             acc[name].total += val;
                             acc[name].count += 1;
@@ -1098,7 +1094,7 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
                                     "h-8 px-2 text-xs font-medium",
                                     ag.status_repasse === 'transferido' ? "text-green-600 hover:text-green-700" : "text-blue-600 hover:text-blue-700"
                                 )}
-                                onClick={() => handleUpdateRepasseStatus(ag.id, ag.status_repasse, Number(ag.valor_consulta))}
+                                onClick={() => handleUpdateRepasseStatus(ag.id, ag.status_repasse)}
                             >
                                 {ag.status_repasse === 'transferido' ? 'Transferido' : 'Disponível'}
                             </Button>

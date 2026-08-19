@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useFormState, useFormStatus } from "react-dom";
@@ -26,6 +26,9 @@ interface Psicologo {
   registro_e_psi?: string;
   abordagem?: string;
   area_de_atuacao?: string;
+  modalidade_repasse?: "percentual" | "fixo";
+  percentual_repasse?: number | null;
+  valor_fixo_repasse?: number | null;
 }
 
 const initialState: FormState = {
@@ -57,6 +60,9 @@ export default function EditPsicologoForm({
   // Usamos .bind para pré-preencher a action com o ID do psicólogo
   const updatePsicologoWithId = updatePsicologo.bind(null, psicologo.id);
   const [state, formAction] = useFormState(updatePsicologoWithId, initialState);
+  const [modalidade, setModalidade] = useState<"percentual" | "fixo">(
+    psicologo.modalidade_repasse ?? "percentual"
+  );
 
   useEffect(() => {
     if (state.success) {
@@ -163,6 +169,46 @@ export default function EditPsicologoForm({
             <Label htmlFor="endereco">Endereço Completo</Label>
             <Input id="endereco" name="endereco" defaultValue={psicologo.endereco || ''} placeholder="Rua, Número, Bairro, Cidade - UF" disabled={readOnly} />
           </div>
+
+          <section className="space-y-4 rounded-2xl border border-border/60 bg-muted/25 p-5">
+            <div>
+              <h2 className="font-headline text-xl">Remuneração por sessão</h2>
+              <p className="text-sm text-muted-foreground">
+                Esta mudança valerá somente para sessões realizadas depois dela.
+              </p>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="modalidade_repasse">Modalidade</Label>
+                <select
+                  id="modalidade_repasse"
+                  name="modalidade_repasse"
+                  value={modalidade}
+                  disabled={readOnly}
+                  onChange={(event) => setModalidade(event.target.value as "percentual" | "fixo")}
+                  className="h-11 w-full rounded-xl border border-input bg-background px-3 text-sm disabled:opacity-60"
+                >
+                  <option value="fixo">Valor fixo por sessão</option>
+                  <option value="percentual">Percentual da sessão</option>
+                </select>
+              </div>
+              {modalidade === "percentual" ? (
+                <div className="space-y-2">
+                  <Label htmlFor="percentual_repasse">Percentual (%)</Label>
+                  <Input id="percentual_repasse" name="percentual_repasse" type="number" min="0" max="100" step="0.01"
+                    defaultValue={psicologo.percentual_repasse ?? 50} disabled={readOnly} required />
+                  {state.errors?.percentual_repasse && <p className="text-sm text-destructive">{state.errors.percentual_repasse[0]}</p>}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Label htmlFor="valor_fixo_repasse">Valor por sessão (R$)</Label>
+                  <Input id="valor_fixo_repasse" name="valor_fixo_repasse" type="number" min="0" step="0.01"
+                    defaultValue={psicologo.valor_fixo_repasse ?? undefined} disabled={readOnly} required />
+                  {state.errors?.valor_fixo_repasse && <p className="text-sm text-destructive">{state.errors.valor_fixo_repasse[0]}</p>}
+                </div>
+              )}
+            </div>
+          </section>
           {!readOnly && (
             <div className="flex justify-end pt-4">
               <SubmitButton />
