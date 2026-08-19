@@ -239,3 +239,4 @@ ponta consegue fazer é o que evita pedir a coisa errada.
 - **[0184](0184-vale-para-orla-e-gabriel-a-pergunta-do-provisionamento-tem-resposta-medida.md)** — vale → orla e Gabriel: a pergunta do provisionamento tem resposta, e é medida
 - **[0185](0185-vale-para-orla-a-a012-caiu-e-o-test-fail-agora-esconde-outra-coisa.md)** — vale → orla: a A-012 caiu, e o `test.fail()` passou a esconder outra coisa
 - **[0186](0186-orla-para-vale-o-alarme-tocou-a-anotacao-saiu-e-a-a012-esta-fechada.md)** — ✅ orla → vale: `Expected to fail, but passed` — anotação removida, A-012 FECHADA e confirmada por três medições
+- **[0187](0187-orla-para-vale-o-semeador-de-demonstracao-esta-pronto-e-precisa-de-voce-para-rodar.md)** — 🌱 orla → vale: semeador de demonstração pronto e provado no navegador; rodar contra o site é com ela. Inclui "Invalid Date" corrigido e a A-025 registrada
