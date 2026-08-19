@@ -65,6 +65,35 @@ export default function ProntuarioForm({
   const [activeTab, setActiveTab] = React.useState<'evolucao' | 'prontuario'>('evolucao');
   const [humor, setHumor] = React.useState<string>(initialData?.humor ? String(initialData.humor) : "");
 
+  /**
+   * 🔴 A-022 — campos CONTROLADOS, e é isto que impede a perda do texto.
+   *
+   * Antes eram `defaultValue` dentro de `<form action={formAction}>`. O React
+   * reseta o formulário quando a ação termina — **e não distingue terminar bem de
+   * terminar mal**. Então uma falha de rede exibia "Erro ao salvar" e, no mesmo
+   * instante, apagava a nota clínica inteira.
+   *
+   * ⚠️ **É a A-010 pelo avesso, e o precedente é nosso:** naquela vez o diálogo do
+   * admin sobreviveu ao fechar **porque era controlado** (`value`/`onChange`), e o
+   * do calendário não sobreviveu porque usava `defaultValue`. Mesma causa, outro
+   * gatilho.
+   *
+   * 📌 A limpeza no SUCESSO continua existindo — ela é intencional, para a próxima
+   * evolução começar em branco. O que sai é a limpeza no fracasso, que ninguém
+   * pediu e que o `<form action>` fazia sozinho.
+   */
+  const vazio = {
+    agendamento_id: initialData?.agendamento_id || "none",
+    queixa_principal: initialData?.queixa_principal || "",
+    resumo_tecnico: initialData?.resumo_tecnico || "",
+    observacoes_estado_mental: initialData?.observacoes_estado_mental || "",
+    encaminhamentos_tarefas: initialData?.encaminhamentos_tarefas || "",
+    conteudo: initialData?.conteudo || "",
+  };
+  const [campos, setCampos] = React.useState(vazio);
+  const mudar = (nome: keyof typeof vazio) => (e: React.ChangeEvent<HTMLTextAreaElement>) =>
+    setCampos((c) => ({ ...c, [nome]: e.target.value }));
+
   // Decide which action to use properly
   const isEditing = !!initialData?.id;
   const action = isEditing 
@@ -83,7 +112,12 @@ export default function ProntuarioForm({
       });
       if (state.success) {
         if (!isEditing) {
+            // Limpeza EXPLÍCITA do sucesso. Com campos controlados, o
+            // `formRef.current?.reset()` sozinho não bastaria — e é justamente
+            // por isso que o fracasso deixa de apagar.
             formRef.current?.reset();
+            setCampos({ agendamento_id: "none", queixa_principal: "", resumo_tecnico: "",
+                        observacoes_estado_mental: "", encaminhamentos_tarefas: "", conteudo: "" });
             setHumor(""); // Reset humor state
         } else if (onCancel) {
             onCancel();
@@ -162,7 +196,8 @@ export default function ProntuarioForm({
                      <div className="space-y-2">
                         {/* Agendamento Select */}
                         <Label htmlFor="agendamento_id">Vincular a Sessão (Opcional)</Label>
-                        <Select name="agendamento_id" defaultValue={initialData?.agendamento_id || "none"}>
+                        <Select name="agendamento_id" value={campos.agendamento_id}
+                                onValueChange={(v) => setCampos((c) => ({ ...c, agendamento_id: v }))}>
                             <SelectTrigger id="agendamento_id">
                                 <SelectValue placeholder="Selecione uma sessão agendada" />
                             </SelectTrigger>
@@ -202,7 +237,8 @@ export default function ProntuarioForm({
                         name="queixa_principal" 
                         placeholder="O que foi trabalhado naquele dia específico?" 
                         className="min-h-[80px]"
-                        defaultValue={initialData?.queixa_principal || ""}
+                        value={campos.queixa_principal}
+                        onChange={mudar("queixa_principal")}
                         />
                     </div>
 
@@ -213,7 +249,8 @@ export default function ProntuarioForm({
                         name="resumo_tecnico" 
                         placeholder="Descrição da intervenção e técnica utilizada..." 
                         className="min-h-[80px]"
-                        defaultValue={initialData?.resumo_tecnico || ""}
+                        value={campos.resumo_tecnico}
+                        onChange={mudar("resumo_tecnico")}
                         />
                     </div>
 
@@ -224,7 +261,8 @@ export default function ProntuarioForm({
                         name="observacoes_estado_mental" 
                         placeholder="Humor, afeto, orientação, memória, nível de ansiedade..." 
                         className="min-h-[80px]"
-                        defaultValue={initialData?.observacoes_estado_mental || ""}
+                        value={campos.observacoes_estado_mental}
+                        onChange={mudar("observacoes_estado_mental")}
                         />
                     </div>
 
@@ -235,7 +273,8 @@ export default function ProntuarioForm({
                         name="encaminhamentos_tarefas" 
                         placeholder="Exercícios ou encaminhamentos prescritos..." 
                         className="min-h-[80px]"
-                        defaultValue={initialData?.encaminhamentos_tarefas || ""}
+                        value={campos.encaminhamentos_tarefas}
+                        onChange={mudar("encaminhamentos_tarefas")}
                         />
                     </div>
                 </div>
@@ -248,7 +287,8 @@ export default function ProntuarioForm({
                     placeholder="Descreva a evolução do paciente..." 
                     className="min-h-[120px]"
                     required
-                    defaultValue={initialData?.conteudo || ""}
+                    value={campos.conteudo}
+                        onChange={mudar("conteudo")}
                     />
                     {state.errors?.conteudo && <p className="text-sm text-red-500">{state.errors.conteudo[0]}</p>}
                 </div>
