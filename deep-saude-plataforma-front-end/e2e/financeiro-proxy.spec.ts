@@ -40,7 +40,11 @@ test.describe('financeiro', () => {
      *      ou explodido, não haveria nenhum.
      */
     await expect(page).toHaveURL(/\/admin\/financeiro\/?$/);
-    await expect(page.getByRole('heading').first()).toBeVisible();
+    // ⚠️ Dentro de `main`, e não `getByRole('heading').first()` solto: medido em
+    // 19/08, o primeiro heading da página é **"Deep Saúde"**, que mora na barra
+    // lateral — ele fica visível mesmo se o conteúdo não renderizar nada. Guarda
+    // que passa com a tela vazia é decoração, não guarda.
+    await expect(page.locator('main').getByRole('heading').first()).toBeVisible();
   });
 
   test('o rewrite entrega as chamadas relativas ao backend', async ({ page }) => {
@@ -76,7 +80,7 @@ test.describe('financeiro', () => {
     // Mesma razão do `beforeEach`: esperar a tela voltar, sem depender da copy
     // do título. Depois do `reload` a URL não muda, então quem prova o render é
     // o cabeçalho existir.
-    await expect(page.getByRole('heading').first()).toBeVisible();
+    await expect(page.locator('main').getByRole('heading').first()).toBeVisible();
     await page.waitForLoadState('networkidle');
 
     expect(falhas, `chamadas com erro:\n${falhas.join('\n')}`).toEqual([]);

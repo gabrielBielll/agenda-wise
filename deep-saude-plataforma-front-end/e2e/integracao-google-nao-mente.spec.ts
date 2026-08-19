@@ -76,7 +76,7 @@ test.describe('GC-001a — o painel da integração', () => {
       page,
       'o painel não abriu para o admin — ele tem `gerenciar_integracao_google` pela migration de permissões'
     ).toHaveURL(/\/admin\/integracoes\/?$/);
-    await expect(page.getByRole('heading').first()).toBeVisible();
+    await expect(page.locator('main').getByRole('heading').first()).toBeVisible();
 
     /**
      * O ponto do teste. Sem conta conectada, a tela precisa **dizer** que não há
