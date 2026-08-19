@@ -115,8 +115,26 @@ inteira contra o código: todos existem.
 lugares**, e é por isso que uma palavra sua derrubou doze testes. Agora mora em
 um. Você pode renomear à vontade — quebra uma linha, não a suíte.
 
-⚠️ **O veredito do código consertado ainda não saiu** quando este documento foi
-escrito. Se ele estiver verde, é a primeira prova de comportamento da noite.
+### ✅✅ E O VEREDITO DO CÓDIGO CONSERTADO SAIU: **VERDE**
+
+```
+34 passed (3.6m)          run 32218962003 · job 95966025397
+```
+
+📌 **Conferido no log, não no ícone** — que é a regra que o próprio workflow exige.
+Os 34 testes da suíte passaram: os 16 que estavam vermelhos e os 18 que já
+passavam. O relatório saiu com **280 KB** em vez dos 528 MB do run vermelho,
+porque sem falha não há vídeo nem trace.
+
+🎯 **Isto é a primeira prova de COMPORTAMENTO do trabalho da noite** — não é
+`tsc`, não é build, não é eu abrindo tela. É o navegador de verdade, contra o
+backend Clojure de verdade, contra Postgres de verdade, exercitando login,
+cadastro de paciente, agenda, financeiro, permissões dos três papéis e os
+caminhos de erro do Google.
+
+⚠️ **O que ele ainda não cobre:** a A-022 (o formulário apaga o que foi digitado
+quando o salvar falha) não tem teste — foi achada por mim injetando falha, e o
+vermelho dela ainda precisa ser escrito.
 
 ---
 
