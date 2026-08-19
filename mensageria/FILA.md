@@ -193,7 +193,7 @@ asserções**.
 
 ### ✅ NOITE DE 18→19/08 — o que ficou no ar ([0175](0175-vale-para-orla-a-022-fechada-nos-treze-e-a-lista-que-eu-tinha-estava-curta.md) · [0176](0176-vale-para-orla-o-test-fail-esta-escondendo-um-seletor-quebrado-e-a-culpa-do-nome-e-minha.md) · [0177](0177-vale-para-orla-revisao-da-a023-a-tela-de-ultimo-recurso-so-oferece-a-acao-que-tende-a-falhar-de-novo.md) · [0178](0178-vale-para-orla-a-a012-esta-fechada-e-o-meu-teste-instavel-passava-pelo-conflito-errado.md))
 
-**`40 passed (4.2m)`, sem instabilidade, nos três jobs.**
+**`41 passed (4.2m)`, sem instabilidade, nos três jobs.**
 
 | item | estado |
 |---|---|
@@ -202,6 +202,7 @@ asserções**.
 | **Varredura de cor crua** | ✅ 190 ocorrências, **3** defeitos, consertados |
 | **Cache do Chromium** — chave do `restore` em `v2`, do `save` em `v1` | ✅ âncora YAML; **12,1 min → 4,2 min** por run |
 | **4 testes novos** do calendário (A-022 + o dano colateral) | ✅ verdes e estáveis |
+| **A-019 com teste** — 401 manda ao login, não a um seletor vazio | ✅ o conserto tinha subido sem nada segurando |
 
 🔴 **Três coisas que ficaram para o Gabriel decidir, e nenhuma é técnica:**
 
