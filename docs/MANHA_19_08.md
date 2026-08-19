@@ -188,12 +188,40 @@ isso é o e2e com o backend de verdade.
 
 ## 5. Como eu verifiquei o que está aqui
 
-- **Rodei o app** contra um backend de mentira no meu scratchpad (o Clojars é
-  bloqueado nesta sandbox, então o backend real não sobe aqui), fiz login e abri
-  cada tela. ⚠️ **Isso prova pixel, não comportamento** — quem prova comportamento
-  é o CI, com o backend de verdade contra Postgres.
+- **Passeei pelo app inteiro com um navegador de verdade**, contra o build de
+  produção e um backend de mentira no meu scratchpad (o Clojars é bloqueado nesta
+  sandbox, então o backend real não sobe aqui). Não é "olhar": o roteiro escuta
+  **exceção de página, erro de console, requisição que falha e todo status ≥ 400**.
+
+  ```
+  sessão de admin       21 rotas
+  sessão de psicóloga    7 rotas
+  rotas públicas e o retorno do Google   5 estados
+  ─────────────────────────────────────────────────
+  26 estados de rota          0 queixas
+  ```
+
+  ⚠️ **Prova navegação, não fluxo.** Ninguém salvou, editou nem apagou nada. Quem
+  prova isso é o e2e, com o backend de verdade contra Postgres.
+
+- **Provei os dois consertos clicando, não lendo:** 0 pedidos a `/admin/settings`
+  em cinco telas do admin; e o botão "Nova sessão" encontrado, clicado, o diálogo
+  aberto e o parâmetro limpo da URL.
+
+- **Revisei o conserto da `vale`** nas quatro telas de detalhe forçando a leitura
+  a devolver 500: as quatro mostram o cartão *"Não consegui carregar"* com
+  "Tentar de novo", dentro da moldura do admin. ✅ Aprovado.
+
 - **Reproduzi o deploy mal configurado** com `next build` sem a variável e
-  `node server.js` com ela, que é exatamente o que o Northflank faz.
+  `node server.js` com ela, que é exatamente o que o Northflank faz — e
+  **reconferi hoje**, depois de todos os merges da madrugada: a tela ainda se
+  autodiagnostica.
+
+- ⚠️ **E três medições minhas deram verde sem medir nada**, antes de eu perceber:
+  `networkidle` que nunca assenta nesta sandbox, clique antes da hidratação (o
+  login virava `GET` e eu media a tela de login), e servidor antigo segurando a
+  porta depois de eu reconstruir. **Nos três o sintoma foi silêncio, não erro.**
+  Por isso o número acima só vale acompanhado do roteiro que o produziu.
 - 🔴 **Não consegui abrir o site no ar**: o proxy desta sandbox nega qualquer host
   fora de uma allowlist curta, e `*.code.run` dá 403 no CONNECT. **Quem abre o
   link é você** — e é por isso que a rede de segurança do item 1 existe.
