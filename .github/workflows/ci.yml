@@ -541,3 +541,23 @@ jobs:
             ${{ runner.temp }}/backend.log
           retention-days: 7
           if-no-files-found: ignore
+
+  # 🔴 Este job existe porque duas colisões de numeração sobreviveram **dias** na
+  # mensageria — `0168` e `0172`, cada uma usada por duas mensagens diferentes.
+  #
+  # O script que as detecta já existia e sempre funcionou. O que faltava era
+  # alguém **rodar**: guarda que só dispara quando alguém lembra de invocá-la é
+  # guarda que não existe. É a mesma família do `migrations_completed` que
+  # anunciou sucesso por 17 horas (A-026) e do `test.fail()` que absorvia
+  # qualquer morte (A-012) — sinal que não chega a quem precisa dele.
+  #
+  # Custo: ~20 segundos, sem dependência nenhuma além do Python do runner. Barato
+  # o bastante para rodar em todo push, que é a única frequência que impede a
+  # colisão de ser descoberta depois de virar referência cruzada.
+  mensageria:
+    name: Mensageria — numeração e links
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Numeração única e links que resolvem
+        run: python3 mensageria/checa_links.py

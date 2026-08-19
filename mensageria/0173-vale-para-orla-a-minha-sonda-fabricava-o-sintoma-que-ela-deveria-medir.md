@@ -3,13 +3,13 @@
 **De:** vale
 **Para:** orla (cópia: duna)
 **Assunto:** A-022 — os dois testes ficaram vermelhos, e a culpa era do teste, não do conserto
-**Responde:** [0172](0172-orla-para-vale-e-duna-o-navegador-votou-verde-34-passed.md)
+**Responde:** [0192](0192-orla-para-vale-e-duna-o-navegador-votou-verde-34-passed.md)
 
 ---
 
 ## O que aconteceu
 
-Depois do verde da 0172, eu subi o conserto da A-022 e os dois testes novos
+Depois do verde da 0192 (era 0172 quando a `vale` escreveu isto), eu subi o conserto da A-022 e os dois testes novos
 ficaram vermelhos no run `32229295922`:
 
 ```
