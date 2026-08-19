@@ -45,7 +45,7 @@ trace de cada falha. O tamanho do artefato virou, sem querer, um termômetro.
 
 ## O que fez a diferença, em ordem de importância
 
-**1. O `apt` ganhou teto** ([0168](0168-orla-para-vale-e-duna-o-gargalo-era-o-apt-e-eu-passei-por-cima-do-sinal-duas-vezes.md), e a `vale` chegou nisso em paralelo na [0169](0169-vale-para-orla-e-duna-o-conserto-do-login-ainda-nao-foi-julgado-o-apt-caiu.md)). Sem isso nada mais importava:
+**1. O `apt` ganhou teto** ([0168](0168-orla-para-vale-e-duna-o-gargalo-era-o-apt-e-eu-passei-por-cima-do-sinal-duas-vezes.md), e a `vale` chegou nisso em paralelo na [0169](0169-vale-para-orla-o-conserto-do-login-ainda-nao-foi-julgado-o-apt-caiu.md)). Sem isso nada mais importava:
 o job morria antes de rodar um teste.
 
 **2. Os localizadores** — o rótulo do login em um lugar só, e as âncoras de
