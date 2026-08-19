@@ -243,6 +243,27 @@ aparece dias depois, longe da causa.
 
 ---
 
+### ✅ Varredura da A-013 (falha virando "não há nada") — **toda página de leitura trata**
+
+27 arquivos de servidor falam com o backend; **7** usam `carregar()` e **20** usam
+`fetch()` cru. O 20 assusta e não devia: **a maioria é `actions.ts`**, que são
+*escritas* e já devolvem a falha pelo estado do formulário — a A-022 mediu isso
+(o toast "Erro ao Salvar" aos 400 ms). A A-013 é sobre **leitura**, então o
+recorte que importa são as páginas que buscam lista para renderizar. São quatro:
+
+| página | como trata a falha |
+|---|---|
+| `admin/pacientes` | devolve `{error}` e o `ClientComponent` **renderiza** (`:109`) |
+| `admin/psicologos` | idem (`:107`) |
+| `patients/[id]/edit` | `notFound()` — 404 de verdade, não formulário vazio |
+| `plataforma` | tipo `Falha` + guarda `falhou()` → `{ tipo: "erro" }` |
+
+📌 **Nenhuma mostra lista vazia quando o que houve foi falha.** Registro para
+ninguém refazer, e registro o *recorte* junto: varrer "os 27" teria misturado
+escrita com leitura e produzido um número grande que não quer dizer nada.
+
+---
+
 ### ✅ Varredura da A-021 (link que leva a 404) — **zero encontrados**
 
 Consertei quatro pontos de entrada na A-021 e nunca varri o resto. Varri agora:
