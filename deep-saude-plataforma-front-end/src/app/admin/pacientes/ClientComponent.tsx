@@ -121,7 +121,25 @@ export default function ClientComponent({
   }
 
   return (
-    <Card>
+    /**
+     * ⚠️ Faltava o cabeçalho de página, e a ausência só aparece quando se navega:
+     * `/admin/dashboard` abre com sobrancelha + título em Playfair + subtítulo, e
+     * `/admin/agendamentos` também. Esta tela caía direto dentro de um cartão.
+     *
+     * 📌 O padrão é dele (`8109afc`, `admin/dashboard/page.tsx:25`) e as classes
+     * também — `quiet-page`, `page-eyebrow`, `page-title`, `page-subtitle`. Não
+     * inventei composição: repeti a que já existe.
+     */
+    <div className="quiet-page">
+      <section>
+        <p className="page-eyebrow mb-2">Pessoas da clínica</p>
+        <h1 className="page-title">Quem a gente cuida.</h1>
+        <p className="page-subtitle">
+          Cadastro, histórico e a psicóloga responsável por cada pessoa.
+        </p>
+      </section>
+
+      <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
@@ -185,7 +203,7 @@ export default function ClientComponent({
               currentPacientes.map((paciente) => (
                 <TableRow key={paciente.id}>
                   <TableCell className="font-medium">{paciente.nome}</TableCell>
-                  <TableCell>{paciente.email || 'N/A'}</TableCell>
+                  <TableCell>{paciente.email || <span className="text-muted-foreground">—</span>}</TableCell>
                   <TableCell>{paciente.nome_psicologo || 'A designar'}</TableCell>
                   <TableCell>
                     <Badge variant={paciente.status === 'inativo' ? 'secondary' : 'default'}>
@@ -207,7 +225,23 @@ export default function ClientComponent({
                     </Button>
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
-                        <Button variant="destructive" size="icon" className="h-8 w-8" disabled={isPending}>
+                        {/*
+                          O bloco vermelho sólido saiu daqui, e não por gosto: numa
+                          lista ele aparece **uma vez por linha**, então a coisa mais
+                          barulhenta da tela passava a ser a ação que ninguém quer
+                          fazer. Ao lado, "ver" e "editar" são `outline` — os três
+                          fazem parte do mesmo grupo e precisam ler como grupo.
+
+                          ⚠️ A ênfase não sumiu, mudou de lugar: ela vive no diálogo
+                          de confirmação, que é onde a destruição de fato acontece e
+                          onde a pessoa ainda pode voltar atrás.
+                        */}
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-8 w-8 text-destructive hover:border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
+                          disabled={isPending}
+                        >
                           <Trash2 className="h-4 w-4" />
                           <span className="sr-only">Excluir</span>
                         </Button>
@@ -286,6 +320,7 @@ export default function ClientComponent({
             </div>
           )}
       </CardContent>
-    </Card>
+      </Card>
+    </div>
   );
 }

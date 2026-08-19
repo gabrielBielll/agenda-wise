@@ -119,7 +119,17 @@ export default function ClientComponent({
   }
 
   return (
-    <Card>
+    /* Mesmo cabeçalho ausente do `admin/pacientes`, mesmo padrão do `8109afc`. */
+    <div className="quiet-page">
+      <section>
+        <p className="page-eyebrow mb-2">Equipe clínica</p>
+        <h1 className="page-title">Quem atende aqui.</h1>
+        <p className="page-subtitle">
+          Cadastro, especialidade e contato de cada profissional da clínica.
+        </p>
+      </section>
+
+      <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
@@ -172,7 +182,15 @@ export default function ClientComponent({
                     </Button>
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
-                        <Button variant="destructive" size="icon" className="h-8 w-8" disabled={isPending}>
+                        {/* Mesmo motivo do `admin/pacientes`: numa lista, o bloco
+                            vermelho aparece uma vez por linha e vira o elemento mais
+                            forte da tela. A ênfase fica no diálogo de confirmação. */}
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-8 w-8 text-destructive hover:border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
+                          disabled={isPending}
+                        >
                           <Trash2 className="h-4 w-4" />
                           <span className="sr-only">Excluir</span>
                         </Button>
@@ -250,6 +268,7 @@ export default function ClientComponent({
             </div>
           )}
       </CardContent>
-    </Card>
+      </Card>
+    </div>
   );
 }

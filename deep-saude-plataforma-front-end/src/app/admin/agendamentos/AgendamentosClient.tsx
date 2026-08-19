@@ -640,8 +640,8 @@ export default function AgendamentosClient({
               {currentAgendamentos.length > 0 ? (
                 currentAgendamentos.map((ag) => (
                   <TableRow key={ag.id}>
-                    <TableCell>{ag.nome_paciente || 'N/A'}</TableCell>
-                    <TableCell>{ag.nome_psicologo || 'N/A'}</TableCell>
+                    <TableCell>{ag.nome_paciente || <span className="text-muted-foreground">—</span>}</TableCell>
+                    <TableCell>{ag.nome_psicologo || <span className="text-muted-foreground">—</span>}</TableCell>
                     <TableCell>{formatDate(ag.data_hora_sessao)}</TableCell>
                     <TableCell>{Number(ag.valor_consulta).toFixed(2)}</TableCell>
                     <TableCell>

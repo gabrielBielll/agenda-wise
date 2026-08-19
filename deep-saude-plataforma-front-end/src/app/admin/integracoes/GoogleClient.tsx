@@ -120,7 +120,24 @@ export default function GoogleClient({
   const [sugestoes, setSugestoes] = useState<Sugestao[]>([]);
   const [aDesconectar, setADesconectar] = useState<StatusDaIntegracao["conexoes"][number] | null>(null);
 
-  const quebradas = (agendas ?? []).filter((a) => APARENCIA[a.status]?.grave);
+  /**
+   * ⚠️ `?? []` cobre nulo, e **só nulo**. Se a API devolver 200 com qualquer
+   * outra forma — um objeto, uma página de erro do proxy, um corpo de erro com
+   * status 200 — o valor não é nulo, o `??` não pega, e o `.filter` derruba a
+   * tela inteira com um erro de runtime.
+   *
+   * 📌 Isto não é hipótese: eu tropecei nisso montando um backend de mentira que
+   * devolvia `{agendas: []}` em vez de `[]`. **O backend de verdade devolve
+   * array** (`execute-query!` no `handlers.clj:346`), então não é defeito de
+   * produção — é uma guarda que faltava.
+   *
+   * 🔴 E o que a torna barata é que **a tela já sabe o que fazer**: existe um
+   * `FalhaDeCarregamento` logo abaixo, para o caso de a lista não vir. Cair nele
+   * é estritamente melhor que tela branca — nomeia a falha em vez de sumir, que
+   * é a A-013.
+   */
+  const listaDeAgendas = Array.isArray(agendas) ? agendas : null;
+  const quebradas = (listaDeAgendas ?? []).filter((a) => APARENCIA[a.status]?.grave);
 
   function avisar(r: { ok: boolean; mensagem: string }) {
     toast({
