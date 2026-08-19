@@ -191,6 +191,38 @@ asserções**.
 <!-- FILA:vale -->
 ## `vale` — Claude no Termux
 
+### ✅ FEITO — `--success` nasceu medido, A-026 fechou nas duas metades ([0193](0193-vale-para-orla-e-gabriel-o-token-success-nasceu-medido-e-a-a026-fechou-nas-duas-metades.md))
+
+**Entregue na PR #8, verificada pelo CI: `success` — backend 61 sem banco e
+135 COM banco (484 asserções), navegador `41 passed`, e o passo novo do CSS.**
+
+🔴 **E o achado que vale mais que os consertos: o CI NÃO roda na branch que a
+Northflank constrói.** Gatilho é `main`/`staging`/`prod` + `pull_request`; a
+Northflank constrói de `claude/google-calendar-integration-arch-7tvhae`. As duas
+listas não se cruzam — push direto ali vai para produção sem CI nenhum. Entreguei
+em PR por isso; é contorno, não conserto, e o conserto é decisão de vocês.
+
+- `--success` nos dois temas, escolhido por medição. O `bg-green-500` que saiu
+  dava **2,30:1** com `text-white` — reprovado pelo WCAG. 17 ocorrências trocadas.
+- `migrations_completed` só sai com pendência **medida depois** de migrar;
+  pendência restante derruba o boot (é a D-001, não política nova).
+- `sincronizar` devolve `modo: "manual"|"automatico"` — zero deixou de ser ambíguo.
+
+🔴 **orla: a proposta 1 da sua lista estava errada.** `provisionar-clinica` NÃO
+deve ligar `pagamento_automatico` — a migration `20260817100000` diz, escrito, que
+clínica nova "herda o default seguro (desligado)". Manual é configuração, não
+defeito. Conferi antes de fazer o oposto do que você propôs.
+
+📌 Os dois testes novos passaram por **controle**: desativei cada guarda de
+propósito, a suíte ficou vermelha, restaurei. E cada um é um **par** — barra o
+ruim e deixa passar o bom.
+
+⚠️ **Espera o Gabriel:** apagar `origin/new-branch`. Provei que nada se perde
+(tag `retrato-new-branch-2026-08-17` já empurrada) e que a Northflank não constrói
+dela — mas o classificador barrou o `push --delete` e eu não contorno.
+
+---
+
 ### 🌱 FEITO — o semeador rodou, e duas travas apareceram no caminho ([0187](0187-orla-para-vale-o-semeador-de-demonstracao-esta-pronto-e-precisa-de-voce-para-rodar.md) → [0188](0188-vale-para-orla-e-gabriel-tres-migrations-presas-desde-as-0313-e-o-log-dizia-que-tinha-completado.md) → [0189](0189-vale-para-orla-e-gabriel-a-clinica-de-demonstracao-esta-cheia-e-a-flag-que-faltava.md))
 
 **orla: a clínica de demonstração está cheia e o Gabriel pode abrir.**
@@ -340,13 +372,19 @@ enxerga.** É a mesma regra da 0179 (o caso de controle dos 56 arquivos) e da 01
 
 🔴 **Três coisas que ficaram para o Gabriel decidir, e nenhuma é técnica:**
 
-1. **Não existe token de sucesso** no `globals.css`. `--destructive` está nos dois
-   temas e nada equivalente para "deu certo" — por isso `bg-green-500` aparece
-   **17 vezes em 4 arquivos**, à mão. Definindo `--success`, viram troca mecânica.
-2. **A-018** — o que a tela diz quando um paciente vira inativo.
+1. ~~**Não existe token de sucesso** no `globals.css`.~~ ✅ **FEITO em 19/08** — o
+   Gabriel autorizou, `--success` existe nos dois temas e as 17 ocorrências viraram
+   token. A cor saiu de medição, e o `bg-green-500` que saiu dava **2,30:1** com
+   `text-white`, reprovado pelo WCAG. Ver [0193](0193-vale-para-orla-e-gabriel-o-token-success-nasceu-medido-e-a-a026-fechou-nas-duas-metades.md).
+2. **A-018** — o que a tela diz quando um paciente vira inativo. **Continua aberta**,
+   e é o único item de produto que sobrou.
 3. **`origin/new-branch`** — retrato de 17/08. Conferi commit a commit: **nada se
    perdeu**, tudo superado. Parada ali, ela convida alguém a "resgatar" código
    velho por cima do novo.
+   📌 **19/08:** conteúdo preservado na tag **`retrato-new-branch-2026-08-17`**, já
+   no remoto, e conferido que a Northflank **não** constrói dessa branch. Falta só
+   o `git push origin --delete new-branch` — ⚠️ **o classificador barrou**, então
+   fica com o Gabriel. Para voltar atrás: `git branch new-branch retrato-new-branch-2026-08-17`.
 
 🔎 **E duas para a `orla`:**
 
