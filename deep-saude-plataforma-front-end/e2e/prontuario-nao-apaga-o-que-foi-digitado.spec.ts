@@ -1,25 +1,3 @@
-    // Menos de 3 caracteres: o `prontuarioSchema` recusa, e a ação devolve
-    // `success: false` pelo caminho normal. Nenhuma interceptação envolvida.
-    await conteudo.fill('ab');
-
-    const queixa = page.locator('#queixa_principal');
-    if (await queixa.isVisible().catch(() => false)) {
-      await queixa.fill(TEXTO);
-    }
-
-    await page.getByRole('button', { name: /salvar anota/i }).click();
-
-    /**
-     * ⚠️ Âncora antes da asserção (D-017): prova que a tela continua no
-     * formulário. Se a gravação tivesse sido aceita, o campo sumiria e a falha
-     * apareceria como "texto apagado" — o defeito oposto ao investigado.
-     */
-    await expect(
-      conteudo,
-      'o formulário de evolução sumiu da tela — a submissão não foi recusada como ' +
-        'esperado, então a A-022 não chegou a ser exercitada'
-    ).toBeVisible({ timeout: 20_000 });
-
 import { test, expect } from '@playwright/test';
 import { CONTA } from './preparar-dados';
 import { dadosSemeados } from './apoio';
@@ -101,10 +79,27 @@ test.describe('A-022 — a nota clínica sobrevive a uma falha ao salvar', () =>
       'o formulário de evolução não abriu — sem ele não há o que este teste proteja'
     ).toBeVisible({ timeout: 30_000 });
 
-    await conteudo.fill(TEXTO);
+    // Menos de 3 caracteres: o `prontuarioSchema` recusa, e a ação devolve
+    // `success: false` pelo caminho normal. Nenhuma interceptação envolvida.
+    await conteudo.fill('ab');
 
+    const queixa = page.locator('#queixa_principal');
+    if (await queixa.isVisible().catch(() => false)) {
+      await queixa.fill(TEXTO);
+    }
 
     await page.getByRole('button', { name: /salvar anota/i }).click();
+
+    /**
+     * ⚠️ Âncora antes da asserção (D-017): prova que a tela continua no
+     * formulário. Se a gravação tivesse sido aceita, o campo sumiria e a falha
+     * apareceria como "texto apagado" — o defeito oposto ao investigado.
+     */
+    await expect(
+      conteudo,
+      'o formulário de evolução sumiu da tela — a submissão não foi recusada como ' +
+        'esperado, então a A-022 não chegou a ser exercitada'
+    ).toBeVisible({ timeout: 20_000 });
 
     /**
      * 🔴 A asserção do defeito.
