@@ -147,11 +147,25 @@ export default function GoogleClient({
   const nomeDoEscolhido = psicologos.find((p) => p.id === escolhido)?.nome;
 
   return (
-    <div className="space-y-6 p-4 md:p-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    /*
+      Redesign — vocabulário do `8109afc`.
+
+      ⚠️ Esta tela é uma das que ele NUNCA viu: ela não existia na base de maio de
+      onde ele partiu. Então ela não "ficou de fora" por descuido dele — ela nasceu
+      depois, e o trabalho aqui é alinhá-la ao padrão, não corrigir nada dele.
+
+      A casca copia `(app)/patients/page.tsx`: `quiet-page`, eyebrow com o traço de
+      `bg-accent`, `page-title`, `page-subtitle`, e o número grande em `text-accent`
+      ao lado das ações. Tudo por token — a paleta escura dele quebra com cor crua.
+    */
+    <div className="quiet-page page-enter">
+      <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="font-headline text-3xl">Google Agenda</h1>
-          <p className="text-muted-foreground">
+          <p className="mb-2 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[.12em] text-muted-foreground">
+            <span className="h-px w-6 bg-accent" /> Integrações
+          </p>
+          <h2 className="page-title">A agenda de cada uma, junta.</h2>
+          <p className="page-subtitle">
             {status.conectada
               ? `${status.conexoes_ativas} de ${status.conexoes_total} psicólogas com agenda conectada`
               : "Nenhuma conta do Google conectada."}

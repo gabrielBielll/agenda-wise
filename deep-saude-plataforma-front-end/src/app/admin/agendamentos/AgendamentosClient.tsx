@@ -271,12 +271,55 @@ export default function AgendamentosClient({
     return `${start.toLocaleDateString('pt-BR')} - ${end.toLocaleDateString('pt-BR')}`;
   };
 
+  /**
+   * Redesign — o vocabulário é do `8109afc`, não meu.
+   *
+   * Esta tela ficou de fora do commit do Gabriel (ele mexeu em
+   * `admin/agendamentos/page.tsx`, mas só em 2 linhas de import — a UI mora
+   * aqui). É a tela de maior uso da recepção, então era a que mais ia destoar.
+   *
+   * ⚠️ **Copiei o padrão dele, não inventei um.** A casca segue
+   * `(app)/patients/page.tsx`: `quiet-page`, o eyebrow com o traço de `bg-accent`,
+   * `page-title`, `page-subtitle`, e a contagem grande em `text-accent` ao lado
+   * da ação primária. O corpo da tabela **não precisou de nada**: ele restilizou
+   * o primitivo `components/ui/table.tsx`, então ela já herdou o visual novo.
+   *
+   * 📌 Tudo por token (`text-muted-foreground`, `bg-accent`, `bg-card`) e nunca
+   * cor crua — ele definiu a paleta escura inteira no `globals.css`, e um
+   * `bg-white` aqui quebraria o modo escuro em silêncio.
+   *
+   * 🔴 **Nenhum comportamento mudou.** Os `id` da A11Y-001a, o fluxo de forçar da
+   * A-009, o diálogo de bloqueio e os filtros continuam idênticos — só a casca
+   * mudou de roupa.
+   */
   return (
+    <div className="quiet-page page-enter">
+      <section className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+        <div>
+          <p className="mb-2 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[.12em] text-muted-foreground">
+            <span className="h-px w-6 bg-accent" /> Agenda da clínica
+          </p>
+          <h2 className="page-title">O tempo de cada encontro.</h2>
+          <p className="page-subtitle">Visualize e organize os agendamentos de toda a equipe.</p>
+        </div>
+        <div className="flex items-end gap-5">
+          <div className="text-right">
+            <strong className="block font-headline text-4xl font-normal text-accent">{filteredAgendamentos.length}</strong>
+            <span className="page-eyebrow text-muted-foreground">
+              {filteredAgendamentos.length === 1 ? 'sessão' : 'sessões'}
+            </span>
+          </div>
+        </div>
+      </section>
+
     <Card>
       <CardHeader>
         <div className="flex flex-col md:flex-row items-center justify-between gap-4">
           <div>
-            <CardTitle className="flex items-center gap-2"><Calendar className="h-5 w-5"/> Agendamentos</CardTitle>
+            <CardTitle className="section-title flex items-center gap-2">
+              <span className="soft-icon h-9 w-9"><Calendar className="h-[18px] w-[18px]"/></span>
+              Agendamentos
+            </CardTitle>
             <CardDescription>Visualize e gerencie os agendamentos da clínica.</CardDescription>
           </div>
           <div className="flex items-center gap-2">
@@ -624,8 +667,18 @@ export default function AgendamentosClient({
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center h-24 text-muted-foreground">
-                    Nenhum agendamento encontrado com os filtros selecionados.
+                  {/* O estado vazio segue o padrão dele em `(app)/patients/page.tsx`:
+                      ícone em `soft-icon` redondo, `section-title`, e a frase em
+                      `text-muted-foreground`. Aqui ele vive dentro da tabela, então
+                      ocupa a linha inteira em vez de virar Card. */}
+                  <TableCell colSpan={5} className="h-auto py-14">
+                    <div className="flex flex-col items-center text-center">
+                      <span className="soft-icon mb-4 h-16 w-16 rounded-full"><Calendar className="h-7 w-7" /></span>
+                      <h3 className="section-title">Nenhuma sessão por aqui.</h3>
+                      <p className="mt-2 text-sm text-muted-foreground">
+                        Ajuste os filtros ou marque um novo horário.
+                      </p>
+                    </div>
                   </TableCell>
                 </TableRow>
               )}
@@ -703,5 +756,6 @@ export default function AgendamentosClient({
         )}
       </CardContent>
     </Card>
+    </div>
   );
 }

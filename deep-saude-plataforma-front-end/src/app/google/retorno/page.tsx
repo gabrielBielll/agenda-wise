@@ -27,18 +27,34 @@ export default async function RetornoDoGoogle({
   const desfecho = await concluirConexaoGoogle(code, state, error);
 
   return (
+    /*
+      Redesign — vocabulário do `8109afc`. Esta rota nasceu ontem e ele nunca a
+      viu; o alinhamento é para ela não destoar do resto.
+
+      📌 `soft-icon` para o sucesso e `terra-icon` para a recusa: são as duas
+      formas de ícone que ele definiu no `globals.css`, e usá-las evita inventar
+      um terceiro tratamento. O vermelho da falha continua por token de estado, e
+      não por cor crua, para o modo escuro dele não quebrar.
+    */
     <div className="flex min-h-screen items-center justify-center p-6">
       <Card className="w-full max-w-lg">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 font-headline text-2xl">
+          <p className="mb-2 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[.12em] text-muted-foreground">
+            <span className="h-px w-6 bg-accent" /> Google Agenda
+          </p>
+          <CardTitle className="flex items-center gap-3 section-title">
             {desfecho.ok ? (
               <>
-                <CheckCircle2 className="h-6 w-6 text-emerald-600" aria-hidden="true" />
+                <span className="soft-icon h-10 w-10">
+                  <CheckCircle2 className="h-5 w-5" aria-hidden="true" />
+                </span>
                 Agenda conectada
               </>
             ) : (
               <>
-                <AlertTriangle className="h-6 w-6 text-red-600" aria-hidden="true" />
+                <span className="terra-icon h-10 w-10">
+                  <AlertTriangle className="h-5 w-5" aria-hidden="true" />
+                </span>
                 {desfecho.titulo}
               </>
             )}
