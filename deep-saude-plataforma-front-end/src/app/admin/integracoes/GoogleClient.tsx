@@ -136,6 +136,15 @@ export default function GoogleClient({
    * é estritamente melhor que tela branca — nomeia a falha em vez de sumir, que
    * é a A-013.
    */
+  /**
+   * 🔴 Fonte ÚNICA da lista, e o "única" é o ponto. Eu criei esta guarda para o
+   * `quebradas` e deixei dois outros usos lendo `agendas` cru — inclusive um
+   * `.map` — de modo que a guarda existia e a tela caía do mesmo jeito.
+   *
+   * 📌 É a terceira vez que eu conserto o ponto em vez da categoria. A regra que
+   * fica: quem guarda um valor **substitui todos os leitores dele**, senão a
+   * guarda vira decoração.
+   */
   const listaDeAgendas = Array.isArray(agendas) ? agendas : null;
   const quebradas = (listaDeAgendas ?? []).filter((a) => APARENCIA[a.status]?.grave);
 
@@ -323,7 +332,7 @@ export default function GoogleClient({
           */}
           {falhaDasAgendas ? (
             <FalhaDeCarregamento motivo={falhaDasAgendas} oQue="a lista de agendas" />
-          ) : !agendas || agendas.length === 0 ? (
+          ) : !listaDeAgendas || listaDeAgendas.length === 0 ? (
             <p className="py-8 text-center text-muted-foreground">
               {status.conectada
                 ? 'Nenhuma agenda encontrada ainda. Use "Sincronizar agendas" para buscar no Google.'
@@ -342,7 +351,7 @@ export default function GoogleClient({
                   </tr>
                 </thead>
                 <tbody>
-                  {agendas.map((a) => (
+                  {listaDeAgendas.map((a) => (
                     <tr key={a.id} className="border-b last:border-0">
                       <td className="py-3 pr-4">
                         <div className="font-medium">{a.nome_no_google ?? "(sem nome)"}</div>
