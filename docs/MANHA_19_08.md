@@ -217,6 +217,24 @@ isso é o e2e com o backend de verdade.
 
 ### Achados registrados e não consertados
 
+- 🔴 **A-023 — o app não tem tela de erro, e a que aparece é em inglês.**
+  Qualquer exceção não tratada no cliente substitui a tela inteira por:
+
+  > *"Application error: a client-side exception has occurred while loading…"*
+
+  Página em branco, uma linha, sem marca, sem navegação, sem volta — e tudo que
+  a pessoa tinha digitado some junto. **Reproduzi** fazendo o envio de um
+  formulário falhar no transporte (rede caindo no meio do "Salvar" produz
+  exatamente isso).
+
+  ⚠️ **É risco de demonstração:** se qualquer coisa lançar enquanto você mostra
+  para a CEO, é essa tela que aparece no projetor.
+
+  📌 **Não consertei de propósito:** o remédio é um `app/error.tsx`, e o que ele
+  **diz** é a sua voz — a mesma razão pela qual eu não inventei a tela de
+  configurações. O que eu recomendo: cartão na linguagem do app, com "Tentar de
+  novo" e um caminho de volta, igual ao `FalhaDeCarregamento` que já existe.
+
 - **A-018** — ver a decisão pronta no item 4.3. **Medi o mecanismo**, e ele é
   diferente do que eu tinha escrito: o paciente não é escondido por acidente —
   a listagem tem um seletor **Ativos / Inativos / Todos** bem visível, que nasce
