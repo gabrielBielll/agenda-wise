@@ -831,3 +831,38 @@ grep -c "<termo que deveria existir agora>" arquivo   # isto mede
 o relógio, o `ok` e a mensagem de erro do `deletePaciente`. **Todos davam um sinal
 verde ou um diagnóstico que não correspondia ao que tinham medido.** O defeito
 raramente é não olhar — é olhar para o instrumento em vez de para a coisa.
+
+---
+
+## D-018 — Ninguém provisiona clínica de fora; a porta do backend pode ficar fechada
+
+**Decidido por:** Gabriel, 2026-08-19
+**Fecha:** a única pergunta que a virada da porta do backend deixou em aberto
+([0180](0180-orla-para-vale-fechar-a-porta-do-backend-no-northflank-e-a-ordem-importa.md) §3)
+
+Nas palavras dele: *"ninguém provisiona de fora não"*.
+
+### Por que a pergunta existia
+
+Fechar o backend em rede privada quebraria qualquer script externo que chamasse
+`/api/admin/provisionar-clinica` — e o sintoma apareceria **dias depois, longe da
+causa**. Era o único risco da virada que nenhuma medição minha alcançava, porque
+depende de saber o que existe fora do repositório.
+
+### A resposta chegou duas vezes, por caminhos independentes
+
+| quem | como | resultado |
+|---|---|---|
+| `vale` ([0184](0184-vale-para-orla-e-gabriel-a-pergunta-do-provisionamento-tem-resposta-medida.md)) | mediu | a rota continua alcançável **pelo host do front** (`admin` está na lista do proxy) e devolve `403` sem token — a capacidade mudou de endereço, não sumiu |
+| Gabriel | respondeu | ninguém usa esse caminho de fora |
+
+📌 **A medição da `vale` era a resposta mais forte, e chegou primeiro.** Ela não
+dependia de alguém lembrar de um script escrito há meses — que é justamente o
+modo pelo qual esse tipo de pergunta costuma ser respondida errado. A confirmação
+do Gabriel remove até o resíduo.
+
+### Efeito
+
+O item fica **fechado**. A porta do backend permanece privada, sem exceção a
+abrir. Se algum dia for preciso provisionar de fora, o caminho já existe e está
+medido: host do front + `PROVISIONING_TOKEN`.
