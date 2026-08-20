@@ -74,6 +74,18 @@ on:
   # diff do commit; em `pull_request` é inerte, ver o bloco do `concurrency`).
   # Então ~45% dos commits passam a gerar DUAS execuções.
   #
+  # 📌 A `vale` completou esta conta na 0195, e a conclusão inverte: os outros 55%
+  # **já geravam uma** execução, porque o `paths-ignore` do `pull_request` é
+  # anulado enquanto o #7 estiver aberto — o filtro é avaliado contra o diff
+  # INTEIRO do PR, que está cheio de código. Conferido nos dois lados:
+  #
+  #   01ae1db  só mensageria  ->  pull_request        (um run)
+  #   53c3a29  só docs        ->  pull_request        (um run)
+  #   6ec7dd9  código         ->  pull_request, push  (dois)
+  #
+  # Ou seja: mesclado o #7, o `paths-ignore` volta a valer e o custo **cai abaixo
+  # do de hoje**, em vez de só voltar ao normal.
+  #
   # ✅ E as duas rodam em PARALELO, em grupos de `concurrency` diferentes — o que
   # dobra é minuto de runner, não a espera pelo veredito. A falha de 18→19/08 era
   # veredito que nunca saía; esta não mexe nisso.
@@ -116,6 +128,32 @@ on:
 # quatro execuções em sequência, e o veredito do último commit demora mais a sair.
 # Veredito atrasado é uma inconveniência; veredito que nunca sai é o que a gente
 # vinha tendo. A conta não é próxima.
+#
+# 🔴 CORREÇÃO 2026-08-20 — o parágrafo acima está ERRADO e fica preservado porque
+# a crença nele é que precisa morrer. Uma rajada de quatro pushes NÃO vira quatro
+# execuções: vira duas. O `cancel-in-progress: false` governa só o run EM
+# ANDAMENTO; na fila cabe **um** run pendente por grupo, e quando um terceiro
+# chega o pendente é CANCELADO, não enfileirado atrás.
+#
+# Medido — os vereditos de 20/08 nesta branch:
+#
+#   12:50:58  push          f893ccd   -> success
+#   12:51:03  pull_request  f893ccd   -> success
+#   12:52:35  pull_request  01ae1db   -> CANCELLED   <-- nunca votou
+#   12:56:01  pull_request  e0aff01   -> success
+#
+# O mesmo padrão em 19/08: `6f7bc2d` cancelado às 22:58, um minuto antes do
+# `f395258`. Então: o primeiro roda, o último roda, e os do meio somem.
+#
+# ⚠️ Os cancelamentos foram VISTOS (dois casos, dois dias). A explicação pela fila
+# de um só pendente é DEDUÇÃO a partir da semântica documentada do `concurrency` —
+# ninguém montou experimento para isolá-la. Três pushes seguidos numa branch de
+# teste fechariam a pergunta.
+#
+# 📌 Para o PR isso é quase sempre inofensivo: o que importa é o veredito da
+# cabeça, e a cabeça sempre roda. 🔴 Mas com a D-020 deixa de ser inofensivo — o
+# merge para `prod` vira o gatilho do deploy, e ali o run que decide o merge é o
+# único que existe. Cancelamento silencioso vira PR preso sem veredito.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false

@@ -919,3 +919,72 @@ dono convida uma instância a preencher por conta própria.
 ⚠️ E a pergunta que vai junto, para o fórum não decidir metade: **quem confirma
 uma sessão, e por qual ação?** O estado sem a transição que o produz é coluna
 morta.
+
+---
+
+## D-020 — A Northflank constrói de `prod`, e `prod` ganha os quatro checks
+
+**Decidido por:** Gabriel, 2026-08-20
+**Proposto por:** `vale` na [0195](0195-vale-para-orla-voce-tem-razao-sobre-o-synchronize-e-o-que-sobra-nao-e-cobertura-e-portao.md), com medição · **instruções na** [0196](0196-orla-para-vale-e-gabriel-o-portao-esta-autorizado-e-a-ordem-e-tudo.md)
+**Efeito:** o CI deixa de ser alarme e passa a ser tranca
+
+Nas palavras dele, quando perguntado se aceitava o custo de um PR por deploy:
+*"pode ser sim"*.
+
+### O buraco que isso fecha
+
+🔴 **Hoje o CI vê o commit mas não impede que ele vá ao ar.** A Northflank e o
+GitHub Actions disparam no mesmo push, em paralelo, e a `vale` cronometrou quem
+ganha a corrida:
+
+```
+10:06:34  merge do PR #8
+10:06:41  Northflank comeca a construir      (+7s)
+10:09:20  "Servidor iniciado" no container   (+2min46s)  <- ja atendendo
+~10:13    o CI daria o veredito              (+6~7min)
+```
+
+**Produção serve o código novo cerca de quatro minutos antes de o CI dizer
+qualquer coisa.** Veredito vermelho chega para código que já está no ar.
+
+📌 **Cobertura e portão não são a mesma propriedade**, e a distinção é dela. A
+linha que eu acrescentei ao gatilho `push` em `93ee95a` consertou *cobertura* — um
+buraco real, porque ela vivia de o PR #7 continuar aberto. **O portão continuava
+não existindo**, e continuaria com ou sem a minha linha.
+
+### O que muda
+
+A Northflank aponta `vcsData.projectBranch` dos dois serviços para **`prod`**, e
+`prod` exige os quatro jobs do CI. Deployar vira: PR da branch de trabalho para
+`prod` → CI verde → merge → build.
+
+✅ A branch de trabalho **mantém o ritmo de hoje**: push direto, sem PR.
+✅ E `prod` volta a significar produção. Hoje a resposta para *"o que está no
+ar?"* não está no git, está na configuração da Northflank.
+
+### As duas alternativas, e por que não
+
+| | por que não |
+|---|---|
+| **Proteger a branch de trabalho** | 215 commits desde 18/08, ~86 por dia entre quatro. Cada um viraria PR — muda o ritmo de todo mundo |
+| **`disabledCI: true` + o CI dispara o build** | é o portão mais apertado, mas põe **um token da Northflank com poder de deploy dentro do GitHub Actions**. Este repositório já teve credencial exposta ([INCIDENTE_2026-08-15](../docs/INCIDENTE_2026-08-15.md)), e a partir daí todo arquivo de workflow vira caminho até esse token |
+
+### Contrapartida aceita
+
+Um PR por deploy, com ~7 min de CI — e ele cai exatamente no minuto em que alguém
+quer subir rápido, que é quando se contorna processo. O Gabriel aceitou sabendo
+disso.
+
+### 🔴 A ordem de execução não é detalhe
+
+`prod` está em `8109afc`, de **18/08**, e a branch viva está **420 commits à
+frente**. Reapontar a Northflank antes de adiantar `prod` **derruba o site para o
+estado de 18/08**, na véspera da demonstração. O ciclo correto está na
+[0196](0196-orla-para-vale-e-gabriel-o-portao-esta-autorizado-e-a-ordem-e-tudo.md) §2.
+
+### ⛔ E o que ainda não foi verificado
+
+As três branches estão `protected: true`, mas **isso não diz que a proteção exige
+os quatro checks**. Se não exigir, o portão não existe: vira só *"precisa de PR"*,
+e PR se mescla com CI vermelho. **Conferir por efeito** — abrir um PR que reprova
+e ver o merge ser recusado —, nunca lendo a tela de configuração.
