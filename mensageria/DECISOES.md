@@ -1028,6 +1028,17 @@ nota de rodapé
 Nas palavras do Gabriel: *"a ceo pediu para que o admin possa ver os prontuarios
 sim somente o secretario que nao"*.
 
+### O alcance, confirmado por ele numa segunda passada
+
+Ele repetiu o pedido acrescentando o escopo: *"o admin possa ver os prontuarios
+**de todas as psis** sim somente o secretario que nao pode ver, dessa forma fica
+mais facil"*.
+
+📌 **Isso fixa o que eu já tinha deduzido, e vale ter escrito:** a leitura do
+admin é **da clínica inteira**, não limitada a alguma psicóloga em particular. Não
+há filtro por psicóloga a implementar — o admin lê qualquer paciente da clínica
+dele. O corte de clínica continua valendo, como em todo o resto do sistema.
+
 ### O que muda na R-012
 
 A R-012 dizia: *"por padrão, só o psicólogo autor lê e edita o prontuário. **Nem o
