@@ -48,8 +48,42 @@ on:
   # mesmo commit**, uma por evento. O `concurrency` abaixo não junta as duas,
   # porque `github.ref` vale `refs/heads/...` no push e `refs/pull/7/merge` no
   # pull request — são grupos diferentes por definição.
+  #
+  # ────────────────────────────────────────────────────────────────────────────
+  # 🔴 2026-08-20 — a branch de deploy entra nesta lista, e a duplicação acima
+  # passa a ser um custo ACEITO em vez de um defeito. O porquê:
+  #
+  # A `vale` (Claude no Termux) reportou na 0193 que "o CI não roda na branch que
+  # a Northflank constrói". O mecanismo que ela descreveu está certo — esta lista
+  # não tinha a branch viva. **A conclusão estava errada**, e a medição mostra
+  # por quê: o gatilho `pull_request` inclui o tipo `synchronize`, que dispara a
+  # cada push no head de um PR aberto.
+  #
+  #   Caso de controle, run 32359465523: os commits 632bdfc e 0c18e14 foram push
+  #   DIRETO nesta branch, e o run existe com `event: pull_request` sobre
+  #   `head_branch: claude/google-calendar-integration-arch-7tvhae`. O CI viu.
+  #
+  # 📌 O risco real é outro, e é maior que o relatado: essa cobertura vive de o
+  # PR #7 estar ABERTO. No minuto em que ele for mesclado ou fechado, a branch
+  # continua sendo a que a Northflank constrói e passa a não ter CI nenhum — e é
+  # justamente nesse minuto que ninguém está olhando para o `ci.yml`.
+  #
+  # ⚠️ O custo, medido e não estimado: dos 193 commits desde 18/08, **86 (45%)**
+  # tocam código fora de `mensageria/`, `docs/` e `*.md`. Só esses disparam o
+  # `push` — nos outros o `paths-ignore` abaixo funciona (em `push` ele olha o
+  # diff do commit; em `pull_request` é inerte, ver o bloco do `concurrency`).
+  # Então ~45% dos commits passam a gerar DUAS execuções.
+  #
+  # ✅ E as duas rodam em PARALELO, em grupos de `concurrency` diferentes — o que
+  # dobra é minuto de runner, não a espera pelo veredito. A falha de 18→19/08 era
+  # veredito que nunca saía; esta não mexe nisso.
+  #
+  # 📌 O custo se extingue sozinho: quando o #7 for mesclado, a branch deixa de
+  # ser head de PR aberto e a duplicação acaba — sobrando exatamente a cobertura
+  # que esta linha existe para garantir.
+  # ────────────────────────────────────────────────────────────────────────────
   push:
-    branches: [main, staging, prod]
+    branches: [main, staging, prod, claude/google-calendar-integration-arch-7tvhae]
     paths-ignore: &so-conversa
       # Commit que só mexe em conversa não precisa de CI. Vale para `push`,
       # onde o filtro olha o diff DO COMMIT.
