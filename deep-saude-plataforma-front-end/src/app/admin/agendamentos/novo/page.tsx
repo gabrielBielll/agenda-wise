@@ -7,20 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, CalendarPlus } from "lucide-react";
 import NovoAgendamentoForm from './NovoAgendamentoForm';
-
-async function getData(token: string) {
-  const headers = { 'Authorization': `Bearer ${token}` };
-  
-  const [psicologosRes, pacientesRes] = await Promise.all([
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/psicologos`, { headers, cache: 'no-store' }),
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/pacientes`, { headers, cache: 'no-store' })
-  ]);
-
-  const psicologos = psicologosRes.ok ? await psicologosRes.json() : [];
-  const pacientes = pacientesRes.ok ? await pacientesRes.json() : [];
-
-  return { psicologos, pacientes };
-}
+import { carregar } from "@/lib/carregar";
+import { FalhaDeCarregamento } from "@/components/FalhaDeCarregamento";
 
 export default async function AdminNovoAgendamentoPage() {
   const session = await getServerSession(authOptions);
@@ -30,7 +18,34 @@ export default async function AdminNovoAgendamentoPage() {
     redirect("/admin/login");
   }
 
-  const { psicologos, pacientes } = await getData(token);
+  /**
+   * A-019 — a tela dizia "não há ninguém" quando o que houve foi uma falha.
+   *
+   * Era `res.ok ? await res.json() : []`, nos dois carregamentos. Backend fora do
+   * ar, 403, sessão expirada: tudo virava **lista vazia**, e a recepção via um
+   * seletor de psicóloga sem nenhuma opção, sem explicação e sem caminho.
+   *
+   * 🔴 O estrago não é o formulário quebrado — é o formulário **plausível**. Uma
+   * clínica sem psicóloga cadastrada é um estado legítimo do sistema, então a
+   * tela vazia não parece defeito: parece resposta. Quem está atendendo conclui
+   * que a psicóloga foi removida do cadastro e vai procurar quem a apagou.
+   *
+   * É a A-013 num endereço que a recepção usa todos os dias. O `[id]/edit` ao
+   * lado já tinha sido consertado; este ficou.
+   *
+   * O `carregar` distingue os quatro desfechos — vazio, 403, 500 e 401 — e o
+   * `FalhaDeCarregamento` diz qual foi. `porta` é `/admin/login` porque esta tela
+   * é do módulo administrativo: mandar a recepção para a porta do psicólogo
+   * seria trocar um beco por outro.
+   */
+  const porta = { porta: "/admin/login" };
+  const [psicologos, pacientes] = await Promise.all([
+    carregar<any[]>("/api/psicologos", token, porta),
+    carregar<any[]>("/api/pacientes", token, porta),
+  ]);
+
+  if (!psicologos.ok) return <FalhaDeCarregamento motivo={psicologos.motivo} oQue="os psicólogos" />;
+  if (!pacientes.ok) return <FalhaDeCarregamento motivo={pacientes.motivo} oQue="os pacientes" />;
 
   return (
     <Card className="w-full max-w-3xl">
@@ -52,7 +67,7 @@ export default async function AdminNovoAgendamentoPage() {
           </div>
         </div>
       </CardHeader>
-      <NovoAgendamentoForm psicologos={psicologos} pacientes={pacientes} />
+      <NovoAgendamentoForm psicologos={psicologos.dados} pacientes={pacientes.dados} />
     </Card>
   );
 }

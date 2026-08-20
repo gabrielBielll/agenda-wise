@@ -109,7 +109,7 @@ export function DayView({ date, appointments, bloqueios = [], onAddAppointment, 
                 key={hour} 
                 className={cn(
                   "h-20 relative group transition-colors cursor-pointer",
-                  isBlocked ? "bg-orange-100/50 dark:bg-orange-900/20" : "hover:bg-accent/5"
+                  isBlocked ? "bg-grafite-tenue" : "hover:bg-accent/5"
                 )}
                 onClick={(e) => handleSlotClick(hour, e)}
               >
@@ -138,7 +138,7 @@ export function DayView({ date, appointments, bloqueios = [], onAddAppointment, 
                   return (
                     <div
                       key={block.id}
-                      className="absolute left-0 right-0 bg-orange-200/80 dark:bg-orange-800/60 border-l-4 border-orange-500 p-2 text-xs z-10 overflow-hidden flex items-center gap-2"
+                      className="absolute left-0 right-0 bg-grafite-suave border-l-4 border-grafite p-2 text-xs z-10 overflow-hidden flex items-center gap-2"
                       style={{ top: `${topPos}%`, height: `${height}%`, minHeight: '0px' }}
                       onClick={(e) => {
                         e.stopPropagation();
@@ -149,7 +149,7 @@ export function DayView({ date, appointments, bloqueios = [], onAddAppointment, 
                       title={block.motivo || 'Horário bloqueado'}
                     >
                       <span className="font-semibold">🔒</span>
-                      <span className="truncate text-orange-800 dark:text-orange-200">
+                      <span className="truncate text-grafite-foreground">
                         {block.motivo || 'Bloqueado'}
                       </span>
                     </div>
@@ -170,7 +170,7 @@ export function DayView({ date, appointments, bloqueios = [], onAddAppointment, 
                             className={cn(
                               "absolute left-2 right-2 rounded-md p-1 text-xs transition-colors cursor-pointer z-10 border-l-4",
                                app.status === 'cancelado' 
-                                  ? "bg-red-100 dark:bg-red-900/20 border-red-500 text-red-700 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-900/30 opacity-80"
+                                  ? "bg-tomate-suave border-tomate text-tomate-foreground hover:brightness-95 opacity-80"
                                   : "bg-primary/10 border-primary hover:bg-primary/20"
                             )}
                             style={{ top: `${topPos}%`, height: `${height}%`, minHeight: '20px' }}

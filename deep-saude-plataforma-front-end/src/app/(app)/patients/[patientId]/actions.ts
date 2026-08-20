@@ -42,7 +42,6 @@ export async function createProntuario(
 
   if (!validatedFields.success) {
     const fieldErrors = validatedFields.error.flatten().fieldErrors;
-    console.log("Validation Errors:", fieldErrors);
     return {
       message: "Erro de validação: " + JSON.stringify(fieldErrors),
       errors: fieldErrors,
@@ -142,7 +141,6 @@ export async function updateProntuario(
 
   if (!validatedFields.success) {
     const fieldErrors = validatedFields.error.flatten().fieldErrors;
-    console.log("Update Validation Errors:", fieldErrors);
     return {
       message: "Erro de validação: " + JSON.stringify(fieldErrors),
       errors: fieldErrors,
@@ -158,8 +156,6 @@ export async function updateProntuario(
   }
 
   const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/pacientes/${patientId}/prontuarios/${prontuarioId}`;
-
-  console.log("Updating Prontuario Payload:", validatedFields.data);
 
   try {
     const response = await fetch(apiUrl, {

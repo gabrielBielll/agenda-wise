@@ -45,6 +45,23 @@ export default {
           DEFAULT: 'hsl(var(--destructive))',
           foreground: 'hsl(var(--destructive-foreground))',
         },
+        success: {
+          DEFAULT: 'hsl(var(--success))',
+          foreground: 'hsl(var(--success-foreground))',
+        },
+        // Grafite — bloqueio de agenda. Ver o comentário em globals.css.
+        grafite: {
+          DEFAULT: 'hsl(var(--grafite))',
+          suave: 'hsl(var(--grafite-suave))',
+          foreground: 'hsl(var(--grafite-foreground))',
+          tenue: 'hsl(var(--grafite-tenue))',
+        },
+        // Tomate — sessão cancelada / pausa. Ver o comentário em globals.css.
+        tomate: {
+          DEFAULT: 'hsl(var(--tomate))',
+          suave: 'hsl(var(--tomate-suave))',
+          foreground: 'hsl(var(--tomate-foreground))',
+        },
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',
         ring: 'hsl(var(--ring))',

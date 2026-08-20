@@ -23,5 +23,11 @@
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules"]
+  // e2e e playwright.config ficam FORA do build da aplicacao de proposito.
+  // Eles importam @playwright/test, que e devDependency; com o type check
+  // religado (next.config.ts), um build que instala so as dependencias de
+  // producao falharia com "Cannot find module @playwright/test" — 25 erros que
+  // nao tem nada a ver com a aplicacao. A checagem deles nao se perdeu: roda
+  // por tsconfig.e2e.json, via `npm run typecheck:e2e`.
+  "exclude": ["node_modules", "e2e", "playwright.config.ts"]
 }

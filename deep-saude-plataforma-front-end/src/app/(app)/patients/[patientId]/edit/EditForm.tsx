@@ -49,6 +49,31 @@ export default function EditForm({ patient, updateAction }: { patient: any, upda
   const { toast } = useToast();
   const [state, formAction] = useFormState(updateAction, initialState);
 
+  /**
+   * ## A-022 — por que estes campos são controlados
+   *
+   * `<form action={formAction}>` **reseta os campos descontrolados quando a ação
+   * termina, e não distingue sucesso de falha.** Em tela de edição o reset não
+   * esvazia: devolve os campos ao `defaultValue`, isto é, **aos dados antigos**.
+   * A alteração some e o formulário fica com cara de intacto — o que é pior de
+   * notar do que um campo em branco, porque nada parece errado.
+   *
+   * Com `value`/`onChange` (e `onValueChange` no `Select`) o React reaplica o que
+   * foi digitado depois do reset. Mesma causa e mesmo conserto da A-010.
+   */
+  const [campos, setCampos] = React.useState({
+    nome: patient.nome ?? "",
+    data_nascimento: patient.data_nascimento ?? "",
+    email: patient.email || '',
+    telefone: patient.telefone || '',
+    endereco: patient.endereco || '',
+    status: patient.status || "ativo",
+  });
+  const mudar =
+    (nome: keyof typeof campos) =>
+    (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+      setCampos((c) => ({ ...c, [nome]: e.target.value }));
+
   useEffect(() => {
     if (state.success) {
       toast({ title: "Sucesso!", description: state.message });
@@ -64,31 +89,32 @@ export default function EditForm({ patient, updateAction }: { patient: any, upda
        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-2">
             <Label htmlFor="nome">Nome Completo *</Label>
-            <Input id="nome" name="nome" defaultValue={patient.nome} required />
+            <Input id="nome" name="nome" required value={campos.nome} onChange={mudar("nome")} />
             {state.errors?.nome && <p className="text-sm font-medium text-destructive">{state.errors.nome[0]}</p>}
           </div>
           <div className="space-y-2">
             <Label htmlFor="data_nascimento">Data de Nascimento</Label>
-            <Input id="data_nascimento" name="data_nascimento" type="date" defaultValue={patient.data_nascimento} />
+            <Input id="data_nascimento" name="data_nascimento" type="date" value={campos.data_nascimento} onChange={mudar("data_nascimento")} />
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-2">
             <Label htmlFor="email">Endereço de E-mail</Label>
-            <Input id="email" name="email" type="email" defaultValue={patient.email || ''} />
+            <Input id="email" name="email" type="email" value={campos.email} onChange={mudar("email")} />
             {state.errors?.email && <p className="text-sm font-medium text-destructive">{state.errors.email[0]}</p>}
           </div>
 
 
           <div className="space-y-2">
             <Label htmlFor="telefone">Número de Telefone</Label>
-            <Input id="telefone" name="telefone" type="tel" defaultValue={patient.telefone || ''} />
+            <Input id="telefone" name="telefone" type="tel" value={campos.telefone} onChange={mudar("telefone")} />
           </div>
           <div className="space-y-2">
              <Label htmlFor="status">Status</Label>
-             <Select name="status" defaultValue={patient.status || "ativo"}>
-               <SelectTrigger>
+             <Select name="status" value={campos.status} onValueChange={(v) => setCampos((c) => ({ ...c, status: v }))}>
+               {/* id casa o <Label htmlFor>: `combobox` não tira nome do conteúdo (D-016). */}
+               <SelectTrigger id="status">
                  <SelectValue placeholder="Selecione o status" />
                </SelectTrigger>
                <SelectContent>
@@ -101,7 +127,7 @@ export default function EditForm({ patient, updateAction }: { patient: any, upda
         
         <div className="space-y-2">
           <Label htmlFor="endereco">Endereço</Label>
-          <Textarea id="endereco" name="endereco" defaultValue={patient.endereco || ''} className="min-h-[100px]" />
+          <Textarea id="endereco" name="endereco" className="min-h-[100px]" value={campos.endereco} onChange={mudar("endereco")} />
         </div>
 
         <div className="flex justify-end border-t border-border/50 pt-5">

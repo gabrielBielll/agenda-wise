@@ -1,0 +1,447 @@
+import { test, expect } from '@playwright/test';
+import { botaoEntrar, contarNoBackend, dadosSemeados } from './apoio';
+import { CONTA, DURACAO_DA_SESSAO, HORA_DA_SESSAO } from './preparar-dados';
+
+/**
+ * R-006 — forçar agendamento sobre conflito é privilégio da clínica.
+ *
+ * A outra metade do par que a mensageria 0052 declarou descoberto. O
+ * `bloqueio-sobre-sessao.spec.ts` fechou o 409; este fecha o **403**.
+ *
+ * ## Por que este é diferente dos outros
+ *
+ * É a única guarda do sistema que **um papel encontra e o outro não**. Provar só
+ * o lado negado não bastaria: "restringi por papel" quebra o lado **permitido**
+ * sem ninguém notar, porque o teste existente continua verde.
+ *
+ * ✅ **O lado permitido já está coberto** — por `somente-admin-pode-forcar-conflito`
+ * em `agendamentos_test.clj`, que assere 403 + contagem intacta para o psicólogo
+ * e 201 + contagem+1 para o admin, no mesmo teste. É o lugar certo: a
+ * autorização mora no backend.
+ *
+ * ✅ **E o lado permitido passou a ser alcançável pela tela — A-009, 2026-08-17.**
+ *
+ * ⚠️ O texto que estava aqui dizia o contrário: *"o módulo do admin nunca manda
+ * `force`"*. Era verdade quando foi escrito e **deixou de ser** quando a A-009
+ * entrou. Está reescrito, e não riscado, porque comentário que envelhece sem
+ * ninguém notar foi exatamente o defeito da A-011: lá um comentário jurava que a
+ * checagem disparava "quando o intervalo muda" enquanto o código testava
+ * presença de campo, e a garantia falsa sobreviveu a uma revisão.
+ *
+ * O terceiro passo da R-006 agora existe: o admin recebe o mesmo modal de
+ * conflito e pode confirmar. O `describe` do fim deste arquivo exercita isso.
+ *
+ * ## A recusa é modal, e o teste assere o conteúdo dela
+ *
+ * A R-006 não pede só recusar: pede dizer à psicóloga **o que fazer** — procurar
+ * a gestão da clínica. Um teste que assertasse "apareceu erro" passaria com um
+ * toast genérico, que some sozinho e leva a instrução junto. Então a asserção é
+ * sobre a instrução aparecer.
+ */
+
+/** Uma sessão colada na semeada: mesmo horário, mesmo psicólogo. */
+function horarioConflitante(dia: string) {
+  const [h, m] = HORA_DA_SESSAO.split(':').map(Number);
+  const fimMin = h * 60 + m + DURACAO_DA_SESSAO;
+  const fim = `${String(Math.floor(fimMin / 60)).padStart(2, '0')}:${String(fimMin % 60).padStart(2, '0')}`;
+  return { inicio: `${dia}T${HORA_DA_SESSAO}`, fim: `${dia}T${fim}` };
+}
+
+/**
+ * Preenche o diálogo de novo agendamento no horário da sessão semeada e submete.
+ *
+ * Devolve o diálogo de conflito, que é o passo anterior ao `force` — o front só
+ * manda `force: true` depois que a pessoa confirma nele.
+ */
+async function tentarAgendarEmCimaDaSessao(page: import('@playwright/test').Page) {
+  const { dia, paciente } = dadosSemeados();
+  const quando = horarioConflitante(dia);
+
+  await page.goto('/calendar');
+
+  /**
+   * 🔴 Era `/^novo$/i`, e o botão se chama **"Nova sessão"** desde a A-021
+   * (`CalendarClient.tsx:580`) — fui eu que renomeei e não varri quem dependia
+   * do nome. — vale
+   *
+   * ⚠️ **O `test.fail()` deste describe escondeu isso**, e é o que torna o caso
+   * interessante: ele absorve *qualquer* morte, então o ✘ vinha sendo lido como
+   * "a A-012 continua aberta" quando o teste morria no clique, muito antes de
+   * chegar perto de permissão nenhuma. Um teste que pode falhar por dois motivos
+   * e só sabe relatar um não distingue os dois.
+   *
+   * 📌 O custo real foi o alarme: o comentário prometia que "quando alguém
+   * conceder as permissões, este teste passa e o `test.fail()` faz o CI avisar".
+   * Com o seletor quebrado esse aviso **não tinha como tocar** — e as permissões
+   * já tinham sido concedidas. O aviso estava atrasado, não ausente.
+   *
+   * ✅ Consertado o seletor, o alarme tocou no primeiro run e a anotação saiu.
+   * **A A-012 está fechada** — ver o bloco do teste, mais abaixo. Este parágrafo
+   * fica como registro de que uma guarda automática vale o que vale o instrumento
+   * embaixo dela.
+   */
+  const novo = page.getByRole('button', { name: /nova sess[ãa]o/i });
+  const dialogo = page.getByRole('dialog').filter({ hasText: /paciente/i });
+  // Clique repetido até hidratar — mesmo motivo do `trocarVisao` em apoio.ts.
+  await expect(async () => {
+    if (!(await dialogo.isVisible().catch(() => false))) {
+      await novo.first().click({ timeout: 5_000 });
+    }
+    await expect(dialogo).toBeVisible({ timeout: 3_000 });
+  }).toPass({ timeout: 60_000 });
+
+  /**
+   * ⚠️ `.first()` entre os combobox DESTE diálogo, e quantos existem **depende do
+   * caminho**: criando são dois (paciente e "Repetir"), editando é um só — a
+   * recorrência fica atrás de `{!editingAppointment && …}`. Por isso a guarda
+   * aqui não pode ser contagem fixa: seria verde num caminho e vermelha no outro.
+   *
+   * Nenhum deles tem nome acessível ([A11Y-001]), então `{ name }` ainda não é
+   * opção. A guarda é por EFEITO, depois da escolha.
+   */
+  const gatilhoPaciente = dialogo.getByRole('combobox').first();
+
+  /**
+   * 🔴 A guarda tem que vir ANTES do clique, e a `vale` a pôs depois.
+   *
+   * A dela — `toContainText(paciente)` depois de escolher — é boa, mas **não
+   * alcança o caso que ela descreve**: se a ordem do DOM mudar e o `.first()`
+   * abrir o "Repetir", a opção do paciente não existe naquele popover, e quem
+   * falha primeiro é a asserção da A-012 logo abaixo — **culpando permissão por
+   * um defeito de seletor**. É a mesma inversão de diagnóstico da 0104, uma linha
+   * acima da guarda que existia para matá-la.
+   *
+   * Esta distingue os dois sem depender de nome acessível (A11Y-001) nem de
+   * contagem: o seletor de paciente nasce "Selecione..." e o de recorrência nasce
+   * **"Não repetir"** — `CalendarClient.tsx:533` e `:608`.
+   */
+  await expect(
+    gatilhoPaciente,
+    'o primeiro combobox do diálogo não é o de paciente — a ordem do DOM mudou e ' +
+      'o `.first()` está prestes a abrir o seletor de recorrência. NÃO é a A-012.'
+  ).toContainText(/selecione/i);
+
+  await gatilhoPaciente.click();
+
+  // ⚠️ Asserção explícita, e ela FICA — mas a mensagem dela mudou, porque a
+  // antiga virou mentira.
+  //
+  // 🔴 Ela dizia: *"a psicóloga não recebeu paciente nenhum. É a A-012:
+  // `papel_permissoes` está vazia para o papel dela"*. Isso era verdade até a
+  // migration `20260817090000-permissoes-papeis` conceder os quatro grants do
+  // papel `psicologo`. **A A-012 está fechada** — medida no run `32260687532`,
+  // que reportou `Expected to fail, but passed` na tentativa e na retentativa.
+  //
+  // 📌 Uma âncora que nomeia uma causa já resolvida é pior que uma âncora
+  // genérica: ela manda a próxima pessoa investigar permissão quando o defeito
+  // é outro. É o mesmo modo de falha que esta rodada inteira desenterrou — a
+  // `vale` culpando o backend por um `#valor_consulta` vazio, eu culpando o
+  // proxy por um 500 que os dois cenários davam igual. **Diagnóstico invertido
+  // custa mais caro que diagnóstico ausente.**
+  //
+  // O motivo mecânico de a asserção existir também mudou de dono: sem o
+  // `test.fail()`, um `.click()` direto morreria com "esperei um seletor" e
+  // ponto. Com ela, a morte diz onde e o que faltava.
+  const opcaoDoPaciente = page.getByRole('option', { name: paciente }).first();
+  await expect(
+    opcaoDoPaciente,
+    `a lista de pacientes da psicóloga não trouxe "${paciente}". A A-012 já foi ` +
+      'fechada (grants do papel `psicologo` em 20260817090000-permissoes-papeis), ' +
+      'então NÃO conclua permissão sem antes olhar as duas causas mais prováveis: ' +
+      'a semeadura não criou o paciente, ou GET /api/pacientes falhou. O código de ' +
+      'resposta está no log do backend do run.'
+  ).toBeVisible({ timeout: 10_000 });
+  await opcaoDoPaciente.click();
+  await expect(
+    gatilhoPaciente,
+    'escolhi o paciente e o seletor não passou a mostrá-lo — o `.first()` pode ' +
+      'ter aberto o combobox de "Repetir", que é o outro deste diálogo'
+  ).toContainText(paciente);
+
+  await dialogo.locator('#data_hora_sessao').fill(quando.inicio);
+  await dialogo.locator('#data_hora_fim').fill(quando.fim);
+
+  /**
+   * 🔴 **Sem isto, a submissão nunca acontece — e o teste morre acusando o
+   * backend por algo que o backend nunca recebeu.**
+   *
+   * `#valor_consulta` é `required` (`CalendarClient.tsx:791`) e este helper não o
+   * preenchia. A validação nativa do navegador barra o `submit`, a server action
+   * não roda, e o conflito não tem como ser acusado. A âncora logo abaixo então
+   * dizia *"o backend precisa acusar o conflito antes"* — culpando o backend por
+   * um campo vazio na tela.
+   *
+   * ⚠️ Medido no `error-context.md` do run `32258801671`, que mostra o estado do
+   * DOM na hora da falha: `combobox: Paciente E2E` preenchido, os dois horários
+   * preenchidos, e `spinbutton "Valor (R$)"` **vazio**.
+   *
+   * 📌 É exatamente o modo de falha que a `orla` pegou na minha sonda da A-022
+   * (mensageria 0174): campo com validação nativa barrando o envio, e o teste
+   * relatando o defeito errado porque *nada aconteceu*. Registro a simetria de
+   * propósito — a regra que ela escreveu vale para os dois lados: **uma sonda
+   * precisa provar que disparou.** — vale
+   */
+  await dialogo.locator('#valor_consulta').fill('200');
+  await dialogo.getByRole('button', { name: /^agendar$/i }).click();
+
+  return page.getByRole('alertdialog').filter({ hasText: /conflito de hor[áa]rio/i });
+}
+
+test.describe('R-006 — a psicóloga é recusada, e a recusa ensina o caminho', () => {
+  // Contexto limpo: o globalSetup deixa uma sessão de ADMIN salva, e aqui o
+  // objeto do teste é justamente o outro papel.
+  test.use({ storageState: { cookies: [], origins: [] } });
+
+  /**
+   * ✅ **A A-012 CAIU, e este teste passou a passar — o alarme da `orla` tocou.**
+   *
+   * Este bloco descrevia uma falha esperada: a psicóloga travava ao escolher o
+   * paciente porque `papel_permissoes` não tinha grant nenhum para o papel dela,
+   * e `test.fail()` guardava o defeito até alguém conceder as permissões.
+   *
+   * 📌 **Foi exatamente assim que ele saiu**, e vale registrar porque era o
+   * desenho: *"no dia em que alguém conceder as permissões, este teste passa e o
+   * `test.fail()` faz o CI ficar vermelho — que é o aviso de que a linha abaixo
+   * deve sair. Guarda que se apaga sozinha."*
+   *
+   * A migration `20260817090000-permissoes-papeis` deu ao papel `psicologo`
+   * `visualizar_pacientes`, `gerenciar_pacientes`, `gerenciar_agendamentos_clinica`
+   * e `gerenciar_prontuarios`; nenhuma posterior revoga.
+   *
+   * ⚠️ **O alarme quase não tocou**, e essa é a parte que eu quero deixar escrita.
+   * O helper procurava um botão `/^novo$/i` que eu tinha renomeado para
+   * "Nova sessão" na A-021, e depois deixava `#valor_consulta` — que é
+   * `required` — em branco. O teste morria antes de chegar perto de permissão
+   * nenhuma, e `test.fail()` absorve **qualquer** morte: o ✘ continuava lá,
+   * lido como "a A-012 segue aberta", enquanto ela já tinha caído.
+   *
+   * 🔴 **Uma guarda que se apaga sozinha só funciona se ela ainda conseguir
+   * chegar no ponto que mede.** Dois seletores quebrados foram suficientes para
+   * transformar o alarme em decoração — sem nenhum sinal de que isso tinha
+   * acontecido. Ver mensageria 0176, 0185 e 0186.
+   *
+   * Provado no run `32260687532`: `✓ (7,1 s)` e `✓ retry (6,7 s)`, com o único
+   * vermelho sendo `Expected to fail, but passed.`
+   *
+   * ---
+   *
+   * ## A confirmação não veio só do run, e isso foi de propósito (D-002)
+   *
+   * A `vale` leu o DOM (`combobox: Paciente E2E` preenchido). Eu confirmei pela
+   * **origem**, sem repetir a medição dela: a migration acima roda neste mesmo
+   * CI, e o `IN (...)` dela é a resposta direta à pergunta "a psicóloga tem
+   * grant?". Três medições independentes — o DOM, o SQL e o veredito do runner —
+   * e nenhuma depende de a outra ter sido lida direito.
+   *
+   * ⚠️ **"Passou" pode ser sorte, então confira o quanto passou.** Passou nas
+   * duas execuções, em **7,1 s contra um teto de 45 s** — folga de 6×. Um verde
+   * raspando o limite seria outra conversa, e é o que eu procuraria antes de
+   * confiar num teste que acabou de mudar de lado.
+   *
+   * ## O que este teste prova AGORA
+   *
+   * Não mais a ausência do comportamento, e sim ele inteiro: a psicóloga marca
+   * sobre uma sessão existente, **recebe o modal de conflito**, força, **é
+   * recusada**, a recusa **manda procurar a gestão da clínica**, e o agendamento
+   * **não entra no backend** — os quatro passos, com a contagem no servidor.
+   *
+   * 📌 **O SEC-006 continua de pé, e não foi resolvido por isto.** O bypass de
+   * `admin_clinica` em `wrap-checar-permissao` segue no código. O que mudou é o
+   * acoplamento: derrubar o bypass **não derruba mais a psicóloga junto**, porque
+   * agora ela tem grants próprios. Era esse o acoplamento que assustava.
+   *
+   * O timeout curto fica, com outra razão: um teto de 45 s num teste de ~7 s mata
+   * rápido se algum seletor apodrecer, em vez de custar dois minutos por
+   * tentativa.
+   */
+  test('forçar como psicóloga leva modal pedindo contato com a gestão', async ({ page, request }) => {
+    test.setTimeout(45_000);
+    const antes = await contarNoBackend(request, '/api/agendamentos');
+
+    await page.goto('/');
+    await page.locator('#email').fill(CONTA.psicologoEmail);
+    await page.locator('#password').fill(CONTA.psicologoSenha);
+    await botaoEntrar(page).click();
+    await page.waitForURL(/\/dashboard/, { timeout: 90_000 });
+
+    const conflito = await tentarAgendarEmCimaDaSessao(page);
+    await expect(
+      conflito,
+      'o backend precisa acusar o conflito antes — sem isso não há botão de forçar para exercitar'
+    ).toBeVisible();
+
+    await conflito.getByRole('button', { name: /sim, agendar/i }).click();
+
+    const recusa = page.getByRole('alertdialog').filter({ hasText: /sess[ãa]o marcada/i });
+    await expect(
+      recusa,
+      'a R-006 pede modal; toast some sozinho e leva a instrução junto'
+    ).toBeVisible();
+    await expect(
+      recusa,
+      'a recusa tem que dizer O QUE FAZER — procurar a gestão da clínica — e não só que deu errado'
+    ).toContainText(/gest[ãa]o da cl[íi]nica/i);
+
+    expect(
+      await contarNoBackend(request, '/api/agendamentos'),
+      'a psicóloga foi recusada na tela mas o agendamento entrou — a guarda da R-006 caiu'
+    ).toBe(antes);
+  });
+});
+
+/**
+ * A-009 — o terceiro passo da R-006, agora com tela.
+ *
+ * O par fica completo: o `describe` de cima prova que a psicóloga é recusada e
+ * mandada à gestão; este prova que **a gestão consegue resolver**. Provar só o
+ * lado negado deixaria o lado permitido quebrar em silêncio — que é o argumento
+ * que abre este arquivo.
+ *
+ * ⚠️ **Este teste não roda na minha máquina** (`vale`, Termux — sem navegador).
+ * Escrito por leitura do formulário e do contrato do backend, que esse sim eu
+ * exercitei: `atualizar-com-force-e-privilegio-do-admin` e os outros três em
+ * `agendamentos_test.clj`, verdes contra banco de verdade. Quem rodar primeiro é
+ * a `pico`. Se algum seletor estiver errado, o defeito é do seletor — o
+ * comportamento está medido do lado do servidor.
+ */
+test.describe('A-009 — a gestão força, e é ela quem decide', () => {
+  test('o admin recebe o modal de conflito e consegue confirmar', async ({ page, request }) => {
+    const { dia, paciente } = dadosSemeados();
+    const quando = horarioConflitante(dia);
+    const antes = await contarNoBackend(request, '/api/agendamentos');
+
+    await page.goto('/admin/agendamentos/novo');
+
+    // Os dois combobox: abre o popover e escolhe pelo nome.
+    await page.getByRole('combobox', { name: /paciente/i }).click();
+    await page.getByRole('option', { name: paciente }).first().click();
+
+    await page.getByRole('combobox', { name: /psic[óo]logo/i }).click();
+    await page.getByRole('option', { name: CONTA.psicologoNome }).first().click();
+
+    await page.locator('#data_hora_sessao').fill(quando.inicio);
+    await page.locator('#data_hora_sessao_fim').fill(quando.fim);
+    await page.locator('#valor_consulta').fill('200');
+
+    await page.getByRole('button', { name: /confirmar agendamento/i }).click();
+
+    const conflito = page.getByRole('alertdialog').filter({ hasText: /conflito de hor[áa]rio/i });
+    await expect(
+      conflito,
+      'o admin precisa ver o conflito ANTES de forçar — forçar sem avisar é o oposto da R-006'
+    ).toBeVisible();
+
+    // ⚠️ A recusa da psicóloga manda "Entre em contato com a gestão da clínica".
+    // Se a gestão vir a MESMA frase, o sistema manda ela procurar a si mesma —
+    // beco sem saída.
+    //
+    // 🔴 O alvo é a ESCALADA, não o substantivo. A guarda original proibia a
+    // expressão "gestão da clínica" inteira, e por isso reprovava também o texto
+    // CERTO — "Como gestão da clínica, você pode agendar mesmo assim" —, que é
+    // exatamente o oposto do beco. Guarda que proíbe o substantivo torna a frase
+    // boa impossível de escrever. Medido nas duas cadeias reais: esta continua
+    // pegando a recusa da psicóloga e para de reprovar a do admin.
+    await expect(
+      conflito,
+      'o modal do admin não pode mandar a gestão procurar a gestão'
+    ).not.toContainText(/(entre em contato|procure|fale|solicite|peça)[^.]{0,40}gest[ãa]o/i);
+
+    await conflito.getByRole('button', { name: /sim, agendar/i }).click();
+
+    await expect(page).toHaveURL(/\/admin\/agendamentos(\?|$)/);
+    expect(
+      await contarNoBackend(request, '/api/agendamentos'),
+      'o admin confirmou o conflito e a sessão não entrou — a A-009 voltou'
+    ).toBe(antes + 1);
+  });
+
+  /**
+   * A-011 — e a sessão que ele acabou de forçar tem que ser editável.
+   *
+   * É a metade que não pode ser esquecida: sem ela o botão novo produz registros
+   * travados, e o defeito só aparece **depois**, quando alguém tenta marcar o
+   * pagamento e não consegue. O par A-009↔A-011 existe por causa disso.
+   */
+  test('e a sessão forçada continua editável pela própria tela', async ({ page }) => {
+    const { dia } = dadosSemeados();
+    const quando = horarioConflitante(dia);
+
+    await page.goto('/admin/agendamentos');
+
+    // A sessão forçada é a segunda no mesmo horário; qualquer uma das duas serve
+    // para o ponto — as duas estão sobrepostas.
+    const linha = page.getByRole('row').filter({ hasText: CONTA.psicologoNome }).first();
+    await linha.getByRole('link', { name: /editar/i }).click();
+
+    await expect(page).toHaveURL(/\/admin\/agendamentos\/[^/]+\/edit/);
+
+    /**
+     * A cobertura que a `orla` pediu na 0104, e o motivo dela.
+     *
+     * Ela consertou os `SelectTrigger` desta tela **por leitura**, sem vermelho —
+     * e disse na própria mensagem que conserto sem teste é o que a D-008 manda
+     * não fazer. Estas três linhas são o vermelho que faltou.
+     *
+     * ⚠️ `getByRole(..., { name })` assere DUAS coisas de uma vez: que o controle
+     * existe e que ele tem **nome acessível**. É exatamente a ambiguidade que fez
+     * o CI parecer "seletor errado da vale" quando era defeito de produto. Aqui a
+     * ambiguidade é o ponto: se qualquer um dos dois lados quebrar, isto cai.
+     *
+     * 📌 `combobox` **não** tira nome do próprio conteúdo — ao contrário de
+     * `button`. Então o texto visível na tela não salva: sem o `id` casando o
+     * `<Label htmlFor>`, um leitor de tela anuncia só *"combobox"*.
+     *
+     * ✅ E `status` entrou junto: ele estava **no mesmo arquivo** que a 0104
+     * consertou e ficou de fora. Achado revisando o `0d60c77` pela D-002.
+     */
+    for (const rotulo of ['Paciente', 'Psicólogo', 'Status']) {
+      await expect(
+        page.getByRole('combobox', { name: rotulo }),
+        `o combobox "${rotulo}" não tem nome acessível — um leitor de tela anuncia só "combobox"`
+      ).toBeVisible();
+    }
+
+    // Mexe SÓ no dinheiro. O formulário remanda psicologo_id e data_hora_sessao
+    // sempre — é essa a A-011.
+    await page.locator('#valor_consulta').fill('250');
+    await page.getByRole('button', { name: /salvar|atualizar/i }).click();
+
+    /**
+     * ⚠️ As duas asserções que estavam aqui davam o diagnóstico ao contrário, e
+     * é a mesma inversão da 0104/0111 — desta vez num teste meu.
+     *
+     * `toHaveCount(0)` logo depois do clique passa **na hora**: o diálogo ainda
+     * não teve tempo de aparecer. Se a A-011 regredisse, ele surgiria 200ms
+     * depois, com a contagem já aprovada — e quem falharia seria a asserção de
+     * URL, dizendo *"salvar falhou"* em vez de *"abriu diálogo de conflito"*.
+     * Ausência só quer dizer alguma coisa **depois** de esperar o desfecho.
+     *
+     * Então espera o desfecho primeiro, seja ele qual for, e só então afirma qual
+     * foi. Assim as duas regressões possíveis se reportam pelo próprio nome.
+     */
+    const dialogoDeConflito = page
+      .getByRole('alertdialog')
+      .filter({ hasText: /conflito de hor[áa]rio/i });
+
+    await expect
+      .poll(
+        async () => {
+          if (await dialogoDeConflito.isVisible().catch(() => false)) return 'conflito';
+          if (/\/admin\/agendamentos(\?|$)/.test(page.url())) return 'salvou';
+          return 'esperando';
+        },
+        { timeout: 60_000, message: 'salvar o valor não deu em nada: nem salvou nem acusou conflito' }
+      )
+      .not.toBe('esperando');
+
+    expect(
+      await dialogoDeConflito.isVisible().catch(() => false),
+      'editar o VALOR abriu diálogo de conflito: o backend voltou a checar por presença de campo, não por mudança — é a A-011'
+    ).toBe(false);
+
+    await expect(
+      page,
+      'salvar uma alteração de valor numa sessão sobreposta falhou — é a A-011'
+    ).toHaveURL(/\/admin\/agendamentos(\?|$)/);
+  });
+});

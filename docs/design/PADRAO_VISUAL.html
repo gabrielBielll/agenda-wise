@@ -1,0 +1,751 @@
+<title>Padrão Visual Deep Saúde</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..700&family=Montserrat:wght@300;400;500;600;700&display=swap">
+
+<style>
+:root{
+  /* ---- A paleta do Gabriel, sem alteração de valor ---- */
+  --sage:#95A084;
+  --beige:#C4A584;
+  --cream:#F5F0E8;
+  --gray:#D3D3D3;
+  --charcoal:#4A4A4A;
+  --terracotta:#D2845A;
+  --white:#ffffff;
+
+  /* ---- Derivados: o que a paleta não tinha e a tela precisa ---- */
+  --ground:#F5F0E8;              /* fundo da página = creme */
+  --surface:#FDFBF7;             /* cartão: creme clareado, para o cartão SUBIR do fundo */
+  --surface-2:#F0E9DD;           /* faixa/cabeçalho de tabela */
+  --ink:#4A4A4A;
+  --ink-2:#7D7466;               /* cinza enviesado para o bege — escolhido, não herdado */
+  --ink-3:#A79C8B;
+  --linha:#E6DED0;               /* divisória quente; o #D3D3D3 puro esfria o creme */
+
+  --terracotta-escuro:#B96B42;
+  --sage-escuro:#6E7A5C;
+  --perigo:#9C3B2E;              /* vermelho de terra — HOJE isto é terracota, ver §2 */
+  --atencao:#B8862F;
+
+  /* ---- Sombras QUENTES. Sombra preta sobre creme vira cinza e mata o calor ---- */
+  --sombra-1:0 1px 2px rgba(74,58,42,.04), 0 2px 8px rgba(74,58,42,.05);
+  --sombra-2:0 2px 4px rgba(74,58,42,.04), 0 10px 28px rgba(74,58,42,.08);
+  --sombra-3:0 4px 8px rgba(74,58,42,.05), 0 20px 48px rgba(74,58,42,.10);
+
+  --r-cartao:14px;
+  --r-controle:10px;
+
+  --serif:"Playfair Display",Georgia,"Times New Roman",serif;
+  --sans:"Montserrat",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+}
+
+*{box-sizing:border-box;}
+html{-webkit-text-size-adjust:100%;}
+body{
+  margin:0;
+  background:var(--ground);
+  color:var(--ink);
+  font-family:var(--sans);
+  font-weight:400;
+  font-size:16px;
+  line-height:1.65;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,h4{font-family:var(--serif);font-weight:600;text-wrap:balance;margin:0;line-height:1.2;}
+p{margin:0;}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.86em;background:var(--surface-2);padding:.12em .4em;border-radius:5px;color:var(--terracotta-escuro);}
+a{color:var(--terracotta-escuro);}
+:focus-visible{outline:2px solid var(--terracotta);outline-offset:2px;border-radius:4px;}
+
+.envolucro{max-width:1080px;margin:0 auto;padding:0 24px;}
+.secao{padding:56px 0;border-top:1px solid var(--linha);}
+.secao:first-of-type{border-top:0;}
+.pilha{display:flex;flex-direction:column;gap:20px;}
+.sobrancelha{
+  font-size:11.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--ink-3);font-family:var(--sans);
+}
+.medida{max-width:64ch;color:var(--ink-2);}
+
+/* ---------- capa ---------- */
+.capa{padding:80px 0 56px;}
+.capa h1{font-size:clamp(38px,6.5vw,62px);letter-spacing:-.015em;}
+.capa h1 em{font-style:italic;color:var(--terracotta-escuro);}
+.capa .medida{font-size:17.5px;}
+.selo{
+  display:inline-flex;align-items:center;gap:9px;align-self:flex-start;
+  background:var(--surface);border:1px solid var(--linha);box-shadow:var(--sombra-1);
+  padding:7px 15px 7px 12px;border-radius:999px;font-size:13px;color:var(--ink-2);font-weight:500;
+}
+.selo::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--sage);flex:none;}
+
+/* ---------- tabela de medição ---------- */
+.tabela-caixa{overflow-x:auto;border-radius:var(--r-cartao);border:1px solid var(--linha);background:var(--surface);box-shadow:var(--sombra-1);}
+table{border-collapse:collapse;width:100%;font-size:14.5px;min-width:520px;}
+th,td{text-align:left;padding:13px 18px;border-bottom:1px solid var(--linha);}
+thead th{background:var(--surface-2);font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2);font-weight:600;}
+tbody tr:last-child td{border-bottom:0;}
+td.num{text-align:right;font-variant-numeric:tabular-nums;font-weight:600;}
+.ruim{color:var(--perigo);}
+.bom{color:var(--sage-escuro);}
+
+/* ---------- swatches ---------- */
+.grade-cores{display:grid;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));gap:14px;}
+.cor{background:var(--surface);border:1px solid var(--linha);border-radius:var(--r-controle);overflow:hidden;box-shadow:var(--sombra-1);}
+.cor .amostra{height:62px;}
+.cor .rotulo{padding:9px 12px 11px;}
+.cor .nome{font-size:13px;font-weight:600;}
+.cor .hex{font-size:11.5px;color:var(--ink-3);font-variant-numeric:tabular-nums;letter-spacing:.03em;}
+
+/* ---------- moldura de tela ---------- */
+.tela{
+  border-radius:18px;overflow:hidden;border:1px solid var(--linha);
+  box-shadow:var(--sombra-3);background:var(--ground);
+}
+.legenda-tela{
+  display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;
+  margin-bottom:14px;
+}
+.legenda-tela .caminho{
+  font-family:ui-monospace,Menlo,monospace;font-size:12.5px;color:var(--ink-3);
+}
+
+/* ================= COMPONENTES DO PRODUTO ================= */
+/* É isto que a vale e a duna copiam. Tudo abaixo é o padrão. */
+
+.btn{
+  font-family:var(--sans);font-size:14px;font-weight:600;letter-spacing:.005em;
+  border-radius:var(--r-controle);padding:11px 20px;border:1px solid transparent;
+  cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  transition:transform .18s cubic-bezier(.2,.7,.3,1), box-shadow .18s ease, background-color .18s ease;
+}
+.btn:active{transform:translateY(1px);}
+.btn-principal{background:var(--terracotta);color:var(--white);box-shadow:0 1px 2px rgba(74,58,42,.10), 0 4px 14px rgba(210,132,90,.30);}
+.btn-principal:hover{background:var(--terracotta-escuro);box-shadow:0 2px 4px rgba(74,58,42,.10), 0 8px 22px rgba(210,132,90,.38);}
+.btn-quieto{background:var(--surface);color:var(--ink);border-color:var(--linha);box-shadow:var(--sombra-1);}
+.btn-quieto:hover{background:var(--white);box-shadow:var(--sombra-2);}
+.btn-perigo{background:transparent;color:var(--perigo);border-color:rgba(156,59,46,.35);}
+.btn-perigo:hover{background:rgba(156,59,46,.07);border-color:var(--perigo);}
+
+.cartao{
+  background:var(--surface);border:1px solid var(--linha);border-radius:var(--r-cartao);
+  box-shadow:var(--sombra-1);transition:box-shadow .22s ease, transform .22s cubic-bezier(.2,.7,.3,1);
+}
+.cartao-clicavel:hover{box-shadow:var(--sombra-2);transform:translateY(-2px);}
+
+.pilula{
+  display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;
+  padding:4px 11px;border-radius:999px;letter-spacing:.01em;
+}
+.pilula::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;flex:none;}
+.p-ok{background:rgba(110,122,92,.13);color:var(--sage-escuro);}
+.p-espera{background:rgba(196,165,132,.24);color:#8A6A44;}
+.p-falha{background:rgba(156,59,46,.10);color:var(--perigo);}
+
+.campo{display:flex;flex-direction:column;gap:7px;}
+.campo label{font-size:12.5px;font-weight:600;color:var(--ink-2);letter-spacing:.01em;}
+.campo input,.campo select{
+  font-family:var(--sans);font-size:15px;color:var(--ink);
+  background:var(--white);border:1px solid var(--linha);border-radius:var(--r-controle);
+  padding:11px 13px;width:100%;
+  transition:border-color .18s ease, box-shadow .18s ease;
+}
+.campo input:focus,.campo select:focus{
+  outline:none;border-color:var(--terracotta);box-shadow:0 0 0 3px rgba(210,132,90,.16);
+}
+.campo input::placeholder{color:var(--ink-3);}
+.dica{font-size:12px;color:var(--ink-3);}
+
+/* -------- casca do app -------- */
+.casca{display:grid;grid-template-columns:214px 1fr;min-height:520px;}
+@media (max-width:720px){.casca{grid-template-columns:1fr;} .barra-lateral{display:none;}}
+
+.barra-lateral{
+  /* A MUDANÇA: era uma laje de sálvia saturada. Agora é creme, e a sálvia
+     aparece só onde ela informa — no item ativo. */
+  background:var(--surface-2);border-right:1px solid var(--linha);
+  padding:22px 14px;display:flex;flex-direction:column;gap:26px;
+}
+.marca{display:flex;align-items:center;gap:10px;padding:0 8px;}
+.marca .glifo{
+  width:30px;height:30px;border-radius:9px;flex:none;
+  background:linear-gradient(150deg,var(--sage) 0%,var(--sage-escuro) 100%);
+  display:grid;place-items:center;color:var(--white);font-family:var(--serif);font-size:16px;font-weight:700;
+}
+.marca .nome{font-family:var(--serif);font-size:17px;font-weight:600;letter-spacing:-.01em;}
+.nav{display:flex;flex-direction:column;gap:2px;}
+.nav a{
+  display:flex;align-items:center;gap:11px;padding:9px 11px;border-radius:9px;
+  font-size:14px;color:var(--ink-2);text-decoration:none;font-weight:500;
+  transition:background-color .16s ease,color .16s ease;
+}
+.nav a:hover{background:rgba(149,160,132,.14);color:var(--ink);}
+.nav a.ativo{background:var(--sage);color:var(--white);font-weight:600;box-shadow:0 2px 8px rgba(110,122,92,.28);}
+.nav .ponto{width:16px;text-align:center;opacity:.85;font-size:13px;}
+
+.conteudo{padding:28px 30px 34px;display:flex;flex-direction:column;gap:24px;background:var(--ground);}
+.cabecalho-pagina{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;flex-wrap:wrap;}
+.cabecalho-pagina h2{font-size:29px;letter-spacing:-.012em;}
+.cabecalho-pagina .sub{font-size:13.5px;color:var(--ink-2);margin-top:3px;}
+
+/* -------- faixa de alerta (a do Google) -------- */
+.faixa{
+  display:flex;gap:14px;align-items:flex-start;
+  background:var(--surface);border:1px solid rgba(156,59,46,.28);
+  border-left:4px solid var(--perigo);
+  border-radius:var(--r-controle);padding:15px 18px;box-shadow:var(--sombra-1);
+}
+.faixa .marcador{
+  width:22px;height:22px;border-radius:50%;flex:none;margin-top:1px;
+  background:rgba(156,59,46,.12);color:var(--perigo);
+  display:grid;place-items:center;font-size:13px;font-weight:700;font-family:var(--serif);
+}
+.faixa .titulo{font-weight:600;font-size:14.5px;color:var(--perigo);}
+.faixa .corpo{font-size:13.5px;color:var(--ink-2);margin-top:2px;}
+
+/* -------- cartões de número -------- */
+.grade-numeros{display:grid;grid-template-columns:repeat(auto-fit,minmax(158px,1fr));gap:14px;}
+.num-cartao{padding:19px 20px 17px;display:flex;flex-direction:column;gap:3px;}
+.num-cartao .rot{font-size:11.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);}
+.num-cartao .val{
+  /* Números em Playfair. É daqui que vem o "caro". */
+  font-family:var(--serif);font-size:37px;font-weight:600;line-height:1.05;
+  color:var(--ink);font-variant-numeric:tabular-nums;letter-spacing:-.02em;margin-top:5px;
+  white-space:nowrap;
+}
+.num-cartao .val.moeda{font-size:28px;}
+.num-cartao .pe{font-size:12.5px;color:var(--ink-2);margin-top:5px;}
+.num-cartao .pe strong{color:var(--sage-escuro);font-weight:600;}
+
+/* -------- tabela do produto -------- */
+.tab-produto{width:100%;border-collapse:collapse;font-size:14px;min-width:600px;}
+.tab-produto thead th{
+  background:transparent;border-bottom:1px solid var(--linha);
+  font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--ink-3);
+  padding:0 18px 10px;font-weight:600;
+}
+.tab-produto td{padding:14px 18px;border-bottom:1px solid var(--linha);vertical-align:middle;}
+.tab-produto tbody tr{transition:background-color .16s ease;}
+.tab-produto tbody tr:hover{background:rgba(149,160,132,.07);}
+.tab-produto tbody tr:last-child td{border-bottom:0;}
+.hora{font-variant-numeric:tabular-nums;font-weight:600;letter-spacing:.01em;}
+.pessoa{display:flex;align-items:center;gap:11px;}
+.avatar{
+  width:32px;height:32px;border-radius:50%;flex:none;display:grid;place-items:center;
+  font-family:var(--serif);font-size:13px;font-weight:600;color:var(--white);
+}
+.secundario{font-size:12.5px;color:var(--ink-3);}
+
+/* -------- login -------- */
+.login{
+  min-height:520px;display:grid;grid-template-columns:1.05fr .95fr;
+  background:var(--ground);
+}
+@media (max-width:760px){.login{grid-template-columns:1fr;} .login .lado-calmo{display:none;}}
+.lado-calmo{
+  position:relative;overflow:hidden;padding:44px 42px;
+  display:flex;flex-direction:column;justify-content:space-between;
+  background:linear-gradient(158deg,#8E9A7C 0%,#6E7A5C 58%,#5E6A4E 100%);
+  color:var(--cream);
+}
+.lado-calmo .aura{
+  position:absolute;border-radius:50%;filter:blur(46px);pointer-events:none;
+}
+.lado-calmo .a1{width:300px;height:300px;background:rgba(210,132,90,.30);right:-140px;top:-118px;filter:blur(64px);}
+.lado-calmo .a2{width:250px;height:250px;background:rgba(245,240,232,.17);left:-90px;bottom:-84px;filter:blur(64px);}
+.lado-calmo h3{font-size:32px;line-height:1.22;position:relative;letter-spacing:-.012em;}
+.lado-calmo h3 em{font-style:italic;color:#F0D9C4;}
+.lado-calmo .assinatura{position:relative;font-size:13px;opacity:.82;letter-spacing:.02em;}
+.lado-forma{padding:44px 42px;display:flex;flex-direction:column;justify-content:center;gap:22px;}
+@media (max-width:760px){.lado-forma{padding:36px 24px;}}
+.lado-forma h3{font-size:27px;letter-spacing:-.012em;}
+
+.rodape-nota{
+  font-size:13.5px;color:var(--ink-2);background:var(--surface);border:1px solid var(--linha);
+  border-left:3px solid var(--sage);border-radius:var(--r-controle);padding:14px 17px;box-shadow:var(--sombra-1);
+}
+.rodape-nota strong{color:var(--ink);font-weight:600;}
+
+ol.regras{margin:0;padding-left:0;list-style:none;counter-reset:r;display:flex;flex-direction:column;gap:14px;}
+ol.regras li{
+  counter-increment:r;display:grid;grid-template-columns:30px 1fr;gap:14px;align-items:start;
+  font-size:15px;color:var(--ink-2);
+}
+ol.regras li::before{
+  content:counter(r);
+  font-family:var(--serif);font-size:15px;font-weight:600;color:var(--terracotta-escuro);
+  background:rgba(210,132,90,.12);border-radius:8px;
+  width:30px;height:30px;display:grid;place-items:center;margin-top:-2px;
+}
+ol.regras strong{color:var(--ink);font-weight:600;}
+
+@media (prefers-reduced-motion:reduce){
+  *{transition-duration:.01ms !important;animation-duration:.01ms !important;}
+}
+</style>
+
+<div class="envolucro">
+
+  <!-- ============ CAPA ============ -->
+  <header class="capa pilha">
+    <span class="selo">Para validar uma vez — depois a `vale` e a `duna` aplicam no resto</span>
+    <h1>A paleta já estava certa.<br>O que faltava era <em>hierarquia</em>.</h1>
+    <p class="medida">
+      Antes de desenhar qualquer coisa eu medi o que existe hoje. O resultado mudou a
+      proposta: as sete cores do Deep já estão no <code>globals.css</code>, e as fontes do
+      Deepinsights — Playfair Display para título — já estão configuradas há meses.
+      O produto não é feio por falta de paleta. É feio porque <strong>metade dele não usa a
+      paleta que tem</strong>, e a metade que usa não tem hierarquia nenhuma.
+    </p>
+  </header>
+
+  <!-- ============ 1. DIAGNÓSTICO ============ -->
+  <section class="secao pilha">
+    <div class="pilha" style="gap:8px">
+      <span class="sobrancelha">1 · O que a medição mostrou</span>
+      <h2 style="font-size:27px">São dois produtos dentro de um repositório</h2>
+    </div>
+    <p class="medida">
+      Contei as classes de cor por área. <code>/admin</code> — que é onde estão agendamentos,
+      pacientes, psicólogas e financeiro — usa <strong>mais cor crua do Tailwind
+      (azul, cinza, branco) do que token da nossa paleta</strong>. A área da psicóloga usa
+      quase só token. As duas telas não parecem o mesmo software porque não são pintadas
+      com as mesmas tintas.
+    </p>
+
+    <div class="tabela-caixa">
+      <table>
+        <thead>
+          <tr>
+            <th>Área</th>
+            <th style="text-align:right">Cor crua do Tailwind</th>
+            <th style="text-align:right">Token da paleta</th>
+            <th style="text-align:right"><code>font-headline</code></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>/admin</code> — 14 telas</td>
+            <td class="num ruim">99</td>
+            <td class="num">89</td>
+            <td class="num ruim">1</td>
+          </tr>
+          <tr>
+            <td><code>/(app)</code> — área da psicóloga</td>
+            <td class="num">33</td>
+            <td class="num bom">188</td>
+            <td class="num bom">30</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p class="medida">
+      O caso extremo está no <code>admin/dashboard</code>: ele reimplementa os cartões
+      localmente — <code>SimpleCard</code>, com o comentário <em>"sem dependências
+      problemáticas"</em> — e os pinta de <code>bg-white</code>, <code>bg-blue-50</code>,
+      <code>text-gray-600</code>. É um pedaço de outro aplicativo colado no nosso.
+    </p>
+
+    <div class="rodape-nota">
+      <strong>Isso muda o tamanho do trabalho, e para menos.</strong> Não é redesenhar do zero:
+      é terminar de aplicar um sistema que já existe, corrigir três decisões de token, e dar
+      elevação e tipografia ao que hoje é plano. As telas abaixo são esse resultado.
+    </div>
+  </section>
+
+  <!-- ============ 2. TOKENS ============ -->
+  <section class="secao pilha">
+    <div class="pilha" style="gap:8px">
+      <span class="sobrancelha">2 · Três correções de token</span>
+      <h2 style="font-size:27px">Mesmas sete cores, papéis trocados</h2>
+    </div>
+
+    <div class="grade-cores">
+      <div class="cor"><div class="amostra" style="background:#D2845A"></div><div class="rotulo"><div class="nome">Terracota</div><div class="hex">#D2845A · ação</div></div></div>
+      <div class="cor"><div class="amostra" style="background:#95A084"></div><div class="rotulo"><div class="nome">Sálvia</div><div class="hex">#95A084 · apoio</div></div></div>
+      <div class="cor"><div class="amostra" style="background:#C4A584"></div><div class="rotulo"><div class="nome">Bege</div><div class="hex">#C4A584 · espera</div></div></div>
+      <div class="cor"><div class="amostra" style="background:#F5F0E8"></div><div class="rotulo"><div class="nome">Creme</div><div class="hex">#F5F0E8 · fundo</div></div></div>
+      <div class="cor"><div class="amostra" style="background:#FDFBF7;box-shadow:inset 0 0 0 1px #E6DED0"></div><div class="rotulo"><div class="nome">Superfície</div><div class="hex">#FDFBF7 · cartão</div></div></div>
+      <div class="cor"><div class="amostra" style="background:#4A4A4A"></div><div class="rotulo"><div class="nome">Carvão</div><div class="hex">#4A4A4A · texto</div></div></div>
+      <div class="cor"><div class="amostra" style="background:#9C3B2E"></div><div class="rotulo"><div class="nome">Perigo</div><div class="hex">#9C3B2E · novo</div></div></div>
+    </div>
+
+    <ol class="regras" style="margin-top:6px">
+      <li>
+        <div><strong>Terracota vira a cor de ação; sálvia vira apoio.</strong> Hoje é o
+        contrário — <code>--primary</code> é sálvia, e por isso todo botão do produto é
+        verde-acinzentado e some no creme. O Deepinsights lidera com o terracota, e é
+        metade do motivo dele parecer mais quente. A sálvia continua no produto inteiro,
+        só que onde ela acalma: barra lateral, item ativo, sucesso.</div>
+      </li>
+      <li>
+        <div><strong><code>--destructive</code> precisa de cor própria.</strong> Hoje ele é
+        exatamente o mesmo terracota do <code>--accent</code>. Na prática, <em>"Excluir
+        paciente" e "Salvar" são o mesmo botão</em> — isso não é estética, é risco.
+        Entra o <code>#9C3B2E</code>: vermelho de terra, mais escuro e mais vermelho que o
+        terracota, sem sair da família e sem quebrar a calmaria.</div>
+      </li>
+      <li>
+        <div><strong>Cartão deixa de ser da cor do fundo.</strong> Hoje <code>--card</code> é
+        o mesmo creme de <code>--background</code>, então cartão só existe se alguém
+        desenhar uma borda. Clareando para <code>#FDFBF7</code> e somando sombra, o cartão
+        sobe do papel sem precisar de traço.</div>
+      </li>
+      <li>
+        <div><strong>A sombra é quente, e essa é a decisão que mais muda a sensação.</strong>
+        Sombra preta sobre creme vira cinza e mata a cor. Todas as sombras aqui são
+        <code>rgba(74,58,42,…)</code> — marrom baixíssimo. É o que faz o creme parecer papel
+        em vez de preenchimento chapado.</div>
+      </li>
+    </ol>
+  </section>
+
+  <!-- ============ 3. TELA: LOGIN ============ -->
+  <section class="secao pilha">
+    <div class="pilha" style="gap:8px">
+      <span class="sobrancelha">3 · Tela um</span>
+      <h2 style="font-size:27px">Entrada</h2>
+    </div>
+    <div class="legenda-tela"><span class="caminho">/admin/login</span></div>
+
+    <div class="tela">
+      <div class="login">
+        <div class="lado-calmo">
+          <div class="aura a1"></div>
+          <div class="aura a2"></div>
+          <div class="marca" style="position:relative;padding:0">
+            <div class="glifo" style="background:rgba(245,240,232,.18);backdrop-filter:blur(2px)">D</div>
+            <div class="nome" style="color:var(--cream)">Deep Saúde</div>
+          </div>
+          <h3>O consultório<br>organizado, para<br>você cuidar de <em>gente</em>.</h3>
+          <div class="assinatura">Agenda · Prontuário · Financeiro</div>
+        </div>
+
+        <div class="lado-forma">
+          <div class="pilha" style="gap:6px">
+            <h3>Entrar</h3>
+            <p style="font-size:14px;color:var(--ink-2)">Acesso da equipe administrativa.</p>
+          </div>
+          <div class="pilha" style="gap:16px">
+            <div class="campo">
+              <label for="d-email">E-mail</label>
+              <input id="d-email" type="email" value="recepcao@deepsaude.com.br" readonly>
+            </div>
+            <div class="campo">
+              <label for="d-senha">Senha</label>
+              <input id="d-senha" type="password" value="000000000000" readonly>
+            </div>
+            <button class="btn btn-principal" style="width:100%;padding:13px">Entrar</button>
+            <p class="dica" style="text-align:center">
+              Esqueceu a senha? <a href="#tela-agenda">Recuperar acesso</a>
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 4. TELA: PAINEL ============ -->
+  <section class="secao pilha">
+    <div class="pilha" style="gap:8px">
+      <span class="sobrancelha">4 · Tela dois</span>
+      <h2 style="font-size:27px">Painel</h2>
+    </div>
+    <div class="legenda-tela"><span class="caminho">/admin/dashboard</span></div>
+
+    <div class="tela">
+      <div class="casca">
+        <aside class="barra-lateral">
+          <div class="marca">
+            <div class="glifo">D</div>
+            <div class="nome">Deep Saúde</div>
+          </div>
+          <nav class="nav">
+            <a href="#" class="ativo"><span class="ponto">◆</span>Painel</a>
+            <a href="#tela-agenda"><span class="ponto">◇</span>Agendamentos</a>
+            <a href="#"><span class="ponto">◇</span>Pacientes</a>
+            <a href="#"><span class="ponto">◇</span>Psicólogas</a>
+            <a href="#"><span class="ponto">◇</span>Financeiro</a>
+            <a href="#"><span class="ponto">◇</span>Integrações</a>
+          </nav>
+        </aside>
+
+        <main class="conteudo">
+          <div class="cabecalho-pagina">
+            <div>
+              <h2>Terça, 18 de agosto</h2>
+              <div class="sub">Nove sessões hoje · duas aguardando confirmação</div>
+            </div>
+            <button class="btn btn-principal">＋ Novo agendamento</button>
+          </div>
+
+          <!-- a faixa que a 0113/0114 tornaram alcançável -->
+          <div class="faixa">
+            <div class="marcador">!</div>
+            <div>
+              <div class="titulo">A agenda de Carolina Prado sumiu da conta do Google</div>
+              <div class="corpo">
+                As sessões dela pararam de chegar. Reconecte a conta em Integrações —
+                nada é perdido, mas nada novo entra até lá.
+              </div>
+            </div>
+          </div>
+
+          <div class="grade-numeros">
+            <div class="cartao num-cartao">
+              <div class="rot">Sessões hoje</div>
+              <div class="val">9</div>
+              <div class="pe"><strong>7 confirmadas</strong> · 2 pendentes</div>
+            </div>
+            <div class="cartao num-cartao">
+              <div class="rot">Pacientes ativos</div>
+              <div class="val">142</div>
+              <div class="pe"><strong>+6</strong> neste mês</div>
+            </div>
+            <div class="cartao num-cartao">
+              <div class="rot">Psicólogas</div>
+              <div class="val">11</div>
+              <div class="pe">10 com agenda conectada</div>
+            </div>
+            <div class="cartao num-cartao">
+              <div class="rot">A repassar</div>
+              <div class="val moeda">R$ 18.740</div>
+              <div class="pe">fecha em 31 de agosto</div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 5. TELA: LISTA ============ -->
+  <section class="secao pilha" id="tela-agenda">
+    <div class="pilha" style="gap:8px">
+      <span class="sobrancelha">5 · Tela três</span>
+      <h2 style="font-size:27px">Agendamentos</h2>
+    </div>
+    <div class="legenda-tela">
+      <span class="caminho">/admin/agendamentos</span>
+    </div>
+
+    <div class="tela">
+      <div class="casca">
+        <aside class="barra-lateral">
+          <div class="marca">
+            <div class="glifo">D</div>
+            <div class="nome">Deep Saúde</div>
+          </div>
+          <nav class="nav">
+            <a href="#"><span class="ponto">◇</span>Painel</a>
+            <a href="#" class="ativo"><span class="ponto">◆</span>Agendamentos</a>
+            <a href="#"><span class="ponto">◇</span>Pacientes</a>
+            <a href="#"><span class="ponto">◇</span>Psicólogas</a>
+            <a href="#"><span class="ponto">◇</span>Financeiro</a>
+            <a href="#"><span class="ponto">◇</span>Integrações</a>
+          </nav>
+        </aside>
+
+        <main class="conteudo">
+          <div class="cabecalho-pagina">
+            <div>
+              <h2>Agendamentos</h2>
+              <div class="sub">18 de agosto de 2026</div>
+            </div>
+            <div style="display:flex;gap:10px">
+              <button class="btn btn-quieto">Filtrar</button>
+              <button class="btn btn-principal">＋ Novo</button>
+            </div>
+          </div>
+
+          <div class="cartao" style="padding:20px 4px 6px">
+            <div style="overflow-x:auto">
+              <table class="tab-produto">
+                <thead>
+                  <tr>
+                    <th>Hora</th><th>Paciente</th><th>Psicóloga</th><th>Situação</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="hora">08:00</td>
+                    <td>
+                      <div class="pessoa">
+                        <div class="avatar" style="background:#95A084">MA</div>
+                        <div>
+                          <div style="font-weight:600">Marina Alcântara</div>
+                          <div class="secundario">Primeira consulta</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td>Carolina Prado</td>
+                    <td><span class="pilula p-ok">Confirmada</span></td>
+                  </tr>
+                  <tr>
+                    <td class="hora">09:00</td>
+                    <td>
+                      <div class="pessoa">
+                        <div class="avatar" style="background:#C4A584">RT</div>
+                        <div>
+                          <div style="font-weight:600">Rafael Toledo</div>
+                          <div class="secundario">Quinzenal</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td>Helena Bastos</td>
+                    <td><span class="pilula p-espera">Aguardando</span></td>
+                  </tr>
+                  <tr>
+                    <td class="hora">10:00</td>
+                    <td>
+                      <div class="pessoa">
+                        <div class="avatar" style="background:#D2845A">JS</div>
+                        <div>
+                          <div style="font-weight:600">Joana Seixas</div>
+                          <div class="secundario">Semanal</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td>Carolina Prado</td>
+                    <td><span class="pilula p-falha">Não sincronizou</span></td>
+                  </tr>
+                  <tr>
+                    <td class="hora">11:00</td>
+                    <td>
+                      <div class="pessoa">
+                        <div class="avatar" style="background:#6E7A5C">PV</div>
+                        <div>
+                          <div style="font-weight:600">Paulo Veiga</div>
+                          <div class="secundario">Semanal</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td>Íris Nakamura</td>
+                    <td><span class="pilula p-ok">Confirmada</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 6. TELA: FORMULÁRIO ============ -->
+  <section class="secao pilha">
+    <div class="pilha" style="gap:8px">
+      <span class="sobrancelha">6 · Tela quatro — é a mais repetida do produto</span>
+      <h2 style="font-size:27px">Cadastro</h2>
+    </div>
+    <div class="legenda-tela"><span class="caminho">/admin/pacientes/novo</span></div>
+
+    <div class="tela">
+      <div class="casca">
+        <aside class="barra-lateral">
+          <div class="marca">
+            <div class="glifo">D</div>
+            <div class="nome">Deep Saúde</div>
+          </div>
+          <nav class="nav">
+            <a href="#"><span class="ponto">◇</span>Painel</a>
+            <a href="#"><span class="ponto">◇</span>Agendamentos</a>
+            <a href="#" class="ativo"><span class="ponto">◆</span>Pacientes</a>
+            <a href="#"><span class="ponto">◇</span>Psicólogas</a>
+            <a href="#"><span class="ponto">◇</span>Financeiro</a>
+            <a href="#"><span class="ponto">◇</span>Integrações</a>
+          </nav>
+        </aside>
+
+        <main class="conteudo">
+          <div class="cabecalho-pagina">
+            <div>
+              <h2>Novo paciente</h2>
+              <div class="sub">Só o nome é obrigatório. O resto pode entrar depois.</div>
+            </div>
+          </div>
+
+          <div class="cartao" style="padding:26px 28px;max-width:640px">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px">
+              <div class="campo" style="grid-column:1/-1">
+                <label for="d-nome">Nome completo</label>
+                <input id="d-nome" value="Marina Alcântara" readonly>
+              </div>
+              <div class="campo">
+                <label for="d-nasc">Data de nascimento</label>
+                <input id="d-nasc" value="14/03/1991" readonly>
+                <span class="dica">Opcional</span>
+              </div>
+              <div class="campo">
+                <label for="d-tel">Telefone</label>
+                <input id="d-tel" value="(11) 98814-2207" readonly>
+              </div>
+              <div class="campo" style="grid-column:1/-1">
+                <label for="d-mail">E-mail</label>
+                <input id="d-mail" placeholder="Deixe em branco se não houver" readonly>
+                <span class="dica">Opcional — em branco é gravado como ausente, não como vazio.</span>
+              </div>
+              <div class="campo" style="grid-column:1/-1">
+                <label for="d-psi">Psicóloga responsável</label>
+                <select id="d-psi">
+                  <option>Carolina Prado</option>
+                </select>
+              </div>
+            </div>
+
+            <div style="display:flex;gap:11px;margin-top:26px;padding-top:20px;border-top:1px solid var(--linha);flex-wrap:wrap">
+              <button class="btn btn-principal">Salvar paciente</button>
+              <button class="btn btn-quieto">Cancelar</button>
+              <button class="btn btn-perigo" style="margin-left:auto">Excluir</button>
+            </div>
+          </div>
+
+          <div class="rodape-nota" style="max-width:640px">
+            <strong>Repare no "Excluir".</strong> Hoje ele sai exatamente da mesma cor do
+            "Salvar", porque <code>--destructive</code> e <code>--accent</code> são o mesmo
+            valor. Aqui ele é contorno, fica longe dos outros dois, e usa o vermelho novo.
+          </div>
+        </main>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 7. REGRAS ============ -->
+  <section class="secao pilha">
+    <div class="pilha" style="gap:8px">
+      <span class="sobrancelha">7 · O que a `vale` e a `duna` aplicam depois do "sim"</span>
+      <h2 style="font-size:27px">Seis regras, e nada de tela por tela</h2>
+    </div>
+    <p class="medida">
+      Aprovando isto, ninguém precisa te mostrar mais nenhuma tela. O padrão vira token no
+      <code>globals.css</code> e componente no <code>components/ui</code>, e cada tela passa
+      a herdar. As regras são estas:
+    </p>
+
+    <ol class="regras">
+      <li><div><strong>Nenhuma cor crua do Tailwind.</strong> <code>bg-white</code>,
+        <code>text-gray-600</code>, <code>bg-blue-50</code> saem — são as 99 ocorrências
+        do <code>/admin</code>. Só token.</div></li>
+      <li><div><strong>Todo título de tela em Playfair</strong> (<code>font-headline</code>),
+        e todo número grande também. É a diferença entre "sistema" e "produto".</div></li>
+      <li><div><strong>Um botão terracota por tela.</strong> A ação principal é uma só; o
+        resto é <code>btn-quieto</code>. Duas cores fortes competindo é o que tira a
+        calmaria.</div></li>
+      <li><div><strong>Situação é forma <em>e</em> cor</strong> — pílula com ponto, nunca só
+        texto colorido. Quem não distingue as cores continua lendo o estado.</div></li>
+      <li><div><strong>Elevação vem de sombra quente, não de borda.</strong> Borda cinza em
+        volta de tudo é o que deixa a tela dura.</div></li>
+      <li><div><strong>Foco visível em tudo que recebe teclado</strong> — anel terracota. Isso
+        conversa direto com a A11Y-001, que já está aberta.</div></li>
+    </ol>
+
+    <div class="rodape-nota">
+      <strong>O que eu preciso de você:</strong> um "sim" ou um "sim, menos isto". Se houver
+      um ponto que te incomoda — o verde da barra lateral, o tamanho dos números, o vermelho
+      novo — diga só esse ponto. O resto segue.
+    </div>
+  </section>
+
+  <div style="height:40px"></div>
+</div>

@@ -1,0 +1,1332 @@
+# Revisão pré-produção — 2026-08-13
+
+Varredura geral pedida pelo Gabriel antes do refactor e do redesign. O objetivo
+declarado foi **achar módulo que pode quebrar**, não fazer inventário de estilo.
+
+## Método
+
+Feito por leitura e análise estática no ambiente da `orla` (Claude na sandbox):
+mapa de rotas, contagem por arquivo, rastreio de quem chama o quê, e inspeção
+dirigida dos caminhos de maior risco. **Nada foi executado** — não compilo
+Clojure aqui e não subi o front. Onde afirmo comportamento, digo se verifiquei
+ou deduzi.
+
+Eixos varridos: isolamento entre clínicas, guarda de rotas, contrato de datas,
+tamanho e acoplamento dos módulos, paginação, instrumentação, segredos.
+
+---
+
+## 🔴 A-001 — "A série toda" reescreve o valor de sessões já pagas
+
+**Viola:** [R-004](REGRAS_DE_NEGOCIO.md) (passado é imutável)
+**Onde:** `core.clj`, modo `all` de `atualizar-agendamento-handler` (~linha 678)
+**Achado em:** 2026-08-13, minutos depois de o Gabriel confirmar a R-004
+
+```clojure
+todos-agendamentos (execute-query! ["SELECT id, data_hora_sessao FROM agendamentos
+                                 WHERE recorrencia_id = ?
+                                 AND clinica_id = ?"   ; <- sem filtro de data
+                                recorrencia-id clinica-id])
+```
+
+Sem filtro de data e **sem filtro de status**. Pega toda a série, inclusive
+ocorrência `realizado` e `pago`.
+
+E não para no horário. Repare em como o valor é montado:
+
+```clojure
+novo-valor (if (= status "cancelado") 0 (or valor_consulta (:valor_consulta agendamento-atual)))
+...
+(some? novo-valor) (assoc :valor_consulta novo-valor)
+```
+
+`novo-valor` **nunca é nil** — cai no valor do agendamento sendo editado. Como o
+`cond->` só testa `some?`, o `valor_consulta` é gravado em **toda** ocorrência,
+sempre.
+
+**Consequência concreta:** o usuário abre uma sessão, escolhe "a série toda" só
+para mudar o horário das próximas — e o sistema reescreve, em silêncio, o
+`valor_consulta` de todas as sessões passadas, incluindo as que já foram pagas e
+repassadas. O livro financeiro muda depois de o dinheiro ter andado.
+
+Não há mensagem, não há confirmação, e a resposta diz "N agendamentos
+atualizados com sucesso".
+
+✅ **Reproduzido em 2026-08-14** contra PostgreSQL 16, com a JVM em UTC:
+[`docs/reproducoes/serie_reescreve_passado.sql`](reproducoes/serie_reescreve_passado.sql).
+Série de seis, quatro já realizadas e pagas a R$350. O usuário muda só o
+horário para 09:00 e escolhe "a série toda" — as quatro passadas saem para
+09:00 valendo R$200. **R$ 600 de diferença em sessões já pagas e repassadas.**
+O que continua sendo leitura de código, e não execução: que `novo-valor` nunca
+é nil. A `orla` não compila Clojure aqui.
+
+---
+
+## 🔴 A-002 — "Esta e as seguintes" é relativo à ocorrência, não a hoje
+
+**Viola:** [R-004](REGRAS_DE_NEGOCIO.md)
+**Onde:** `core.clj`, modo `all_future` (~linha 643)
+
+```clojure
+AND data_hora_sessao >= ?
+...
+recorrencia-id (:data_hora_sessao agendamento-atual) clinica-id
+```
+
+O corte é a data **da ocorrência aberta**, não `now()`. Abrir uma sessão de três
+meses atrás e escolher "esta e as seguintes" alcança tudo daquela data em
+diante — três meses de sessões já realizadas junto.
+
+Mais sutil que a A-001 e pela mesma porta: o mesmo `novo-valor` incondicional
+reescreve o `valor_consulta` de cada uma.
+
+**Correção das duas:** o corte tem que ser `now()` **e** o status, não a data da
+ocorrência. Ocorrência `realizado` sai do conjunto em qualquer modo — é o que a
+R-004 diz.
+
+✅ **Reproduzido junto com a A-001**, no mesmo arquivo: abrir a ocorrência mais
+antiga da série alcança as seis, quatro delas realizadas.
+
+✅ **Corrigidos em 2026-08-14**, autorizado pelo Gabriel. Em `core.clj`,
+`filtro-do-passado` e `valor-para-a-serie`, compartilhados pelos dois modos.
+
+⚠️ **A correção proposta acima estava errada em um ponto, e o erro só apareceu
+ao escrever o teste.** "O corte tem que ser `now()`, não a data da ocorrência"
+lido ao pé da letra quebra o `all_future`: com a série toda no futuro — o caso
+comum — cortar só por `now()` faz "esta e as seguintes" pegar a série inteira,
+inclusive as anteriores à que o usuário abriu. São os **dois** cortes, não a
+troca de um pelo outro. O modo `all` leva só o de `now()`, porque ali não existe
+corte de ocorrência.
+
+Verificado contra PostgreSQL 16, os quatro casos: série atravessando hoje pelos
+dois modos (2 alcançadas, nenhuma realizada) e série toda no futuro (`all_future`
+na 3ª de 4 → 2; `all` → 4). As duas strings de SELECT foram extraídas do fonte e
+aceitas pelo `PREPARE` do PostgreSQL. ✅ **A suíte Clojure rodou depois**, pela
+`duna` em PostgreSQL 18: 67 testes, 253 asserções, 0 falhas, sem regressão nos
+modos `all` e `all_future` ([0026](../mensageria/0026-duna-para-orla-r004-verde-no-postgres18.md)).
+
+🧪 **Teste antes da correção, como manda a [D-008](../mensageria/DECISOES.md):**
+`all-nao-reescreve-ocorrencia-ja-realizada` e
+`all-future-corta-em-hoje-nao-na-ocorrencia-aberta`, em
+`test/deep_saude_backend/agendamentos_test.clj`. Nasceram **vermelhos de
+propósito** — descreviam a R-004, não o código de então — e ficaram verdes com a
+correção, sem ajuste nenhum, que é o que a D-008 compra. Foram escritos sem nunca terem sido executados pela autora; a `duna`
+(GPT local) executou os dois em PostgreSQL 18 e ambos passaram.
+
+---
+
+## 🔴 A-003 — Admin lê prontuário sem flag nenhuma
+
+**Viola:** [R-012](REGRAS_DE_NEGOCIO.md)
+**Onde:** `core.clj`, `listar-prontuarios-handler`
+
+A R-012 diz: só o psicólogo autor, com saída de emergência por flag no código.
+Hoje não existe flag — o admin da clínica lê direto.
+
+A escrita já está certa (`atualizar-prontuario-handler` checa autoria e devolve
+403). É a **leitura** que está aberta.
+
+✅ **Corrigido em 2026-08-15.** `pode-ler-prontuarios?` em `core.clj`: só o
+psicólogo do paciente lê. A saída de emergência da R-012 existe como
+`super-admin-le-prontuario?`, um `def` **em código** — deliberadamente não é
+variável de ambiente, porque a R-012 exclui "configuração que alguém com acesso
+ao painel possa ligar", e o painel do Render é exatamente isso.
+
+**Por onde a leitura passava:** o `wrap-checar-permissao` da rota exige
+`visualizar_pacientes`, que o admin tem. Permissão de tela não é autorização
+clínica — a guarda de papel existia, mas a de autoria não.
+
+🔴 **Achado ao corrigir, e mais grave do que a A-003: o admin também *apagava*
+prontuário alheio.** `remover-prontuario-handler` só disparava a guarda quando
+`papel` era "psicologo"; para qualquer outro papel, passava direto para o
+`DELETE`. O handler irmão de edição já checava autoria sem olhar papel — esta
+linha ficou para trás dele. Corrigido junto, um passo além do escopo da A-003, e
+registrado aqui para o Gabriel poder derrubar: apagar registro clínico é pior do
+que lê-lo, e nenhuma tela do admin consome prontuário, então o alcance é zero.
+
+🧪 Testes em `test/deep_saude_backend/prontuarios_test.clj` — leitura pelo autor,
+pelo colega e pelo admin, exclusão pelos três, e a saída de emergência ligada e
+desligada. ✅ **Verdes na primeira execução do CI**: a suíte saiu de 67 para 74
+testes e de 253 para 265 asserções, sem falha. Escritos sem nunca terem sido
+executados pela autora — quem os rodou foi o CI, minutos depois de existir.
+
+⚠️ Mesmo padrão em `criar-prontuario-handler` (`and (= papel "psicologo")`): o
+admin pode criar prontuário para paciente de outro psicólogo. Menos grave — ele
+fica como autor, e depois da correção só ele mesmo lê. Não mexi; fica anotado.
+
+---
+
+## 🔴 A-004 — A comissão é estado de navegador, e o repasse gravado depende dela
+
+**Achado em:** 2026-08-15, preparando as perguntas do oráculo — não por varredura
+de código, e sim por tentar descrever ao Gabriel o que o sistema faz hoje.
+**Onde:** `src/app/admin/financeiro/FinanceiroClient.tsx`
+**Regra:** R-009, ainda **em aberto** — por isso não é violação de regra
+confirmada como A-001 a A-003. É defeito de outra natureza: o sistema não tem
+resposta, e improvisa uma diferente a cada carregamento de página.
+
+O documento do oráculo afirmava que "existem colunas de comissão no banco".
+**Não existem.** Não há coluna, campo, configuração nem endpoint de comissão —
+procurado em migrations, backend e front.
+
+O que existe é isto:
+
+```ts
+const [commissionRate, setCommissionRate] = useState<number>(50);   // linha 111
+```
+
+**50% nasce fixo a cada abertura da página**, mora só na memória do navegador e
+nunca é persistido nem lido de lugar nenhum. E ele decide dinheiro:
+
+```ts
+// linha 320 — ao marcar/desmarcar repasse
+const repasseValue = valorConsulta * (commissionRate / 100);
+
+// linha 324 — o que a TELA passa a mostrar: preserva o valor que já existia
+ag.valor_repasse ?? repasseValue
+
+// linhas 333-334 — o que vai para a API: SEMPRE o recalculado
+body: JSON.stringify({ status_repasse: newStatus, valor_repasse: repasseValue })
+```
+
+**Três consequências, e a terceira é a pior:**
+
+1. **Não é determinístico.** A mesma sessão gera repasses diferentes conforme
+   quem abriu a tela e se mexeu no controle antes de clicar.
+2. **Não é auditável.** Nada registra qual taxa produziu qual valor, porque a
+   taxa não é gravada em lugar nenhum.
+3. **Tela e banco discordam.** A atualização otimista preserva o
+   `valor_repasse` que já existia (`?? repasseValue`), mas o corpo enviado à API
+   manda o recalculado **sem condição**. O admin vê o valor antigo e o banco
+   guarda o novo. É a mesma família do item 1 — leitura e escrita discordando —
+   e da A-001 — dinheiro reescrito em silêncio.
+
+E alternar "transferido" → "disponível" → "transferido" recalcula a cada volta.
+
+**Não corrigir antes da R-009.** A correção depende de qual é a regra: taxa fixa,
+por psicólogo, por clínica ou negociada por sessão; e se sessões antigas mantêm a
+taxa da época. Escolher no código seria inventar regra de negócio, que é
+exatamente o que a [D-008](../mensageria/DECISOES.md) proíbe. O que dá para dizer sem a regra é que **a
+taxa precisa estar no banco e o `valor_repasse` precisa ser gravado uma vez**, não
+recalculado a cada clique.
+
+---
+
+## 🔴 A-005 — Qualquer um força agendamento sobre conflito
+
+**Viola:** [R-006](REGRAS_DE_NEGOCIO.md), confirmada em 2026-08-15
+**Onde:** `core.clj`, `criar-agendamento-handler` — `force` no corpo, linha ~606
+
+```clojure
+{:keys [... force ...]} (:body request)
+...
+agendamento-conflitante (when (not force) ...)
+```
+
+`force` é um campo do corpo da requisição e **não há checagem de papel nenhuma**.
+Quem pode criar agendamento pode mandar `force: true` e passar por cima do
+conflito — psicólogo, secretário, qualquer um.
+
+A R-006 diz que **só a clínica força**. Para o psicólogo, o desenho é outro:
+modal explicando o conflito e pedindo contato com a gestão, mais notificação no
+painel da clínica.
+
+**Correção:** a guarda é de papel, no backend — o `force` de quem não é
+`admin_clinica` deve ser ignorado (ou recusado com 403), não obedecido. Tela que
+esconde o botão não resolve: o campo está no corpo.
+
+⚠️ **Detalhe medido, que estreita a correção:** o `force` pula **só** a checagem
+de agendamento. O `bloqueio-existente`, calculado logo acima, não tem `when` e
+roda sempre. Aquele ramo já está certo e não deve ser tocado.
+
+⚠️ **O que a R-006 pede e não entra nesta correção:** a notificação no sininho do
+painel da clínica. **Não existe notificação nenhuma no sistema** — conferido: sem
+tabela, sem rota, sem código. É funcionalidade nova; a guarda vai sozinha, e
+meia notificação seria pior do que nenhuma.
+
+🔧 **Designada em 2026-08-16** à `duna`, com teste antes da correção (D-008) —
+ver [0042](../mensageria/0042-orla-para-duna-a-005-e-a-006-o-teste-antes-da-correcao.md). Contrato: `403 {"code": "force_requires_admin"}`.
+
+✅ **Corrigida em 2026-08-16** ([0046](../mensageria/0046-duna-para-orla-a005-a006-vermelhas-e-corrigidas.md)), com falha reproduzida antes: psicólogo com
+conflito real e `force: true` recebia **201** e gravava o segundo agendamento.
+Agora papel diferente de `admin_clinica` recebe 403; o admin segue podendo
+forçar, e o ramo do bloqueio não foi tocado. Revisado pela `orla` em [0049](../mensageria/0049-orla-para-duna-e-vale-eu-errei-o-mecanismo-e-achei-a-007.md).
+
+⚠️ **Conferido na revisão:** `force` **não existe** no caminho de atualização —
+não há porta dos fundos por ali. Mas aquele caminho tem outro buraco, achado na
+mesma leitura: ver **A-007**.
+
+---
+
+## 🔴 A-006 — Um bloqueio cancela sessões em massa, zera o valor delas e alcança o passado
+
+**Viola:** [R-014](REGRAS_DE_NEGOCIO.md), confirmada em 2026-08-15 — e o
+princípio da [R-004](REGRAS_DE_NEGOCIO.md), que já era confirmada
+**Onde:** `core.clj`, `criar-bloqueio-handler`, ~linha 1123
+
+```clojure
+(when cancelar_conflitos
+  (doseq [{start-ts :start end-ts :end} intervalos]
+    (sql/update! tx :agendamentos
+                 {:status "cancelado" :valor_consulta 0}      ; <- zera o valor
+                 ["clinica_id = ? AND psicologo_id = ? AND status != 'cancelado'
+                   AND data_hora_sessao < ?
+                   AND (data_hora_sessao + (COALESCE(duracao, 50) * interval '1 minute')) > ?"
+                  clinica-id target-psicologo-id end-ts start-ts])))
+```
+
+**Quatro problemas, e eles se somam:**
+
+1. **É um booleano do corpo da requisição.** `cancelar_conflitos: true` e pronto —
+   sem confirmação, sem as duas confirmações que a R-014 exige, sem aviso listando
+   dia e hora das sessões atingidas.
+2. **Zera `valor_consulta`.** Não é só cancelar: apaga o valor. É a mesma família
+   da A-001 — dinheiro reescrito em silêncio.
+3. **Não tem filtro de data.** O `WHERE` casa qualquer sobreposição, futura ou
+   passada. Bloqueio criado sobre um intervalo já vivido **cancela e zera sessão
+   já realizada e já paga** — exatamente o que a R-004 proíbe, e o mesmo defeito
+   da A-002, que era a falta de corte em `now()`.
+4. **É em massa por construção.** O handler aceita `recorrencia_tipo` e
+   `quantidade_recorrencia`, então **um** request gera N intervalos e cancela em
+   todos. Com o limite de 120 da R-005, um clique alcança 120 janelas.
+
+E nada disso deixa rastro: não há histórico, não há autoria registrada, não há
+como desfazer. A R-014 pede as três coisas explicitamente.
+
+**Por que ninguém viu antes:** o caminho é legítimo e o nome do campo é honesto —
+"cancelar conflitos" é o que a pessoa quer quando marca férias. O que não está
+escrito em lugar nenhum é que ele também apaga o valor e que não olha a data.
+
+**Correção — decidida em 2026-08-15, e é mais simples do que eu supunha.**
+
+A R-014 foi confirmada como **proibição**, não como aviso: criar bloqueio
+**nunca** cancela sessão. Isso muda o conserto de "cortar por `now()`" para
+**tirar o cancelamento de dentro do handler de bloqueio**:
+
+- `criar-bloqueio-handler` **recusa** quando há sobreposição, e devolve o dia e a
+  hora de cada sessão atingida para a pessoa resolver antes. O parâmetro
+  `cancelar_conflitos` deixa de existir nesse caminho.
+- **Cancelar sessões em massa vira ação separada**, da administração da clínica,
+  numa área de configurações avançadas — e essa sim exige as duas confirmações,
+  o corte por `now()`, e registro no histórico com autoria.
+
+Note que a proibição resolve os quatro problemas de uma vez, e por construção:
+sem cancelamento no caminho, não há zeramento de valor, não há alcance ao
+passado, e não há ação em massa acidental. O caminho destrutivo continua
+existindo — mas passa a ser escolhido de propósito, por quem tem autoridade, num
+lugar aonde ninguém chega sem querer.
+
+⚠️ **Ordem — e eu tinha escrito isto errado aqui.** Eu havia registrado que o
+histórico da R-010 vinha **antes** desta correção. Não vem, e a distinção importa
+porque estava segurando um defeito que zera dinheiro.
+
+A R-014 tem **duas** partes, e só uma precisa de histórico:
+
+| Parte | Precisa da R-010? |
+|---|---|
+| **recusar** o bloqueio sobre sessão marcada | **não** — não há ação a registrar; a ação destrutiva deixa de existir |
+| **cancelamento em massa** na área de configurações avançadas | **sim** — é ela que exige autoria, aviso e duas confirmações |
+
+A recusa é a que apaga o defeito, e ela está desimpedida. O que espera o
+histórico é a funcionalidade nova, que hoje não existe e não é urgente.
+
+🔧 **Designada em 2026-08-16** à `duna`, com **teste antes da correção** (D-008) —
+ver [0042](../mensageria/0042-orla-para-duna-a-005-e-a-006-o-teste-antes-da-correcao.md). Contrato da recusa, fixado para backend e front escreverem
+contra a mesma forma:
+
+```json
+409 { "erro": "…", "code": "session_conflict",
+      "sessoes": [{"id": "…", "data_hora_sessao": "…", "duracao": 50}] }
+```
+
+Só dia, hora e duração — é o que a R-014 pede. Sem nome de paciente: quem cria o
+bloqueio pode ser um secretário mexendo na agenda de outro psicólogo.
+
+✅ **Corrigida em 2026-08-16 pela `duna`** ([0046](../mensageria/0046-duna-para-orla-a005-a006-vermelhas-e-corrigidas.md)), com falha reproduzida antes:
+sessão futura sobreposta dava 201 e criava o bloqueio; sessão passada e
+`realizado` virava `cancelado` com `valor_consulta = 0.00`. Agora recusa com 409,
+e o booleano `cancelar_conflitos` saiu do handler — não cancela mais nada.
+Revisado pela `orla` em [0049](../mensageria/0049-orla-para-duna-e-vale-eu-errei-o-mecanismo-e-achei-a-007.md): aprovado, com dois limites a documentar
+(a checagem roda fora da transação, então não sobrevive a corrida; e o caminho
+feliz passou a fazer uma consulta por intervalo).
+
+---
+
+## 🔴 A-007 — Mudar duração ou psicólogo cria conflito sem passar por checagem
+
+**Viola:** [R-006](REGRAS_DE_NEGOCIO.md), confirmada em 2026-08-15
+**Onde:** `core.clj:871`, `atualizar-agendamento-handler`, no ramo de update simples
+**Achado em:** 2026-08-16, pela `orla`, revisando a correção da A-005. **É
+anterior a ela** — não foi introduzido pela correção.
+
+```clojure
+agendamento-conflitante (when (some? data_hora_sessao) ;; Só checa se estiver mudando horário/data
+                          (execute-one! [...]))
+```
+
+A checagem de conflito **só roda quando o corpo traz `data_hora_sessao`**. Mas o
+fim da sessão é calculado com os valores novos, venham eles de onde vierem:
+
+```clojure
+novo-duracao        (or duracao (:duracao agendamento-atual) 50)
+novo-psicologo-uuid (if psicologo_id (java.util.UUID/fromString psicologo_id) …)
+```
+
+Duas formas de criar sobreposição sem checagem nenhuma:
+
+- **esticar a `duracao`** de 50 para 180 sem tocar na data — a sessão invade a
+  seguinte;
+- **remanejar para outro psicólogo** que já tem sessão naquele horário.
+
+⚠️ Repare que o `bloqueio-existente`, calculado logo acima, **roda sempre**. Só a
+checagem de agendamento tem a condição — e o comentário ao lado dela diz *"por
+segurança checamos sempre que possível conflito"*, que é justamente o que ela não
+faz.
+
+**Alcance, conferido e não suposto:** o formulário do admin manda
+`data_hora_sessao` em toda submissão (o schema `zod` exige, e o e2e
+`edicao-nao-move-a-sessao` exercita esse caminho), então **pela tela de hoje não
+se alcança**. Pela API se alcança com um `PUT` de dois campos.
+
+**Por que isso não reduz a gravidade:** é o mesmo argumento da A-005 — *tela não
+é guarda, o campo está no corpo*. E o efeito é pior do que forçar conflito,
+porque **nem exige `force`**: a sobreposição nasce sem que ninguém peça permissão
+para criá-la, e a R-006 diz que criar conflito é privilégio da clínica.
+
+🔴 **A correção que estava escrita aqui era "calcular sempre, como já se faz com
+`bloqueio-existente`". Está errada, e eu troquei antes de mandar para a `duna`.**
+
+A R-006 **permite** que o admin force um conflito. Quando ele força, ficam duas
+sessões sobrepostas legitimamente, e a consulta de conflito exclui a própria
+(`id != ?`) — então cada uma enxerga a outra. Checar em **toda** atualização faria
+isto:
+
+| Ação nessas duas sessões | Hoje | Com "calcular sempre" |
+|---|---|---|
+| marcar como paga | 200 | **409** |
+| marcar como realizada | 200 | **409** |
+| cancelar uma delas | 200 | **409** |
+
+A sessão que o admin forçou de propósito viraria registro **impossível de
+editar**, inclusive para desfazer o conflito — e o 409 diria "já existe um
+agendamento neste horário", que é verdade e não ajuda, porque ninguém está
+mexendo no horário. **Seria pior do que a A-007:** trocaria uma porta que quase
+ninguém acha por um travamento no caminho do dinheiro (R-007), disparado por um
+recurso que a regra permite.
+
+**Correção certa — checar quando o intervalo ou o dono mudam:**
+
+```clojure
+agendamento-conflitante (when (or (some? data_hora_sessao)
+                                  (some? duracao)
+                                  (some? psicologo_id))
+                          (execute-one! [...]))
+```
+
+São exatamente os três campos que entram em `novo-data`, `novo-fim` e
+`novo-psicologo-uuid`. Pagamento, repasse, observação e status não mexem em
+ocupação de agenda e não devem ser barrados por conflito que já existia.
+
+**Regra em uma frase:** a checagem guarda **quem ocupa qual intervalo** — dispara
+quando o intervalo ou o dono mudam, nunca quando muda o dinheiro.
+
+🧪 **Teste antes, pela D-008 — e um deles é o guarda da regressão acima:**
+`PUT` só com `duracao` maior sobre sessão vizinha deve dar 409 (hoje dá 200);
+idem trocando só `psicologo_id`; e **`PUT` só com `status_pagamento` numa sessão
+que o admin forçou sobre outra tem que continuar 200**.
+
+🔧 **Designada em 2026-08-16** à `duna`, autorizada pelo Gabriel — ver
+[0050](../mensageria/0050-orla-para-duna-a-007-autorizada-e-a-correcao-obvia-quebra-outra-coisa.md).
+
+✅ **Corrigida no mesmo dia** ([0058](../mensageria/0058-duna-para-orla-a-007-vermelha-e-corrigida.md)), com os dois vermelhos reproduzidos antes —
+`PUT` só com `duracao` maior e `PUT` só com `psicologo_id` davam **200**. A
+condição virou `(or data_hora_sessao duracao psicologo_id)`, e os dois testes de
+regressão **já passavam no vermelho**, que é a prova de que o 409 não foi comprado
+estragando o lado permitido. 99 testes / 339 asserções. Revisada em [0060](../mensageria/0060-orla-para-duna-a-007-aprovada-e-a-armadilha-chegou-pela-outra-porta.md).
+
+⚠️ **Mas o teste-guarda que a `orla` especificou não alcança a tela — ver A-011.**
+
+⚠️ **Duas coisas ficam de fora, e são do Gabriel, não da correção:**
+
+1. Depois disto o admin poderá **criar** sobre conflito e não poderá **mover**
+   para cima de um — `force` não existe no caminho de atualização. Assimetria
+   real; acrescentar `force` ao update é comportamento novo.
+2. O `bloqueio-existente` roda sempre e tem a mesma armadilha em teoria — sessão
+   nascida dentro de bloqueio antigo ficaria travada. Com a A-006 corrigida o
+   caso só existe em dado legado.
+
+---
+
+## 🔴 A-009 — A R-006 descreve três passos, e o terceiro não existe na interface
+
+**Relacionado a:** [R-006](REGRAS_DE_NEGOCIO.md), confirmada em 2026-08-15
+**Achado em:** 2026-08-16, pela `vale`, escrevendo o e2e do 403 ([0057](../mensageria/0057-vale-para-orla-o-403-fechado-e-o-admin-sem-tela-para-forcar.md))
+**Conferido pela `orla`** ([0059](../mensageria/0059-orla-para-vale-o-achado-e-maior-do-que-um-botao-faltando.md)), lendo os dois `actions.ts`
+
+A R-006 descreve um fluxo de três passos: a psicóloga tenta, é recusada com um
+modal pedindo que procure a gestão, **e a gestão força**. O terceiro passo não
+tem tela.
+
+| Arquivo | Manda `force`? | Escolhe o psicólogo? |
+|---|---|---|
+| `src/app/(app)/calendar/actions.ts` | **sim** | **não** — `psicologo_id: userId`, linhas 64 e 121 |
+| `src/app/admin/agendamentos/actions.ts` | **não** — nenhuma ocorrência | **sim** — o schema exige `psicologo_id` |
+
+> **O botão de forçar existe na tela de quem não pode, e falta na tela de quem
+> pode.**
+
+O admin escolhe de quem é a sessão mas não tem como forçar; a psicóloga tem o
+botão de forçar mas só alcança a própria agenda — e, depois da A-005, leva 403.
+
+⚠️ **Não foi a correção da A-005 que quebrou isto.** Antes dela o `force`
+funcionava para qualquer um: a capacidade existia, nas mãos erradas. A correção
+pôs nas mãos certas e revelou que as mãos certas nunca tiveram alavanca.
+
+🔴 **Decisão do Gabriel, não de código.** As saídas: (a) construir o forçar no
+módulo do admin — o menor caminho e o que casa com a regra como ele a confirmou;
+(b) aceitar que ninguém força, o que contradiz a R-006; (c) revogar o conceito de
+forçar e a psicóloga sempre remarca.
+
+✅ **O que já está coberto:** `somente-admin-pode-forcar-conflito`, em
+`agendamentos_test.clj`, assere os dois lados no mesmo teste — 403 com contagem
+intacta para o psicólogo, 201 com contagem+1 para o admin. A autorização está
+certa e provada; o que falta é o caminho da tela.
+
+⚠️ **Vizinho anotado, de outra natureza:** `psicologo-valido?` em `core.clj` só
+confere que o usuário existe **na clínica**, não que ele tem papel `psicologo`.
+Uma sessão pode acabar atribuída a um admin ou secretário. Latente e de baixa
+gravidade hoje; entra na conversa se a saída (a) for escolhida.
+
+---
+
+## 🟡 A-010 — "Voltar e ajustar" devolve o formulário zerado
+
+**Achado em:** 2026-08-16, pela `orla`, respondendo a uma pergunta da `vale` ([0057](../mensageria/0057-vale-para-orla-o-403-fechado-e-o-admin-sem-tela-para-forcar.md))
+**Onde:** `src/app/(app)/calendar/CalendarClient.tsx`, formulário de bloqueio
+
+```tsx
+<Dialog open={isBlockDialogOpen} …>
+  <form action={handleCreateBlock}>
+    <input name="data_inicio" type="datetime-local"
+           defaultValue={newAppointmentDate ? paredeParaInput(newAppointmentDate) : ""} />
+```
+
+Os campos de data são **não controlados** (`defaultValue`, não `value`), dentro
+de um `Dialog` do Radix **sem `forceMount`**. Fechar o diálogo desmonta o
+conteúdo; reabrir remonta a partir do `defaultValue`, que vem do slot original —
+não do que a pessoa digitou.
+
+O botão da recusa diz **"Voltar e ajustar"** e reabre o diálogo de bloqueio. Ele
+promete continuar de onde parou e entrega folha em branco.
+
+⚠️ **Isto é leitura de código, não clique** — coerente com o padrão do Radix, mas
+não foi medido.
+
+✅ **E o alcance é menor do que a primeira redação sugeria — correção da `vale`,
+2026-08-16.** O diálogo equivalente do **admin** faz a mesma coisa e **sobrevive**:
+
+| Tela | Campo | Controlado? | Sobrevive ao fechar? |
+|---|---|---|---|
+| `admin/agendamentos` | `value={blockStart} onChange={…}` | **sim** | **sim** — o estado mora no componente pai, não no DOM que o Radix desmonta |
+| `(app)/calendar` | `defaultValue={…}` | não | **não** |
+
+**A A-010 é só do calendário.** E a diferença entre as duas telas é o melhor
+argumento que existe de que o diagnóstico está certo: é o mesmo diálogo, fazendo
+o mesmo trabalho, com e sem controle — **grupo de controle natural**, mais forte
+do que um e2e teria sido.
+
+🧪 O lado do admin ganhou **guarda** em `bloqueio-sobre-sessao.spec.ts`: trocar
+`value` por `defaultValue` "para simplificar" é uma linha, e sem a asserção
+ninguém veria.
+
+**Por que é defeito e não violação da R-014:** a regra manda mostrar as sessões
+"para a pessoa resolver **antes**", e resolver é sair dali, remarcar as sessões e
+voltar depois — nesse caminho perder o formulário é irrelevante. **O defeito é a
+promessa do botão**, numa tela cujo assunto é justamente não perder o caminho de
+volta.
+
+**Correção:** controlar os dois inputs por estado, ou `forceMount` no conteúdo.
+Teste antes: digitar um período, levar o 409, clicar em "Voltar e ajustar", e o
+período tem que continuar lá.
+
+---
+
+## 🟠 A-014 — O modo de pagamento automático é global, invisível e sem volta
+
+**Achado em:** 2026-08-16, pela `orla`, procurando os caminhos que escrevem dinheiro
+**Onde:** `core.clj`, `sincronizar-status-global!`, chamada no boot depois de `migrar!`
+
+⚠️ **Este achado foi reclassificado no mesmo dia, e o registro fica.**
+
+A primeira redação dizia que o job "inventa que o paciente pagou" e o tratava
+como o pior defeito do projeto. **O Gabriel corrigiu: marcar automaticamente é
+funcionalidade pedida pela CEO** — a equipe cuida só das exceções, o que é mais
+fácil com muita demanda e pouca gente. Virou a **[R-022](REGRAS_DE_NEGOCIO.md)**.
+
+📌 **A lição do erro vale mais que o erro:** eu li um comportamento não escrito em
+lugar nenhum e concluí "defeito", quando a leitura certa era "regra que ninguém
+me contou". É exatamente o que o oráculo existe para evitar, e eu caí nisso
+justamente no dia em que o oráculo ficou completo. **Comportamento sem regra
+correspondente é pergunta, não veredito.**
+
+### O que continua sendo defeito, e não depende da funcionalidade
+
+**1. 🔴 Nenhum dos dois `UPDATE` filtra por `clinica_id`.**
+
+```sql
+UPDATE agendamentos SET status_pagamento = 'pago'
+ WHERE data_hora_sessao < ? AND status != 'cancelado' …
+```
+
+Atravessa **todas as clínicas**. Mesmo sendo funcionalidade desejada, ela é um
+**modo** — e modo se liga por clínica. Hoje uma clínica que nunca pediu recebe o
+comportamento de outra. É a invariante que o `isolamento_test` prova para os
+handlers, furada por um job que não passa por handler nenhum.
+
+**2. 🔴 A marca automática é indistinguível da manual.** `status_pagamento =
+'pago'` fica igual, tenha vindo de um clique ou do job. Isso quebra a própria
+premissa da R-022: *"se der falha é falha humana"* só é justo **se a pessoa
+conseguir ver e corrigir**. Sem distinguir, não dá para revisar o que o sistema
+assumiu nem desfazer.
+
+**3. 🟠 Não há como desligar.** Não existe flag em `clinicas` — o modo está ligado
+para todo mundo, sempre, desde a baseline.
+
+**4. 🟠 Roda no boot.** O fechamento do mês passa a acontecer quando alguém faz
+deploy: sem deploy numa semana, nada é marcado; com três deploys num dia, roda
+três vezes. Pela [D-012](../mensageria/DECISOES.md) o Render implanta `main`
+continuamente, então a frequência é acidental.
+
+### Correção
+
+`clinicas.pagamento_automatico BOOLEAN NOT NULL DEFAULT false` — o modo passa a
+ser escolha, e nasce desligado. O job filtra por clínica onde a flag está ligada.
+
+A origem da marca fica registrada, para (2): a coluna `origem` já existe em
+`agendamentos` desde a baseline, mas é sobre a origem do **agendamento**
+(plataforma/Google). Precisa de uma própria para o pagamento — `manual` ou
+`automatico` — senão a tela não consegue separar o que a R-022 manda separar.
+
+🧪 **Teste antes, pela D-008:** duas clínicas com sessão passada `pendente`, uma
+com o modo ligado e outra sem. Só a primeira pode virar `pago`. Hoje as duas
+viram.
+
+⚠️ **Por que os 99 testes não pegaram:** eles sobem o *handler*, não a aplicação —
+o `-main` nunca roda na suíte. Mesma família da lição da A-012, onde tudo rodava
+como admin.
+
+🔴 **E fica uma pergunta de dado, não de código:** o modo rodou para todas as
+clínicas até hoje, sem distinguir a marca.
+
+✅ **Respondida em [PAGAMENTO_AUTOMATICO](PAGAMENTO_AUTOMATICO.md), e a resposta é
+não tentar adivinhar.** Procurei pista no dado e não há: `agendamentos` não tem
+`updated_at` (só `data_registro`, que é criação), e `origem_ultima_alteracao`
+existe como coluna e **nenhum código escreve nela**. Então o passado inteiro
+entra como **`desconhecido`** — não `manual`, que inventaria autoria humana, nem
+`automatico`, que acusaria o job de linhas que alguém marcou de verdade.
+
+💡 **E pela [D-012](../mensageria/DECISOES.md) isso custa zero hoje**, porque não
+há dado real. A mesma migration daqui a seis meses cria uma pilha que alguém
+teria que reconciliar contra extrato.
+
+---
+
+## ✅ A-012 — `papel_permissoes` tem UMA linha, e psicóloga não usa o sistema — **FECHADA em 2026-08-19**
+
+**Achado em:** 2026-08-16, pela `orla`, investigando o CI vermelho de `e508ef4`
+**Descoberto por:** o e2e do 403 da `vale`, na **primeira execução** dele
+**Gravidade:** 🔴 **bloqueador de lançamento**, e maior do que os outros achados
+do dia — os outros são caminhos que falham; este é o produto não funcionando.
+**Fechada por:** `duna`, em `20260817090000-permissoes-papeis.up.sql`
+**Confirmada em:** 2026-08-19, por três medições independentes
+
+---
+
+### ✅ Como o fechamento foi provado, e por que três medições
+
+O diagnóstico original continua abaixo, **inteiro e sem edição**, porque ele
+descreve um estado real que existiu. O que mudou é o mundo, não o texto.
+
+| medição | quem | o que mostrou |
+|---|---|---|
+| DOM na hora da falha (`error-context.md`) | `vale` | `combobox: Paciente E2E` — a psicóloga **recebeu** paciente |
+| SQL da migration que roda no CI | `orla` | os quatro grants de `psicologo` existem |
+| `Expected to fail, but passed` (run `32260687532`) | o próprio CI | o teste da R-006 passa inteiro, em 7,1 s e 6,7 s |
+
+📌 **A guarda cumpriu a promessa que este documento fez.** O parágrafo no fim
+desta seção dizia: *"no dia em que as permissões forem concedidas ele passa e o
+CI fica vermelho, avisando que a marcação deve sair."* Foi exatamente o que
+aconteceu — e o `test.fail()` saiu no commit que fecha esta linha.
+
+⚠️ **O aviso chegou dois dias atrasado, e a causa importa mais que o atraso.** As
+permissões entraram em **17/08**; o alarme só tocou em **19/08**. No meio havia
+um seletor quebrado (`/^novo$/i` contra um botão renomeado para "Nova sessão"),
+e como `test.fail()` **absorve qualquer morte**, o ✘ diário vinha sendo lido como
+"a A-012 continua aberta". A guarda automática valia o que valia o instrumento
+embaixo dela — e ninguém olhava o instrumento porque o resultado era o esperado.
+
+> 🔴 **A lição que fica é essa, e ela é maior que a A-012:** *um sinal que você
+> já espera ver deixa de ser lido.* Uma guarda de "falha esperada" precisa de uma
+> data de revisão, ou ela vira ruído com carimbo de aprovação.
+
+### 🔴 O que este fechamento NÃO resolve
+
+**1. As quatro perguntas abaixo continuam sem resposta do Gabriel.** A matriz que
+a `duna` aplicou responde as quatro **na prática** — psicóloga cria paciente,
+marca sessão e escreve prontuário; secretário não escreve prontuário nem marca
+pagamento. Isso destravou o produto, e destravar era urgente. Mas foi uma
+instância decidindo **regra de negócio**, que é justamente o que a seção "Por que
+a correção não é minha" dizia para não fazer.
+
+📌 Não estou desfazendo: está no ar, está testado, e é razoável. Estou
+registrando que **é uma decisão pendente de ratificação**, não uma decisão
+tomada. Se o Gabriel discordar de qualquer uma das quatro, o conserto é uma
+migration nova — barato. O caro seria ninguém nunca perguntar.
+
+**2. O SEC-006 continua de pé.** O bypass de `admin_clinica` em
+`wrap-checar-permissao` segue no código. O que mudou é o acoplamento: derrubar o
+bypass **não derruba mais a psicóloga junto**, porque agora ela tem grants
+próprios. Antes, remover o bypass deixava o sistema sem nenhum usuário
+funcional — era esse o pânico registrado abaixo, e ele acabou.
+
+**3. Nada disso foi medido contra o banco de produção.** Continua valendo o que o
+texto abaixo diz: não temos acesso para conferir se lá os grants existem. O CI
+mede uma base recém-migrada, que é o caso de **clínica nova** — e esse caso,
+sim, nasce funcionando agora.
+
+---
+
+### 📜 O diagnóstico original, preservado
+
+### O que o CI mostrou
+
+```
+✘ e2e/forcar-e-privilegio-da-clinica.spec.ts › forçar como psicóloga …
+  Test timeout of 120000ms exceeded.
+  waiting for getByRole('option', { name: 'Paciente E2E' })
+```
+
+O teste trava **antes** do 403 que ele queria provar: a psicóloga abre o
+formulário e **não há paciente nenhum para escolher**.
+
+### A causa, medida nas migrations
+
+`papel_permissoes` recebe **uma única linha em todo o schema**:
+
+```sql
+-- 20260811100200-google-integracao.up.sql
+INSERT INTO papel_permissoes (papel_id, permissao_id)
+SELECT p.id, per.id FROM papeis p, permissoes per
+ WHERE p.nome_papel = 'admin_clinica'
+   AND per.nome_permissao = 'gerenciar_integracao_google'
+```
+
+A baseline **cria** as sete permissões e os três papéis, e **não concede nenhuma
+a ninguém**. O provisionamento de clínica também não — ele cria clínica e admin,
+e só.
+
+E o `wrap-checar-permissao` só perdoa um papel:
+
+```clojure
+(if (= role "admin_clinica")
+  (handler request)          ;; bypass
+  ;; qualquer outro papel: consulta papel_permissoes, que está vazia
+  … {:status 403 …})
+```
+
+### O alcance é o produto inteiro
+
+**Toda** rota clínica é checada por permissão. Para `psicologo` e `secretario`,
+todas devolvem **403**:
+
+| Rota | Permissão exigida |
+|---|---|
+| `GET/POST/PUT/DELETE /api/pacientes*` | `visualizar_pacientes`, `gerenciar_pacientes` |
+| `POST/PUT/DELETE /api/agendamentos*` | `gerenciar_agendamentos_clinica` |
+| `/api/pacientes/:id/prontuarios*` | `visualizar_pacientes`, `gerenciar_prontuarios` |
+| `/api/usuarios*` | `gerenciar_usuarios` |
+| `/api/psicologos` | `visualizar_todos_agendamentos` |
+
+**Numa base recém-migrada, psicóloga não lista paciente, não cria sessão e não
+escreve prontuário.** O sistema só responde ao admin, e só pelo bypass.
+
+🔴 **E o bypass é temporário por decisão nossa.** O comentário da própria
+migration do Google diz: *"Não depender do bypass global de admin, que SEC-006
+vai remover."* No dia em que o SEC-006 rodar, **o admin cai junto** e ninguém
+entra.
+
+⚠️ **Por que isso não aparece hoje:** o banco de produção foi criado antes e pode
+ter grants inseridos à mão — não temos acesso para conferir. Mas o plano do
+produto é **vender para várias clínicas**, e cada clínica nova nasce de
+`migrate` + provisionamento. Toda clínica nova nasce quebrada.
+
+### Por que a correção não é minha
+
+Quais permissões cada papel recebe é **regra de negócio**, não detalhe de
+implementação — e já há regra confirmada mexendo nisso: a **R-007** diz que só o
+admin marca pagamento, a **R-012** diz que prontuário é do autor. Escolher o
+resto no código seria inventar regra, que é o que este projeto existe para não
+fazer.
+
+**Perguntas que só o Gabriel responde:**
+
+1. A psicóloga cria e edita **paciente**, ou só a clínica cadastra?
+2. A psicóloga marca e desmarca sessão na própria agenda? (o nome da permissão é
+   `gerenciar_agendamentos_clinica`, o que sugere que não era para ela)
+3. O que o **secretário** faz? Ele aparece na D-009 e na R-006 e nunca teve
+   permissão nenhuma.
+4. O `visualizar_todos_agendamentos` — quem vê a agenda dos outros?
+
+🧪 **A guarda já está no lugar, e ela se apaga sozinha.** O teste da `vale` ficou
+marcado com `test.fail()`: continua rodando a cada push, e **no dia em que as
+permissões forem concedidas ele passa e o CI fica vermelho**, avisando que a
+marcação deve sair. Não é `skip`: não há silêncio.
+
+> ✅ **E foi assim que terminou.** Em 19/08 o CI reportou `Expected to fail, but
+> passed` e a marcação saiu. A promessa deste parágrafo era boa; o que faltou foi
+> alguém conferir, nos dois dias anteriores, se o instrumento embaixo dela ainda
+> media alguma coisa. Ver o bloco de fechamento no topo desta seção.
+
+---
+
+## 🔴 A-011 — A guarda da A-007 protege a API e não protege a tela
+
+**Achado em:** 2026-08-16, pela `orla`, revisando a correção da A-007 ([0060](../mensageria/0060-orla-para-duna-a-007-aprovada-e-a-armadilha-chegou-pela-outra-porta.md))
+**Amarrada à:** **A-009** — as duas não podem ser resolvidas separadas
+
+O teste-guarda que a `orla` exigiu na [0050](../mensageria/0050-orla-para-duna-a-007-autorizada-e-a-correcao-obvia-quebra-outra-coisa.md) manda **um campo só**:
+
+```clojure
+(atualizar (:id forcada) {:status_pagamento "pago"})   ;; -> 200 ✅
+```
+
+Mas o formulário do admin manda tudo, sempre. O `agendamentoSchema` de
+`src/app/admin/agendamentos/actions.ts` **exige** os dois campos que disparam a
+checagem:
+
+```ts
+psicologo_id:      z.string().uuid({ … }),
+data_hora_sessao:  z.string().min(1, { … }),
+```
+
+Então, para duas sessões que um admin sobrepôs com `force`, **editar qualquer uma
+delas pela tela dá 409** — inclusive para marcar pagamento, que é exatamente o
+caso que o teste jurava proteger. A guarda passa no backend e a pessoa bate na
+parede na interface.
+
+⚠️ **É anterior à correção da A-007.** Antes dela a checagem já rodava
+`when (some? data_hora_sessao)` e a tela já mandava sempre a data. Nada foi
+introduzido; o que houve foi a `orla` declarar protegido o que não estava.
+
+🟡 **Latente hoje, e por um motivo que não é conforto:** pela **A-009** o admin
+não tem tela para forçar. Sem tela para criar a sobreposição, não existe par de
+sessões forçadas para ficar preso.
+
+🔴 **E é por isso que as duas andam juntas:** no dia em que o botão de forçar for
+construído para o admin — a saída (a) recomendada na A-009 —, as sessões que ele
+criar nascem **impossíveis de editar pela tela**. O botão novo produziria
+registros travados.
+
+**Correção, quando a A-009 for decidida:** a tela do admin mandar só o que mudou,
+ou o backend comparar o valor recebido com o gravado e só checar quando houver
+diferença de fato. A segunda é mais robusta — não depende de disciplina do
+cliente, que é o argumento da A-005 outra vez.
+
+---
+
+## 🟡 A-008 — Horário de verão do espectador fura o truque da parede
+
+**Relacionado a:** [D-010](../mensageria/DECISOES.md) e [R-016](REGRAS_DE_NEGOCIO.md)
+**Achado em:** 2026-08-16, pela `orla`, revisando o front das guardas ([0054](../mensageria/0054-orla-para-vale-remocao-aprovada-e-um-limite-de-horario-de-verao.md))
+
+⚠️ **Latente, não alcançável hoje.** As duas dependem de o **espectador** estar
+num fuso com horário de verão. O Brasil não tem DST desde 2019 e toda a clínica
+está no Rio. A **R-016** diz que psicólogo em outro país é plano — é aí que
+acordam.
+
+### (a) Somar duração em milissegundos sobre um `Date` de parede
+
+`src/lib/conflitos.ts`, `descreveSessaoEmConflito`:
+
+```ts
+const fim = new Date(inicio.getTime() + (sessao.duracao ?? 50) * 60 * 1000);
+```
+
+`inicio` é um `Date` **local** carregando os componentes de parede da clínica —
+é assim que o `paredeDaClinica` funciona, e os getters locais devolvem a parede
+certa. Mas somar tempo **real** e ler getters locais só dá "parede + duração" se
+o relógio local não virar no meio. Com transição de DST dentro da janela da
+sessão, a tela mostra a sessão terminando uma hora depois do que ela termina.
+
+**Correção preferida:** o backend manda o fim junto, em vez de o front derivá-lo.
+Mexe no contrato `session_conflict`, que tem teste fixando o conjunto exato de
+chaves — então as duas coisas mudam na mesma conversa, não uma agora e outra
+depois.
+
+### (b) O próprio `paredeDaClinica`, e este é o do modelo
+
+`src/lib/datetime.ts`:
+
+```ts
+return new Date(c.ano, c.mes - 1, c.dia, c.hora, c.min, c.seg);
+```
+
+Quando a parede da clínica cai numa hora que **não existe** no fuso de quem olha
+— a hora que o DST pula — o JavaScript normaliza para frente em silêncio e
+`getHours()` devolve outra hora. Quando cai na hora **repetida**, escolhe uma das
+duas.
+
+**Isto é limite da técnica que a D-010 adotou**, não defeito de quem a escreveu:
+uma zona cega de uma hora por ano, por fuso de espectador. Está registrado aqui
+para não ser redescoberto por alguém em Lisboa daqui a um ano.
+
+💡 O e2e do 403/409 que está na fila da `vale` mata a dúvida de (a) de graça, se
+o bloco fixar o fuso do navegador num que tenha DST.
+
+---
+
+## 🔴 1. O contrato de datas foi aplicado pela metade
+
+**Onde:** `src/app/admin/agendamentos/**` (4 arquivos)
+**Como achei:** `lib/datetime.ts` é importado por exatamente **dois** arquivos —
+`(app)/calendar/CalendarClient.tsx` e `(app)/calendar/WeekView.tsx`.
+
+O `lib/datetime.ts` foi criado justamente para ser o único lugar que traduz
+horário de parede ↔ instante, depois do bug de 3 horas. Ele cobriu o calendário
+do psicólogo. **O módulo de agendamentos do admin não foi migrado** e continua
+fazendo data na mão.
+
+`EditarAgendamentoForm.tsx`, linhas 100–103:
+
+```ts
+const date = new Date(dateString);
+const offset = date.getTimezoneOffset() * 60000;
+const localISOTime = (new Date(date.getTime() - offset)).toISOString().slice(0, 16);
+```
+
+Isso renderiza o instante **no fuso do navegador**. O backend agora grava
+`TIMESTAMPTZ` com semântica de São Paulo. Enquanto o navegador estiver em
+`America/Sao_Paulo`, coincide e ninguém percebe. Fora disso, diverge.
+
+E o caminho de escrita do mesmo módulo está certo — `actions.ts` linha 70 manda
+horário de parede, que é o contrato. Então **ida e volta discordam entre si**: o
+formulário mostra uma hora convertida pelo fuso do navegador e salva a hora
+literal do input.
+
+**Por que é o pior da lista:** correção pela metade é mais perigosa do que
+correção nenhuma. O bug foi dado como resolvido, os testes do calendário passam,
+e a tela de edição do admin continua com o defeito original. Quem olhar o
+histórico conclui que está fechado.
+
+🔴 **Corrigido para pior em 2026-08-15: isto é defeito de ESCRITA, não de
+exibição** — medido pela `vale` (Claude local) em 2904 casos × 8 fusos, e
+reproduzido pela `orla` por caminho próprio.
+
+A leitura converte para o fuso do navegador; a escrita manda o literal do input,
+que o backend lê como São Paulo. Abrir a tela de edição e clicar **Salvar sem
+tocar na data** desloca a sessão:
+
+| Fuso do navegador | Form mostra | Grava | Desloca |
+|---|---|---|---|
+| `America/Sao_Paulo` | 14:00 | 14:00 | +0h |
+| `America/New_York` | 13:00 | 13:00 | −1h |
+| `UTC` | 17:00 | 17:00 | +3h |
+| `Europe/Lisbon` | 18:00 | 18:00 | +4h |
+| `Asia/Tokyo` | 02:00 | 02:00 do dia seguinte | **+12h e vira o dia** |
+
+Mesma família da A-001: corrupção silenciosa, sem aviso e sem confirmação. A
+diferença é que a A-001 precisava de "a série toda" e esta precisa de um
+psicólogo em viagem abrindo a agenda.
+
+🟠 **A migração para o contrato foi feita e não corrige nada.** `paraInputLocal`
+é logicamente idêntico ao código que substituiu — os dois usam
+`getTimezoneOffset()`, e a própria docstring dele diz "no fuso do navegador".
+Preservar comportamento é o que se quer de um refactor; aqui significa que o
+defeito atravessou intacto.
+
+**A correção de verdade** é renderizar no fuso da **clínica**, o que mexe no
+`lib/datetime.ts` compartilhado com o calendário do psicólogo — Fase 2.
+Recomendação da `orla` ao Gabriel: corrigir o módulo inteiro, calendário junto,
+agora que a Fase 2 destravou. Corrigir só o admin criaria duas semânticas de
+data no mesmo app, o que é pior que o erro uniforme de hoje.
+
+**Ainda não medido:** o `value` do `<input>` num DOM real. O formulário não vem
+no HTML do SSR e não há Chromium para `aarch64`. A prova é no nível da função; a
+ligação com a tela foi conferida por leitura.
+
+---
+
+## 🔴 2. O guarda de rotas falha aberto
+
+**Onde:** `src/middleware.ts`
+
+A proteção é uma allowlist por prefixo:
+
+```ts
+if (pathname.startsWith('/admin')) { ... }
+const appRoutes = ['/dashboard', '/calendar', '/patients'];
+```
+
+Rota que não casa com nenhum dos dois cai em `NextResponse.next()` — **liberada,
+sem token**. Não é hipótese: `/settings` já está nessa situação hoje.
+
+Hoje não vaza nada, porque `/settings` é placeholder com `useState` e um toast
+"Configurações Salvas (Simulado)". O problema é a regra: **toda rota nova nasce
+desprotegida**, e o redesign vai criar rotas.
+
+**Correção certa:** inverter para negar por padrão — lista o que é público
+(`/`, `/login`, `/admin/login`) e exige sessão em todo o resto. Assim rota nova
+nasce fechada e o erro possível vira "esqueci de liberar", que aparece na hora,
+em vez de "esqueci de proteger", que não aparece nunca.
+
+---
+
+## 🟠 3. `core.clj` com 1492 linhas
+
+37% do backend em um arquivo: configuração, JWT, middlewares, e os handlers de
+usuários, pacientes, psicólogos, agendamentos, bloqueios, financeiro,
+prontuários e provisionamento — mais as rotas e o `-main`.
+
+O padrão bom já existe no próprio projeto e foi aberto nesta rodada: `tempo`,
+`dominio`, `limites`, `db`, `google/*` são namespaces coesos e testados
+isoladamente. O `core.clj` é o que sobrou de antes.
+
+Corte natural, seguindo o que já está lá:
+
+| Namespace | O que leva |
+|---|---|
+| `auth` | JWT, `wrap-jwt-autenticacao`, `wrap-checar-permissao`, login |
+| `pacientes` | CRUD de pacientes |
+| `psicologos` | CRUD de psicólogos e usuários |
+| `agendamentos` | criação, recorrência, conflito, os três modos de edição |
+| `financeiro` | pagamento, repasse, transferências em lote |
+| `prontuarios` | CRUD de prontuários |
+| `provisionamento` | clínica + admin |
+| `core` | só composição: rotas, middlewares, `-main` |
+
+---
+
+## 🟠 4. Nenhuma listagem tem paginação
+
+51 `SELECT` no `core.clj`, **zero** `LIMIT`. Toda listagem devolve a tabela
+inteira da clínica: pacientes, agendamentos, prontuários, financeiro.
+
+Com os índices que entraram no PR #7, a consulta ficou rápida. O que não mudou é
+o volume trafegado e renderizado — uma clínica com anos de histórico devolve
+tudo em toda tela. É o próximo gargalo, e já estava registrado na auditoria de
+agosto.
+
+---
+
+## 🟠 5. Instrumentação de depuração no caminho quente
+
+**20 `println "DEBUG"`** no backend e **31 `console.log`** no front.
+
+O caso pior é `listar-psicologos-handler` (`core.clj` ~348): antes da consulta
+real ele dispara **cinco consultas extras que só existem para imprimir** —
+inclusive `SELECT id FROM clinicas`, que lista o identificador de **todas as
+clínicas da plataforma** no log, e um `COUNT(*) FROM usuarios` sem filtro.
+
+⚠️ **Não é vazamento entre clínicas.** Conferi: a resposta vem da consulta final,
+que filtra por `clinica_id`. O que vaza é para o **log** — e log agregado costuma
+ter mais leitores do que a API.
+
+---
+
+## 🟡 6. Dois componentes de 1306 linhas
+
+`FinanceiroClient.tsx` e `CalendarClient.tsx`, ambos com 1306 linhas, e
+`AgendamentosClient.tsx` com 709. São os arquivos que o redesign vai tocar
+primeiro. Redesenhar em cima deles é caro; quebrá-los antes é o que torna o
+redesign viável.
+
+---
+
+## 🟡 7. Token expirado manda o psicólogo para a porta do admin
+
+`middleware.ts`: quando o `backendToken` expira, o redirecionamento é
+`/admin/login` — para qualquer papel. Psicólogo com sessão vencida cai numa tela
+de login administrativa. Existem duas portas (`/login` e `/admin/login`) e o
+tratamento de expiração só conhece uma.
+
+No mesmo bloco há um ramo morto: `if (role === 'admin_clinica')` dentro de um
+`if` que já excluiu `admin_clinica`. Inofensivo, mas indica que a regra foi
+editada sem releitura.
+
+---
+
+## O que está bom, e não deve entrar no refactor
+
+Vale registrar para ninguém "arrumar" o que já está certo:
+
+- **Isolamento entre clínicas.** Amostrei prontuários e psicólogos: a guarda
+  filtra por `clinica_id` antes de qualquer escrita, o `update!` repete o filtro,
+  e prontuário ainda checa autoria. Os `SELECT * WHERE id = ?` que aparecem sem
+  filtro são releituras **depois** da guarda passar. Disciplinado.
+- **Migrations.** Versionadas, com `.down.sql` testados nos dois bancos, dentro
+  de transação. Ver D-001.
+- **`tempo.clj`.** É o contrato de datas do backend e está correto e testado. O
+  problema do item 1 é o front que não o acompanhou.
+- **A suíte.** 65 testes / 245 asserções contra banco real, mais 11 de navegador.
+  É o que torna o refactor possível.
+
+---
+
+## Plano
+
+### Fase 0 — CI (**pré-requisito, não paralelo**)
+
+Não existe CI (OPS-006). Refatorar 1500 linhas sem execução automática da suíte
+é fazer no escuro: o custo do erro não aparece no commit, aparece semanas depois.
+
+A suíte já está verde e já roda em três ambientes. Falta só amarrar. Precisa dos
+**dois** comandos de type check — `tsc` da aplicação e `npm run typecheck:e2e` —
+porque o `e2e` ficou fora do tsconfig da app.
+
+**Isto vem antes de qualquer refactor.**
+
+### Fase 1 — Fechar o que quebra
+
+**A-001, A-002 e A-003 primeiro** — violam regra de negócio confirmada, e as
+duas primeiras corrompem registro financeiro em silêncio.
+
+Depois os itens 1, 2 e 7: correções pequenas e de risco alto se ficarem.
+
+⚠️ **A-001 e A-002 precisam de teste antes da correção** ([D-008](../mensageria/DECISOES.md)): um que crie
+série com ocorrência passada paga, edite pelos dois modos e falhe hoje.
+
+### Fase 2 — Refactor estrutural
+
+Itens 3, 5 e 6, com a suíte rodando a cada passo. Namespace por namespace, um
+commit por extração, sem mudar comportamento.
+
+### Fase 3 — Redesign do front
+
+Depois da Fase 2, quando os componentes já estiverem quebrados em peças.
+
+### Fase 4 — Entrega
+
+Paginação (item 4) e o que o uso real mostrar.
+
+---
+
+## 🟠 A-015 — O artefato de produção não compila sem o segredo
+
+**Achado em:** 2026-08-17, **pelo CI**, na primeira vez que alguém tentou
+construir o artefato de produção · **Dono:** `duna`
+
+`core.clj:33` lê a configuração numa forma de topo, e lança se ela não existir:
+
+```clojure
+(def jwt-secret
+  (if-let [secret (env :jwt-secret)]
+    (do (println "JWT_SECRET carregada.") secret)
+    (do (println "ERROR: ...")
+        (throw (Exception. "FATAL: ... A aplicação será encerrada.")))))
+```
+
+`:aot :all` **compila** `core.clj`, e compilar um namespace em Clojure **executa
+as formas de topo dele**. Resultado: `lein uberjar` morre com o `FATAL` do
+runtime, e o artefato que vai para produção **não pode ser construído sem um
+segredo no ambiente de build**.
+
+### Por que isto é mais do que um incômodo de build
+
+📌 **Já havia um sintoma no repositório e ninguém tinha ligado os dois:** o
+`project.clj` carrega um `:test {:jvm-opts ["-Djwt-secret=segredo-apenas-para-teste"]}`
+com um comentário explicando que sem ele *"`lein test` morre inteiro — inclusive
+os testes que não têm nada a ver com JWT"*. É o **mesmo defeito**, visto pelo
+outro lado: configuração lida no carregamento do namespace contamina tudo que
+precisa carregá-lo — a suíte, a compilação, e amanhã qualquer ferramenta que
+faça `require`.
+
+⚠️ **E o remendo de hoje tem um risco que precisa ficar escrito.** O Dockerfile e
+o CI passam um `JWT_SECRET` de mentira só para compilar. Na imagem, isso vive
+**apenas no estágio de build** — o estágio de execução começa de outra imagem e
+não herda ENV. **Se algum dia alguém juntar os dois estágios, aquela linha vira
+segredo conhecido em produção.** É o mesmo formato da SEC-005: credencial fixa
+no código, esperando alguém mudar o contexto ao redor.
+
+### A correção, e o que ela NÃO pode custar
+
+Tirar a leitura do carregamento — `delay`, ou uma função que lê na primeira vez.
+
+🔴 **Mas não perca o "aborta o boot".** Hoje, sem `JWT_SECRET`, a aplicação **não
+sobe** — e isso é acerto: falha de implantação é barata, subir inseguro não é.
+Um `delay` puro trocaria isso por um 500 na primeira requisição, o que é pior.
+
+✅ **O desenho que preserva as duas coisas:** a leitura vira preguiçosa, **e**
+`-main` confere explicitamente antes de escutar a porta, saindo com código
+diferente de zero se faltar. Boot continua abortando, e compilar deixa de exigir
+segredo.
+
+📌 **Fecha um caso ao passar:** o `:test {:jvm-opts ...}` do `project.clj` deixa de
+ser necessário e sai junto — a gíria some quando o defeito que a exigia some.
+
+---
+
+## 🔴 A-016 — Rotacionar o `JWT_SECRET` põe todo mundo que estiver logado num laço
+
+**Achado em:** 2026-08-17, **pelo teste da A-013 da `vale`** · **Dono:** `vale`
+
+O 401 do backend faz o `carregar.ts` redirecionar para a porta de login. Mas a
+**sessão do NextAuth continua viva** — quem recusou foi o backend, e o NextAuth
+não sabe. Então `src/app/page.tsx:48`:
+
+```ts
+if (status === 'loading' || status === 'authenticated') {
+  return (<p>Login confirmado, redirecionando...</p>);   // o formulário não renderiza
+}
+```
+
+…manda de volta para `/dashboard`, que leva 401, que redireciona para `/`, que
+está `authenticated`. **Laço.** A saída existe — o botão *"Sair / Trocar Conta"*
+naquela tela — mas ninguém adivinha que aquilo é a saída.
+
+### Por que isto é 🔴 e não 🟡
+
+Não é hipótese: **é o que acontece na rotação do `JWT_SECRET`**, que está na lista
+da virada.
+
+Rotacionar o segredo **não muda o `exp` dos tokens já emitidos**. No instante
+seguinte, todo mundo logado tem token com **validade no futuro e assinatura
+inválida**:
+
+1. o `isBackendTokenExpired` do middleware olha só o `exp` → deixa passar;
+2. o backend confere a assinatura → **401**;
+3. o front redireciona para a porta de login → **`authenticated`** → volta.
+
+**Toda sessão aberta no momento da rotação entra no laço.** E como a rotação é
+justamente a primeira coisa da lista da virada, o defeito estaria esperando
+exatamente lá.
+
+📌 **O repositório já suspeitava, num comentário que ninguém tinha conectado.** No
+`middleware.ts`, na guarda do token vencido: *"O ideal aqui seria limpar o cookie
+de sessão, mas o middleware tem limitações. O redirecionamento força o usuário a
+logar novamente."* — **não força**, enquanto a sessão do NextAuth sobreviver.
+
+### A correção
+
+A porta de login trata `?expired=true` como *"esta sessão não vale"*: **não**
+auto-redireciona por `status === 'authenticated'`, chama `signOut({ redirect:
+false })` e mostra o formulário com o aviso.
+
+⚠️ **Nas duas portas.** O `portaDoPapel` manda admin para `/admin/login` e os
+demais para `/` — tratar só uma faz o admin cair no laço e a psicóloga não, que é
+pior do que as duas caírem, porque some da vista.
+
+✅ **O `carregar.ts` está certo e não deve mudar.** O achado é da camada de sessão,
+não da de carregamento.
+
+---
+
+## 🔴 A-017 — O secretário tem permissão no backend e **nenhuma tela**
+
+**Achado em:** 2026-08-17 pela `vale`, medindo logo depois da A-012 · **Dono:** `vale`
+
+A A-012 deu ao secretário as permissões de backend. E ele **não abre uma única
+tela** — seis de seis redirecionam:
+
+```
+/dashboard  /calendar  /patients  /settings   → 307 → /
+/admin/agendamentos  /admin/dashboard         → 307 → /admin/login
+```
+
+A causa é uma linha do `src/middleware.ts`:
+
+```ts
+if (role !== 'psicologo' && role !== 'admin_clinica') {
+  return NextResponse.redirect(new URL('/', request.url));
+}
+```
+
+📌 **Ela estava certa quando foi escrita.** Naquele dia `secretario` era papel sem
+permissão nenhuma — a lista estava vazia e ninguém sabia. **A linha ficou errada
+no instante em que a A-012 entrou**, e nenhum teste podia pegar isso, porque o
+defeito nasceu da correção de outro.
+
+### 🔴 Há laço, e ele é o mesmo da A-016 sem o gatilho que a conserta
+
+`/dashboard` → `/` → a porta de login vê `authenticated` e faz
+`router.push('/dashboard')` → o middleware manda de volta.
+
+⚠️ **A correção da A-016 não pega este caso**: lá o `signOut` dispara com
+`?expired=true`, e aqui não há parâmetro nenhum — a sessão é **válida**, o que
+falta é autorização de rota.
+
+### Limite honesto da medição, como a `vale` registrou
+
+Os **seis 307 estão medidos**. O **laço é leitura de código**: a segunda metade é
+client-side e o `curl` não roda JS, então ele para no primeiro salto.
+
+### Por que é 🔴 e não 🟠
+
+Bate direto no critério da [D-013](../mensageria/DECISOES.md): *"apresentável pelos três papéis"*. A
+A-012 tirou o secretário do 403 e ele continua sem sistema. **Antes eram dois
+papéis pela metade; agora é um e meio.**
+
+---
+
+## 🟠 A-018 — Marcar um paciente como inativo faz ele **sumir**, e a tela não avisa
+
+**Achado em:** 2026-08-18 pela `orla`, lendo o CI · **Dono:** Gabriel (decisão), depois `vale` (tela)
+
+⚠️ **Proveniência, para não contaminar o escopo desta revisão:** este achado
+**não** veio da leitura de agosto/17 — veio do job `navegador` estourando em
+`1d8a70e`. Está aqui porque é o registro dos achados `A-0NN`, não porque a
+revisão original o tenha encontrado.
+
+O caminho, medido no código:
+
+```
+admin/pacientes/ClientComponent.tsx:52   useState<string>("ativo")
+admin/pacientes/ClientComponent.tsx:70   matchesStatus = statusFilter === "todos" || pacienteStatus === statusFilter
+```
+
+A listagem **nasce filtrando por `ativo`**. Então:
+
+1. a pessoa abre o paciente, muda o status para **Inativo** e salva;
+2. a tela devolve para `/admin/pacientes`;
+3. **o paciente não está mais lá** — nenhuma mensagem, nenhuma contagem, nada.
+
+🔴 **O que a pessoa vê é indistinguível de exclusão.** E ao lado do "Editar" existe
+um botão de excluir de verdade, na mesma linha — então o desfecho visual das duas
+ações é o mesmo, e uma delas é irreversível.
+
+📌 **O backend está certo:** `GET /api/pacientes` devolve todos, sem filtro de
+status (`core.clj:492`). O esconde-esconde é só do cliente, e existe um seletor
+"todos" na tela — **quem sabe que ele existe** volta em um clique.
+
+### Por que 🟠 e não 🔴
+
+Nada é perdido e o caminho de volta existe. O dano é confiança: a operadora
+conclui que apagou um prontuário. Não bloqueia produção, mas é exatamente a
+família da A-013 — **tela que deixa a pessoa acreditar em algo que não aconteceu**.
+
+### A decisão que não é minha
+
+O padrão `ativo` é escolha defensável de produto. As saídas possíveis:
+
+- **manter o padrão** e a tela dizer, ao salvar, *"Paciente marcado como inativo —
+  ele saiu desta lista; use o filtro Todos para vê-lo"*;
+- **passar o padrão para `todos`**, com a coluna de situação já distinguindo os dois.
+
+Eu recomendo a **primeira**: o padrão `ativo` é útil no dia a dia, e o problema
+não é o filtro — é o silêncio.
+
+⚠️ **O que já foi feito:** só o teste. A suíte voltava pela listagem e passou a
+estourar em 120s; foi trocada para voltar **pela URL**, que é o que a própria
+docstring dela dizia fazer. Isso separa *"o dado gravou?"* de *"a listagem mostra
+inativos?"*. **O defeito de tela continua aberto** — o teste deixou de medir a
+coisa errada, e não de existir.
+
+---
+
+## O que esta revisão não cobriu
+
+- **Não executei nada.** Todo achado é de leitura. ⚠️ Com a exceção declarada da
+  A-018, acrescentada depois e com proveniência própria.
+- **Não varri o módulo Google a fundo** — é o mais novo e está bloqueado pelo
+  Gabriel.
+- **Não avaliei acessibilidade nem responsividade**, que são matéria da Fase 3.
+- **Não revisei a suíte de testes** procurando teste que passa sem provar nada.

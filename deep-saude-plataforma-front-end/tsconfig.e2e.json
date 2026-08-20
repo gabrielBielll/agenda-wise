@@ -1,0 +1,11 @@
+{
+  "//": "Type check da suite de navegador, separado do build da aplicacao. Ver comentario no tsconfig.json.",
+  "extends": "./tsconfig.json",
+  "include": [
+    "e2e/**/*.ts",
+    "playwright.config.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}

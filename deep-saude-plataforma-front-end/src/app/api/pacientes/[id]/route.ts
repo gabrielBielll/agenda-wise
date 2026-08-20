@@ -1,3 +1,10 @@
+// Proxy para o backend.
+//
+// Duas correções: `params` virou Promise no Next.js 15, e o encaminhamento
+// apontava para `${BACKEND_URL}/pacientes/...` — sem o prefixo `/api`, que é
+// onde o backend realmente expõe a rota. Como este arquivo tem precedência
+// sobre o rewrite do next.config, a atualização de paciente pelo módulo
+// financeiro caía em 404.
 import { NextRequest, NextResponse } from 'next/server';
 
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3000';
@@ -13,9 +20,9 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const pacienteId = (await params).id;
+    const { id: pacienteId } = await params;
 
-    const response = await fetch(`${BACKEND_URL}/pacientes/${pacienteId}`, {
+    const response = await fetch(`${BACKEND_URL}/api/pacientes/${pacienteId}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -45,9 +52,9 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const pacienteId = (await params).id;
+    const { id: pacienteId } = await params;
 
-    const response = await fetch(`${BACKEND_URL}/pacientes/${pacienteId}`, {
+    const response = await fetch(`${BACKEND_URL}/api/pacientes/${pacienteId}`, {
       method: 'GET',
       headers: {
         'Authorization': authHeader,

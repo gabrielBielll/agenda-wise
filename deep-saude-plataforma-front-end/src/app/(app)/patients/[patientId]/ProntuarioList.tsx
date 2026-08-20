@@ -11,7 +11,6 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils";
 import { format, isWithinInterval, startOfDay, endOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { DateRange } from "react-day-picker";
 import {
   Pagination,
   PaginationContent,
@@ -21,10 +20,15 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
+import type { DateRange } from "react-day-picker";
 
+// Reconstruído a partir do uso: a definição havia sido apagada por uma edição
+// parcial e substituída por um comentário "... existing code". O arquivo só
+// compilava porque next.config desligava a checagem de tipos.
 interface ProntuarioListProps {
   initialProntuarios: Prontuario[];
   patientId: string;
+  /** Repassado direto para ProntuarioItem, que também o tipa como any[]. */
   appointments: any[];
 }
 

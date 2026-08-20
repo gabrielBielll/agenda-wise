@@ -1,10 +1,41 @@
 "use server";
 
-import { cookies } from "next/headers";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 
+/**
+ * Exclui um paciente pelo painel do admin.
+ *
+ * 🔴 **Isto nunca funcionou até 18/08/2026.** A linha era:
+ *
+ * ```ts
+ * const token = (await cookies()).get("sessionToken")?.value;
+ * ```
+ *
+ * `sessionToken` era o cookie do **fluxo de login antigo**, escrito só em
+ * `app/admin/login/actions.ts` — um arquivo que ninguém importava desde que o
+ * login virou `signIn("credentials")` do NextAuth (`admin/login/page.tsx:84`).
+ * Ninguém escrevia esse cookie, então esta função devolvia **sempre**
+ * `{ success: false, message: "Erro de autenticação." }`.
+ *
+ * 📌 **Aquele arquivo foi apagado** em 18/08/2026 (mensageria 0134): além de
+ * morto, ele era um **segundo caminho de autenticação** — decidia papel por
+ * `jwtDecode` no servidor e gravava sessão própria, que é a família da SEC-005.
+ * Se você chegou aqui procurando por ele, ele está no git.
+ *
+ * ⚠️ **E a mensagem era o pior pedaço.** "Erro de autenticação" manda quem
+ * investiga procurar sessão, token e NextAuth — quando a causa é um caminho que
+ * ficou para trás numa troca de login. Achado ao escrever os specs de cadastro
+ * (mensageria 0131), medido na 0132.
+ *
+ * 📌 O gêmeo saudável está em `(app)/patients/actions.ts`: mesmo nome, mesma
+ * responsabilidade, e usa a sessão do NextAuth. É esse caminho que vale aqui —
+ * **um terceiro jeito de pegar token seria o defeito de novo, com outra roupa.**
+ */
 export async function deletePaciente(pacienteId: string): Promise<{ success: boolean; message: string }> {
-  const token = (await cookies()).get("sessionToken")?.value;
+  const session = await getServerSession(authOptions);
+  const token = (session as any)?.backendToken;
   if (!token) {
     return { success: false, message: "Erro de autenticação." };
   }

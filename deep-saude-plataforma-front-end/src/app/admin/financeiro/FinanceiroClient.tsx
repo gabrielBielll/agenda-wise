@@ -66,7 +66,14 @@ interface Agendamento {
   nome_psicologo?: string;
   status?: string; // agendado, realizado, cancelado
   valor_repasse?: number;
-  status_repasse?: 'bloqueado' | 'disponivel' | 'transferido' | 'pendente' | 'pago'; // Repasse (Psi)
+  /**
+   * Estado do repasse ao psicólogo.
+   *
+   * `pendente` é o default do banco e significa "ainda não liberado".
+   * `bloqueado` é derivado na exibição a partir do pagamento do paciente, não
+   * gravado. O backend valida este conjunto desde a auditoria de agosto/2026.
+   */
+  status_repasse?: 'pendente' | 'bloqueado' | 'disponivel' | 'transferido';
   status_pagamento?: 'pendente' | 'pago'; // Pagamento (Paciente)
   // New patient financial fields
   nota_fiscal?: boolean;
@@ -99,9 +106,6 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
   
   // State to track local updates to agendamentos (optimistic UI)
   const [agendamentos, setAgendamentos] = useState<Agendamento[]>(initialAgendamentos);
-  
-  // Commission Percentage State (default 50%)
-  const [commissionRate, setCommissionRate] = useState<number>(50);
   
   // State for editing valor
   const [editingValorId, setEditingValorId] = useState<string | null>(null);
@@ -206,68 +210,25 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
     setCurrentPage(1);
   }, [dateRange, selectedPsicologo, selectedPaciente, selectedRepasse, sortBy]);
 
-  // Calculate Repasse Stats
-  // If valor_repasse is set in DB, use it. Otherwise, calculate based on simulation rate.
+  // A-004: dinheiro vem do snapshot persistido da regra da psicóloga. Ausência
+  // de cálculo não autoriza o navegador a inventar 50%.
   const totalRepasse = filteredData.reduce((acc, curr) => {
-      const repasse = curr.valor_repasse ?? (Number(curr.valor_consulta || 0) * (commissionRate / 100));
+      const repasse = curr.valor_repasse ?? 0;
       return acc + repasse;
   }, 0);
   
   const lucroLiquido = totalReceita - totalRepasse;
 
-  // Function to update Repasse Status
-  const handleUpdateRepasse = async (id: string, currentStatus: string | undefined, valorConsulta: number) => {
-      const newStatus = currentStatus === 'pago' ? 'pendente' : 'pago';
-      // If setting to paid, ensure we fix the value based on current rate if not already set
-      const repasseValue = valorConsulta * (commissionRate / 100);
-
-      // Optimistic update
-      setAgendamentos(prev => prev.map(ag => 
-          ag.id === id ? { ...ag, status_repasse: newStatus, valor_repasse: ag.valor_repasse ?? repasseValue } : ag
-      ));
-
-      try {
-          // Making request...
-          const res = await fetch(`/api/agendamentos/${id}`, {
-              method: 'PUT',
-              headers: {
-                  'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${token}`
-              },
-              body: JSON.stringify({
-                  status_repasse: newStatus,
-                  valor_repasse: repasseValue // Ensure value is saved
-              })
-          });
-          
-          if (!res.ok) {
-            const errText = await res.text();
-            console.error("Failed to update repasse:", res.status, errText);
-            throw new Error(`Failed to update: ${res.status} ${errText}`);
-          }
-          
-          toast({
-              title: "Status atualizado",
-              description: `Repasse marcado como ${newStatus}.`,
-              className: "bg-green-500 text-white"
-          });
-
-      } catch (error: any) {
-          console.error("Error updating repasse:", error);
-          // Extract message from error object if possible
-          const cleanMsg = error.message?.replace("Failed to update: ", "") || "Erro desconhecido";
-          
-           toast({
-              title: "Erro ao atualizar",
-              description: cleanMsg.substring(0, 100), // Limit length
-              variant: "destructive"
-          });
-          // Revert
-          setAgendamentos(prev => prev.map(ag => 
-            ag.id === id ? { ...ag, status_repasse: currentStatus as any } : ag
-          ));
-      }
-  };
+  // REMOVIDO: handleUpdateRepasse.
+  //
+  // Escrevia 'pago'/'pendente' em status_repasse — vocabulário de
+  // status_pagamento, não de repasse. Era duplicata obsoleta de
+  // handleUpdatePagamento que ficou apontando para a coluna errada, e não
+  // tinha nenhum call site. Enquanto existiu, fazia a mesma coluna receber
+  // duas máquinas de estado incompatíveis.
+  //
+  // A máquina viva é handleUpdateRepasseStatus ('disponivel' <-> 'transferido'),
+  // que é a documentada em TECHNICAL_NOTES.
 
   // Function to update Session Status (Agendada, Realizada, Cancelada)
   const handleUpdateStatus = async (id: string, newStatus: string) => {
@@ -295,7 +256,7 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
           toast({
               title: "Sessão atualizada",
               description: `Status alterado para ${newStatus === 'realizado' ? 'Realizada' : newStatus === 'cancelado' ? 'Cancelada' : 'Agendada'}.`,
-              className: "bg-green-500 text-white"
+              className: "bg-success text-success-foreground"
           });
 
       } catch (error: any) {
@@ -333,7 +294,7 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
           toast({
               title: "Pagamento atualizado",
               description: newStatus === 'pago' ? 'Marcado como Pago.' : 'Marcado como Pendente.',
-              className: "bg-green-500 text-white"
+              className: "bg-success text-success-foreground"
           });
 
       } catch (error: any) {
@@ -351,13 +312,12 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
   };
 
   // Function to toggle Repasse Status (Disponivel/Transferido)
-  const handleUpdateRepasseStatus = async (id: string, currentStatus: string | undefined, valorConsulta: number) => {
+  const handleUpdateRepasseStatus = async (id: string, currentStatus: string | undefined) => {
       const newStatus = currentStatus === 'transferido' ? 'disponivel' : 'transferido';
-      const repasseValue = valorConsulta * (commissionRate / 100);
       
       // Optimistic update
       setAgendamentos(prev => prev.map(ag => 
-          ag.id === id ? { ...ag, status_repasse: newStatus, valor_repasse: ag.valor_repasse ?? repasseValue } : ag
+          ag.id === id ? { ...ag, status_repasse: newStatus } : ag
       ));
 
       try {
@@ -368,8 +328,7 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
                   'Authorization': `Bearer ${token}`
               },
               body: JSON.stringify({ 
-                  status_repasse: newStatus,
-                  valor_repasse: repasseValue 
+                  status_repasse: newStatus
               })
           });
           
@@ -378,7 +337,7 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
           toast({
               title: "Repasse atualizado",
               description: newStatus === 'transferido' ? 'Marcado como Transferido.' : 'Marcado como Disponível.',
-              className: "bg-green-500 text-white"
+              className: "bg-success text-success-foreground"
           });
 
       } catch (error: any) {
@@ -417,7 +376,7 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
           toast({
               title: "Valor atualizado",
               description: `Novo valor: ${formatCurrency(newValor)}`,
-              className: "bg-green-500 text-white"
+              className: "bg-success text-success-foreground"
           });
 
       } catch (error: any) {
@@ -514,15 +473,16 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
     toast({
       title: "Exportado!",
       description: `${filteredData.length} registros exportados para CSV.`,
-      className: "bg-green-500 text-white"
+      className: "bg-success text-success-foreground"
     });
   };
 
   // Bulk Transfer: Marcar todos os repasses visíveis como "transferido"
   const handleTransferAll = async () => {
     // Filtrar apenas os que estão disponíveis para transferência (pago + não transferido)
-    const eligibleItems = filteredData.filter(ag => 
-      getEffectivePagamento(ag) === 'pago' && ag.status_repasse !== 'transferido'
+    const eligibleItems = filteredData.filter(ag =>
+      ag.status === 'realizado' && getEffectivePagamento(ag) === 'pago' &&
+      ag.valor_repasse != null && ag.status_repasse !== 'transferido'
     );
 
     if (eligibleItems.length === 0) {
@@ -535,7 +495,7 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
     }
 
     // Calcular valor total
-    const totalValue = eligibleItems.reduce((sum, ag) => sum + (Number(ag.valor_consulta) || 0), 0);
+    const totalValue = eligibleItems.reduce((sum, ag) => sum + Number(ag.valor_repasse), 0);
 
     // Confirmação
     const confirmed = window.confirm(
@@ -544,39 +504,55 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
 
     if (!confirmed) return;
 
-    // Atualização em lote
+    if (!dateRange?.from || eligibleItems.some((ag) => !ag.psicologo_id)) {
+      toast({ title: "Não foi possível formar o lote", description: "Selecione um período e confira as psicólogas das sessões.", variant: "destructive" });
+      return;
+    }
+
+    const idsPorPsicologa = new Map<string, Set<string>>();
+    eligibleItems.forEach((ag) => {
+      const ids = idsPorPsicologa.get(ag.psicologo_id!) ?? new Set<string>();
+      ids.add(ag.id);
+      idsPorPsicologa.set(ag.psicologo_id!, ids);
+    });
+
     let successCount = 0;
     let errorCount = 0;
-
-    for (const ag of eligibleItems) {
+    const transferidos = new Set<string>();
+    for (const [psicologoId, ids] of idsPorPsicologa) {
       try {
-        const res = await fetch(`/api/agendamentos/${ag.id}`, {
-          method: 'PUT',
+        const res = await fetch('/api/repasses/transferir', {
+          method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
           },
-          body: JSON.stringify({ status_repasse: 'transferido' })
+          body: JSON.stringify({
+            psicologo_id: psicologoId,
+            data_inicio: format(dateRange.from, 'yyyy-MM-dd'),
+            data_fim: format(dateRange.to ?? dateRange.from, 'yyyy-MM-dd'),
+          })
         });
-        
         if (res.ok) {
-          successCount++;
-          // Optimistic update
-          setAgendamentos(prev => prev.map(item => 
-            item.id === ag.id ? { ...item, status_repasse: 'transferido' } : item
-          ));
+          const resultado = await res.json();
+          successCount += resultado.quantidade ?? 0;
+          ids.forEach((id) => transferidos.add(id));
         } else {
-          errorCount++;
+          errorCount += ids.size;
         }
       } catch (error) {
-        errorCount++;
+        errorCount += ids.size;
       }
     }
+
+    setAgendamentos(prev => prev.map(item =>
+      transferidos.has(item.id) ? { ...item, status_repasse: 'transferido' } : item
+    ));
 
     toast({
       title: "Transferência em lote concluída",
       description: `${successCount} repasse(s) transferido(s)${errorCount > 0 ? `, ${errorCount} erro(s)` : ''}.`,
-      className: successCount > 0 ? "bg-green-500 text-white" : "bg-red-500 text-white"
+      className: successCount > 0 ? "bg-success text-success-foreground" : "bg-destructive text-destructive-foreground"
     });
   };
 
@@ -634,7 +610,7 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
     toast({
       title: "Atualização em lote concluída",
       description: `${successCount} item(s) atualizado(s)${errorCount > 0 ? `, ${errorCount} erro(s)` : ''}.`,
-      className: successCount > 0 ? "bg-green-500 text-white" : "bg-red-500 text-white"
+      className: successCount > 0 ? "bg-success text-success-foreground" : "bg-destructive text-destructive-foreground"
     });
   };
 
@@ -699,7 +675,7 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
         toast({
           title: "Atualizado!",
           description: `Campo ${field === 'nota_fiscal' ? 'Nota Fiscal' : field === 'tipo_pagamento' ? 'Tipo' : field === 'origem' ? 'Origem' : 'Vencimento'} atualizado com sucesso.`,
-          className: "bg-green-500 text-white"
+          className: "bg-success text-success-foreground"
         });
       } else {
         toast({
@@ -719,12 +695,13 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
   };
 
   return (
-    <div className="space-y-6">
+    <div className="quiet-page">
       <div className="flex flex-col gap-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
-            <h1 className="text-3xl font-bold tracking-tight">Financeiro</h1>
-            <p className="text-muted-foreground">Gestão de repasses e lucro líquido.</p>
+            <p className="page-eyebrow mb-2">Dinheiro da clínica</p>
+            <h1 className="page-title">O que entra e o que sai.</h1>
+            <p className="page-subtitle">Repasses das psicólogas e o que fica com a clínica.</p>
             </div>
             <div className="flex gap-2">
               <Button onClick={exportToCSV} variant="outline" className="gap-2">
@@ -733,22 +710,6 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
               </Button>
             </div>
         </div>
-
-        {/* Global Controls */}
-         <div className="flex items-center gap-4 p-4 border rounded-lg bg-card">
-            <div className="flex items-center gap-2">
-                <span className="text-sm font-medium">Comissão Padrão (%):</span>
-                <Input 
-                    type="number" 
-                    value={commissionRate} 
-                    onChange={(e) => setCommissionRate(Number(e.target.value))}
-                    className="w-20"
-                />
-            </div>
-            <p className="text-xs text-muted-foreground">
-                Define a % do psicólogo para simulação se não houver valor definido.
-            </p>
-         </div>
 
         {/* Filters */}
         <div className="flex flex-wrap gap-4 items-center bg-card p-4 rounded-lg border">
@@ -789,8 +750,8 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
                 </SelectTrigger>
                 <SelectContent>
                     <SelectItem value="all">Todos os Status</SelectItem>
-                    <SelectItem value="pago">✅ Pagos</SelectItem>
-                    <SelectItem value="pendente">⏳ Pendentes</SelectItem>
+                    <SelectItem value="pago">Pagos</SelectItem>
+                    <SelectItem value="pendente">Pendentes</SelectItem>
                 </SelectContent>
             </Select>
 
@@ -806,7 +767,7 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
                         <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="date">📅 Por Data</SelectItem>
+                        <SelectItem value="date">Por data</SelectItem>
                         <SelectItem value="patient">👤 Por Paciente</SelectItem>
                     </SelectContent>
                 </Select>
@@ -838,10 +799,10 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Receita Bruta</CardTitle>
-            <DollarSign className="h-4 w-4 text-green-600" />
+            <span className="soft-icon h-9 w-9 rounded-[12px]"><DollarSign className="h-4 w-4" /></span>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">
+            <div className="font-headline text-3xl font-normal tracking-[-0.02em]">
               {formatCurrency(totalReceita)}
             </div>
           </CardContent>
@@ -850,14 +811,14 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Repasse (Est.)</CardTitle>
-            <DollarSign className="h-4 w-4 text-orange-600" />
+            <span className="terra-icon h-9 w-9 rounded-[12px]"><DollarSign className="h-4 w-4" /></span>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-orange-600">
+            <div className="font-headline text-3xl font-normal tracking-[-0.02em]">
                 {formatCurrency(totalRepasse)}
             </div>
             <p className="text-xs text-muted-foreground">
-              {commissionRate}% destinado aos psicólogos
+              Conforme a regra gravada de cada psicóloga
             </p>
           </CardContent>
         </Card>
@@ -865,10 +826,10 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Previsão de Lucro</CardTitle>
-            <TrendingUpIcon className="h-4 w-4 text-blue-600" />
+            <span className="soft-icon h-9 w-9 rounded-[12px]"><TrendingUpIcon className="h-4 w-4" /></span>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600">
+            <div className="font-headline text-3xl font-normal tracking-[-0.02em]">
                 {formatCurrency(lucroLiquido)}
             </div>
             <p className="text-xs text-muted-foreground">
@@ -880,10 +841,10 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Atendimentos</CardTitle>
-            <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+            <span className="soft-icon h-9 w-9 rounded-[12px]"><CalendarIcon className="h-4 w-4" /></span>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalAtendimentos}</div>
+            <div className="font-headline text-3xl font-normal tracking-[-0.02em]">{totalAtendimentos}</div>
           </CardContent>
         </Card>
       </div>
@@ -942,7 +903,7 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
       <Card>
         <CardHeader>
             <CardTitle>Faturamento e Repasse por Psicólogo</CardTitle>
-            <CardDescription>Receita total e valor a repassar com taxa de {commissionRate}%.</CardDescription>
+            <CardDescription>Receita e repasse calculado pela regra individual aplicada em cada sessão.</CardDescription>
         </CardHeader>
         <CardContent>
             <Table>
@@ -962,12 +923,16 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
                             if (!acc[name]) acc[name] = { total: 0, count: 0, repasse: 0, paid: 0 };
                             
                             const val = Number(curr.valor_consulta) || 0;
-                            const rep = curr.valor_repasse ?? (val * (commissionRate / 100));
+                            const rep = curr.valor_repasse ?? 0;
                             
                             acc[name].total += val;
                             acc[name].count += 1;
                             acc[name].repasse += rep;
-                            if (curr.status_repasse === 'pago') acc[name].paid += 1;
+                            // Comparava com 'pago', valor que esta coluna nunca assume:
+                            // o contador exibido como "{pagos}/{total} Pagos" ficava
+                            // permanentemente em zero. O estado terminal do repasse é
+                            // 'transferido'.
+                            if (curr.status_repasse === 'transferido') acc[name].paid += 1;
                             
                             return acc;
                         }, {} as Record<string, { total: number; count: number; repasse: number; paid: number }>)
@@ -977,7 +942,7 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
                         <TableRow key={name}>
                             <TableCell className="font-medium">{name}</TableCell>
                             <TableCell className="text-right">{stats.count}</TableCell>
-                            <TableCell className="text-right font-bold text-green-700">
+                            <TableCell className="text-right font-bold text-success">
                                 {formatCurrency(stats.total)}
                             </TableCell>
                             <TableCell className="text-right font-medium text-orange-600">
@@ -1021,10 +986,10 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="start">
                       <DropdownMenuItem onClick={handleBulkSessaoRealizada}>
-                        ✅ Marcar todos como Realizada
+                        Marcar todos como realizada
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={handleBulkSessaoCancelada}>
-                        ❌ Marcar todos como Cancelada
+                        Marcar todos como Cancelada
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -1038,10 +1003,10 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="start">
                       <DropdownMenuItem onClick={handleBulkPagamentoPago}>
-                        ✅ Marcar todos como Pago
+                        Marcar todos como pago
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={handleBulkPagamentoPendente}>
-                        ⏳ Marcar todos como Pendente
+                        Marcar todos como Pendente
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -1097,9 +1062,9 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="agendado">📅 Agendada</SelectItem>
-                                <SelectItem value="realizado">✅ Realizada</SelectItem>
-                                <SelectItem value="cancelado">❌ Cancelada</SelectItem>
+                                <SelectItem value="agendado">Agendada</SelectItem>
+                                <SelectItem value="realizado">Realizada</SelectItem>
+                                <SelectItem value="cancelado">Cancelada</SelectItem>
                             </SelectContent>
                         </Select>
                     </TableCell>
@@ -1110,28 +1075,28 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
                             size="sm"
                             className={cn(
                                 "h-8 px-2 text-xs font-medium",
-                                getEffectivePagamento(ag) === 'pago' ? "text-green-600 hover:text-green-700" : "text-red-500 hover:text-red-600"
+                                getEffectivePagamento(ag) === 'pago' ? "text-success hover:text-success/80" : "text-destructive hover:text-destructive/80"
                             )}
                             onClick={() => handleUpdatePagamento(ag.id, ag.status_pagamento)}
                         >
-                            {getEffectivePagamento(ag) === 'pago' ? '✅ Pago' : '⏳ Pendente'}
+                            {getEffectivePagamento(ag) === 'pago' ? 'Pago' : 'Pendente'}
                         </Button>
                     </TableCell>
                     {/* Coluna Repasse (Psi) - Clickável se pagamento OK */}
                     <TableCell>
                         {getEffectivePagamento(ag) !== 'pago' ? (
-                            <span className="text-sm text-gray-400">🔒 Bloqueado</span>
+                            <span className="text-sm text-muted-foreground">🔒 Bloqueado</span>
                         ) : (
                             <Button 
                                 variant="ghost" 
                                 size="sm"
                                 className={cn(
                                     "h-8 px-2 text-xs font-medium",
-                                    ag.status_repasse === 'transferido' ? "text-green-600 hover:text-green-700" : "text-blue-600 hover:text-blue-700"
+                                    ag.status_repasse === 'transferido' ? "text-success hover:text-success/80" : "text-blue-600 hover:text-blue-700"
                                 )}
-                                onClick={() => handleUpdateRepasseStatus(ag.id, ag.status_repasse, Number(ag.valor_consulta))}
+                                onClick={() => handleUpdateRepasseStatus(ag.id, ag.status_repasse)}
                             >
-                                {ag.status_repasse === 'transferido' ? '✅ Transferido' : '💵 Disponível'}
+                                {ag.status_repasse === 'transferido' ? 'Transferido' : 'Disponível'}
                             </Button>
                         )}
                     </TableCell>
@@ -1142,11 +1107,11 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
                         size="sm"
                         className={cn(
                           "h-7 px-2 text-xs font-medium",
-                          ag.nota_fiscal ? "text-green-600 hover:text-green-700" : "text-gray-500 hover:text-gray-600"
+                          ag.nota_fiscal ? "text-success hover:text-success/80" : "text-muted-foreground hover:text-foreground"
                         )}
                         onClick={() => handleUpdatePatientField(ag.paciente_id, 'nota_fiscal', !ag.nota_fiscal)}
                       >
-                        {ag.nota_fiscal ? '✅ SIM' : '❌ NÃO'}
+                        {ag.nota_fiscal ? 'Sim' : 'Não'}
                       </Button>
                     </TableCell>
                     <TableCell className="text-center">
@@ -1212,12 +1177,12 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
                                     setEditingValorId(null);
                                 }}
                                 onKeyDown={(e) => handleValorKeyPress(e, ag.id)}
-                                className="w-24 h-8 text-right font-bold text-green-700"
+                                className="w-24 h-8 text-right font-bold text-success"
                                 autoFocus
                             />
                         ) : (
                             <span 
-                                className="font-bold text-green-700 cursor-pointer hover:bg-gray-100 px-2 py-1 rounded"
+                                className="font-bold text-success cursor-pointer hover:bg-gray-100 px-2 py-1 rounded"
                                 onClick={() => {
                                     setEditingValorId(ag.id);
                                     setEditingValorValue(String(Number(ag.valor_consulta)));

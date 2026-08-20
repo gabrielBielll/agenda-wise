@@ -14,11 +14,14 @@ import { Pagination, PaginationContent, PaginationItem, PaginationLink, Paginati
 import { useToast } from '@/hooks/use-toast';
 import { deletePaciente, getPacientes } from './actions';
 
+// Reconstruído a partir do uso: a definição havia sido apagada por uma edição
+// parcial e substituída por um comentário "... existing code".
 interface Patient {
   id: string;
   nome: string;
-  status?: string | null;
+  status?: 'ativo' | 'inativo';
   avatar_url?: string | null;
+  /** Derivado no backend a partir do último agendamento; nem sempre presente. */
   lastSession?: string | null;
 }
 

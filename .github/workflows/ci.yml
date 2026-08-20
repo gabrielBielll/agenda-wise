@@ -1,0 +1,683 @@
+# CI — OPS-006
+#
+# Este workflow não é higiene: ele é o substituto da `pico` (Claude na EC2), que
+# saiu do fluxo diário levando junto as duas únicas capacidades que ninguém mais
+# tinha — Playwright e CockroachDB. Ver D-007 em mensageria/DECISOES.md.
+#
+# Enquanto ele não estiver verde, a Fase 2 (refactor estrutural) não começa:
+# refatorar 1500 linhas sem execução automática da suíte é fazer no escuro, e o
+# custo do erro não aparece no commit, aparece semanas depois.
+#
+# ✅ **Verde na primeira execução**, em 2026-08-15 (run 31878053378), e verde
+# conferido no log, não só no ícone: o passo com banco imprimiu
+# `Ran 74 tests containing 265 assertions. 0 failures, 0 errors.` — 74 e não os
+# 67 da véspera, porque o `prontuarios_test` novo entrou e passou.
+#
+# ✅ **E provado VERMELHO** em 2026-08-15 (run 31880253559). A `duna` (GPT local)
+# empurrou uma sonda deliberada — um `(is false)` em `ci_probe_test.clj` — e o
+# job reprovou com `Ran 42 tests containing 183 assertions. 1 failures`, exit 1,
+# check `failure` no PR. **Uma** falha, a da sonda: nenhuma regressão pegou
+# carona. A sonda foi removida em seguida, como o comentário dela previa.
+#
+# Com isso a Fase 0 fecha: o CI é verde no código bom e vermelho no código
+# quebrado. CI que nunca ficou vermelho é CI mudo — este já não é.
+#
+# ⚠️ Uma parte não ficou provada, e vale saber qual: a sonda quebrou o passo
+# **sem banco**, que é o primeiro. Como ele falhou, o passo **com banco** nem
+# chegou a rodar — então o que está provado é que o job reprova, não que o passo
+# com banco reprova por conta própria. O que se sabe dele é que executa de fato
+# (74 testes contra 42, na execução verde). Provar o resto exigiria uma sonda
+# dentro de um teste de banco; não achei que pagasse o custo.
+#
+# O que ainda NÃO está aqui, de propósito:
+#   - CockroachDB (P-001 na FILA_PICO). Entra quando este workflow estiver
+#     verde; é o que tira a pergunta da fila semanal.
+#   - Lint. `next lint` existe, mas nunca foi rodado no projeto e ligar isso
+#     junto misturaria "o CI está quebrado" com "o código sempre esteve assim".
+#   - Contagem explícita do Playwright. O job passa, mas o fim do log é ocupado
+#     pelo despejo do container Postgres e a linha de resumo por teste não
+#     apareceu na leitura. O relatório fica como artefato; confirmar o número.
+
+name: CI
+
+on:
+  # ⚠️ `push` só nas branches de ambiente, e `pull_request` para o resto.
+  #
+  # A primeira versão tinha `push: branches: ['**']` junto com `pull_request`, e
+  # a primeira execução mostrou o efeito na hora: **duas execuções idênticas do
+  # mesmo commit**, uma por evento. O `concurrency` abaixo não junta as duas,
+  # porque `github.ref` vale `refs/heads/...` no push e `refs/pull/7/merge` no
+  # pull request — são grupos diferentes por definição.
+  #
+  # ────────────────────────────────────────────────────────────────────────────
+  # 🔴 2026-08-20 — a branch de deploy entra nesta lista, e a duplicação acima
+  # passa a ser um custo ACEITO em vez de um defeito. O porquê:
+  #
+  # A `vale` (Claude no Termux) reportou na 0193 que "o CI não roda na branch que
+  # a Northflank constrói". O mecanismo que ela descreveu está certo — esta lista
+  # não tinha a branch viva. **A conclusão estava errada**, e a medição mostra
+  # por quê: o gatilho `pull_request` inclui o tipo `synchronize`, que dispara a
+  # cada push no head de um PR aberto.
+  #
+  #   Caso de controle, run 32359465523: os commits 632bdfc e 0c18e14 foram push
+  #   DIRETO nesta branch, e o run existe com `event: pull_request` sobre
+  #   `head_branch: claude/google-calendar-integration-arch-7tvhae`. O CI viu.
+  #
+  # 📌 O risco real é outro, e é maior que o relatado: essa cobertura vive de o
+  # PR #7 estar ABERTO. No minuto em que ele for mesclado ou fechado, a branch
+  # continua sendo a que a Northflank constrói e passa a não ter CI nenhum — e é
+  # justamente nesse minuto que ninguém está olhando para o `ci.yml`.
+  #
+  # ⚠️ O custo, medido e não estimado: dos 193 commits desde 18/08, **86 (45%)**
+  # tocam código fora de `mensageria/`, `docs/` e `*.md`. Só esses disparam o
+  # `push` — nos outros o `paths-ignore` abaixo funciona (em `push` ele olha o
+  # diff do commit; em `pull_request` é inerte, ver o bloco do `concurrency`).
+  # Então ~45% dos commits passam a gerar DUAS execuções.
+  #
+  # 📌 A `vale` completou esta conta na 0195, e a conclusão inverte: os outros 55%
+  # **já geravam uma** execução, porque o `paths-ignore` do `pull_request` é
+  # anulado enquanto o #7 estiver aberto — o filtro é avaliado contra o diff
+  # INTEIRO do PR, que está cheio de código. Conferido nos dois lados:
+  #
+  #   01ae1db  só mensageria  ->  pull_request        (um run)
+  #   53c3a29  só docs        ->  pull_request        (um run)
+  #   6ec7dd9  código         ->  pull_request, push  (dois)
+  #
+  # Ou seja: mesclado o #7, o `paths-ignore` volta a valer e o custo **cai abaixo
+  # do de hoje**, em vez de só voltar ao normal.
+  #
+  # ✅ E as duas rodam em PARALELO, em grupos de `concurrency` diferentes — o que
+  # dobra é minuto de runner, não a espera pelo veredito. A falha de 18→19/08 era
+  # veredito que nunca saía; esta não mexe nisso.
+  #
+  # 📌 O custo se extingue sozinho: quando o #7 for mesclado, a branch deixa de
+  # ser head de PR aberto e a duplicação acaba — sobrando exatamente a cobertura
+  # que esta linha existe para garantir.
+  # ────────────────────────────────────────────────────────────────────────────
+  push:
+    branches: [main, staging, prod, claude/google-calendar-integration-arch-7tvhae]
+    paths-ignore: &so-conversa
+      # Commit que só mexe em conversa não precisa de CI. Vale para `push`,
+      # onde o filtro olha o diff DO COMMIT.
+      #
+      # ⚠️ E NÃO vale para `pull_request`, que é o nosso caso — ver o bloco do
+      # `concurrency` abaixo, onde está a medição.
+      - 'mensageria/**'
+      - 'docs/**'
+      - '**/*.md'
+  pull_request:
+    paths-ignore: *so-conversa
+
+# 🔴 AS EXECUÇÕES ENFILEIRAM, NÃO SE CANCELAM. E a razão é uma medição, não uma
+# preferência.
+#
+# Medido em 18→19/08: o job de navegador precisa de ~15–20 min; front e backend
+# terminam em 5–7. Com `cancel-in-progress: true`, todo push novo matava o run
+# anterior — e como os rápidos cabiam na janela e o navegador não, o placar da
+# noite ficou **front e backend verdes, navegador cancelado SEIS vezes seguidas**.
+# A única prova de comportamento que este projeto tem nunca chegou a votar.
+#
+# ⚠️ A minha primeira tentativa de conserto foi `paths-ignore`, e ela NÃO
+# funciona aqui. Em `pull_request` o filtro de caminho é avaliado sobre o diff
+# INTEIRO do PR contra a base — não sobre o push que chegou. Como o PR #7 toca
+# código em todo lugar, o filtro nunca casa e o run sai do mesmo jeito.
+# Prova: `fa8ee65` mexeu só em `mensageria/**` e `INDEX.md`, casando com duas
+# regras de uma vez, e disparou o run 32211223219 assim mesmo.
+#
+# 📌 O custo de enfileirar é conhecido e aceito: uma rajada de quatro pushes vira
+# quatro execuções em sequência, e o veredito do último commit demora mais a sair.
+# Veredito atrasado é uma inconveniência; veredito que nunca sai é o que a gente
+# vinha tendo. A conta não é próxima.
+#
+# 🔴 CORREÇÃO 2026-08-20 — o parágrafo acima está ERRADO e fica preservado porque
+# a crença nele é que precisa morrer. Uma rajada de quatro pushes NÃO vira quatro
+# execuções: vira duas. O `cancel-in-progress: false` governa só o run EM
+# ANDAMENTO; na fila cabe **um** run pendente por grupo, e quando um terceiro
+# chega o pendente é CANCELADO, não enfileirado atrás.
+#
+# Medido — os vereditos de 20/08 nesta branch:
+#
+#   12:50:58  push          f893ccd   -> success
+#   12:51:03  pull_request  f893ccd   -> success
+#   12:52:35  pull_request  01ae1db   -> CANCELLED   <-- nunca votou
+#   12:56:01  pull_request  e0aff01   -> success
+#
+# O mesmo padrão em 19/08: `6f7bc2d` cancelado às 22:58, um minuto antes do
+# `f395258`. Então: o primeiro roda, o último roda, e os do meio somem.
+#
+# ⚠️ Os cancelamentos foram VISTOS (dois casos, dois dias). A explicação pela fila
+# de um só pendente é DEDUÇÃO a partir da semântica documentada do `concurrency` —
+# ninguém montou experimento para isolá-la. Três pushes seguidos numa branch de
+# teste fechariam a pergunta.
+#
+# 📌 Para o PR isso é quase sempre inofensivo: o que importa é o veredito da
+# cabeça, e a cabeça sempre roda. 🔴 Mas com a D-020 deixa de ser inofensivo — o
+# merge para `prod` vira o gatilho do deploy, e ali o run que decide o merge é o
+# único que existe. Cancelamento silencioso vira PR preso sem veredito.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  backend:
+    name: Backend — lein test, sem banco e com banco
+    runs-on: ubuntu-24.04
+
+    services:
+      postgres:
+        # Versão pinada (OPS-007). `postgres:16` seguiria o major sozinho.
+        image: postgres:16.13
+        env:
+          POSTGRES_USER: deep
+          POSTGRES_PASSWORD: deep
+          POSTGRES_DB: deep_teste
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U deep -d postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      # Cache antes do download: em 17/08 o `raw.githubusercontent.com` devolveu
+      # **429** e derrubou o job `navegador` sem que ninguém tivesse mexido em
+      # código. Vermelho por flake externo é pior do que parece — é assim que uma
+      # equipe aprende a ignorar vermelho.
+      - name: Cache do Leiningen
+        id: cache-lein
+        uses: actions/cache@v4
+        with:
+          path: ~/lein
+          key: lein-2.11.2
+
+      - name: Instalar Leiningen
+        # Versão pinada na URL, não `stable`: `stable` é alvo móvel e faria o CI
+        # mudar de comportamento sem ninguém ter mexido no repositório.
+        #
+        # ⚠️ O `|| :` no fim de cada tentativa é de propósito — com `set -e` do
+        # shell do Actions, um curl que falha abortaria o passo antes da segunda
+        # tentativa, e o laço não serviria para nada.
+        run: |
+          if [ ! -x "$HOME/lein" ]; then
+            for tentativa in 1 2 3 4; do
+              curl -fsSL https://raw.githubusercontent.com/technomancy/leiningen/2.11.2/bin/lein \
+                -o "$HOME/lein" && break || :
+              echo "tentativa $tentativa falhou — nova em $((tentativa * 5))s"
+              sleep $((tentativa * 5))
+            done
+          fi
+          test -s "$HOME/lein" || { echo "não consegui baixar o lein em 4 tentativas"; exit 1; }
+          chmod +x "$HOME/lein"
+          echo "$HOME" >> "$GITHUB_PATH"
+          "$HOME/lein" version
+
+      - name: Cache do ~/.m2
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2
+          key: m2-${{ runner.os }}-${{ hashFiles('deep-saude-plataforma-api/deep-saude-backend/project.clj') }}
+          restore-keys: m2-${{ runner.os }}-
+
+      # Os dois `lein test` são comandos diferentes, não repetição.
+      #
+      # Sem TEST_DATABASE_URL, os namespaces que precisam de banco se PULAM e a
+      # suíte segue verde — é o que permite rodar em máquina sem Postgres, e é
+      # um comportamento que pode quebrar sozinho. Se este passo ficar vermelho,
+      # alguém acoplou a suíte ao banco sem perceber.
+      - name: lein test — SEM banco (os testes de banco devem ser pulados)
+        working-directory: deep-saude-plataforma-api/deep-saude-backend
+        run: lein test
+
+      # ⚠️ O nome do banco na URL tem que bater com o banco realmente conectado:
+      # `exigir-banco-de-teste!` compara os dois e aborta antes de qualquer
+      # DELETE se divergirem. É a guarda que impede a suíte de apagar dados no
+      # banco errado — se este passo falhar com "ABORTADO", é ela funcionando.
+      - name: lein test — COM banco
+        working-directory: deep-saude-plataforma-api/deep-saude-backend
+        env:
+          TEST_DATABASE_URL: 'jdbc:postgresql://localhost:5432/deep_teste?user=deep&password=deep&sslmode=disable'
+        run: lein test
+
+      # O uberjar é o artefato que vai para produção desde 17/08 — o Dockerfile
+      # deixou de rodar `lein ring server-headless` (servidor de
+      # desenvolvimento) e passou a rodar `java -jar`.
+      #
+      # ⚠️ São caminhos de partida DIFERENTES: o lein-ring entrava pelo
+      # `:ring {:init ...}` do project.clj e o jar entra pelo `-main`. Este passo
+      # existe porque o caminho que roda em produção não era exercitado por
+      # nada — nem pelos testes, que sobem o handler e não a aplicação.
+      - name: Compilar o uberjar (o artefato de produção)
+        working-directory: deep-saude-plataforma-api/deep-saude-backend
+        run: lein uberjar
+
+      # Sobe o jar de verdade e cobra o /api/health. Pega o que a compilação não
+      # pega: AOT que quebra em runtime, `-main` que não escuta, e a aplicação
+      # saindo sozinha — `-main` chama run-jetty com `:join? false` e retorna, e
+      # o processo só sobrevive porque as threads do Jetty não são daemon.
+      #
+      # Com banco de propósito: assim as migrations rodam pelo caminho de
+      # produção, que é onde elas de fato rodam.
+      - name: Smoke do jar — sobe, migra e responde no /api/health
+        working-directory: deep-saude-plataforma-api/deep-saude-backend
+        env:
+          JWT_SECRET: 'apenas-para-o-smoke-do-ci'
+          DATABASE_URL: 'postgresql://deep:deep@localhost:5432/deep_teste?sslmode=disable'
+          PORT: '3001'
+        run: |
+          java -jar target/uberjar/deep-saude-backend-*-standalone.jar &
+          JAR_PID=$!
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:3001/api/health > /dev/null 2>&1; then
+              echo "✓ /api/health respondeu na tentativa $i"
+              kill "$JAR_PID"
+              exit 0
+            fi
+            # Se o processo morreu, não adianta esperar os 30s: falhe agora e
+            # deixe o log dele ser a mensagem de erro.
+            kill -0 "$JAR_PID" 2>/dev/null || { echo "✗ o jar morreu antes de responder"; wait "$JAR_PID"; exit 1; }
+            sleep 2
+          done
+          echo "✗ /api/health não respondeu em 60s"
+          kill "$JAR_PID" 2>/dev/null || true
+          exit 1
+
+  frontend:
+    name: Front — typecheck da app, typecheck do e2e e build
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: deep-saude-plataforma-front-end
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: deep-saude-plataforma-front-end/package-lock.json
+
+      - run: npm ci
+
+      - name: typecheck da aplicação
+        run: npm run typecheck
+
+      # ⚠️ Este é o segundo, e é o motivo de a mensagem 0015 existir. O
+      # `tsconfig` da aplicação NÃO cobre `e2e/`, porque os testes importam
+      # `@playwright/test`, que é devDependency. Rodar só o primeiro deixa os
+      # testes de navegador sem verificação de tipo nenhuma — foi assim que um
+      # risco de build passou.
+      - name: typecheck do e2e (tsconfig separado)
+        run: npm run typecheck:e2e
+
+      - name: next build
+        # Segredos de mentira: o build precisa das variáveis existirem, não
+        # valerem alguma coisa. Nenhuma delas é usada em tempo de build para
+        # falar com serviço real.
+        env:
+          NEXTAUTH_SECRET: segredo-de-build-do-ci
+          NEXTAUTH_URL: http://localhost:9002
+        run: npm run build
+
+      - name: os tokens de cor materializaram no CSS
+        # 🔴 `next build` verde NAO prova esta parte, e por isso este passo existe.
+        # Classe de Tailwind que nao esta na config nao vira erro de build: vira
+        # CSS nenhum. O toast ficaria transparente e o build seguiria verde — a
+        # familia de defeito deste projeto, sinal de sucesso sem verificacao.
+        # Este passo e o controle positivo do `--success`: ele falha se a classe
+        # nao existir de verdade no bundle.
+        run: |
+          set -euo pipefail
+          css=$(find .next -name '*.css' -path '*static*' | tr '\n' ' ')
+          test -n "$css" || { echo "::error::o build nao emitiu CSS nenhum"; exit 1; }
+          faltou=0
+          for alvo in '--success:' '--success-foreground:' '.bg-success{' '.text-success{' '.bg-destructive{' \
+                      '--grafite:' '--grafite-suave:' '--grafite-tenue:' '--grafite-foreground:' \
+                      '.bg-grafite-suave{' '.bg-grafite-tenue{' '.border-grafite{' '.text-grafite-foreground{' \
+                      '--tomate:' '--tomate-suave:' '--tomate-foreground:' \
+                      '.bg-tomate-suave{' '.border-tomate{' '.text-tomate{' '.text-tomate-foreground{'; do
+            grep -qF -- "$alvo" $css || { echo "::error::faltou no CSS compilado: $alvo"; faltou=1; }
+          done
+          # 🔴 O laranja do bloqueio nao pode voltar. Ele colide com Tangerina, que
+          # na convencao da R-017 significa *sessao agendada* — a mesma cor com
+          # sentidos opostos nas duas telas faz a psicologa errar. Esta guarda
+          # olha o FONTE e nao o CSS: classe de laranja nas duas visoes da agenda
+          # e regressao, mesmo que compile.
+          if grep -rn 'orange' src/app/\(app\)/calendar/DayView.tsx src/app/\(app\)/calendar/WeekView.tsx; then
+            echo "::error::o laranja voltou ao bloqueio da agenda — ver GC-017 e R-017"
+            faltou=1
+          fi
+          # 🔴 Cor crua para ESTADO na grade e regressao: a grade e o painel de
+          # detalhe ja discordaram sobre "cancelada" (grade vermelha, painel
+          # laranja) e sobre "bloqueio" (grade grafite, menu laranja). Token e o
+          # que faz as duas telas nao poderem divergir de novo.
+          if grep -rnE '(bg|text|border)-(red|orange|green|blue|yellow|amber)-[0-9]' \
+               src/app/\(app\)/calendar/DayView.tsx src/app/\(app\)/calendar/WeekView.tsx; then
+            echo "::error::cor crua voltou a grade da agenda — use os tokens (GC-015)"
+            faltou=1
+          fi
+          # No CalendarClient sobra UM laranja legitimo: o "Sim, agendar" do
+          # aviso de conflito, que e acao e nao estado. Se aparecer um segundo,
+          # alguem pintou estado com cor crua de novo.
+          n=$(grep -cE '(bg|text|border)-orange-[0-9]' src/app/\(app\)/calendar/CalendarClient.tsx || true)
+          if [ "$n" -gt 1 ]; then
+            echo "::error::CalendarClient tem $n laranjas crus; o unico permitido e o 'Sim, agendar' — ver §12"
+            faltou=1
+          fi
+          test "$faltou" -eq 0 || exit 1
+          echo "ok: --success e --grafite nos dois temas, classes geradas, bloqueio sem laranja"
+
+  navegador:
+    name: Navegador — Playwright (o que a pico levou embora)
+    runs-on: ubuntu-24.04
+    needs: [backend, frontend]
+
+    services:
+      postgres:
+        image: postgres:16.13
+        env:
+          POSTGRES_USER: deep
+          POSTGRES_PASSWORD: deep
+          POSTGRES_DB: deep_e2e
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U deep -d postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      # Mesmo cache e mesma retentativa do job `backend` — ver o comentário lá.
+      # Foi ESTE job que caiu com 429 em 17/08.
+      - name: Cache do Leiningen
+        uses: actions/cache@v4
+        with:
+          path: ~/lein
+          key: lein-2.11.2
+
+      - name: Instalar Leiningen
+        run: |
+          if [ ! -x "$HOME/lein" ]; then
+            for tentativa in 1 2 3 4; do
+              curl -fsSL https://raw.githubusercontent.com/technomancy/leiningen/2.11.2/bin/lein \
+                -o "$HOME/lein" && break || :
+              echo "tentativa $tentativa falhou — nova em $((tentativa * 5))s"
+              sleep $((tentativa * 5))
+            done
+          fi
+          test -s "$HOME/lein" || { echo "não consegui baixar o lein em 4 tentativas"; exit 1; }
+          chmod +x "$HOME/lein"
+          echo "$HOME" >> "$GITHUB_PATH"
+
+      - name: Cache do ~/.m2
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2
+          key: m2-${{ runner.os }}-${{ hashFiles('deep-saude-plataforma-api/deep-saude-backend/project.clj') }}
+          restore-keys: m2-${{ runner.os }}-
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: deep-saude-plataforma-front-end/package-lock.json
+
+      - name: npm ci
+        working-directory: deep-saude-plataforma-front-end
+        run: npm ci
+
+      # ⚠️ PORTA 3999, e isto não é preferência.
+      #
+      # Os rewrites do next.config.ts tinham `http://localhost:3000` fixo no
+      # destino, e o módulo financeiro depende inteiramente deles. Com o backend
+      # em 3000, a suíte passa sem provar nada — era exatamente a armadilha que
+      # o e2e/README documenta. Não "simplifique" para 3000.
+      - name: Subir o backend na 3999
+        working-directory: deep-saude-plataforma-api/deep-saude-backend
+        env:
+          JWT_SECRET: segredo-e2e
+          PROVISIONING_TOKEN: token-prov-teste
+          PORT: '3999'
+          DATABASE_URL: 'postgresql://deep:deep@localhost:5432/deep_e2e?sslmode=disable'
+        run: |
+          # `nohup` + `disown`: o processo precisa sobreviver ao fim DESTE passo
+          # para atender o passo do Playwright. Sem isso, ele pode levar SIGHUP
+          # quando o shell do passo termina, e a falha aparece lá na frente como
+          # "conexão recusada" — longe da causa.
+          nohup lein run > "$RUNNER_TEMP/backend.log" 2>&1 &
+          disown || true
+          echo "Esperando o backend responder na 3999..."
+          # Não existe healthcheck no backend (OPS-004 em aberto), então a
+          # espera é por "responde alguma coisa HTTP", não por 200: qualquer
+          # código já prova que a porta subiu e o Jetty está atendendo.
+          for i in $(seq 1 90); do
+            codigo=$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:3999/" || true)
+            if [ "$codigo" != "000" ]; then
+              echo "Backend no ar (HTTP $codigo) depois de ${i}s."
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "O backend não subiu em 90s. Log:"
+          cat "$RUNNER_TEMP/backend.log"
+          exit 1
+
+      # 🔴 RESTORE e SAVE separados, e o `if: always()` do save é o ponto inteiro.
+      #
+      # Com `actions/cache@v4` (as duas metades juntas), o cache **só é gravado
+      # quando o job termina bem**. Este job nunca terminou bem — e aí o impasse
+      # se alimenta sozinho:
+      #
+      #   download demora  ->  job estoura  ->  cache não grava
+      #        ^                                      |
+      #        +--------------------------------------+
+      #
+      # Medido no run 32209032971: o passo de instalar ficou **17 minutos**, que é
+      # exatamente `apt` + 3 × `timeout 300` + as duas esperas. As três tentativas
+      # estouraram, e nas quatro execuções anteriores foi igual.
+      #
+      # Separando, o save roda mesmo quando o e2e falha ou o job é cancelado: a
+      # primeira execução que **baixar** o Chromium já deixa ele no cache, e a
+      # seguinte pula o download inteiro.
+      - name: Restaurar o Chromium do Playwright
+        id: cache-chromium
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.cache/ms-playwright
+          # 🔴 O `v2` é uma versão MANUAL da chave, e existe por um motivo
+          # específico: `actions/cache/save` **não sobrescreve** uma chave que já
+          # existe. Se uma entrada gravada pela metade passar a "acertar", o
+          # download roda inteiro toda vez, a gravação é pulada porque houve
+          # acerto, e a entrada ruim fica lá **para sempre**.
+          #
+          # ⚠️ É a 0154 da `vale` numa roupa nova — *"a condição que evita
+          # regravar à toa também impede consertar"*. A gente fechou o caso do
+          # download morto no meio; não fechou o do acerto inútil, e a única
+          # saída para ele é abandonar a chave. Bump aqui quando desconfiar.
+          #
+          # 🔴 A âncora não é enfeite: ela é o conserto de um defeito que já
+          # aconteceu. O `v2` foi posto AQUI e não no `save`, que continuou
+          # gravando `playwright-` (v1). O resultado é que o cache não tinha como
+          # funcionar em nenhuma execução:
+          #
+          #   restore procura `playwright-v2-…`  → nunca existiu    → sempre erra
+          #   save grava      `playwright-…`     → chave v1 travada → "Unable to
+          #                                        reserve cache"
+          #
+          # Medido em 19/08 nos runs 32231572392 e 32232479721: os dois verdes,
+          # os dois com `Cache save failed`, e os dois pagando ~5 min de download
+          # do Chromium. Com a âncora, bumpar a versão passa a ser impossível de
+          # fazer pela metade — é uma linha só, e o `save` recebe a mesma.
+          key: &chave-do-chromium playwright-v2-${{ runner.os }}-${{ hashFiles('deep-saude-plataforma-front-end/package-lock.json') }}
+
+      # 📌 Este passo existe porque em 19/08 eu fiquei sem conseguir distinguir
+      # duas explicações que **produzem o mesmo sintoma**: "o cache acertou e veio
+      # vazio" e "o cache errou e o download está lento". As duas terminam a
+      # restauração em segundos e deixam o passo seguinte penando por 20 minutos.
+      #
+      # Custa nada e transforma a próxima falha em algo legível sem adivinhação.
+      - name: O que a restauração trouxe (diagnóstico)
+        run: |
+          echo "cache-hit: '${{ steps.cache-chromium.outputs.cache-hit }}'"
+          echo "--- conteúdo de ~/.cache/ms-playwright ---"
+          ls -la ~/.cache/ms-playwright 2>/dev/null || echo "(o diretório não existe)"
+          echo "--- o executável do Chromium está lá? ---"
+          ls -la ~/.cache/ms-playwright/chromium-*/chrome-linux/chrome 2>/dev/null \
+            || echo "NÃO — o download vai ter de rodar inteiro"
+
+      - name: Instalar o Chromium do Playwright
+        id: instalar-chromium
+        working-directory: deep-saude-plataforma-front-end
+        timeout-minutes: 26
+        run: |
+          # 🔴 QUEM SEGURA ESTE PASSO É O `apt`, NÃO O DOWNLOAD. Provado em 19/08.
+          #
+          # O run 32216984737 morreu no teto de 22 min sem rodar um teste, e a
+          # linha que explica está no fim do log, na limpeza:
+          #
+          #   Terminate orphan process: pid (3055) (npm exec playwright install-deps chromium)
+          #
+          # O processo AINDA VIVO aos 22 minutos era o `install-deps`. Ou seja: o
+          # download nem tinha começado, e o `timeout` que embrulha o download
+          # nunca chegou a valer. Durante horas eu tratei isto como "a rede está
+          # lenta para baixar o Chromium" e mexi no orçamento do passo errado.
+          #
+          # ⚠️ O comentário anterior aqui dizia, com razão, que matar o apt no meio
+          # deixa `/var/lib/apt/lists/lock` preso e derruba as tentativas
+          # seguintes. Isso continua verdadeiro — mas a conclusão que se tirou dele
+          # (deixar o apt SEM teto) trocou "uma tentativa perdida" por "o job
+          # inteiro perdido". O lock só machuca quem for usar apt DEPOIS, e depois
+          # daqui ninguém usa: o download não passa por apt.
+          #
+          # 📌 Então o apt ganha teto e deixa de ser fatal. Se as bibliotecas já
+          # estiverem no runner — e na imagem ubuntu-24.04 elas costumam estar —
+          # o navegador sobe do mesmo jeito. Se não estiverem, o e2e falha dizendo
+          # que o Chromium não abriu, que é um vermelho legível em minutos, em vez
+          # de silêncio por 22.
+          timeout 300 npx playwright install-deps chromium || {
+            echo "::warning::install-deps não terminou em 300s — seguindo assim mesmo."
+            echo "Se o Chromium não abrir no e2e, a causa é esta linha."
+          }
+
+          # O download, este sim, pode ser morto e repetido à vontade.
+          for tentativa in 1 2; do
+            timeout 600 npx playwright install chromium && exit 0
+            echo "download do chromium falhou ou travou (tentativa $tentativa)"
+            sleep 15
+          done
+          exit 1
+
+      # Grava mesmo se o e2e falhar depois — o que interessa aqui é o binário
+      # baixado, e ele não fica errado por causa de um teste vermelho.
+      #
+      # 🔴 MAS `always()` vale também quando o job é CANCELADO — achado da `vale`
+      # na 0154, e ela está certa. O job vinha sendo cancelado **no meio do
+      # download**, nas cinco vezes. Sem a guarda abaixo existiria esta sequência:
+      #
+      #   1. baixa o Chromium pela metade
+      #   2. alguém empurra -> cancelamento no meio
+      #   3. `always()` grava um diretório INCOMPLETO
+      #   4. run seguinte: cache-hit = true
+      #   5. o save é pulado por `cache-hit != 'true'` -> o lixo nunca se corrige
+      #
+      # ⚠️ O passo 5 é o que dói: a condição que evita regravar à toa também
+      # impede consertar, e a chave só muda quando o `package-lock.json` mudar.
+      #
+      # `outcome == 'success'` separa exatamente o que precisa ser separado: "o
+      # e2e falhou" (grava, o binário está bom) de "o download não terminou"
+      # (não grava).
+      - name: Guardar o Chromium no cache
+        if: always()
+          && steps.instalar-chromium.outcome == 'success'
+          && steps.cache-chromium.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.cache/ms-playwright
+          # Mesma chave do `restore`, por construção — ver a âncora lá em cima.
+          key: *chave-do-chromium
+
+      - name: npm run e2e
+        working-directory: deep-saude-plataforma-front-end
+        # 🔴 Sem teto, este passo herda o padrão do GitHub: **360 minutos**. E
+        # agora que as execuções ENFILEIRAM (ver o `concurrency` no topo), um passo
+        # doente não atrasa só a si mesmo — ele segura o veredito de todo mundo
+        # atrás dele.
+        #
+        # Medido em 19/08 (run 32212935260): o passo passou de **uma hora**. A
+        # conta explica: `workers: 1`, `timeout: 120s` por teste e `retries: 1` no
+        # CI, com 33 testes, dão 132 minutos de teto quando a suíte adoece — e
+        # nada disso aparece como erro, só como espera.
+        #
+        # ⚠️ 35 minutos é folgado para a suíte sadia (serial, ~10–20 min) e
+        # apertado para a doente. O objetivo não é caber: é **transformar "travou"
+        # em vermelho rápido** em vez de silêncio de seis horas.
+        timeout-minutes: 35
+        env:
+          PROVISIONING_TOKEN: token-prov-teste
+          E2E_BACKEND_URL: http://localhost:3999
+        run: npm run e2e
+
+      # 🔴 O log do backend IMPRESSO, não só arquivado.
+      #
+      # Em 18/08 o e2e de cadastro falhou com o front reportando
+      # `SyntaxError: Unexpected token '<'` — que é o `response.json()`
+      # engasgando na página de erro HTML do backend. A exceção de verdade
+      # estava neste arquivo, dentro do zip do artefato — e o artefato é
+      # inalcançável de onde a `orla` trabalha (o proxy bloqueia o host do
+      # blob). Resultado: duas hipóteses erradas seguidas, gastas em cima de
+      # leitura de código em vez da mensagem que o servidor já tinha escrito.
+      #
+      # Guardar não é mostrar. Só na falha, e só a cauda, para não afogar o log.
+      - name: Log do backend (só quando o e2e falha)
+        if: failure()
+        run: |
+          echo "===== últimas 120 linhas do backend ====="
+          tail -120 "$RUNNER_TEMP/backend.log" || echo "(sem backend.log)"
+
+      # Sem isto, teste de navegador que falha no CI vira adivinhação: o
+      # relatório e o log do backend são a única janela para o que aconteceu.
+      - name: Guardar relatório e log do backend
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: relatorio-playwright
+          path: |
+            deep-saude-plataforma-front-end/playwright-report/
+            deep-saude-plataforma-front-end/test-results/
+            ${{ runner.temp }}/backend.log
+          retention-days: 7
+          if-no-files-found: ignore
+
+  # 🔴 Este job existe porque duas colisões de numeração sobreviveram **dias** na
+  # mensageria — `0168` e `0172`, cada uma usada por duas mensagens diferentes.
+  #
+  # O script que as detecta já existia e sempre funcionou. O que faltava era
+  # alguém **rodar**: guarda que só dispara quando alguém lembra de invocá-la é
+  # guarda que não existe. É a mesma família do `migrations_completed` que
+  # anunciou sucesso por 17 horas (A-026) e do `test.fail()` que absorvia
+  # qualquer morte (A-012) — sinal que não chega a quem precisa dele.
+  #
+  # Custo: ~20 segundos, sem dependência nenhuma além do Python do runner. Barato
+  # o bastante para rodar em todo push, que é a única frequência que impede a
+  # colisão de ser descoberta depois de virar referência cruzada.
+  mensageria:
+    name: Mensageria — numeração e links
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Numeração única e links que resolvem
+        run: python3 mensageria/checa_links.py

@@ -1,6 +1,9 @@
 import React from 'react';
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { redirect } from "next/navigation";
+import { carregar } from "@/lib/carregar";
+import { FalhaDeCarregamento } from "@/components/FalhaDeCarregamento";
 import FinanceiroClient from './FinanceiroClient';
 
 interface Agendamento {
@@ -27,30 +30,23 @@ async function syncAgendamentosStatus(token: string): Promise<void> {
   }
 }
 
-async function getAgendamentos(token: string): Promise<Agendamento[]> {
-  const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/agendamentos`;
-  try {
-    const response = await fetch(apiUrl, {
-      headers: { 'Authorization': `Bearer ${token}` },
-      cache: 'no-store',
-    });
-    if (!response.ok) return [];
-    return response.json();
-  } catch (error) {
-    console.error("Erro ao buscar financeiro:", error);
-    return [];
-  }
-}
-
 export default async function AdminFinanceiroPage() {
   const session = await getServerSession(authOptions);
   const token = (session as any)?.backendToken;
 
-  if (!token) return <p>Não autorizado.</p>;
+  if (!token) {
+    redirect("/admin/login?expired=true");
+  }
 
   // Primeiro sincroniza os status no DB, depois busca os dados atualizados
   await syncAgendamentosStatus(token);
-  const agendamentos = await getAgendamentos(token);
 
-  return <FinanceiroClient initialAgendamentos={agendamentos} token={token} />;
+  // A-013: financeiro vazio por falha de carregamento é o pior caso da lista —
+  // aqui "não há nada" se lê como "não há nada a receber".
+  const agendamentos = await carregar<any[]>("/api/agendamentos", token, { porta: "/admin/login" });
+  if (!agendamentos.ok) {
+    return <FalhaDeCarregamento motivo={agendamentos.motivo} oQue="o financeiro" />;
+  }
+
+  return <FinanceiroClient initialAgendamentos={agendamentos.dados} token={token} />;
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { CardContent } from "@/components/ui/card";
@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { updateAgendamento, type FormState } from "../../actions";
+import { paraInputLocal, maisMinutos, paredeMaisMinutos, instanteDeParede } from "@/lib/datetime";
 
 import {
   Dialog,
@@ -18,6 +19,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface Psicologo {
   id: string;
@@ -69,9 +80,28 @@ export default function EditarAgendamentoForm({
   const [isRecurrenceDialogOpen, setIsRecurrenceDialogOpen] = useState(false);
   const [pendingFormData, setPendingFormData] = useState<FormData | null>(null);
 
+  /**
+   * A-009 + A-011, e é aqui que as duas se encontram.
+   *
+   * Este formulário é o que a A-011 descreve: ele manda `psicologo_id` e
+   * `data_hora_sessao` **sempre**, porque o `agendamentoSchema` os exige. Contra
+   * o backend antigo, editar qualquer sessão sobreposta dava 409 — inclusive
+   * para marcar pagamento. O botão de forçar sem essa correção criaria sessões
+   * que esta tela não conseguiria mais editar.
+   *
+   * ⚠️ O reenvio guarda o `FormData` em vez de chamar `requestSubmit()`, e a
+   * diferença importa: `requestSubmit()` reabriria o diálogo de recorrência e
+   * perderia o modo que a pessoa já escolheu. É o mesmo caminho que o
+   * `handleConfirmMode` logo abaixo já usa.
+   */
+  const ultimoEnvio = useRef<FormData | null>(null);
+  const [isConflictOpen, setIsConflictOpen] = useState(false);
+  const [isForcaNegadaOpen, setIsForcaNegadaOpen] = useState(false);
+
   const updateWithId = updateAgendamento.bind(null, agendamento.id);
 
   const clientWrapperAction = async (prevState: FormState, formData: FormData): Promise<FormState> => {
+       ultimoEnvio.current = formData;
        // Check recurrence
        if (agendamento.recorrencia_id && !formData.get('mode')) {
            setPendingFormData(formData);
@@ -81,7 +111,38 @@ export default function EditarAgendamentoForm({
        return updateWithId(prevState, formData);
   };
 
+  const handleForceSubmit = () => {
+    const dados = ultimoEnvio.current;
+    if (!dados) return;
+    dados.set('force', 'true');
+    React.startTransition(() => {
+      formAction(dados);
+    });
+    setIsConflictOpen(false);
+  };
+
   const [state, formAction] = useFormState(clientWrapperAction, initialState);
+
+  /**
+   * ## A-022 — por que estes campos são controlados
+   *
+   * `<form action={formAction}>` **reseta os campos descontrolados quando a ação
+   * termina, e não distingue sucesso de falha.** Em tela de edição o reset devolve
+   * os campos ao `defaultValue` — aos dados antigos. A alteração some e a tela
+   * fica com cara de intacta, que é pior de notar do que um campo em branco.
+   *
+   * Mesma causa e mesmo conserto da A-010.
+   */
+  const [campos, setCampos] = React.useState({
+    valor_consulta: String((agendamento.valor_consulta) ?? ""),
+    paciente_id: String((agendamento.paciente_id) ?? ""),
+    psicologo_id: String((agendamento.psicologo_id) ?? ""),
+    status: String((agendamento.status || "agendado") ?? ""),
+  });
+  const mudar =
+    (nome: keyof typeof campos) =>
+    (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+      setCampos((c) => ({ ...c, [nome]: e.target.value }));
 
   const handleConfirmMode = (mode: string) => {
     if (pendingFormData) {
@@ -94,45 +155,24 @@ export default function EditarAgendamentoForm({
     }
   };
 
-  // Time formatting helpers
-  const formatForInput = (dateString: string) => {
-      try {
-          const date = new Date(dateString);
-          if (isNaN(date.getTime())) return "";
-          const offset = date.getTimezoneOffset() * 60000;
-          const localISOTime = (new Date(date.getTime() - offset)).toISOString().slice(0, 16);
-          return localISOTime;
-      } catch (e) {
-          return "";
-      }
-  };
-
-  const calculateEndDate = (startDateString: string, durationMinutes: number) => {
-      try {
-        const date = new Date(startDateString);
-        if (isNaN(date.getTime())) return "";
-        const endDate = new Date(date.getTime() + durationMinutes * 60000);
-        const offset = endDate.getTimezoneOffset() * 60000;
-        return (new Date(endDate.getTime() - offset)).toISOString().slice(0, 16);
-      } catch (e) {
-        return "";
-      }
-  };
-
   // State
   const initialDuration = agendamento.duracao || 50;
-  const [start, setStart] = useState(formatForInput(agendamento.data_hora_sessao));
-  const [end, setEnd] = useState(calculateEndDate(agendamento.data_hora_sessao, initialDuration));
+  const [start, setStart] = useState(paraInputLocal(agendamento.data_hora_sessao));
+  const [end, setEnd] = useState(
+      paraInputLocal(maisMinutos(agendamento.data_hora_sessao, initialDuration))
+  );
 
   // Handlers
   const handleStartChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const newStart = e.target.value;
       setStart(newStart);
       
+      // `start` e `end` são horário de parede da clínica, não instante — por isso
+      // `instanteDeParede` e não `new Date`, que leria no fuso do navegador.
       let durationToKeep = 50;
       if (start && end) {
-          const sDate = new Date(start);
-          const eDate = new Date(end);
+          const sDate = instanteDeParede(start);
+          const eDate = instanteDeParede(end);
           if (!isNaN(sDate.getTime()) && !isNaN(eDate.getTime())) {
               const diff = (eDate.getTime() - sDate.getTime()) / 60000;
               if (diff > 0) durationToKeep = diff;
@@ -140,7 +180,7 @@ export default function EditarAgendamentoForm({
       }
 
       if (newStart) {
-          setEnd(calculateEndDate(newStart, durationToKeep));
+          setEnd(paredeMaisMinutos(newStart, durationToKeep));
       }
   };
 
@@ -150,11 +190,18 @@ export default function EditarAgendamentoForm({
 
   useEffect(() => {
     if (state.message && !state.success) {
-      toast({
-        title: "Erro na Edição",
-        description: state.message,
-        variant: "destructive",
-      });
+      if (state.conflict) {
+        setIsConflictOpen(true);
+      } else if (state.forcaNegada) {
+        setIsConflictOpen(false);
+        setIsForcaNegadaOpen(true);
+      } else {
+        toast({
+          title: "Erro na Edição",
+          description: state.message,
+          variant: "destructive",
+        });
+      }
     }
   }, [state, toast]);
 
@@ -165,8 +212,10 @@ export default function EditarAgendamentoForm({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="paciente_id">Paciente</Label>
-            <Select name="paciente_id" defaultValue={agendamento.paciente_id} required>
-              <SelectTrigger>
+            <Select name="paciente_id" required value={campos.paciente_id} onValueChange={(v) => setCampos((c) => ({ ...c, paciente_id: v }))}>
+              {/* id liga ao <Label htmlFor="paciente_id">: o SelectTrigger é um
+                  combobox, e combobox não tira nome do conteúdo. */}
+              <SelectTrigger id="paciente_id">
                 <SelectValue placeholder="Selecione um paciente" />
               </SelectTrigger>
               <SelectContent>
@@ -180,8 +229,9 @@ export default function EditarAgendamentoForm({
 
           <div className="space-y-2">
             <Label htmlFor="psicologo_id">Psicólogo</Label>
-            <Select name="psicologo_id" defaultValue={agendamento.psicologo_id} required>
-              <SelectTrigger>
+            <Select name="psicologo_id" required value={campos.psicologo_id} onValueChange={(v) => setCampos((c) => ({ ...c, psicologo_id: v }))}>
+              {/* Mesmo motivo do paciente_id acima. */}
+              <SelectTrigger id="psicologo_id">
                 <SelectValue placeholder="Selecione um psicólogo" />
               </SelectTrigger>
               <SelectContent>
@@ -232,16 +282,15 @@ export default function EditarAgendamentoForm({
                     type="number" 
                     step="0.01" 
                     min="0" 
-                    placeholder="0.00" 
-                    defaultValue={agendamento.valor_consulta}
-                    required 
-                />
+                    placeholder="0.00"
+                    required value={campos.valor_consulta} onChange={mudar("valor_consulta")} />
                 {state.errors?.valor_consulta && <p className="text-sm font-medium text-destructive">{state.errors.valor_consulta[0]}</p>}
             </div>
             <div className="space-y-2">
               <Label htmlFor="status">Status</Label>
-              <Select name="status" defaultValue={agendamento.status || "agendado"}>
-                <SelectTrigger>
+              <Select name="status" value={campos.status} onValueChange={(v) => setCampos((c) => ({ ...c, status: v }))}>
+                {/* Mesmo motivo do paciente_id: sem id, este combobox fica sem nome. */}
+                <SelectTrigger id="status">
                   <SelectValue placeholder="Selecione o status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -256,6 +305,39 @@ export default function EditarAgendamentoForm({
         <div className="flex justify-end pt-4"><SubmitButton /></div>
       </CardContent>
     </form>
+
+    {/* R-020 (1) — o admin também força ao MOVER, não só ao criar. */}
+    <AlertDialog open={isConflictOpen} onOpenChange={setIsConflictOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Conflito de horário</AlertDialogTitle>
+          <AlertDialogDescription>
+            {state.message} Como gestão da clínica, você pode mover mesmo assim —
+            as duas sessões vão ficar sobrepostas na agenda do psicólogo.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Voltar e ajustar</AlertDialogCancel>
+          <AlertDialogAction onClick={handleForceSubmit}>
+            Sim, mover mesmo assim
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+
+    <AlertDialog open={isForcaNegadaOpen} onOpenChange={setIsForcaNegadaOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Sessão marcada neste horário</AlertDialogTitle>
+          <AlertDialogDescription>
+            {state.message} Procure a gestão da clínica para resolver.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogAction>Entendi</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
 
     <Dialog open={isRecurrenceDialogOpen} onOpenChange={setIsRecurrenceDialogOpen}>
         <DialogContent>

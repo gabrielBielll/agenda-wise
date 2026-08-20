@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { cn } from "@/lib/utils";
+import { paredeDaClinica, agoraNaClinica } from "@/lib/datetime";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -34,9 +35,16 @@ interface WeekViewProps {
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i); // 00:00 to 23:00
 
-// Backend returns dates with Z suffix (UTC), but the stored value is already local time.
-// Stripping timezone info forces JS to parse as local time, avoiding offset shifts.
-const parseAsLocal = (str: string) => new Date(str.replace('Z', '').replace(/[+-]\d{2}:\d{2}$/, ''));
+// Datas vêm de @/lib/datetime. Antes havia aqui um `parseAsLocal` que removia o
+// sufixo de fuso na mão, para contornar a coluna TIMESTAMP sem fuso do banco.
+// A coluna agora é TIMESTAMPTZ e a API devolve instante de verdade — remover o
+// fuso passou a ser justamente o que produz o deslocamento.
+//
+// Desde 2026-08-15 a grade inteira trabalha em horário de parede da CLÍNICA:
+// `paredeDaClinica` devolve um Date cujos getters locais já são o relógio da
+// clínica, então todo o `setHours`/`getDate`/`toDateString` daqui continua
+// valendo sem mudar de forma. Com o navegador em São Paulo o valor é idêntico ao
+// de antes; fora dele, deixa de deslocar. Ver o cabeçalho de lib/datetime.ts.
 
 export function WeekView({ date, appointments, bloqueios = [], onAddAppointment, onEditAppointment, onDeleteBloqueio }: WeekViewProps) {
   const scrollContainerRef = React.useRef<HTMLDivElement>(null);
@@ -68,7 +76,7 @@ export function WeekView({ date, appointments, bloqueios = [], onAddAppointment,
 
   const getAppointmentsForDayAndHour = (day: Date, hour: number) => {
     return appointments.filter(app => {
-      const appDate = parseAsLocal(app.data_hora_sessao);
+      const appDate = paredeDaClinica(app.data_hora_sessao);
       const duration = app.duracao || 50;
       const endDate = new Date(appDate.getTime() + duration * 60000);
 
@@ -93,8 +101,8 @@ export function WeekView({ date, appointments, bloqueios = [], onAddAppointment,
 
   const getBloqueiosForDayAndHour = (day: Date, hour: number) => {
     return bloqueios.filter(block => {
-      const inicio = parseAsLocal(block.data_inicio);
-      const fim = parseAsLocal(block.data_fim);
+      const inicio = paredeDaClinica(block.data_inicio);
+      const fim = paredeDaClinica(block.data_fim);
       const slotStart = new Date(day);
       slotStart.setHours(hour, 0, 0, 0);
       const slotEnd = new Date(day);
@@ -125,7 +133,7 @@ export function WeekView({ date, appointments, bloqueios = [], onAddAppointment,
           GMT−3
         </div>
         {days.map((day, index) => {
-            const isToday = day.toDateString() === new Date().toDateString();
+            const isToday = day.toDateString() === agoraNaClinica().toDateString();
             return (
                 <div key={index} className={cn("p-2 text-center text-sm font-medium", isToday && "bg-accent/10")}>
                     <div className={cn("text-xs uppercase text-muted-foreground", isToday && "text-primary font-bold")}>
@@ -163,14 +171,14 @@ export function WeekView({ date, appointments, bloqueios = [], onAddAppointment,
                   key={hour} 
                   className={cn(
                     "group relative h-20 cursor-pointer border-b border-border/20 transition-colors",
-                    isBlocked ? "bg-orange-100/50 dark:bg-orange-900/20" : "hover:bg-accent/5"
+                    isBlocked ? "bg-grafite-tenue" : "hover:bg-accent/5"
                   )}
                   onClick={(e) => handleSlotClick(day, hour, e)}
                 >
                   {/* Render Bloqueios */}
                   {hourBloqueios.map(block => {
-                    const inicio = parseAsLocal(block.data_inicio);
-                    const fim = parseAsLocal(block.data_fim);
+                    const inicio = paredeDaClinica(block.data_inicio);
+                    const fim = paredeDaClinica(block.data_fim);
                     const slotStart = new Date(day);
                     slotStart.setHours(hour, 0, 0, 0);
                     const slotEnd = new Date(day);
@@ -192,7 +200,7 @@ export function WeekView({ date, appointments, bloqueios = [], onAddAppointment,
                     return (
                       <div
                         key={block.id}
-                        className="absolute left-0 right-0 bg-orange-200/80 dark:bg-orange-800/60 border-l-4 border-orange-500 p-1 text-[10px] z-10 overflow-hidden flex items-center gap-1"
+                        className="absolute left-0 right-0 bg-grafite-suave border-l-4 border-grafite p-1 text-[10px] z-10 overflow-hidden flex items-center gap-1"
                         style={{ top: `${topPos}%`, height: `${height}%`, minHeight: '0px' }}
                         onClick={(e) => {
                           e.stopPropagation();
@@ -203,7 +211,7 @@ export function WeekView({ date, appointments, bloqueios = [], onAddAppointment,
                         title={block.motivo || 'Horário bloqueado'}
                       >
                         <span className="font-semibold">🔒</span>
-                        <span className="truncate text-orange-800 dark:text-orange-200">
+                        <span className="truncate text-grafite-foreground">
                           {block.motivo || 'Bloqueado'}
                         </span>
                       </div>
@@ -212,7 +220,7 @@ export function WeekView({ date, appointments, bloqueios = [], onAddAppointment,
 
                   {/* Render Appointments */}
                   {hourAppointments.map(app => {
-                      const appDate = parseAsLocal(app.data_hora_sessao);
+                      const appDate = paredeDaClinica(app.data_hora_sessao);
                       const duration = app.duracao || 50;
                       const endDate = new Date(appDate.getTime() + duration * 60000);
 
@@ -240,7 +248,7 @@ export function WeekView({ date, appointments, bloqueios = [], onAddAppointment,
                               className={cn(
                                 "absolute left-1 right-1 rounded-md p-1 text-[10px] transition-colors cursor-pointer z-10 overflow-hidden border-l-4",
                                 app.status === 'cancelado'
-                                  ? "bg-red-100 dark:bg-red-900/20 border-red-500 text-red-700 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-900/30 opacity-80"
+                                  ? "bg-tomate-suave border-tomate text-tomate-foreground hover:brightness-95 opacity-80"
                                   : isContinuation
                                     ? "border-primary bg-primary/10 text-foreground opacity-75 hover:bg-primary/20"
                                     : "border-primary bg-primary/15 text-foreground shadow-sm hover:bg-primary/20"

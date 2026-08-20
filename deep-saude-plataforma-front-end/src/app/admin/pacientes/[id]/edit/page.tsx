@@ -1,6 +1,9 @@
 import React from 'react';
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { redirect } from "next/navigation";
+import { carregar } from "@/lib/carregar";
+import { FalhaDeCarregamento } from "@/components/FalhaDeCarregamento";
 import { notFound } from 'next/navigation';
 import EditPacienteForm from './EditPacienteForm'; // O formulário que vamos criar a seguir
 
@@ -40,22 +43,6 @@ async function getPaciente(token: string, pacienteId: string): Promise<Paciente 
 }
 
 // Função para buscar os psicólogos (para o dropdown)
-async function getPsicologos(token: string): Promise<{ id: string; nome: string }[] | []> {
-  const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/psicologos`;
-  try {
-    const response = await fetch(apiUrl, {
-      method: 'GET',
-      headers: { 'Authorization': `Bearer ${token}` },
-      cache: 'no-store',
-    });
-    if (!response.ok) return [];
-    return response.json();
-  } catch (error) {
-    console.error("Erro ao buscar psicólogos:", error);
-    return [];
-  }
-}
-
 export default async function AdminEditPacientePage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = await params;
   const session = await getServerSession(authOptions);
@@ -63,20 +50,38 @@ export default async function AdminEditPacientePage({ params }: { params: Promis
   const pacienteId = resolvedParams.id;
 
   if (!token) {
-    return <p>Não autorizado.</p>;
+    redirect("/admin/login?expired=true");
   }
 
   const [pacienteData, psicologosData] = await Promise.all([
     getPaciente(token, pacienteId),
-    getPsicologos(token)
+    // A-013: sem isto, falha ao carregar psicólogos deixava o vínculo do
+    // paciente com um <select> vazio, como se não houvesse a quem vincular.
+    carregar<any[]>("/api/psicologos", token, { porta: "/admin/login" }),
   ]);
+
+  if (!psicologosData.ok) {
+    return <FalhaDeCarregamento motivo={psicologosData.motivo} oQue="os psicólogos" />;
+  }
 
   if ('error' in pacienteData) {
     if (pacienteData.error === 'Paciente não encontrado.') {
       notFound();
     }
-    return <div>Erro ao carregar os dados: {pacienteData.error}</div>;
+    /**
+     * ⚠️ Isto era `<div>Erro ao carregar os dados: {…}</div>` — uma string nua,
+     * sem casca, sem explicação e sem saída. É a mesma família da **A-013**, e
+     * foi provavelmente o que apareceu como "tela VAZIA" no passeio da `orla`
+     * (mensageria 0160): um corpo de poucos caracteres.
+     *
+     * 📌 O `FalhaDeCarregamento` já é o tratamento do resto do app: distingue
+     * "sem acesso" de "indisponível" e oferece o caminho de volta. Estas quatro
+     * telas ficaram de fora quando a A-013 passou porque elas não usam
+     * `carregar()` para o registro principal — usam um `getX` próprio que
+     * devolve `{ error }`.
+     */
+    return <FalhaDeCarregamento motivo="indisponivel" oQue="o paciente" />;
   }
 
-  return <EditPacienteForm paciente={pacienteData} psicologos={psicologosData} />;
+  return <EditPacienteForm paciente={pacienteData} psicologos={psicologosData.dados} />;
 }

@@ -30,7 +30,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { createBloqueioAdmin, checkBlockConflictsAdmin, deleteBloqueioAdmin, deleteAgendamento } from "./actions";
+import { createBloqueioAdmin, deleteBloqueioAdmin, deleteAgendamento } from "./actions";
+import { descreveSessaoEmConflito, type SessaoEmConflito } from "@/lib/conflitos";
 import { Check, ChevronsUpDown, Lock, Trash2 } from "lucide-react";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -102,7 +103,8 @@ export default function AgendamentosClient({
   const [openPsicologoBlock, setOpenPsicologoBlock] = useState(false);
 
   // Conflict State
-  const [conflictData, setConflictData] = useState<{ count: number, start: string, end: string, motivo: string, diaInteiro: boolean, psicologoId: string } | null>(null);
+  // R-014: a recusa mostra QUAIS sessões impedem o bloqueio, não só quantas.
+  const [sessoesEmConflito, setSessoesEmConflito] = useState<SessaoEmConflito[] | null>(null);
   const [isConflictDialogOpen, setIsConflictDialogOpen] = useState(false);
 
   // Delete Block Dialog State
@@ -122,59 +124,33 @@ export default function AgendamentosClient({
         return;
     }
 
-    // Check conflicts
-    const conflictResult = await checkBlockConflictsAdmin(blockStart, blockEnd, blockPsicologoId, blockRecurrenceType, blockRecurrenceCount);
-
-    if (conflictResult.total > 0) {
-        setConflictData({ 
-            count: conflictResult.total, 
-            start: blockStart, 
-            end: blockEnd, 
-            motivo: blockMotivo, 
-            diaInteiro: false, 
-            psicologoId: blockPsicologoId 
-        });
-        setIsBlockDialogOpen(false);
-        setIsConflictDialogOpen(true);
-        return;
-    }
-
+    // Sem pré-checagem: o backend recusa e devolve as sessões atingidas na
+    // própria recusa (R-014). Ver o mesmo raciocínio no CalendarClient.
     const result = await createBloqueioAdmin(blockStart, blockEnd, blockPsicologoId, blockMotivo, false, blockRecurrenceType, blockRecurrenceCount);
-    
+
     if (result.success) {
-        toast({ title: "Sucesso", description: result.message, className: "bg-green-500 text-white" });
+        toast({ title: "Sucesso", description: result.message, className: "bg-success text-success-foreground" });
         setIsBlockDialogOpen(false);
         // Reset fields
         setBlockStart("");
         setBlockEnd("");
         setBlockMotivo("");
-    } else {
-        toast({ title: "Erro", description: result.message, variant: "destructive" });
+        return;
     }
+
+    if (result.sessoes) {
+        setSessoesEmConflito(result.sessoes);
+        setIsBlockDialogOpen(false);
+        setIsConflictDialogOpen(true);
+        return;
+    }
+
+    toast({ title: "Erro", description: result.message, variant: "destructive" });
   };
 
-  const confirmBlockCreation = async (cancelConflicts: boolean) => {
-    if (!conflictData) return;
-
-    const result = await createBloqueioAdmin(
-      conflictData.start, 
-      conflictData.end, 
-      conflictData.psicologoId,
-      conflictData.motivo, 
-      conflictData.diaInteiro, 
-      blockRecurrenceType, 
-      blockRecurrenceCount,
-      cancelConflicts
-    );
-
-    if (result && result.success) {
-      toast({ title: "Sucesso", description: result.message, className: "bg-green-500 text-white" });
-      setIsConflictDialogOpen(false);
-      setConflictData(null);
-    } else {
-      toast({ title: "Erro", description: result?.message || "Erro ao criar bloqueio.", variant: "destructive" });
-    }
-  };
+  // `confirmBlockCreation` removida em 2026-08-16 — R-014. As duas saídas que
+  // ela oferecia deixaram de existir: cancelar agendamentos em massa saiu do
+  // fluxo de criar bloqueio, e criar por cima da sessão o backend recusa.
 
   const handleDeleteBloqueio = (id: string, recorrencia_id?: string) => {
       setDeleteData({ id, recorrencia_id });
@@ -186,7 +162,7 @@ export default function AgendamentosClient({
 
       const result = await deleteBloqueioAdmin(deleteData.id, mode);
       if (result.success) {
-          toast({ title: "Sucesso", description: result.message, className: "bg-green-500 text-white" });
+          toast({ title: "Sucesso", description: result.message, className: "bg-success text-success-foreground" });
           setIsDeleteDialogOpen(false);
           setDeleteData(null);
       } else {
@@ -209,7 +185,7 @@ export default function AgendamentosClient({
           toast({
               title: "Sucesso",
               description: result.message,
-              className: "bg-green-500 text-white",
+              className: "bg-success text-success-foreground",
           });
           setIsDeleteAgendamentoOpen(false);
           setAgendamentoToDelete(null);
@@ -284,8 +260,6 @@ export default function AgendamentosClient({
     setCurrentPage(1);
   }, [selectedPaciente, selectedPsicologo, searchTerm, selectedDateFilter]);
 
-  console.log("DEBUG: AgendamentosClient render. Total:", agendamentos.length, "Filtered:", filteredAgendamentos.length);
-
   // Format Helper for Week Range Display
   const getWeekRangeDisplay = (date: Date) => {
     const start = new Date(date);
@@ -297,12 +271,55 @@ export default function AgendamentosClient({
     return `${start.toLocaleDateString('pt-BR')} - ${end.toLocaleDateString('pt-BR')}`;
   };
 
+  /**
+   * Redesign — o vocabulário é do `8109afc`, não meu.
+   *
+   * Esta tela ficou de fora do commit do Gabriel (ele mexeu em
+   * `admin/agendamentos/page.tsx`, mas só em 2 linhas de import — a UI mora
+   * aqui). É a tela de maior uso da recepção, então era a que mais ia destoar.
+   *
+   * ⚠️ **Copiei o padrão dele, não inventei um.** A casca segue
+   * `(app)/patients/page.tsx`: `quiet-page`, o eyebrow com o traço de `bg-accent`,
+   * `page-title`, `page-subtitle`, e a contagem grande em `text-accent` ao lado
+   * da ação primária. O corpo da tabela **não precisou de nada**: ele restilizou
+   * o primitivo `components/ui/table.tsx`, então ela já herdou o visual novo.
+   *
+   * 📌 Tudo por token (`text-muted-foreground`, `bg-accent`, `bg-card`) e nunca
+   * cor crua — ele definiu a paleta escura inteira no `globals.css`, e um
+   * `bg-white` aqui quebraria o modo escuro em silêncio.
+   *
+   * 🔴 **Nenhum comportamento mudou.** Os `id` da A11Y-001a, o fluxo de forçar da
+   * A-009, o diálogo de bloqueio e os filtros continuam idênticos — só a casca
+   * mudou de roupa.
+   */
   return (
+    <div className="quiet-page page-enter">
+      <section className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+        <div>
+          <p className="mb-2 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[.12em] text-muted-foreground">
+            <span className="h-px w-6 bg-accent" /> Agenda da clínica
+          </p>
+          <h2 className="page-title">O tempo de cada encontro.</h2>
+          <p className="page-subtitle">Visualize e organize os agendamentos de toda a equipe.</p>
+        </div>
+        <div className="flex items-end gap-5">
+          <div className="text-right">
+            <strong className="block font-headline text-4xl font-normal text-accent">{filteredAgendamentos.length}</strong>
+            <span className="page-eyebrow text-muted-foreground">
+              {filteredAgendamentos.length === 1 ? 'sessão' : 'sessões'}
+            </span>
+          </div>
+        </div>
+      </section>
+
     <Card>
       <CardHeader>
         <div className="flex flex-col md:flex-row items-center justify-between gap-4">
           <div>
-            <CardTitle className="flex items-center gap-2"><Calendar className="h-5 w-5"/> Agendamentos</CardTitle>
+            <CardTitle className="section-title flex items-center gap-2">
+              <span className="soft-icon h-9 w-9"><Calendar className="h-[18px] w-[18px]"/></span>
+              Agendamentos
+            </CardTitle>
             <CardDescription>Visualize e gerencie os agendamentos da clínica.</CardDescription>
           </div>
           <div className="flex items-center gap-2">
@@ -333,7 +350,9 @@ export default function AgendamentosClient({
             
             <Dialog open={isBlockDialogOpen} onOpenChange={setIsBlockDialogOpen}>
               <DialogTrigger asChild>
-                <Button variant="outline" className="gap-2 border-orange-200 hover:bg-orange-50 text-orange-700">
+                {/* Por token: o laranja cru não conhece o tema escuro, e `accent` é
+                    exatamente a terracota que ele usa para chamar atenção sem alarmar. */}
+                <Button variant="outline" className="gap-2 border-accent/40 text-accent hover:bg-accent/10">
                   <Lock className="h-4 w-4" />
                   Bloquear Horário
                 </Button>
@@ -352,7 +371,13 @@ export default function AgendamentosClient({
                     <Label htmlFor="block-psico">Psicólogo</Label>
                     <Popover open={openPsicologoBlock} onOpenChange={setOpenPsicologoBlock}>
                       <PopoverTrigger asChild>
+                        {/* ⚠️ `role="combobox"` num <button> DESLIGA o nome-pelo-conteúdo
+                            que ele teria — `button` é nameFrom:contents, `combobox` não.
+                            Sem este id o controle fica SEM NOME NENHUM (D-016).
+                            É o controle que eu classifiquei errado na 0106 e corrigi
+                            na 0110; aqui ele fecha. */}
                         <Button
+                          id="block-psico"
                           variant="outline"
                           role="combobox"
                           aria-expanded={openPsicologoBlock}
@@ -397,25 +422,29 @@ export default function AgendamentosClient({
 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="flex flex-col gap-2">
-                        <Label>Início</Label>
-                        <Input type="datetime-local" value={blockStart} onChange={e => setBlockStart(e.target.value)} />
+                        <Label htmlFor="block_inicio">Início</Label>
+                        <Input id="block_inicio" type="datetime-local" value={blockStart} onChange={e => setBlockStart(e.target.value)} />
                     </div>
                     <div className="flex flex-col gap-2">
-                        <Label>Fim</Label>
-                        <Input type="datetime-local" value={blockEnd} onChange={e => setBlockEnd(e.target.value)} />
+                        <Label htmlFor="block_fim">Fim</Label>
+                        <Input id="block_fim" type="datetime-local" value={blockEnd} onChange={e => setBlockEnd(e.target.value)} />
                     </div>
                   </div>
 
                   <div className="flex flex-col gap-2">
-                    <Label>Motivo</Label>
-                    <Input placeholder="Ex: Férias, Reunião..." value={blockMotivo} onChange={e => setBlockMotivo(e.target.value)} />
+                    <Label htmlFor="block_motivo">Motivo</Label>
+                    <Input id="block_motivo" placeholder="Ex: Férias, Reunião..." value={blockMotivo} onChange={e => setBlockMotivo(e.target.value)} />
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="flex flex-col gap-2">
-                         <Label>Repetição</Label>
+                         {/* ⚠️ Este Label não tinha `htmlFor` NENHUM — categoria que a minha
+                             varredura da 0106 não via, porque ela procurava `htmlFor`
+                             apontando para o nada. Sem os DOIS tokens o controle fica sem
+                             nome, igual aos outros. */}
+                         <Label htmlFor="block_recurrence_type">Repetição</Label>
                          <Select value={blockRecurrenceType} onValueChange={setBlockRecurrenceType}>
-                            <SelectTrigger>
+                            <SelectTrigger id="block_recurrence_type">
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -427,8 +456,8 @@ export default function AgendamentosClient({
                     </div>
                      {blockRecurrenceType !== 'none' && (
                         <div className="flex flex-col gap-2">
-                             <Label>Qtd. Vezes</Label>
-                             <Input 
+                             <Label htmlFor="block_recurrence_count">Qtd. Vezes</Label>
+                             <Input id="block_recurrence_count" 
                                 type="number" 
                                 min="2" max="52" 
                                 value={blockRecurrenceCount} 
@@ -450,17 +479,29 @@ export default function AgendamentosClient({
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle className="text-destructive flex items-center gap-2">
-                            <AlertTriangle className="h-5 w-5" /> Conflito de Horários
+                            <AlertTriangle className="h-5 w-5" /> Não dá para bloquear esse período
                         </DialogTitle>
                         <DialogDescription>
-                            Existem {conflictData?.count} agendamento(s) no intervalo deste bloqueio.
-                            Deseja cancelar esses agendamentos automaticamente?
+                            Há {sessoesEmConflito?.length === 1 ? 'uma sessão marcada' : `${sessoesEmConflito?.length ?? 0} sessões marcadas`} dentro dele.
+                            Remarque ou cancele {sessoesEmConflito?.length === 1 ? 'a sessão' : 'as sessões'} antes de bloquear.
                         </DialogDescription>
                     </DialogHeader>
-                    <DialogFooter className="gap-2 sm:gap-0">
-                        <Button variant="outline" onClick={() => setIsConflictDialogOpen(false)}>Cancelar Operação</Button>
-                        <Button variant="destructive" onClick={() => confirmBlockCreation(true)}>Sim, Cancelar Agendamentos e Bloquear</Button>
-                        <Button variant="secondary" onClick={() => confirmBlockCreation(false)}>Criar Bloqueio Mesmo Assim (Manter Agendamentos)</Button>
+
+                    {/* R-014: dia e hora de cada sessão atingida, para dar o que resolver. */}
+                    <ul className="max-h-56 overflow-y-auto rounded-md border bg-muted/30 p-3 text-sm">
+                        {(sessoesEmConflito ?? []).map((sessao) => (
+                            <li key={sessao.id} className="py-0.5 font-medium tabular-nums">
+                                {descreveSessaoEmConflito(sessao)}
+                            </li>
+                        ))}
+                    </ul>
+
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => {
+                            setIsConflictDialogOpen(false);
+                            setSessoesEmConflito(null);
+                            setIsBlockDialogOpen(true);
+                        }}>Voltar e ajustar</Button>
                     </DialogFooter>
                 </DialogContent>
              </Dialog>
@@ -601,8 +642,8 @@ export default function AgendamentosClient({
               {currentAgendamentos.length > 0 ? (
                 currentAgendamentos.map((ag) => (
                   <TableRow key={ag.id}>
-                    <TableCell>{ag.nome_paciente || 'N/A'}</TableCell>
-                    <TableCell>{ag.nome_psicologo || 'N/A'}</TableCell>
+                    <TableCell>{ag.nome_paciente || <span className="text-muted-foreground">—</span>}</TableCell>
+                    <TableCell>{ag.nome_psicologo || <span className="text-muted-foreground">—</span>}</TableCell>
                     <TableCell>{formatDate(ag.data_hora_sessao)}</TableCell>
                     <TableCell>{Number(ag.valor_consulta).toFixed(2)}</TableCell>
                     <TableCell>
@@ -610,6 +651,7 @@ export default function AgendamentosClient({
                         <Button variant="ghost" size="icon" asChild>
                           <Link href={`/admin/agendamentos/${ag.id}/edit`}>
                             <Pencil className="h-4 w-4" />
+                            <span className="sr-only">Editar</span>
                           </Link>
                         </Button>
                         <Button 
@@ -619,6 +661,7 @@ export default function AgendamentosClient({
                             onClick={() => handleDeleteAgendamento(ag.id, ag.recorrencia_id)}
                         >
                             <Trash2 className="h-4 w-4" />
+                            <span className="sr-only">Excluir</span>
                         </Button>
                       </div>
                     </TableCell>
@@ -626,8 +669,18 @@ export default function AgendamentosClient({
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center h-24 text-muted-foreground">
-                    Nenhum agendamento encontrado com os filtros selecionados.
+                  {/* O estado vazio segue o padrão dele em `(app)/patients/page.tsx`:
+                      ícone em `soft-icon` redondo, `section-title`, e a frase em
+                      `text-muted-foreground`. Aqui ele vive dentro da tabela, então
+                      ocupa a linha inteira em vez de virar Card. */}
+                  <TableCell colSpan={5} className="h-auto py-14">
+                    <div className="flex flex-col items-center text-center">
+                      <span className="soft-icon mb-4 h-16 w-16 rounded-full"><Calendar className="h-7 w-7" /></span>
+                      <h3 className="section-title">Nenhuma sessão por aqui.</h3>
+                      <p className="mt-2 text-sm text-muted-foreground">
+                        Ajuste os filtros ou marque um novo horário.
+                      </p>
+                    </div>
                   </TableCell>
                 </TableRow>
               )}
@@ -705,5 +758,6 @@ export default function AgendamentosClient({
         )}
       </CardContent>
     </Card>
+    </div>
   );
 }

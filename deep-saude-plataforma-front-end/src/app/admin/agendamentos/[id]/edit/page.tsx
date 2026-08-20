@@ -1,6 +1,8 @@
 import React from "react";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { carregar } from "@/lib/carregar";
+import { FalhaDeCarregamento } from "@/components/FalhaDeCarregamento";
 import { redirect } from "next/navigation";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,36 +12,26 @@ import EditarAgendamentoForm from "./EditarAgendamentoForm";
 import { getAgendamentoById } from "../../actions";
 
 // Reusing fetching logic from other pages ensures consistency
-async function getPsicologos(token: string) {
-  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/psicologos`, {
-    headers: { Authorization: `Bearer ${token}` },
-    cache: "no-store",
-  });
-  if (!res.ok) return [];
-  return res.json();
-}
-
-async function getPacientes(token: string) {
-  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/pacientes`, {
-    headers: { Authorization: `Bearer ${token}` },
-    cache: "no-store",
-  });
-  if (!res.ok) return [];
-  return res.json();
-}
-
 export default async function EditarAgendamentoPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions);
   const token = (session as any)?.backendToken;
   const { id } = await params;
 
-  if (!token) return <p>Acesso negado</p>;
+  if (!token) {
+    redirect("/admin/login?expired=true");
+  }
 
+  const porta = { porta: "/admin/login" };
   const [agendamento, psicologos, pacientes] = await Promise.all([
     getAgendamentoById(id),
-    getPsicologos(token),
-    getPacientes(token),
+    // A-013: lista vazia aqui apagaria as opções do formulário de edição, e a
+    // pessoa concluiria que o paciente foi removido da clínica.
+    carregar<any[]>("/api/psicologos", token, porta),
+    carregar<any[]>("/api/pacientes", token, porta),
   ]);
+
+  if (!psicologos.ok) return <FalhaDeCarregamento motivo={psicologos.motivo} oQue="os psicólogos" />;
+  if (!pacientes.ok) return <FalhaDeCarregamento motivo={pacientes.motivo} oQue="os pacientes" />;
 
   if (!agendamento) return <p>Agendamento não encontrado.</p>;
 
@@ -66,8 +58,8 @@ export default async function EditarAgendamentoPage({ params }: { params: Promis
         </CardHeader>
         <EditarAgendamentoForm 
             agendamento={agendamento} 
-            psicologos={psicologos} 
-            pacientes={pacientes} 
+            psicologos={psicologos.dados}
+            pacientes={pacientes.dados}
         />
       </Card>
     </div>

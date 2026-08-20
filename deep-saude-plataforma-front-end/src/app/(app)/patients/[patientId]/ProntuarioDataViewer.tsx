@@ -46,6 +46,27 @@ function SubmitButton() {
 export default function ProntuarioDataViewer({ patientId, patientData }: { patientId: string, patientData: PatientClinicalData }) {
   const updateAction = updatePatientClinicalData.bind(null, patientId);
   const [state, formAction] = useActionState(updateAction, initialState);
+
+  /**
+   * ## A-022 — por que estes campos são controlados
+   *
+   * `<form action={formAction}>` **reseta os campos descontrolados quando a ação
+   * termina, e não distingue sucesso de falha.** Em tela de edição o reset devolve
+   * os campos ao `defaultValue` — aos dados antigos. A alteração some e a tela
+   * fica com cara de intacta, que é pior de notar do que um campo em branco.
+   *
+   * Mesma causa e mesmo conserto da A-010.
+   */
+  const [campos, setCampos] = React.useState({
+    diagnostico: patientData.diagnostico || "",
+    historico_familiar: patientData.historico_familiar || "",
+    uso_medicamentos: patientData.uso_medicamentos || "",
+    contatos_emergencia: patientData.contatos_emergencia || "",
+  });
+  const mudar =
+    (nome: keyof typeof campos) =>
+    (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+      setCampos((c) => ({ ...c, [nome]: e.target.value }));
   const { toast } = useToast();
 
    useEffect(() => {
@@ -71,10 +92,8 @@ export default function ProntuarioDataViewer({ patientId, patientData }: { patie
                 <Textarea 
                     id="diagnostico" 
                     name="diagnostico" 
-                    placeholder="Descreva a hipótese diagnóstica..." 
-                    defaultValue={patientData.diagnostico || ""}
-                    className="min-h-[100px]"
-                />
+                    placeholder="Descreva a hipótese diagnóstica..."
+                    className="min-h-[100px]" value={campos.diagnostico} onChange={mudar("diagnostico")} />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -84,10 +103,8 @@ export default function ProntuarioDataViewer({ patientId, patientData }: { patie
                     <Textarea 
                         id="historico_familiar" 
                         name="historico_familiar" 
-                        placeholder="Histórico relevante..." 
-                        defaultValue={patientData.historico_familiar || ""}
-                        className="min-h-[120px]"
-                    />
+                        placeholder="Histórico relevante..."
+                        className="min-h-[120px]" value={campos.historico_familiar} onChange={mudar("historico_familiar")} />
                 </div>
 
                 <div className="space-y-2">
@@ -96,10 +113,8 @@ export default function ProntuarioDataViewer({ patientId, patientData }: { patie
                     <Textarea 
                         id="uso_medicamentos" 
                         name="uso_medicamentos" 
-                        placeholder="Lista de medicamentos e dosagens..." 
-                        defaultValue={patientData.uso_medicamentos || ""}
-                        className="min-h-[120px]"
-                    />
+                        placeholder="Lista de medicamentos e dosagens..."
+                        className="min-h-[120px]" value={campos.uso_medicamentos} onChange={mudar("uso_medicamentos")} />
                 </div>
             </div>
 
@@ -109,10 +124,8 @@ export default function ProntuarioDataViewer({ patientId, patientData }: { patie
                 <Textarea 
                     id="contatos_emergencia" 
                     name="contatos_emergencia" 
-                    placeholder="Nome, Telefone, Parentesco..." 
-                    defaultValue={patientData.contatos_emergencia || ""}
-                    className="min-h-[80px]"
-                />
+                    placeholder="Nome, Telefone, Parentesco..."
+                    className="min-h-[80px]" value={campos.contatos_emergencia} onChange={mudar("contatos_emergencia")} />
             </div>
 
             <div className="flex justify-end pt-4">

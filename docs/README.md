@@ -13,7 +13,10 @@ Esta pasta organiza tudo o que precisa ser feito antes do Deep Saúde ir para pr
 
 | Arquivo | Para quê |
 |---|---|
-| [PRODUCTION_READINESS_REVIEW.md](PRODUCTION_READINESS_REVIEW.md) | Relatório completo da auditoria — leitura única, panorâmica |
+| [PRODUCTION_READINESS_REVIEW.md](PRODUCTION_READINESS_REVIEW.md) | Relatório completo da auditoria de maio/2026 — leitura única, panorâmica |
+| [AUDITORIA_2026-08.md](AUDITORIA_2026-08.md) | **Auditoria de agosto/2026** — achados novos, o que já foi corrigido e a fila de próximos passos |
+| [VERIFICACAO_PENDENTE.md](VERIFICACAO_PENDENTE.md) | **O que falta verificar numa máquina com o projeto de pé** — roteiro de gates, do compilar ao clicar |
+| [AMBIENTES.md](AMBIENTES.md) | **Branches e ambientes** — main / staging / prod, fluxo de promoção e variáveis por ambiente |
 | [SPRINTS.md](SPRINTS.md) | Visão de board: quais cards em cada sprint, status, severidade |
 | [cards/sprint-1-security/](cards/sprint-1-security/) | Bloqueadores críticos de segurança — **fazer primeiro** |
 | [cards/sprint-2-robustness/](cards/sprint-2-robustness/) | Robustez e escalabilidade — sem isso, cai sob carga |
@@ -24,6 +27,8 @@ Esta pasta organiza tudo o que precisa ser feito antes do Deep Saúde ir para pr
 | [cards/sprint-7-realtime/](cards/sprint-7-realtime/) | Chat real-time (Onda 2) — Aleph, Redis, WebSocket |
 | [cards/sprint-8-video/](cards/sprint-8-video/) | Vídeo / telemedicina (Onda 3) — LiveKit + consentimento |
 | [cards/aws-migration/](cards/aws-migration/) | **Trilha de migração para AWS** — 18 cards, dupla finalidade: migrar + estudar para certificação |
+| [GOOGLE_CALENDAR_ARQUITETURA.md](GOOGLE_CALENDAR_ARQUITETURA.md) | Arquitetura da integração com Google Agenda, ancorada no código atual — decisões, pré-requisitos e plano de fases |
+| [GOOGLE_CALENDAR_SPEC.md](GOOGLE_CALENDAR_SPEC.md) | Spec técnica de handoff da integração (documento-alvo, escrito sem acesso ao repo) |
 
 ## Convenções dos cards
 

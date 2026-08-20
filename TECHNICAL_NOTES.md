@@ -120,7 +120,7 @@ $$ LANGUAGE plpgsql;
 | ------------------ | ------------ | ---------------------- | ---------------------------------------- |
 | `status`           | agendamentos | Status da sessão       | 'agendado', 'realizado', 'cancelado'     |
 | `status_pagamento` | agendamentos | Pagamento do paciente  | 'pendente', 'pago'                       |
-| `status_repasse`   | agendamentos | Repasse para psicólogo | 'bloqueado', 'disponivel', 'transferido' |
+| `status_repasse`   | agendamentos | Repasse para psicólogo | 'pendente' (default), 'bloqueado', 'disponivel', 'transferido' |
 | `valor_consulta`   | agendamentos | Valor da sessão        | DECIMAL                                  |
 | `valor_repasse`    | agendamentos | Valor a repassar       | DECIMAL                                  |
 
@@ -133,6 +133,17 @@ $$ LANGUAGE plpgsql;
 > ```
 >
 > Isso garante que os status estão atualizados no banco.
+
+### ⚠️ Vocabulários dos campos de estado
+
+Os valores aceitos em `status`, `status_pagamento` e `status_repasse` são
+definidos em `deep-saude-backend.dominio` e **validados no backend** desde a
+auditoria de agosto/2026. Valor fora do conjunto devolve 422.
+
+Antes disso o backend gravava qualquer string, e `status_repasse` chegou a ter
+cinco valores vindos de três vocabulários diferentes na mesma coluna — um deles
+escrito por um handler morto do painel financeiro. Ao mexer nesses campos,
+altere `dominio.clj` primeiro; ele é a autoridade, não o frontend.
 
 ### Regras de Negócio
 

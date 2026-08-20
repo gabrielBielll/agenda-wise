@@ -4,6 +4,8 @@ import { z } from "zod";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
+import { paraPayloadParede } from "@/lib/datetime";
+import { lerRecusaDeBloqueio, type ResultadoDeBloqueio } from "@/lib/conflitos";
 
 const agendamentoSchema = z.object({
   paciente_id: z.string().uuid({ message: "Selecione um paciente válido." }),
@@ -25,6 +27,12 @@ export type FormState = {
   };
   success: boolean;
   conflict?: boolean;
+  /**
+   * O backend recusou o `force` porque quem pediu não é admin da clínica
+   * (403 `force_requires_admin`). A R-006 pede um modal explicando e pedindo
+   * contato com a gestão — não um toast, que some sozinho.
+   */
+  forcaNegada?: boolean;
 };
 
 export async function createAgendamento(prevState: FormState, formData: FormData): Promise<FormState> {
@@ -54,7 +62,7 @@ export async function createAgendamento(prevState: FormState, formData: FormData
       body: JSON.stringify({
         ...validatedFields.data,
         psicologo_id: userId, // O psicólogo cria para si mesmo
-        data_hora_sessao: validatedFields.data.data_hora_sessao.replace("T", " ") + ":00",
+        data_hora_sessao: paraPayloadParede(validatedFields.data.data_hora_sessao),
         duracao: validatedFields.data.duracao,
         force: validatedFields.data.force
       }),
@@ -65,6 +73,13 @@ export async function createAgendamento(prevState: FormState, formData: FormData
         
         if (response.status === 409 && errorData.code === 'appointment_conflict') {
             return { message: errorData.erro, success: false, conflict: true };
+        }
+
+        // R-006: só o admin da clínica força agendamento sobre conflito. Quando
+        // o psicólogo tenta, a recusa precisa chegar à tela como pedido de ação
+        // — falar com a gestão — e não como "erro".
+        if (response.status === 403 && errorData.code === 'force_requires_admin') {
+            return { message: errorData.erro, success: false, forcaNegada: true };
         }
 
         return { message: errorData.erro || "Falha ao criar agendamento.", success: false };
@@ -104,7 +119,7 @@ export async function updateAgendamento(id: string, prevState: FormState, formDa
       body: JSON.stringify({
         ...validatedFields.data,
         psicologo_id: userId, // Garante que continua vinculado ao psicólogo
-        data_hora_sessao: validatedFields.data.data_hora_sessao.replace("T", " ") + ":00",
+        data_hora_sessao: paraPayloadParede(validatedFields.data.data_hora_sessao),
         duracao: validatedFields.data.duracao,
         mode: mode // Add mode to request body
       }),
@@ -247,45 +262,19 @@ export async function fetchBloqueios(dataInicio?: string, dataFim?: string): Pro
   return [];
 }
 
-export async function checkBlockConflicts(
-  dataInicio: string, 
-  dataFim: string, 
-  recorrenciaTipo?: string, 
-  quantidadeRecorrencia?: number
-): Promise<{ conflitos: any[]; total: number; error?: string }> {
-  const session = await getServerSession(authOptions);
-  const token = (session as any)?.backendToken;
-
-  if (!token) return { conflitos: [], total: 0, error: "Erro de autenticação." };
-
-  const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/bloqueios/verificar-conflitos`;
-
-  try {
-    const response = await fetch(apiUrl, {
-      method: "POST",
-      headers: { 
-        "Content-Type": "application/json", 
-        "Authorization": `Bearer ${token}` 
-      },
-      body: JSON.stringify({
-        data_inicio: dataInicio.replace("T", " ") + ":00",
-        data_fim: dataFim.replace("T", " ") + ":00",
-        recorrencia_tipo: recorrenciaTipo,
-        quantidade_recorrencia: quantidadeRecorrencia
-      }),
-      cache: "no-store",
-    });
-
-    if (response.ok) {
-      return await response.json();
-    } else {
-        return { conflitos: [], total: 0, error: "Erro ao verificar conflitos." };
-    }
-  } catch (error) {
-    console.error("Erro ao verificar conflitos:", error);
-    return { conflitos: [], total: 0, error: "Erro de conexão." };
-  }
-}
+/*
+ * `checkBlockConflicts` foi removida em 2026-08-16.
+ *
+ * Ela existia para alimentar um diálogo que oferecia "cancelar os agendamentos
+ * em conflito". A R-014 tirou essa opção do fluxo de criar bloqueio, e a guarda
+ * do backend (`session_conflict`, commit `414ded1`) passou a recusar o bloqueio
+ * sobre sessão marcada — devolvendo, na própria recusa, a lista de sessões
+ * atingidas.
+ *
+ * Com isso a pré-checagem virou uma ida ao servidor a mais que responde o que a
+ * criação já responde, e com risco de discordar dela entre as duas chamadas.
+ * O endpoint `/api/bloqueios/verificar-conflitos` continua existindo no backend.
+ */
 
 export async function createBloqueio(
   dataInicio: string, 
@@ -293,9 +282,8 @@ export async function createBloqueio(
   motivo?: string,
   diaInteiro?: boolean,
   recorrenciaTipo?: string,
-  quantidadeRecorrencia?: number,
-  cancelarConflitos?: boolean
-): Promise<{ message: string; success: boolean }> {
+  quantidadeRecorrencia?: number
+): Promise<ResultadoDeBloqueio> {
   const session = await getServerSession(authOptions);
   const token = (session as any)?.backendToken;
 
@@ -311,19 +299,20 @@ export async function createBloqueio(
         "Authorization": `Bearer ${token}` 
       },
       body: JSON.stringify({
-        data_inicio: dataInicio.replace("T", " ") + ":00",
-        data_fim: dataFim.replace("T", " ") + ":00",
+        data_inicio: paraPayloadParede(dataInicio),
+        data_fim: paraPayloadParede(dataFim),
         motivo,
         dia_inteiro: diaInteiro || false,
         recorrencia_tipo: recorrenciaTipo,
-        quantidade_recorrencia: quantidadeRecorrencia,
-        cancelar_conflitos: cancelarConflitos
+        quantidade_recorrencia: quantidadeRecorrencia
+        // `cancelar_conflitos` saiu daqui: pela R-014 cancelamento em massa não
+        // é efeito colateral de criar bloqueio. Vira ação separada, futura.
       }),
     });
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      return { message: errorData.erro || "Falha ao criar bloqueio.", success: false };
+      return lerRecusaDeBloqueio(response.status, errorData);
     }
   } catch (error) {
     return { message: "Erro de conexão com o servidor.", success: false };

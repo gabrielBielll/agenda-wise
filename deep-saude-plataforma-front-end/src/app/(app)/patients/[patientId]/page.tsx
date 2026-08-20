@@ -1,7 +1,9 @@
 import React from 'react';
 import { getServerSession } from "next-auth/next";
-import { authOptions } from '@/lib/auth';
-import { notFound } from 'next/navigation';
+import { authOptions } from '@/lib/auth'; // Importar authOptions
+import { notFound, redirect } from 'next/navigation';
+import { carregar } from '@/lib/carregar';
+import { FalhaDeCarregamento } from '@/components/FalhaDeCarregamento';
 import Link from 'next/link';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,7 +28,14 @@ interface Patient {
   endereco: string | null;
   data_nascimento: string | null;
   avatar_url?: string | null;
-  data_cadastro: string;
+  /**
+   * ⚠️ **Este campo NÃO chega hoje** — a coluna não existe em `pacientes` e o
+   * backend nunca a devolve. Estava tipado como `string` obrigatório, e foi
+   * essa promessa que o TypeScript aceitou e a tela imprimiu como
+   * `Invalid Date`. Tipo que mente sobre o que vem da rede não protege nada:
+   * ele só transfere a confiança do desenvolvedor para o lugar errado.
+   */
+  data_cadastro?: string | null;
   historico_familiar?: string | null;
   uso_medicamentos?: string | null;
   diagnostico?: string | null;
@@ -71,39 +80,7 @@ async function getPatientDetails(patientId: string, token: string): Promise<Pati
 }
 
 // --- FUNÇÃO PARA BUSCAR PRONTUÁRIOS ---
-async function getProntuarios(patientId: string, token: string): Promise<Prontuario[]> {
-  const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/pacientes/${patientId}/prontuarios`;
-  try {
-    const response = await fetch(apiUrl, {
-      method: 'GET',
-      headers: { 'Authorization': `Bearer ${token}` },
-      cache: 'no-store',
-    });
-    if (!response.ok) return [];
-    return response.json();
-  } catch (error) {
-    console.error("Erro ao buscar prontuários:", error);
-    return [];
-  }
-}
-
 // --- FUNÇÃO PARA BUSCAR AGENDAMENTOS ---
-async function getAppointments(patientId: string, token: string) {
-  const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/agendamentos?paciente_id=${patientId}`;
-  try {
-    const response = await fetch(apiUrl, {
-      method: 'GET',
-      headers: { 'Authorization': `Bearer ${token}` },
-      cache: 'no-store',
-    });
-    if (!response.ok) return [];
-    return response.json();
-  } catch (error) {
-    console.error("Erro ao buscar agendamentos:", error);
-    return [];
-  }
-}
-
 // --- DADOS MOCKADOS DOCUMENTOS ---
 const mockDocuments: Document[] = [
     { id: 'd1', name: 'Formulário de Admissão.pdf', uploadDate: '2023-01-10', url: '#' },
@@ -118,19 +95,55 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
   const token = (session as any)?.backendToken;
   
   if (!token) {
-    return <p className="p-4">Sessão inválida ou não encontrada. Por favor, faça login novamente.</p>;
+    redirect("/?expired=true");
   }
 
   // Busca dados em paralelo
   const [patient, prontuarios, appointments] = await Promise.all([
     getPatientDetails(patientId, token),
-    getProntuarios(patientId, token),
-    getAppointments(patientId, token)
+    /**
+     * A-013, e aqui é o caso mais grave da lista.
+     *
+     * Pela R-012 o prontuário é do psicólogo AUTOR — então 403 nesta chamada é
+     * legítimo e esperado: é o colega abrindo o paciente de outra pessoa. Com
+     * `return []`, a tela dizia que **o paciente não tem prontuário**, e quem
+     * cobre um colega concluiria que não há histórico clínico registrado.
+     *
+     * Não é só tela mentindo: é tela mentindo sobre ausência de histórico
+     * clínico, para quem está atendendo.
+     */
+    carregar<any[]>(`/api/pacientes/${patientId}/prontuarios`, token),
+    carregar<any[]>(`/api/agendamentos?paciente_id=${patientId}`, token),
   ]);
 
   if (!patient) {
+    /**
+     * ⚠️ Conflação que sobra, e não é para esta tarefa.
+     *
+     * `getPatientDetails` devolve `null` tanto para 404 quanto para 403 — então
+     * o colega sem acesso vê "paciente não encontrado" em vez de "sem acesso".
+     * É a mesma família da A-013, e tratar exige um quinto estado (404) que a
+     * decisão da 0073 não cobre. Anotado, não corrigido.
+     */
     notFound();
   }
+
+  /**
+   * A-017 — a falha do prontuário é PARCIAL, não substitui a tela.
+   *
+   * Quando o secretário passou a ter tela (A-017), esta página virou o primeiro
+   * caso de **dois níveis de permissão na mesma tela**: ele tem cadastro de
+   * paciente e **não** tem prontuário, pela R-012.
+   *
+   * Devolver `FalhaDeCarregamento` aqui, como eu tinha feito, esconderia em tela
+   * cheia o cadastro que ele PODE ver, por causa da seção que ele não pode. O
+   * comportamento seria tecnicamente correto e péssimo — e é o mesmo erro da
+   * A-013 pelo avesso: em vez de mostrar de menos, mostrar recusa demais.
+   *
+   * As sessões seguem sendo motivo de tela cheia: sem elas o formulário de
+   * evolução não tem a que se vincular, e meia tela ali seria armadilha.
+   */
+  if (!appointments.ok) return <FalhaDeCarregamento motivo={appointments.motivo} oQue="as sessões" />;
 
   const getInitials = (name: string) => {
     return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
@@ -153,7 +166,41 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
             <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-xs text-muted-foreground">
               <span className="flex items-center"><Mail className="h-4 w-4 mr-1 text-primary" /> {patient.email || 'N/A'}</span>
               <span className="flex items-center"><Phone className="h-4 w-4 mr-1 text-primary" /> {patient.telefone || 'N/A'}</span>
-              <span className="flex items-center"><CalendarDays className="h-4 w-4 mr-1 text-primary" /> Cadastrado em: {new Date(patient.data_cadastro).toLocaleDateString('pt-BR')}</span>
+              {/*
+                🔴 **Esta linha mostrava "Cadastrado em: Invalid Date" para TODO
+                paciente, sempre.** Não às vezes, não em dado ruim: sempre.
+
+                `patient.data_cadastro` não existe. Não existe na tabela
+                `pacientes` (nenhuma migration cria a coluna), não existe em
+                nenhuma resposta do backend, e `new Date(undefined)` é
+                `Invalid Date` — que o `toLocaleDateString` imprime tal e qual.
+
+                📌 O `status.md` do backend afirma que a coluna foi adicionada
+                *"para armazenar dados mais completos do paciente"*. **A
+                afirmação está lá; a migration, não.** É documentação que
+                envelheceu na direção mais cara: alguém leu, acreditou, e
+                escreveu tela em cima.
+
+                ⚠️ A correção aqui é **não mostrar o que não temos**. Inventar
+                uma data — `created_at` novo com backfill — carimbaria em todo
+                paciente antigo uma data de cadastro falsa, num prontuário. Se a
+                clínica quiser esse dado, ele nasce numa migration com decisão
+                explícita sobre o passado, não num conserto de tela.
+
+                A guarda é por VALOR e não por presença do campo: `data_cadastro`
+                pode voltar a existir amanhã vindo torto, e `Invalid Date` na
+                cara da psicóloga é o mesmo defeito de novo.
+              */}
+              {(() => {
+                const quando = patient.data_cadastro ? new Date(patient.data_cadastro) : null;
+                if (!quando || Number.isNaN(quando.getTime())) return null;
+                return (
+                  <span className="flex items-center">
+                    <CalendarDays className="h-4 w-4 mr-1 text-primary" /> Cadastrado em:{' '}
+                    {quando.toLocaleDateString('pt-BR')}
+                  </span>
+                );
+              })()}
             </div>
             <div className="mt-5">
                <Button variant="outline" size="sm" asChild>
@@ -191,28 +238,35 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
         <TabsContent value="notes">
           <div className="grid gap-6">
             {/* Componente de Formulário para Nova Evolução */}
-            <ProntuarioForm patientId={patient.id} appointments={appointments} patientData={patient} />
+            {/* Sem acesso ao prontuário, não há o que escrever nele. */}
+            {prontuarios.ok && (
+              <ProntuarioForm patientId={patient.id} appointments={appointments.dados} patientData={patient} />
+            )}
 
             <Card id="historico-evolucao">
               <CardHeader><CardTitle className="font-headline text-2xl">Histórico de Evolução</CardTitle></CardHeader>
               <CardContent>
-                    {prontuarios.length > 0 ? (
-                      <ProntuarioList 
-                        initialProntuarios={prontuarios} 
-                        patientId={patient.id} 
-                        appointments={appointments} 
+                    {!prontuarios.ok ? (
+                      /* Sem acesso ou indisponível: a recusa fica DENTRO da seção,
+                         e o resto do cadastro continua na tela. */
+                      <FalhaDeCarregamento motivo={prontuarios.motivo} oQue="o prontuário" />
+                    ) : prontuarios.dados.length > 0 ? (
+                      <ProntuarioList
+                        initialProntuarios={prontuarios.dados}
+                        patientId={patient.id}
+                        appointments={appointments.dados}
                       />
                     ) : (
                       <div className="text-center py-10 text-muted-foreground">
                         <FileText className="h-10 w-10 mx-auto mb-2 opacity-20" />
-                        <p>Nenhum registro encontrado no prontuário.</p>
+                        <p>Nenhum registro no prontuário ainda.</p>
                       </div>
                     )}
               </CardContent>
             </Card>
 
             {/* Gráfico de Evolução do Humor */}
-            <MoodChart data={prontuarios} />
+            {prontuarios.ok && <MoodChart data={prontuarios.dados} />}
 
           </div>
         </TabsContent>
