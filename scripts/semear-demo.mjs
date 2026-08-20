@@ -682,89 +682,59 @@ async function main() {
   passo('Financeiro');
 
   /**
-   * 📌 **O script NÃO marca sessão como realizada nem como paga.** O backend faz
-   * isso sozinho: `sincronizar-status` vira `agendado → realizado` para o que já
-   * passou, marca `status_pagamento = pago` no que não foi cancelado, e calcula
-   * `valor_repasse` a partir da regra de cada psicóloga.
+   * Desde a revisão da R-022 em 20/08, **o relógio não confirma presença**.
+   * Este semeador precisa imitar os dois atos humanos que criaram o histórico
+   * de demonstração: a psicóloga confirma a sessão e o admin fecha o pagamento
+   * quando a clínica está em modo manual.
    *
-   * ⚠️ E `valor_repasse` **não é aceito** vindo do cliente — o handler devolve
-   * erro explícito dizendo que é calculado pelo servidor. Tentar semear esse
-   * número seria inventar dinheiro, e é justamente o que a R-004 proíbe.
+   * `valor_repasse` continua fora do corpo: é sempre calculado pelo servidor.
    */
-  const sincronia = exigir(
-    await api('/api/agendamentos/sincronizar', { metodo: 'POST', token: tokenAdmin }),
-    'Sincronização de status'
-  );
-
-  /**
-   * 🔴 **O `200` desta rota NÃO significa que ela fez alguma coisa — medido em
-   * produção pela `vale`, na 0189.**
-   *
-   * Ela respondeu, palavra por palavra:
-   *
-   * ```json
-   * {"message":"Sincronização concluída","status_atualizados":0,"pagamentos_atualizados":0}
-   * ```
-   *
-   * com metade das 108 sessões no passado. Os dois `UPDATE` de
-   * `sincronizar-status` filtram por
-   * `clinica_id IN (SELECT id FROM clinicas WHERE pagamento_automatico = true)`
-   * (`core.clj:1081` e `:1095`), e **`provisionar-clinica` não liga essa flag** —
-   * conferido: a palavra não aparece em lugar nenhum daquele handler. Clínica
-   * recém-provisionada não fecha o próprio mês, e a rota chama isso de
-   * *"concluída"*.
-   *
-   * ⚠️ **Eu tinha escrito `exigir(...)` e seguido em frente.** Um `exigir` só
-   * pergunta "deu 2xx?" — e aqui 2xx e "não fiz nada" são a mesma resposta. É
-   * literalmente o defeito que eu venho apontando nos outros a semana inteira: o
-   * `test.fail()` que absorvia qualquer morte, o `migrations_completed` que
-   * anunciou sucesso por 17 horas sem aplicar migration nenhuma. **Confiar no
-   * código de status é medir com um instrumento que não distingue os dois casos.**
-   *
-   * 📌 Por isso a verificação abaixo é por EFEITO: releio a agenda e conto
-   * quantas passadas ficaram `realizado`. Se a resposta disser "concluída" e o
-   * efeito não estiver lá, o script morre dizendo exatamente qual é a causa
-   * provável — em vez de deixar a próxima pessoa descobrir olhando um financeiro
-   * zerado.
-   */
-  const conferencia = exigir(
+  const antesDaConfirmacao = exigir(
     await api('/api/agendamentos', { token: tokenAdmin }),
-    'Releitura da agenda para conferir a sincronização'
+    'Listagem da agenda antes das confirmações'
   );
-  const passadas = conferencia.filter(
-    (a) => a.status !== 'cancelado' && new Date(a.data_hora_sessao) < new Date()
+  const aguardandoConfirmacao = antesDaConfirmacao.filter(
+    (a) => ['agendado', 'confirmado'].includes(a.status)
+      && new Date(a.data_hora_sessao).getTime() + (a.duracao ?? 50) * 60_000 < Date.now()
   );
-  const realizadas = passadas.filter((a) => a.status === 'realizado');
 
-  if (passadas.length > 0 && realizadas.length === 0) {
-    /**
-     * 📌 **`modo` nasceu da A-026 e é o que transforma isto em diagnóstico.**
-     *
-     * Quando eu escrevi este bloco, a rota não sabia dizer por que devolvia
-     * zero, e o melhor que dava para afirmar era *"causa quase certa"*. Agora
-     * ela responde `modo: "manual"` ou `modo: "automatico"`, então o script para
-     * de adivinhar: com `manual` a causa é certa, e só com `automatico` é que
-     * sobra mistério de verdade para investigar.
-     */
-    const manual = sincronia.modo === 'manual';
-    throw new Error(
-      `A sincronização respondeu "${sincronia.message ?? 'sucesso'}" e não realizou nada.\n` +
-        `  ${passadas.length} sessões já passaram e nenhuma virou 'realizado'.\n\n` +
-        (manual
-          ? `  Causa CONFIRMADA pela própria resposta (modo: "manual"): a clínica está\n` +
-            `  com 'pagamento_automatico = false', e os UPDATE de sincronizar-status\n` +
-            `  filtram por essa flag. O default desligado é decisão da migration\n` +
-            `  20260817100000 — não é defeito. Ligue a flag para ESTA clínica e rode de novo.\n`
-          : `  A resposta veio com modo "${sincronia.modo ?? '(ausente)'}", ou seja, a clínica\n` +
-            `  ESTÁ em pagamento automático e mesmo assim nada mudou. Aqui a flag não\n` +
-            `  explica — investigue os UPDATE e o fuso de 'data_hora_sessao'.\n`) +
-        `\n  (Medido em produção em 19/08 — ver mensageria/0189.)`
+  for (const a of aguardandoConfirmacao) {
+    exigir(
+      await api(`/api/agendamentos/${a.id}`, {
+        metodo: 'PUT', token: tokenAdmin, corpo: { status: 'realizado' },
+      }),
+      `Confirmação da sessão ${a.id}`
     );
   }
-  ok(
-    `${realizadas.length} de ${passadas.length} sessões passadas estão realizadas, ` +
-      `com repasse calculado pelo servidor`
+
+  const depoisDaConfirmacao = exigir(
+    await api('/api/agendamentos', { token: tokenAdmin }),
+    'Releitura da agenda depois das confirmações'
   );
+  const pagamentosPendentes = depoisDaConfirmacao.filter(
+    (a) => a.status === 'realizado' && a.status_pagamento !== 'pago'
+  );
+  for (const a of pagamentosPendentes) {
+    exigir(
+      await api(`/api/agendamentos/${a.id}`, {
+        metodo: 'PUT', token: tokenAdmin, corpo: { status_pagamento: 'pago' },
+      }),
+      `Fechamento manual do pagamento ${a.id}`
+    );
+  }
+
+  const conferencia = exigir(
+    await api('/api/agendamentos', { token: tokenAdmin }),
+    'Conferência das confirmações e pagamentos'
+  );
+  const aindaAguardando = conferencia.filter(
+    (a) => ['agendado', 'confirmado'].includes(a.status)
+      && new Date(a.data_hora_sessao).getTime() + (a.duracao ?? 50) * 60_000 < Date.now()
+  );
+  if (aindaAguardando.length > 0) {
+    throw new Error(`${aindaAguardando.length} sessões encerradas continuaram sem confirmação.`);
+  }
+  ok(`${aguardandoConfirmacao.length} presenças confirmadas e ${pagamentosPendentes.length} pagamentos fechados`);
 
   /**
    * Um repasse já transferido, para que a tela tenha os DOIS estados.

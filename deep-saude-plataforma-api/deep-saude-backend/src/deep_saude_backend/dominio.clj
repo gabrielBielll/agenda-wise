@@ -13,7 +13,7 @@
 
 (def status-sessao
   "Ciclo de vida da sessão."
-  #{"agendado" "realizado" "cancelado" "falta"})
+  #{"agendado" "confirmado" "realizado" "cancelado" "falta"})
 
 (def status-pagamento
   "Pagamento do paciente para a clínica."

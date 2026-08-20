@@ -4,6 +4,7 @@ import { z } from "zod";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
+import type { PatientFileFormat, PatientImportStrategy, PortablePatient } from "@/lib/patient-portability";
 
 const pacienteSchema = z.object({
   nome: z.string().min(3, { message: "O nome deve ter pelo menos 3 caracteres." }),
@@ -160,6 +161,93 @@ export async function getPacientes(): Promise<{ success: boolean; data?: any[]; 
   } catch (error) {
     console.error("Erro de rede ao buscar pacientes:", error);
     return { success: false, error: "Erro de conexão com o servidor." };
+  }
+}
+
+export async function downloadPatientBase(format: PatientFileFormat): Promise<{
+  success: boolean;
+  content?: string;
+  filename?: string;
+  mime?: string;
+  error?: string;
+}> {
+  const token = await getBackendToken();
+  if (!token) return { success: false, error: "Sua sessão expirou. Entre novamente." };
+
+  try {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/pacientes/exportar?formato=${format}`, {
+      headers: { "Authorization": `Bearer ${token}`, "Cache-Control": "no-store" },
+      cache: "no-store",
+    });
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      return { success: false, error: body.erro || "Não foi possível preparar a base." };
+    }
+
+    const disposition = response.headers.get("content-disposition") || "";
+    const filename = disposition.match(/filename="([^"]+)"/)?.[1] || `agenda-wise-pacientes.${format}`;
+    return {
+      success: true,
+      content: await response.text(),
+      filename,
+      mime: response.headers.get("content-type") || "application/octet-stream",
+    };
+  } catch (error) {
+    console.error("Erro ao exportar pacientes:", error);
+    return { success: false, error: "Não foi possível falar com o servidor." };
+  }
+}
+
+export type PatientImportBatchResult = {
+  success: boolean;
+  message?: string;
+  code?: string;
+  errors?: Array<{ linha: number; campo: string; erro: string }>;
+  novos?: number;
+  atualizaveis?: number;
+  ignorados?: number;
+  processados?: number;
+};
+
+export async function importPatientBatch(
+  records: PortablePatient[],
+  strategy: PatientImportStrategy,
+  validateOnly: boolean,
+): Promise<PatientImportBatchResult> {
+  const token = await getBackendToken();
+  if (!token) return { success: false, message: "Sua sessão expirou. Entre novamente." };
+
+  try {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/pacientes/importar`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+      body: JSON.stringify({
+        registros: records,
+        estrategia: strategy,
+        validar_apenas: validateOnly,
+      }),
+      cache: "no-store",
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      return {
+        success: false,
+        message: body.erro || "Não foi possível validar este lote.",
+        code: body.code,
+        errors: body.erros,
+      };
+    }
+    if (!validateOnly) revalidatePath("/patients");
+    return {
+      success: true,
+      novos: body.novos || 0,
+      atualizaveis: body.atualizaveis || 0,
+      ignorados: body.ignorados || 0,
+      processados: body.processados || 0,
+    };
+  } catch (error) {
+    console.error("Erro ao importar pacientes:", error);
+    return { success: false, message: "Não foi possível falar com o servidor." };
   }
 }
 

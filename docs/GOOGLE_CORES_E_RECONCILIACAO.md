@@ -5,13 +5,45 @@
 > mesmo dia** ([D-019](../mensageria/DECISOES.md)) e uma está com ele, na CEO e no time — ver §9.
 > O resto é desenho meu a partir do que já estava decidido.
 >
-> ✅ **Uma parte já é código:** o bloqueio deixou de ser laranja, com a medição
-> na §11. Todo o resto ainda é plano.
+> ✅ **Atualização de 2026-08-20:** `confirmado` já faz parte do domínio, a grade
+> já diferencia agendada, confirmada, realizada, cancelada/falta e bloqueio nos
+> dois temas. O vínculo e o motor bidirecional com o Google continuam no plano.
 >
 > 📖 **Leia antes:** [D-011](../mensageria/DECISOES.md) (o Google propõe, a plataforma registra),
 > **R-017** e **R-018** em [REGRAS_DE_NEGOCIO](REGRAS_DE_NEGOCIO.md), e a Trilha C
 > de [GOOGLE_CARDS](GOOGLE_CARDS.md). Este documento **não substitui** nenhum
 > deles — ele preenche o que faltava.
+
+---
+
+## Atualização da API do Google em 2026: usar Event Labels
+
+A API atual do Google Calendar oferece **Event Labels**, que substituem o
+`colorId` legado quando `eventLabelVersion=1` é enviado. Isso melhora este plano:
+os rótulos aceitam cores hexadecimais e permitem levar a paleta da AgendaWise
+com fidelidade, em vez de aproximá-la à paleta fixa antiga.
+
+Convenção padrão preparada na aplicação:
+
+| Estado | Rótulo | Cor padrão |
+|---|---|---|
+| `agendado` | Agendada | Terracota `#D2845A` |
+| `confirmado` | Confirmada | Sálvia `#95A084` |
+| `realizado` | Realizada | token `--success` do tema |
+| `cancelado` / `falta` | Cancelada ou falta | token `--tomate` do tema |
+| bloqueio externo | Bloqueio | token `--grafite` do tema |
+
+O proprietário do calendário gerencia o catálogo de rótulos; usuários com
+permissão de escrita podem atribuir rótulos existentes. Portanto, o motor deve:
+
+1. consultar/criar os rótulos quando a conexão tiver permissão de proprietário;
+2. guardar os IDs retornados pelo Google por calendário, sem hardcode;
+3. enviar `eventLabelVersion=1` e `eventLabelId` ao escrever eventos;
+4. usar `colorId` apenas como fallback legado quando não houver rótulo aplicável.
+
+Esta atualização não remove o `extendedProperties.private.origem`, o ID
+determinístico, o `etag`/`If-Match` nem o `syncToken`: são responsabilidades
+separadas de identidade, concorrência e reconciliação.
 
 ---
 
@@ -70,16 +102,15 @@ de uma desconexão**. É só isso que este documento acrescenta.
 
 Três lacunas, todas conferidas no código, não deduzidas:
 
-**a) O estado "confirmada" não existe.** `dominio.clj:16`:
+**a) ✅ Resolvido em 2026-08-20: o estado "confirmada" existe.** `dominio.clj`:
 
 ```clojure
-(def status-sessao #{"agendado" "realizado" "cancelado" "falta"})
+(def status-sessao #{"agendado" "confirmado" "realizado" "cancelado" "falta"})
 ```
 
-A convenção da R-017 separa 🟠 Tangerina (agendada, **não confirmada**) de
-🟢 Sálvia (**confirmada** ou já ocorrida). Duas das cinco cores da tabela do
-Gabriel não têm o que pintar. **É por isso que hoje agendada e confirmada saem
-com a mesma cor na plataforma — é estado que falta, não descuido de CSS.**
+A convenção da R-017 separa Terracota (agendada, **não confirmada**) de Sálvia
+(**confirmada**). O backend agora aceita a transição e o frontend a representa
+com tokens próprios nos temas claro e escuro.
 
 **b) Não existe vínculo em nível de evento.** `vinculo_agenda` liga
 *clínica ↔ calendário ↔ psicóloga* — e só. Não há nenhuma coluna, em nenhuma

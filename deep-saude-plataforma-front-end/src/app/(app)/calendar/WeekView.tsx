@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { paredeDaClinica, agoraNaClinica } from "@/lib/datetime";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { appointmentStatusAppearance } from "@/lib/appointment-status";
 
 interface Appointment {
   id: string;
@@ -115,14 +116,30 @@ export function WeekView({ date, appointments, bloqueios = [], onAddAppointment,
 
   const handleSlotClick = (day: Date, hour: number, event: React.MouseEvent) => {
     const newDate = new Date(day);
-    newDate.setHours(hour, 0, 0, 0);
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const relativeY = Math.max(0, Math.min(bounds.height - 1, event.clientY - bounds.top));
+    const minute = Math.min(45, Math.floor((relativeY / bounds.height) * 4) * 15);
+    newDate.setHours(hour, minute, 0, 0);
     
     // Check if this slot is blocked
     const hourBloqueios = getBloqueiosForDayAndHour(day, hour);
     const isBlocked = hourBloqueios.length > 0;
     const bloqueioId = isBlocked ? hourBloqueios[0].id : undefined;
     
-    onAddAppointment(newDate, event, isBlocked, bloqueioId);
+    // Clique principal cria direto. O menu continua disponível no clique com o
+    // botão direito e é o caminho para bloqueio/remoção de bloqueio.
+    onAddAppointment(newDate, isBlocked ? event : undefined, isBlocked, bloqueioId);
+  };
+
+  const handleSlotMenu = (day: Date, hour: number, event: React.MouseEvent) => {
+    event.preventDefault();
+    const newDate = new Date(day);
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const relativeY = Math.max(0, Math.min(bounds.height - 1, event.clientY - bounds.top));
+    const minute = Math.min(45, Math.floor((relativeY / bounds.height) * 4) * 15);
+    newDate.setHours(hour, minute, 0, 0);
+    const hourBloqueios = getBloqueiosForDayAndHour(day, hour);
+    onAddAppointment(newDate, event, hourBloqueios.length > 0, hourBloqueios[0]?.id);
   };
 
   return (
@@ -170,10 +187,15 @@ export function WeekView({ date, appointments, bloqueios = [], onAddAppointment,
                 <div 
                   key={hour} 
                   className={cn(
-                    "group relative h-20 cursor-pointer border-b border-border/20 transition-colors",
+                    "calendar-hour-slot group relative h-20 cursor-pointer border-b border-border/20 transition-colors",
                     isBlocked ? "bg-grafite-tenue" : "hover:bg-accent/5"
                   )}
                   onClick={(e) => handleSlotClick(day, hour, e)}
+                  onContextMenu={(e) => handleSlotMenu(day, hour, e)}
+                  title={isBlocked ? "Horário bloqueado" : "Clique para agendar no quarto de hora desejado"}
+                  aria-label={`${isBlocked ? 'Horário bloqueado' : 'Agendar'} em ${format(day, 'dd/MM/yyyy')} às ${String(hour).padStart(2, '0')}:00`}
+                  data-slot-date={format(day, 'yyyy-MM-dd')}
+                  data-slot-hour={hour}
                 >
                   {/* Render Bloqueios */}
                   {hourBloqueios.map(block => {
@@ -220,6 +242,7 @@ export function WeekView({ date, appointments, bloqueios = [], onAddAppointment,
 
                   {/* Render Appointments */}
                   {hourAppointments.map(app => {
+                      const appearance = appointmentStatusAppearance(app.status);
                       const appDate = paredeDaClinica(app.data_hora_sessao);
                       const duration = app.duracao || 50;
                       const endDate = new Date(appDate.getTime() + duration * 60000);
@@ -247,11 +270,9 @@ export function WeekView({ date, appointments, bloqueios = [], onAddAppointment,
                               key={app.id}
                               className={cn(
                                 "absolute left-1 right-1 rounded-md p-1 text-[10px] transition-colors cursor-pointer z-10 overflow-hidden border-l-4",
-                                app.status === 'cancelado'
-                                  ? "bg-tomate-suave border-tomate text-tomate-foreground hover:brightness-95 opacity-80"
-                                  : isContinuation
-                                    ? "border-primary bg-primary/10 text-foreground opacity-75 hover:bg-primary/20"
-                                    : "border-primary bg-primary/15 text-foreground shadow-sm hover:bg-primary/20"
+                                appearance.eventClassName,
+                                isContinuation && "opacity-75",
+                                !isContinuation && "shadow-sm"
                               )}
                               style={{ top: `${topPos}%`, height: `${(durationMinutes / 60) * 100}%`, minHeight: '20px' }}
                               onClick={(e) => {
@@ -265,7 +286,7 @@ export function WeekView({ date, appointments, bloqueios = [], onAddAppointment,
                               ) : (
                                 <>
                                   <span className="font-semibold block">{startLabel} - {endLabel}</span>
-                                  <span className={cn("truncate block font-medium", app.status === 'cancelado' ? "line-through opacity-70" : "text-foreground/90")}>
+                                  <span className={cn("truncate block font-medium", app.status === 'cancelado' && "line-through opacity-70")}>
                                       {app.nome_paciente}
                                   </span>
                                 </>

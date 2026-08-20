@@ -1,14 +1,12 @@
 'use client';
 
-import { signOut } from "next-auth/react";
-
 import { Button } from "@/components/ui/button";
 import { descreveSessaoEmConflito, type SessaoEmConflito } from "@/lib/conflitos";
 import { paraInputLocal, maisMinutos, paredeDaClinica, agoraNaClinica,
          paredeParaInput, paredeSomada, paredeMaisMinutos, instanteDeParede } from "@/lib/datetime";
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, PlusCircle, Pencil, Trash2, Calendar as CalendarIcon, ChevronLeft, ChevronRight, FileText, ExternalLink } from "lucide-react";
+import { Plus, Trash2, FileText, ExternalLink, CalendarCheck2, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
@@ -37,13 +35,14 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useFormStatus } from "react-dom";
 import { useActionState } from "react";
-import { createAgendamento, updateAgendamento, deleteAgendamento, cancelAgendamento, reactivateAgendamento, createBloqueio, deleteBloqueio, FormState, type Bloqueio } from "./actions";
+import { createAgendamento, updateAgendamento, deleteAgendamento, cancelAgendamento, reactivateAgendamento, updateAppointmentStatus, createBloqueio, deleteBloqueio, FormState, type Bloqueio } from "./actions";
 import { useToast } from "@/hooks/use-toast";
 import { useLoading } from "@/components/LoadingOverlay";
 import { CalendarHeader } from "./CalendarHeader";
 import { DayView } from "./DayView";
 import { WeekView } from "./WeekView";
 import { cn } from "@/lib/utils";
+import { appointmentHasEnded, appointmentStatusAppearance, normalizeAppointmentStatus, type AppointmentStatus } from "@/lib/appointment-status";
 
 // Define interface for Appointment
 interface Appointment {
@@ -76,6 +75,13 @@ interface SlotAction {
   y: number;
   isBlocked?: boolean;
   bloqueioId?: string;
+}
+
+interface StatusTransition {
+  status: Extract<AppointmentStatus, 'confirmado' | 'realizado'>;
+  title: string;
+  description: string;
+  action: string;
 }
 
 const initialState: FormState = {
@@ -183,6 +189,7 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
 
 
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
+  const [statusTransition, setStatusTransition] = useState<StatusTransition | null>(null);
 
   // Update selected patient when editing
   useEffect(() => {
@@ -368,7 +375,6 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
     window.history.replaceState(null, '', window.location.pathname);
     handleOpenNew();
     // Só na montagem: é a intenção que veio na URL, não um estado contínuo.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleOpenEdit = (app: Appointment) => {
@@ -552,6 +558,46 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
     }
   };
 
+  const handleStatusUpdate = async () => {
+    if (!editingAppointment || !statusTransition) return;
+    showLoading(statusTransition.status === 'realizado' ? "Confirmando sessão..." : "Confirmando agendamento...");
+    const result = await updateAppointmentStatus(editingAppointment.id, statusTransition.status);
+    hideLoading();
+    setStatusTransition(null);
+
+    if (result.success) {
+      toast({
+        title: statusTransition.status === 'realizado' ? "Sessão realizada" : "Agendamento confirmado",
+        description: result.message,
+        className: "bg-success text-success-foreground",
+      });
+      setIsDialogOpen(false);
+      setEditingAppointment(null);
+      return;
+    }
+
+    toast({ title: "Não foi possível confirmar", description: result.message, variant: "destructive" });
+  };
+
+  const openPrimaryStatusTransition = (appointment: Appointment) => {
+    if (appointmentHasEnded(appointment.data_hora_sessao, appointment.duracao || 50)) {
+      setStatusTransition({
+        status: 'realizado',
+        title: 'Confirmar que a sessão aconteceu?',
+        description: 'A sessão será marcada como realizada. Essa confirmação alimenta o financeiro e será refletida na cor da agenda.',
+        action: 'Sim, a sessão aconteceu',
+      });
+      return;
+    }
+
+    setStatusTransition({
+      status: 'confirmado',
+      title: 'Confirmar este agendamento?',
+      description: 'A sessão continuará no mesmo horário e passará a aparecer em verde-sálvia como confirmada.',
+      action: 'Confirmar agendamento',
+    });
+  };
+
   // Filter appointments for the selected date (Only for Month View sidebar)
   const filteredAppointments = appointments.filter(app => {
     if (!date) return false;
@@ -580,12 +626,21 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
               <span>Nova sessão</span>
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
+          <DialogContent className="max-h-[calc(100dvh-1rem)] overflow-hidden p-0 sm:max-w-[680px]">
+            <DialogHeader className="border-b border-border/60 px-5 pb-4 pt-5 sm:px-7 sm:pb-5 sm:pt-6">
               <DialogTitle>{editingAppointment ? "Editar Agendamento" : "Novo Agendamento"}</DialogTitle>
               <DialogDescription>
                 {editingAppointment ? "Atualize os dados da sessão." : "Agende uma sessão para um de seus pacientes."}
               </DialogDescription>
+              {editingAppointment && (
+                <span className={cn(
+                  "mt-3 inline-flex w-fit items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold",
+                  appointmentStatusAppearance(editingAppointment.status).badgeClassName,
+                )}>
+                  <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                  {appointmentStatusAppearance(editingAppointment.status).label}
+                </span>
+              )}
             </DialogHeader>
             <form 
               ref={formRef}
@@ -605,13 +660,14 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                     formData.set("duracao", "50"); // Default fallback
                 }
                 formAction(formData);
-            }} className="grid gap-4 py-4">
+            }} className="flex min-h-0 flex-col overflow-hidden">
               <input type="hidden" name="force" value={forceSubmission.toString()} />
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="paciente" className="text-right">
+              <div className="space-y-5 overflow-y-auto px-5 py-5 sm:px-7">
+              <div className="space-y-2">
+                <Label htmlFor="paciente">
                   Paciente
                 </Label>
-                <div className="col-span-3">
+                <div>
                     <Select 
                         name="paciente_id" 
                         required 
@@ -621,7 +677,7 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                           setSelectedPatientId(v);
                         }}
                     >
-                        <SelectTrigger>
+                        <SelectTrigger id="paciente" className="h-11">
                             <SelectValue placeholder="Selecione..." />
                         </SelectTrigger>
                         <SelectContent>
@@ -638,11 +694,12 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                 </div>
               </div>
               
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="data_hora_sessao" className="text-right">
+              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="data_hora_sessao">
                   Início
                 </Label>
-                <div className="col-span-3">
+                <div>
                     <Input
                     id="data_hora_sessao"
                     name="data_hora_sessao"
@@ -670,11 +727,11 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                 </div>
               </div>
 
-               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="data_hora_fim" className="text-right">
+               <div className="space-y-2">
+                <Label htmlFor="data_hora_fim">
                   Fim
                 </Label>
-                <div className="col-span-3">
+                <div>
                     <Input
                     id="data_hora_fim"
                     name="data_hora_fim"
@@ -685,18 +742,19 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                     />
                 </div>
               </div>
+              </div>
               
               <input type="hidden" name="duracao" defaultValue="50" />
 
               {!editingAppointment && (
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="recorrencia_tipo" className="text-right">
+                  <div className="space-y-2">
+                    <Label htmlFor="recorrencia_tipo">
                       Repetir
                     </Label>
-                    <div className="col-span-3 flex flex-col gap-2">
-                        <div className="flex gap-2">
+                    <div className="flex flex-col gap-2">
+                        <div className="flex flex-col gap-2 sm:flex-row">
                             <Select name="recorrencia_tipo" value={recurrenceType} onValueChange={setRecurrenceType}>
-                                <SelectTrigger className="w-[180px]">
+                                <SelectTrigger id="recorrencia_tipo" className="w-full sm:w-[220px]">
                                     <SelectValue placeholder="Não repetir" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -776,11 +834,11 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                   </div>
               )}
 
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="valor_consulta" className="text-right">
+              <div className="space-y-2">
+                <Label htmlFor="valor_consulta">
                   Valor (R$)
                 </Label>
-                  <div className="col-span-3">
+                  <div>
                     <Input
                     id="valor_consulta"
                     name="valor_consulta"
@@ -796,11 +854,11 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                 </div>
               </div>
 
-              <div className="grid grid-cols-4 items-start gap-4">
-                <Label htmlFor="observacoes" className="text-right mt-2">
+              <div className="space-y-2">
+                <Label htmlFor="observacoes">
                   Notas
                 </Label>
-                <div className="col-span-3">
+                <div>
                     <Textarea 
                         id="observacoes" 
                         name="observacoes" 
@@ -825,42 +883,54 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                       </Link>
                   </div>
               )}
-                <DialogFooter className="flex w-full items-center justify-between sm:justify-between sm:space-x-0">
-                {editingAppointment && (
-                  <>
-                     <Button variant="destructive" type="button" size="icon" onClick={() => handleDelete(editingAppointment.id)}>
-                          <Trash2 className="h-4 w-4" />
-                     </Button>
+              </div>
 
-                    {/* Cancel Session Button */}
-                    {editingAppointment.status !== 'cancelado' && (
-                          <Button variant="outline" type="button" className="border-destructive text-destructive hover:bg-destructive/10" onClick={() => setIsCancelOpen(true)}>
-                            ✕ Cancelar Sessão
-                          </Button>
-                    )}
-                    {editingAppointment.status === 'cancelado' && (
-                        <div className="flex items-center gap-2">
-                             <span className="text-tomate text-sm font-medium">✕ Sessão Cancelada</span>
-                             <Button 
-                                type="button" 
-                                variant="outline" 
-                                size="sm" 
-                                className="h-8 border-success text-success hover:bg-success/10"
-                                onClick={() => handleReactivate(editingAppointment.id)}
-                            >
-                                ⟳ Reativar
-                             </Button>
-                        </div>
-                    )}
-                  </>
+              <div className="flex flex-col gap-3 border-t border-border/60 bg-muted/15 px-5 py-4 sm:px-7">
+                {editingAppointment && (
+                  normalizeAppointmentStatus(editingAppointment.status) === 'agendado'
+                  || (normalizeAppointmentStatus(editingAppointment.status) === 'confirmado'
+                    && appointmentHasEnded(editingAppointment.data_hora_sessao, editingAppointment.duracao || 50))
+                ) && (
+                  <Button
+                    type="button"
+                    className="h-11 w-full gap-2 bg-success text-success-foreground hover:bg-success/90"
+                    onClick={() => openPrimaryStatusTransition(editingAppointment)}
+                  >
+                    {appointmentHasEnded(editingAppointment.data_hora_sessao, editingAppointment.duracao || 50)
+                      ? <CheckCircle2 className="h-4 w-4" />
+                      : <CalendarCheck2 className="h-4 w-4" />}
+                    {appointmentHasEnded(editingAppointment.data_hora_sessao, editingAppointment.duracao || 50)
+                      ? 'Confirmar que a sessão aconteceu'
+                      : 'Confirmar agendamento'}
+                  </Button>
                 )}
-                <div className={cn("flex gap-2", !editingAppointment && "w-full justify-end")}>
-                  <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>Fechar</Button>
-                  {(!editingAppointment || editingAppointment.status !== 'cancelado') && (
-                    <SubmitButton isEditing={!!editingAppointment} />
-                  )}
+
+                <div className="flex w-full flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-center gap-2">
+                    {editingAppointment && (
+                      <Button variant="outline" type="button" size="icon" className="shrink-0 border-destructive/45 text-destructive hover:bg-destructive/10" onClick={() => handleDelete(editingAppointment.id)} aria-label="Excluir agendamento">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                    {editingAppointment && editingAppointment.status !== 'cancelado' && (
+                      <Button variant="outline" type="button" className="flex-1 border-destructive/45 text-destructive hover:bg-destructive/10 sm:flex-none" onClick={() => setIsCancelOpen(true)}>
+                        Cancelar sessão
+                      </Button>
+                    )}
+                    {editingAppointment?.status === 'cancelado' && (
+                      <Button type="button" variant="outline" className="border-success/45 text-success hover:bg-success/10" onClick={() => handleReactivate(editingAppointment.id)}>
+                        Reativar sessão
+                      </Button>
+                    )}
+                  </div>
+                  <div className="flex gap-2 sm:justify-end">
+                    <Button type="button" variant="outline" className="flex-1 sm:flex-none" onClick={() => setIsDialogOpen(false)}>Fechar</Button>
+                    {(!editingAppointment || editingAppointment.status !== 'cancelado') && (
+                      <SubmitButton isEditing={!!editingAppointment} />
+                    )}
+                  </div>
                 </div>
-              </DialogFooter>
+              </div>
             </form>
           </DialogContent>
         </Dialog>
@@ -935,6 +1005,24 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                 </AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>
+        </AlertDialog>
+
+        <AlertDialog open={!!statusTransition} onOpenChange={(open) => !open && setStatusTransition(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{statusTransition?.title}</AlertDialogTitle>
+              <AlertDialogDescription>{statusTransition?.description}</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setStatusTransition(null)}>Voltar</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleStatusUpdate}
+                className="bg-success text-success-foreground hover:bg-success/90"
+              >
+                {statusTransition?.action}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
         </AlertDialog>
 
         {/* EXCLUDED FROM NESTING: Confirm Edit Recurrence Dialog */}
@@ -1308,6 +1396,19 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                 setView={setView} 
                 onToday={() => setDate(agoraNaClinica())}
             />
+            <div className="mt-3 flex max-w-full gap-x-4 gap-y-2 overflow-x-auto pb-1 text-[10px] text-muted-foreground [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Legenda dos estados da agenda">
+              {[
+                ['Agendada', 'bg-agenda-agendada'],
+                ['Confirmada', 'bg-agenda-confirmada'],
+                ['Realizada', 'bg-success'],
+                ['Cancelada ou falta', 'bg-tomate'],
+              ].map(([label, color]) => (
+                <span key={label} className="flex shrink-0 items-center gap-1.5">
+                  <i className={`h-2 w-2 rounded-full ${color}`} aria-hidden="true" />
+                  {label}
+                </span>
+              ))}
+            </div>
         </div>
         
         <div className="flex-1 overflow-hidden p-3 sm:p-5">
@@ -1351,13 +1452,16 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                                      <div className="flex flex-col gap-1 w-full overflow-hidden">
                                          {dayAppointments.slice(0, 4).map(app => (
                                              <div key={app.id} 
-                                                className="text-[10px] bg-primary/10 text-primary-foreground px-1 py-0.5 rounded truncate w-full border-l-2 border-primary cursor-pointer hover:bg-primary/20"
+                                                className={cn(
+                                                  "w-full cursor-pointer truncate rounded border-l-2 px-1 py-0.5 text-[10px]",
+                                                  appointmentStatusAppearance(app.status).eventClassName,
+                                                )}
                                                 onClick={(e) => {
                                                     e.stopPropagation();
                                                     handleOpenEdit(app);
                                                 }}
                                              >
-                                                <span className="font-bold text-foreground">{paredeDaClinica(app.data_hora_sessao).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}</span> <span className="text-foreground">{app.nome_paciente}</span>
+                                                <span className="font-bold">{paredeDaClinica(app.data_hora_sessao).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}</span> <span>{app.nome_paciente}</span>
                                              </div>
                                          ))}
                                          {dayAppointments.length > 4 && (

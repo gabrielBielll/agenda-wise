@@ -17,6 +17,7 @@
             [deep-saude-backend.dominio :as dominio]
             [deep-saude-backend.limites :as limites]
             [deep-saude-backend.logging :as logging]
+            [deep-saude-backend.pacientes.portabilidade :as portabilidade-pacientes]
             [deep-saude-backend.prontuarios :as prontuarios]
             [deep-saude-backend.remuneracao :as remuneracao]
             [deep-saude-backend.google.rrule :as rrule]
@@ -417,6 +418,7 @@
                   {:status 200 :body {:message "Usuário autenticado com sucesso."
                                       :token   token
                                       :user    {:id         (:id usuario)
+                                                :nome       (:nome usuario)
                                                 :email      email
                                                 :clinica_id (:clinica_id usuario)
                                                 :papel_id   (:papel_id usuario)
@@ -428,6 +430,35 @@
       ;; Mesma resposta para usuário inexistente e senha errada: distinguir os
       ;; dois casos permite enumerar quem tem conta na plataforma.
       {:status 401 :body {:erro "Credenciais inválidas."}})))
+
+(defn obter-perfil-proprio-handler [request]
+  (let [usuario-id (get-in request [:identity :user_id])
+        clinica-id (get-in request [:identity :clinica_id])]
+    (if-let [usuario (execute-one! ["SELECT id, nome, email FROM usuarios WHERE id = ? AND clinica_id = ?"
+                                    usuario-id clinica-id])]
+      {:status 200 :body usuario}
+      {:status 404 :body {:erro "Perfil não encontrado."}})))
+
+(defn atualizar-perfil-proprio-handler [request]
+  (let [usuario-id (get-in request [:identity :user_id])
+        clinica-id (get-in request [:identity :clinica_id])
+        nome (some-> (get-in request [:body :nome]) str str/trim)]
+    (cond
+      (str/blank? nome)
+      {:status 422 :body {:erro "Informe o nome que deve aparecer na plataforma."
+                          :code "display_name_required"}}
+
+      (> (count nome) 120)
+      {:status 422 :body {:erro "O nome de exibição deve ter no máximo 120 caracteres."
+                          :code "display_name_too_long"}}
+
+      :else
+      (let [resultado (sql/update! @datasource :usuarios {:nome nome}
+                                   {:id usuario-id :clinica_id clinica-id})]
+        (if (zero? (:next.jdbc/update-count resultado))
+          {:status 404 :body {:erro "Perfil não encontrado."}}
+          {:status 200 :body (execute-one! ["SELECT id, nome, email FROM usuarios WHERE id = ? AND clinica_id = ?"
+                                            usuario-id clinica-id])})))))
 
 ;; --- Handlers de Usuários ---
 (defn criar-usuario-handler [request]
@@ -989,7 +1020,18 @@
               novo-psicologo-uuid (if psicologo_id (java.util.UUID/fromString psicologo_id) (:psicologo_id agendamento-atual))
 
               ;; Calcular fim da sessão
-              novo-fim (tempo/->sql (tempo/mais-minutos novo-data-zdt novo-duracao))
+              novo-fim-zdt (tempo/mais-minutos novo-data-zdt novo-duracao)
+              novo-fim (tempo/->sql novo-fim-zdt)
+
+              ;; Presença é confirmação humana. Nem a passagem do relógio nem
+              ;; uma chamada forjada podem dizer que uma sessão futura ocorreu.
+              realizacao-antecipada? (and (= status "realizado")
+                                          (.isAfter novo-fim-zdt (java.time.ZonedDateTime/now (.getZone novo-data-zdt))))
+              pagamento-automatico? (and (= status "realizado")
+                                          (not= "pago" (:status_pagamento agendamento-atual))
+                                          (boolean (:pagamento_automatico
+                                                    (execute-one! ["SELECT pagamento_automatico FROM clinicas WHERE id = ?"
+                                                                   clinica-id]))))
               
               ;; ⚠️ A-011 — a diferença entre PRESENÇA e MUDANÇA, que é o defeito inteiro.
               ;;
@@ -1058,11 +1100,18 @@
                            (some? status) (assoc :status status)
                            (some? observacoes) (assoc :observacoes observacoes)
                            (some? (:status_repasse (:body request))) (assoc :status_repasse (:status_repasse (:body request)))
+                           (and pagamento-automatico? (not (some? (:status_pagamento (:body request)))))
+                           (assoc :status_pagamento "pago"
+                                  :status_pagamento_origem "automatico")
                            (some? (:status_pagamento (:body request)))
                            (assoc :status_pagamento (:status_pagamento (:body request))
                                   :status_pagamento_origem "manual"))]
           
           (cond
+            realizacao-antecipada?
+            {:status 422 :body {:erro "A sessão só pode ser marcada como realizada depois do horário de término."
+                                :code "session_not_finished"}}
+
             ;; Os dois 409 passam a nomear o motivo, como a criação já fazia.
             ;; Sem `code` a tela não distingue "conflito, te ofereço forçar" de
             ;; "deu erro" — e o botão de forçar da A-009 não teria onde existir
@@ -1137,25 +1186,18 @@
     (let [agora (java.sql.Timestamp. (System/currentTimeMillis))]
       (log/info "global_status_sync_started")
       
-      ;; Atualiza status para 'realizado' em sessões passadas que ainda estão como 'agendado'
-      (let [status-result (jdbc/execute! @datasource 
-                            ["UPDATE agendamentos 
-                              SET status = 'realizado' 
-                              WHERE data_hora_sessao < ? 
-                              AND (status IS NULL OR status = 'agendado')
-                              AND clinica_id IN (
-                                SELECT id FROM clinicas WHERE pagamento_automatico = true
-                              )"
-                             agora])
-            status-count (get (first status-result) :next.jdbc/update-count 0)
-            
-            ;; Atualiza status_pagamento para 'pago' em sessões passadas realizadas (não canceladas)
+      ;; O relógio não confirma presença. `status_count` fica explícito para
+      ;; manter o contrato da rota enquanto a confirmação passa a ser manual.
+      (let [status-count 0
+
+            ;; No modo automático, o pagamento só fecha DEPOIS que a psicóloga
+            ;; confirmou a realização. Sessão apenas passada continua pendente.
             pagamento-result (jdbc/execute! @datasource 
                                ["UPDATE agendamentos 
                                  SET status_pagamento = 'pago',
                                      status_pagamento_origem = 'automatico'
                                  WHERE data_hora_sessao < ? 
-                                 AND status != 'cancelado'
+                                 AND status = 'realizado'
                                  AND (status_pagamento IS NULL OR status_pagamento = 'pendente')
                                  AND clinica_id IN (
                                    SELECT id FROM clinicas WHERE pagamento_automatico = true
@@ -1182,8 +1224,8 @@
     (catch Exception e
       (log/error e "global_status_sync_failed"))))
 
-;; Handler para sincronizar status de agendamentos passados (por clínica)
-;; Atualiza no banco: status='realizado' e status_pagamento='pago' para sessões passadas não canceladas
+;; Handler legado de sincronização financeira por clínica. O nome da rota fica
+;; por compatibilidade; presença agora é confirmada manualmente na agenda.
 (defn clinica-em-pagamento-automatico?
   "A clínica fecha o mês sozinha, ou o financeiro é marcado à mão?
 
@@ -1229,27 +1271,16 @@
                               :status_atualizados 0
                               :pagamentos_atualizados 0}})
       
-      ;; Atualiza status para 'realizado' em sessões passadas que ainda estão como 'agendado'
-      (let [status-result (jdbc/execute! @datasource 
-                            ["UPDATE agendamentos 
-                              SET status = 'realizado' 
-                              WHERE clinica_id = ? 
-                              AND data_hora_sessao < ? 
-                              AND (status IS NULL OR status = 'agendado')
-                              AND clinica_id IN (
-                                SELECT id FROM clinicas WHERE pagamento_automatico = true
-                              )"
-                             clinica-id agora])
-            status-count (get (first status-result) :next.jdbc/update-count 0)
-            
-            ;; Atualiza status_pagamento para 'pago' em sessões passadas realizadas (não canceladas)
+      (let [status-count 0
+
+            ;; Pagamento automático depende da confirmação humana de presença.
             pagamento-result (jdbc/execute! @datasource 
                                ["UPDATE agendamentos 
                                  SET status_pagamento = 'pago',
                                      status_pagamento_origem = 'automatico'
                                  WHERE clinica_id = ? 
                                  AND data_hora_sessao < ? 
-                                 AND status != 'cancelado'
+                                 AND status = 'realizado'
                                  AND (status_pagamento IS NULL OR status_pagamento = 'pendente')
                                  AND clinica_id IN (
                                    SELECT id FROM clinicas WHERE pagamento_automatico = true
@@ -1596,6 +1627,13 @@
 
 ;; ROTAS ATUALIZADAS PARA PACIENTES
 (defroutes pacientes-routes
+  ;; Rotas literais precisam vir antes de /:id, senão "exportar" seria tratado
+  ;; como UUID de paciente. Ambas respeitam o mesmo escopo da listagem: clínica
+  ;; inteira para admin/secretaria e carteira própria para psicóloga.
+  (GET    "/exportar" request
+    (wrap-checar-permissao portabilidade-pacientes/exportar-handler "visualizar_pacientes"))
+  (POST   "/importar" request
+    (wrap-checar-permissao portabilidade-pacientes/importar-handler "gerenciar_pacientes"))
   (POST   "/" request (wrap-checar-permissao criar-paciente-handler "gerenciar_pacientes"))
   (GET    "/" request (wrap-checar-permissao listar-pacientes-handler "visualizar_pacientes"))
   
@@ -1651,6 +1689,8 @@
   (PUT  "/agendas/:id/pausa"     request (wrap-checar-permissao google/pausar-handler "gerenciar_integracao_google")))
 
 (defroutes protected-routes
+  (GET    "/api/me" request (wrap-jwt-autenticacao obter-perfil-proprio-handler))
+  (PUT    "/api/me" request (wrap-jwt-autenticacao atualizar-perfil-proprio-handler))
   (POST   "/api/usuarios" request (wrap-checar-permissao criar-usuario-handler "gerenciar_usuarios"))
   (GET    "/api/usuarios/:id" request (wrap-checar-permissao obter-usuario-handler "gerenciar_usuarios"))
   (PUT    "/api/usuarios/:id" request (wrap-checar-permissao atualizar-usuario-handler "gerenciar_usuarios"))

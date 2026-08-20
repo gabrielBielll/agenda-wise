@@ -16,6 +16,7 @@
             [deep-saude-backend.db :as db]
             [migratus.core :as migratus]
             [next.jdbc :as jdbc]
+            [next.jdbc.sql :as sql]
             [deep-saude-backend.remuneracao :as remuneracao]
             [environ.core]))
 
@@ -34,6 +35,37 @@
   (testing "sem Authorization devolve 401, não 500"
     (let [resp (core/app (mock/request :get "/api/agendamentos"))]
       (is (= 401 (:status resp))))))
+
+(deftest perfil-proprio-persiste-o-nome-no-usuario-autenticado
+  (let [usuario-id (java.util.UUID/randomUUID)
+        clinica-id (java.util.UUID/randomUUID)
+        atualizacao (atom nil)
+        request {:identity {:user_id usuario-id :clinica_id clinica-id}
+                 :body {:nome "  Dra. Marina Luz  "}}]
+    (with-redefs [db/datasource (delay :banco-simulado)
+                  sql/update! (fn [ds tabela valores where]
+                                (reset! atualizacao [ds tabela valores where])
+                                {:next.jdbc/update-count 1})
+                  db/execute-one! (fn [_]
+                                    {:id usuario-id
+                                     :nome "Dra. Marina Luz"
+                                     :email "marina@teste.local"})]
+      (let [resp (core/atualizar-perfil-proprio-handler request)]
+        (is (= 200 (:status resp)))
+        (is (= "Dra. Marina Luz" (get-in resp [:body :nome])))
+        (is (= [:banco-simulado :usuarios
+                {:nome "Dra. Marina Luz"}
+                {:id usuario-id :clinica_id clinica-id}]
+               @atualizacao)
+            "o nome só pode ser gravado no próprio usuário e na própria clínica")))
+
+    (testing "nome vazio falha antes de tocar no banco"
+      (with-redefs [db/datasource (delay :banco-simulado)
+                    sql/update! (fn [& _] (throw (ex-info "não deveria atualizar" {})))]
+        (let [resp (core/atualizar-perfil-proprio-handler
+                    (assoc request :body {:nome "   "}))]
+          (is (= 422 (:status resp)))
+          (is (= "display_name_required" (get-in resp [:body :code]))))))))
 
 (deftest toda-resposta-tem-request-id
   (let [app (core/montar-app (fn [request]
@@ -248,8 +280,10 @@
           (is (= 200 (:status resp)))
           (is (= "automatico" (get-in resp [:body :modo])))
           (is (re-find #"(?i)conclu" (get-in resp [:body :message])))
-          (is (= 7 (get-in resp [:body :status_atualizados]))
-              "o efeito medido tem que chegar em quem chamou, não só o código de status"))))))
+          (is (zero? (get-in resp [:body :status_atualizados]))
+              "o relógio não pode confirmar presença pela psicóloga")
+          (is (= 7 (get-in resp [:body :pagamentos_atualizados]))
+              "a sincronização automática agora atua apenas no financeiro já confirmado"))))))
 
 (deftest limite-de-payload-nao-atrapalha-requisicao-pequena
   (testing "corpo pequeno passa direto pelo limite e chega na autenticação"

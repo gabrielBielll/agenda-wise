@@ -1,6 +1,8 @@
 
 import React from 'react';
 import { cn } from "@/lib/utils";
+import { paredeDaClinica } from "@/lib/datetime";
+import { appointmentStatusAppearance } from "@/lib/appointment-status";
 
 interface Appointment {
   id: string;
@@ -50,7 +52,7 @@ export function DayView({ date, appointments, bloqueios = [], onAddAppointment, 
   
   const getAppointmentsForHour = (hour: number) => {
     return appointments.filter(app => {
-      const appDate = new Date(app.data_hora_sessao);
+      const appDate = paredeDaClinica(app.data_hora_sessao);
       return appDate.getDate() === date.getDate() && 
              appDate.getMonth() === date.getMonth() && 
              appDate.getFullYear() === date.getFullYear() &&
@@ -60,8 +62,8 @@ export function DayView({ date, appointments, bloqueios = [], onAddAppointment, 
 
   const getBloqueiosForHour = (hour: number) => {
     return bloqueios.filter(block => {
-      const inicio = new Date(block.data_inicio);
-      const fim = new Date(block.data_fim);
+      const inicio = paredeDaClinica(block.data_inicio);
+      const fim = paredeDaClinica(block.data_fim);
       const slotStart = new Date(date);
       slotStart.setHours(hour, 0, 0, 0);
       const slotEnd = new Date(date);
@@ -74,14 +76,28 @@ export function DayView({ date, appointments, bloqueios = [], onAddAppointment, 
 
   const handleSlotClick = (hour: number, event: React.MouseEvent) => {
     const newDate = new Date(date);
-    newDate.setHours(hour, 0, 0, 0);
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const relativeY = Math.max(0, Math.min(bounds.height - 1, event.clientY - bounds.top));
+    const minute = Math.min(45, Math.floor((relativeY / bounds.height) * 4) * 15);
+    newDate.setHours(hour, minute, 0, 0);
     
     // Check if this slot is blocked
     const hourBloqueios = getBloqueiosForHour(hour);
     const isBlocked = hourBloqueios.length > 0;
     const bloqueioId = isBlocked ? hourBloqueios[0].id : undefined;
     
-    onAddAppointment(newDate, event, isBlocked, bloqueioId);
+    onAddAppointment(newDate, isBlocked ? event : undefined, isBlocked, bloqueioId);
+  };
+
+  const handleSlotMenu = (hour: number, event: React.MouseEvent) => {
+    event.preventDefault();
+    const newDate = new Date(date);
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const relativeY = Math.max(0, Math.min(bounds.height - 1, event.clientY - bounds.top));
+    const minute = Math.min(45, Math.floor((relativeY / bounds.height) * 4) * 15);
+    newDate.setHours(hour, minute, 0, 0);
+    const hourBloqueios = getBloqueiosForHour(hour);
+    onAddAppointment(newDate, event, hourBloqueios.length > 0, hourBloqueios[0]?.id);
   };
 
   return (
@@ -108,15 +124,19 @@ export function DayView({ date, appointments, bloqueios = [], onAddAppointment, 
               <div 
                 key={hour} 
                 className={cn(
-                  "h-20 relative group transition-colors cursor-pointer",
+                  "calendar-hour-slot h-20 relative group transition-colors cursor-pointer",
                   isBlocked ? "bg-grafite-tenue" : "hover:bg-accent/5"
                 )}
                 onClick={(e) => handleSlotClick(hour, e)}
+                onContextMenu={(e) => handleSlotMenu(hour, e)}
+                title={isBlocked ? "Horário bloqueado" : "Clique para agendar no quarto de hora desejado"}
+                aria-label={`${isBlocked ? 'Horário bloqueado' : 'Agendar'} às ${String(hour).padStart(2, '0')}:00`}
+                data-slot-hour={hour}
               >
                 {/* Render Bloqueios */}
                 {hourBloqueios.map(block => {
-                  const inicio = new Date(block.data_inicio);
-                  const fim = new Date(block.data_fim);
+                  const inicio = paredeDaClinica(block.data_inicio);
+                  const fim = paredeDaClinica(block.data_fim);
                   const slotStart = new Date(date);
                   slotStart.setHours(hour, 0, 0, 0);
                   const slotEnd = new Date(date);
@@ -158,7 +178,8 @@ export function DayView({ date, appointments, bloqueios = [], onAddAppointment, 
 
                 {/* Render Appointments */}
                 {hourAppointments.map(app => {
-                    const appDate = new Date(app.data_hora_sessao);
+                    const appearance = appointmentStatusAppearance(app.status);
+                    const appDate = paredeDaClinica(app.data_hora_sessao);
                     const minutes = appDate.getMinutes();
                     const topPos = (minutes / 60) * 100; // Percentage from top
                     const duration = app.duracao || 50;
@@ -169,9 +190,7 @@ export function DayView({ date, appointments, bloqueios = [], onAddAppointment, 
                             key={app.id}
                             className={cn(
                               "absolute left-2 right-2 rounded-md p-1 text-xs transition-colors cursor-pointer z-10 border-l-4",
-                               app.status === 'cancelado' 
-                                  ? "bg-tomate-suave border-tomate text-tomate-foreground hover:brightness-95 opacity-80"
-                                  : "bg-primary/10 border-primary hover:bg-primary/20"
+                              appearance.eventClassName
                             )}
                             style={{ top: `${topPos}%`, height: `${height}%`, minHeight: '20px' }}
                             onClick={(e) => {
@@ -187,7 +206,7 @@ export function DayView({ date, appointments, bloqueios = [], onAddAppointment, 
                                   })()
                                 }
                             </span>
-                            <span className={cn("truncate block font-medium", app.status === 'cancelado' ? "line-through opacity-70" : "text-foreground/90")}>
+                            <span className={cn("truncate block font-medium", app.status === 'cancelado' && "line-through opacity-70")}>
                                 {app.nome_paciente}
                             </span>
                         </div>

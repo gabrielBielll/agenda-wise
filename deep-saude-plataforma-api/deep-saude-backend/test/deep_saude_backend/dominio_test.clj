@@ -4,7 +4,7 @@
 
 (deftest aceita-o-vocabulario-correto
   (testing "status de sessão"
-    (doseq [v ["agendado" "realizado" "cancelado" "falta"]]
+    (doseq [v ["agendado" "confirmado" "realizado" "cancelado" "falta"]]
       (is (nil? (dominio/valor-invalido :status v)))))
 
   (testing "status de pagamento"

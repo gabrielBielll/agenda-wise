@@ -30,7 +30,8 @@
             [migratus.core :as migratus]
             [next.jdbc :as jdbc]
             [deep-saude-backend.core :as core]
-            [deep-saude-backend.db :as db]))
+            [deep-saude-backend.db :as db]
+            [deep-saude-backend.pacientes.portabilidade :as portabilidade-pacientes]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Fixture
@@ -45,13 +46,14 @@
 (def paciente-b  #uuid "bbbbbbbb-0000-0000-0000-0000000000d2")
 
 (defn- semear-cadastro! []
-  (let [papel (:id (db/execute-one! ["SELECT id FROM papeis WHERE nome_papel = 'admin_clinica'"]))]
+  (let [papel (:id (db/execute-one! ["SELECT id FROM papeis WHERE nome_papel = 'psicologo'"]))]
     (doseq [[cli psi pac nome] [[clinica-a psicologo-a paciente-a "A"]
                                 [clinica-b psicologo-b paciente-b "B"]]]
       (db/execute-one! ["INSERT INTO clinicas (id, nome_da_clinica) VALUES (?, ?)
                          ON CONFLICT (id) DO NOTHING" cli (str "Clinica " nome)])
       (db/execute-one! ["INSERT INTO usuarios (id, clinica_id, papel_id, nome, email, senha_hash)
-                         VALUES (?, ?, ?, ?, ?, 'x') ON CONFLICT (id) DO NOTHING"
+                         VALUES (?, ?, ?, ?, ?, 'x')
+                         ON CONFLICT (id) DO UPDATE SET papel_id = EXCLUDED.papel_id"
                         psi cli papel (str "Psi " nome) (str "psi-" (str/lower-case nome) "@teste.local")])
       (db/execute-one! ["INSERT INTO pacientes (id, clinica_id, nome, psicologo_id)
                          VALUES (?, ?, ?, ?) ON CONFLICT (id) DO NOTHING"
@@ -63,10 +65,10 @@
                             valor_fixo_repasse = NULL
                       WHERE id IN (?, ?, ?)"
                     psicologo-a psicologo-a2 psicologo-b])
-  (let [papel (:id (db/execute-one! ["SELECT id FROM papeis WHERE nome_papel = 'admin_clinica'"]))]
+  (let [papel (:id (db/execute-one! ["SELECT id FROM papeis WHERE nome_papel = 'psicologo'"]))]
     (db/execute-one! ["INSERT INTO usuarios (id, clinica_id, papel_id, nome, email, senha_hash)
                        VALUES (?, ?, ?, 'Psi A2', 'psi-a2@teste.local', 'x')
-                       ON CONFLICT (id) DO NOTHING"
+                       ON CONFLICT (id) DO UPDATE SET papel_id = EXCLUDED.papel_id"
                       psicologo-a2 clinica-a papel])))
 
 (defn- nome-do-banco-na-url
@@ -121,8 +123,22 @@
                   (count (filter (comp :test meta val) (ns-publics *ns*)))
                   " testes de banco PULADOS.\n"))))
 
+(defn- limpar-pacientes-da-portabilidade! []
+  ;; O teste de importação cria cadastros além da fixture. Removê-los antes e
+  ;; depois mantém a suíte repetível mesmo quando uma execução anterior falha.
+  (db/execute-one! ["DELETE FROM pacientes
+                      WHERE email IN ('importada@teste.local', 'outra-carteira@teste.local')"]))
+
 (defn entre-testes [f]
-  (if (env :test-database-url) (do (limpar-agendamentos!) (f)) (f)))
+  (if (env :test-database-url)
+    (do
+      (limpar-agendamentos!)
+      (limpar-pacientes-da-portabilidade!)
+      (try
+        (f)
+        (finally
+          (limpar-pacientes-da-portabilidade!))))
+    (f)))
 
 (use-fixtures :once com-banco-de-teste)
 (use-fixtures :each entre-testes)
@@ -133,6 +149,61 @@
 
 (defn- criar [body & {:keys [clinica] :or {clinica clinica-a}}]
   (core/criar-agendamento-handler {:identity {:clinica_id clinica} :body body}))
+
+(deftest importacao-de-pacientes-tem-previa-e-upsert-sem-atravessar-carteira
+  (let [identidade-admin {:clinica_id clinica-a :user_id psicologo-a :role "admin_clinica"}
+        registro {:linha_arquivo 2
+                  :nome "Paciente importada"
+                  :email "importada@teste.local"
+                  :data_nascimento "1992-04-18"
+                  :psicologo_email "psi-a@teste.local"
+                  :status "ativo"
+                  :diagnostico "Hipótese trazida da base anterior"}
+        quantidade-antes (:c (db/execute-one! ["SELECT count(*) AS c FROM pacientes WHERE clinica_id = ?" clinica-a]))
+        previa (portabilidade-pacientes/importar-handler
+                {:identity identidade-admin
+                 :body {:registros [registro]
+                        :estrategia "ignorar_existentes"
+                        :validar_apenas true}})]
+    (is (= 200 (:status previa)))
+    (is (= 1 (get-in previa [:body :novos])))
+    (is (= quantidade-antes
+           (:c (db/execute-one! ["SELECT count(*) AS c FROM pacientes WHERE clinica_id = ?" clinica-a])))
+        "prévia não pode escrever")
+
+    (let [importacao (portabilidade-pacientes/importar-handler
+                      {:identity identidade-admin
+                       :body {:registros [registro]
+                              :estrategia "ignorar_existentes"}})
+          gravada (db/execute-one! ["SELECT * FROM pacientes WHERE clinica_id = ? AND email = ?"
+                                    clinica-a "importada@teste.local"])]
+      (is (= 200 (:status importacao)))
+      (is (= psicologo-a (:psicologo_id gravada)))
+      (is (= "Hipótese trazida da base anterior" (:diagnostico gravada)))
+
+      (let [atualizacao (portabilidade-pacientes/importar-handler
+                         {:identity identidade-admin
+                          :body {:registros [(assoc registro
+                                                   :agenda_wise_id (str (:id gravada))
+                                                   :nome "Paciente importada e revisada")]
+                                 :estrategia "atualizar_existentes"}})]
+        (is (= 200 (:status atualizacao)))
+        (is (= 1 (get-in atualizacao [:body :atualizaveis])))
+        (is (= "Paciente importada e revisada"
+               (:nome (db/execute-one! ["SELECT nome FROM pacientes WHERE id = ?" (:id gravada)]))))))
+
+    (let [de-outra-psi #uuid "aaaaaaaa-0000-0000-0000-0000000000d9"]
+      (db/execute-one! ["INSERT INTO pacientes (id, clinica_id, psicologo_id, nome, email)
+                         VALUES (?, ?, ?, 'Paciente de outra psi', 'outra-carteira@teste.local')"
+                        de-outra-psi clinica-a psicologo-a2])
+      (let [recusa (portabilidade-pacientes/importar-handler
+                    {:identity {:clinica_id clinica-a :user_id psicologo-a :role "psicologo"}
+                     :body {:registros [{:nome "Tentativa de sobrescrita"
+                                         :email "outra-carteira@teste.local"}]
+                            :estrategia "atualizar_existentes"
+                            :validar_apenas true}})]
+        (is (= 422 (:status recusa)))
+        (is (= "patient_import_conflict" (get-in recusa [:body :code])))))))
 
 (defn- criar-como [papel body]
   (core/criar-agendamento-handler
@@ -190,11 +261,9 @@
   {:paciente_id (str paciente-a) :psicologo_id (str psicologo-a) :valor_consulta 200})
 
 (deftest pagamento-automatico-respeita-configuracao-da-clinica
-  ;; A coluna é criada aqui para que o vermelho prove o defeito de alcance do
-  ;; job antes de a migration da correção existir: hoje ele ignora a flag e
-  ;; fecha o financeiro de todas as clínicas.
-  ;; Os testes anteriores não viram isso porque exercitam handlers; o job roda
-  ;; fora de rota, no -main, e o -main não é iniciado pela suíte.
+  ;; O relógio nunca confirma presença. A sessão só passa a `realizado` por uma
+  ;; ação humana; depois disso, a configuração da clínica decide se o pagamento
+  ;; fecha junto ou continua pendente para o financeiro.
   (db/execute-one! ["ALTER TABLE clinicas ADD COLUMN IF NOT EXISTS pagamento_automatico BOOLEAN NOT NULL DEFAULT false"])
   (db/execute-one! ["UPDATE clinicas SET pagamento_automatico = (id = ?) WHERE id IN (?, ?)"
                     clinica-a clinica-a clinica-b])
@@ -209,6 +278,22 @@
 
   (core/sincronizar-status-global!)
 
+  (let [habilitada (db/execute-one! ["SELECT status, status_pagamento, status_pagamento_origem
+                                       FROM agendamentos WHERE clinica_id = ?" clinica-a])
+        desabilitada (db/execute-one! ["SELECT status, status_pagamento, status_pagamento_origem
+                                        FROM agendamentos WHERE clinica_id = ?" clinica-b])]
+    (is (= ["agendado" "pendente" "desconhecido"]
+           ((juxt :status :status_pagamento :status_pagamento_origem) habilitada))
+        "nem a clínica automática pode transformar passagem do tempo em presença")
+    (is (= ["agendado" "pendente" "desconhecido"]
+           ((juxt :status :status_pagamento :status_pagamento_origem) desabilitada))))
+
+  (is (= 200 (:status (atualizar #uuid "aaaaaaaa-0000-0000-0000-0000000000e1"
+                                 {:status "realizado"}))))
+  (is (= 200 (:status (atualizar #uuid "bbbbbbbb-0000-0000-0000-0000000000e2"
+                                 {:status "realizado"}
+                                 :clinica clinica-b))))
+
   (let [habilitada (db/execute-one! ["SELECT status, status_pagamento, status_pagamento_origem,
                                              valor_repasse, modalidade_repasse_aplicada,
                                              percentual_repasse_aplicado
@@ -220,7 +305,7 @@
     (is (== 100M (bigdec (:valor_repasse habilitada))))
     (is (= "percentual" (:modalidade_repasse_aplicada habilitada)))
     (is (== 50M (bigdec (:percentual_repasse_aplicado habilitada))))
-    (is (= ["agendado" "pendente" "desconhecido"]
+    (is (= ["realizado" "pendente" "desconhecido"]
            ((juxt :status :status_pagamento :status_pagamento_origem) desabilitada)))
 
     ;; R-004: mudar a psicóloga para R$40 fixos não reescreve a sessão de R$100
@@ -234,7 +319,7 @@
                          (id, clinica_id, paciente_id, psicologo_id, data_hora_sessao,
                           duracao, valor_consulta, status, status_pagamento)
                          VALUES (?, ?, ?, ?, now() - interval '1 day', 50, 300,
-                                 'agendado', 'pendente')"
+                                 'realizado', 'pendente')"
                         nova clinica-a paciente-a psicologo-a])
       (core/sincronizar-status-global!)
       (let [antiga (db/execute-one! ["SELECT valor_repasse, modalidade_repasse_aplicada
@@ -248,6 +333,21 @@
         (is (= [40M "fixo" 40M]
                ((juxt #(bigdec (:valor_repasse %)) :modalidade_repasse_aplicada
                       #(bigdec (:valor_fixo_repasse_aplicado %))) nova-gravada)))))))
+
+(deftest sessao-futura-nao-pode-ser-confirmada-como-realizada
+  (let [id #uuid "aaaaaaaa-0000-0000-0000-0000000000e4"]
+    (db/execute-one! ["INSERT INTO agendamentos
+                        (id, clinica_id, paciente_id, psicologo_id, data_hora_sessao,
+                         duracao, valor_consulta, status, status_pagamento)
+                        VALUES (?, ?, ?, ?, now() + interval '1 day', 50, 200,
+                                'agendado', 'pendente')"
+                       id clinica-a paciente-a psicologo-a])
+    (let [resp (atualizar id {:status "realizado"})
+          gravada (db/execute-one! ["SELECT status, status_pagamento FROM agendamentos WHERE id = ?" id])]
+      (is (= 422 (:status resp)))
+      (is (= "session_not_finished" (get-in resp [:body :code])))
+      (is (= ["agendado" "pendente"]
+             ((juxt :status :status_pagamento) gravada))))))
 
 (deftest repasse-mensal-e-em-lote-por-periodo-e-psicologa
   (let [dentro #uuid "aaaaaaaa-0000-0000-0000-0000000000f1"

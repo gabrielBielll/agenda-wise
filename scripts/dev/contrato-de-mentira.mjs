@@ -37,6 +37,25 @@ const db = {
 
 const TOKEN_PROV = process.env.PROVISIONING_TOKEN ?? 'token-prov-demo';
 const modalidades = new Set(['percentual', 'fixo']);
+const camposPortateis = [
+  'agenda_wise_id', 'nome', 'email', 'telefone', 'data_nascimento', 'endereco',
+  'avatar_url', 'psicologo_email', 'historico_familiar', 'uso_medicamentos',
+  'diagnostico', 'contatos_emergencia', 'status', 'nota_fiscal', 'origem',
+  'vencimento_pagamento', 'tipo_pagamento',
+];
+
+const csvCell = (value) => {
+  let text = value == null ? '' : String(value);
+  if (/^[=+\-@]/.test(text)) text = `'${text}`;
+  return `"${text.replaceAll('"', '""')}"`;
+};
+
+const sqlLiteral = (value) => {
+  if (value == null) return 'NULL';
+  if (value === true) return 'TRUE';
+  if (value === false) return 'FALSE';
+  return `'${String(value).replaceAll("'", "''")}'`;
+};
 
 /** remuneracao.clj:11 — validar-regra */
 function validarRegra({ modalidade_repasse, percentual_repasse, valor_fixo_repasse }) {
@@ -107,10 +126,20 @@ const server = createServer(async (req, res) => {
     // core.clj:352 — a chave e `user`, NAO `usuario`. O front le data.user
     // (lib/auth.ts:66); com `usuario` o login devolve null em silencio.
     return responder(200, { message: 'Usuário autenticado com sucesso.', token: t,
-      user: { id: u.id, email: u.email, clinica_id: u.clinica_id, papel_id: u.papel, role: u.papel } });
+      user: { id: u.id, nome: u.nome, email: u.email, clinica_id: u.clinica_id, papel_id: u.papel, role: u.papel } });
   }
 
   if (!eu) return responder(401, { erro: 'Token ausente ou inválido.' });
+
+  if (p === '/api/me' && req.method === 'GET') {
+    return responder(200, { id: eu.id, nome: eu.nome, email: eu.email });
+  }
+  if (p === '/api/me' && req.method === 'PUT') {
+    if (!corpo.nome || !String(corpo.nome).trim())
+      return responder(422, { erro: 'Informe o nome que deve aparecer na plataforma.' });
+    eu.nome = String(corpo.nome).trim();
+    return responder(200, { id: eu.id, nome: eu.nome, email: eu.email });
+  }
 
   // --- usuários (core.clj:367) --------------------------------------------
   if (p === '/api/usuarios' && req.method === 'POST') {
@@ -136,7 +165,8 @@ const server = createServer(async (req, res) => {
 
   // --- pacientes (core.clj:487) -------------------------------------------
   if (p === '/api/pacientes' && req.method === 'GET') {
-    return responder(200, db.pacientes.filter((x) => x.clinica_id === eu.clinica_id));
+    return responder(200, db.pacientes.filter((x) => x.clinica_id === eu.clinica_id
+      && (eu.papel !== 'psicologo' || x.psicologo_id === eu.id)));
   }
   if (p === '/api/pacientes' && req.method === 'POST') {
     if (corpo.email && db.pacientes.some((x) => x.email === corpo.email && x.clinica_id === eu.clinica_id))
@@ -144,6 +174,93 @@ const server = createServer(async (req, res) => {
     const novo = { id: randomUUID(), ...corpo, clinica_id: eu.clinica_id };
     db.pacientes.push(novo);
     return responder(201, novo);
+  }
+
+  if (p === '/api/pacientes/exportar' && req.method === 'GET') {
+    const formato = url.searchParams.get('formato');
+    if (!['csv', 'json', 'sql'].includes(formato))
+      return responder(422, { erro: 'Escolha um formato válido: csv, json ou sql.' });
+    const pacientes = db.pacientes
+      .filter((x) => x.clinica_id === eu.clinica_id && (eu.papel !== 'psicologo' || x.psicologo_id === eu.id))
+      .map((x) => ({
+        agenda_wise_id: x.id,
+        nome: x.nome,
+        email: x.email ?? null,
+        telefone: x.telefone ?? null,
+        data_nascimento: x.data_nascimento ?? null,
+        endereco: x.endereco ?? null,
+        avatar_url: x.avatar_url ?? null,
+        psicologo_email: db.usuarios.find((u) => u.id === x.psicologo_id)?.email ?? null,
+        historico_familiar: x.historico_familiar ?? null,
+        uso_medicamentos: x.uso_medicamentos ?? null,
+        diagnostico: x.diagnostico ?? null,
+        contatos_emergencia: x.contatos_emergencia ?? null,
+        status: x.status ?? 'ativo',
+        nota_fiscal: Boolean(x.nota_fiscal),
+        origem: x.origem ?? null,
+        vencimento_pagamento: x.vencimento_pagamento ?? null,
+        tipo_pagamento: x.tipo_pagamento ?? 'avulso',
+      }));
+    const envelope = { schema: 'agenda-wise/pacientes@1', exportado_em: new Date().toISOString(), quantidade: pacientes.length, pacientes };
+    const json = JSON.stringify(envelope, null, 2);
+    let conteudo;
+    if (formato === 'csv') {
+      conteudo = `\uFEFF${camposPortateis.join(',')}\r\n${pacientes.map((patient) => camposPortateis.map((field) => csvCell(patient[field])).join(',')).join('\r\n')}\r\n`;
+    } else if (formato === 'json') conteudo = json;
+    else {
+      const marker = Buffer.from(json, 'utf8').toString('base64');
+      conteudo = `-- AgendaWise — backup de pacientes\n-- AGENDAWISE_PORTABLE_JSON_BASE64 ${marker}\nBEGIN;\n${pacientes.map((patient) => `-- ${sqlLiteral(patient.agenda_wise_id)} · ${sqlLiteral(patient.nome)}`).join('\n')}\nCOMMIT;\n`;
+    }
+    const filename = `agenda-wise-pacientes-${new Date().toISOString().slice(0, 10)}.${formato}`;
+    const mime = formato === 'csv' ? 'text/csv' : formato === 'json' ? 'application/json' : 'application/sql';
+    res.writeHead(200, { 'Content-Type': `${mime}; charset=utf-8`, 'Content-Disposition': `attachment; filename="${filename}"`, 'Cache-Control': 'no-store' });
+    return res.end(conteudo);
+  }
+
+  if (p === '/api/pacientes/importar' && req.method === 'POST') {
+    const registros = Array.isArray(corpo.registros) ? corpo.registros : null;
+    if (!registros) return responder(422, { erro: 'Envie registros como uma lista JSON.' });
+    if (!registros.length) return responder(422, { erro: 'O lote de importação está vazio.' });
+    if (registros.length > 100) return responder(413, { erro: 'Envie no máximo 100 pacientes por lote.' });
+    const estrategia = corpo.estrategia ?? 'ignorar_existentes';
+    const erros = [];
+    const planos = [];
+    const vistos = new Set();
+    for (let index = 0; index < registros.length; index += 1) {
+      const registro = registros[index];
+      const linha = registro.linha_arquivo ?? index + 2;
+      const nome = String(registro.nome ?? '').trim();
+      const email = String(registro.email ?? '').trim().toLowerCase() || null;
+      if (!nome) erros.push({ linha, campo: 'nome', erro: 'Nome é obrigatório.' });
+      if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) erros.push({ linha, campo: 'email', erro: 'E-mail inválido.' });
+      const chave = registro.agenda_wise_id ? `id:${registro.agenda_wise_id}` : email ? `email:${email}` : null;
+      if (chave && vistos.has(chave)) erros.push({ linha, campo: 'email', erro: 'Registro repetido no mesmo arquivo.' });
+      if (chave) vistos.add(chave);
+      const existente = db.pacientes.find((x) => x.clinica_id === eu.clinica_id
+        && (x.id === registro.agenda_wise_id || (email && String(x.email ?? '').toLowerCase() === email)));
+      if (eu.papel === 'psicologo' && existente && existente.psicologo_id !== eu.id)
+        erros.push({ linha, campo: 'email', erro: 'Este paciente já pertence a outro profissional da clínica.' });
+      const psi = eu.papel === 'psicologo' ? eu : db.usuarios.find((u) => u.clinica_id === eu.clinica_id && u.email === registro.psicologo_email);
+      if (registro.psicologo_email && !psi) erros.push({ linha, campo: 'psicologo_email', erro: 'Psicóloga não encontrada nesta clínica.' });
+      const action = existente ? estrategia === 'atualizar_existentes' ? 'atualizar' : 'ignorar' : 'criar';
+      planos.push({ action, existente, psi, registro: { ...registro, nome, email } });
+    }
+    if (erros.length) return responder(422, { erro: 'Há registros que precisam ser corrigidos.', code: 'patient_import_validation_failed', erros });
+    const resumo = {
+      novos: planos.filter((x) => x.action === 'criar').length,
+      atualizaveis: planos.filter((x) => x.action === 'atualizar').length,
+      ignorados: planos.filter((x) => x.action === 'ignorar').length,
+      processados: planos.length,
+    };
+    if (!corpo.validar_apenas) {
+      for (const plano of planos) {
+        if (plano.action === 'ignorar') continue;
+        const dados = Object.fromEntries(camposPortateis.filter((field) => field !== 'agenda_wise_id' && field !== 'psicologo_email' && field in plano.registro).map((field) => [field, plano.registro[field]]));
+        if (plano.action === 'atualizar') Object.assign(plano.existente, dados, plano.psi ? { psicologo_id: plano.psi.id } : {});
+        else db.pacientes.push({ id: randomUUID(), clinica_id: eu.clinica_id, status: 'ativo', ...dados, ...(plano.psi ? { psicologo_id: plano.psi.id } : {}) });
+      }
+    }
+    return responder(200, { valido: true, validar_apenas: Boolean(corpo.validar_apenas), ...resumo });
   }
 
   const mPacienteUm = p.match(/^\/api\/pacientes\/([^/]+)$/);
@@ -197,9 +314,7 @@ const server = createServer(async (req, res) => {
     const agora = new Date();
     let n = 0;
     for (const a of db.agendamentos) {
-      if (new Date(a.data_hora_sessao) < agora && (a.status == null || a.status === 'agendado')) {
-        a.status = 'realizado'; n++;
-      }
+      // Presença agora é confirmação humana; o relógio não promove a sessão.
       if (a.status === 'realizado' && a.status_pagamento === 'pendente') a.status_pagamento = 'pago';
       // remuneracao.clj:52 — só calcula o que ainda não tem cálculo
       if (a.status === 'realizado' && a.valor_repasse == null) {
@@ -251,6 +366,12 @@ const server = createServer(async (req, res) => {
   }
 
   const mAg = p.match(/^\/api\/agendamentos\/([^/]+)$/);
+  if (mAg && req.method === 'DELETE') {
+    const index = db.agendamentos.findIndex((x) => x.id === mAg[1]);
+    if (index < 0) return responder(404, { erro: 'não encontrado' });
+    db.agendamentos.splice(index, 1);
+    return responder(200, { mensagem: 'Agendamento excluído com sucesso.' });
+  }
   if (mAg && req.method === 'PUT') {
     const a = db.agendamentos.find((x) => x.id === mAg[1]);
     if (!a) return responder(404, { erro: 'não encontrado' });
@@ -271,4 +392,5 @@ const server = createServer(async (req, res) => {
   return responder(404, { erro: `sem rota para ${req.method} ${p}` });
 });
 
-server.listen(Number(process.env.PORTA ?? 3998), '127.0.0.1', () => console.log('contrato de mentira na 3998'));
+const porta = Number(process.env.PORTA ?? 3998);
+server.listen(porta, '127.0.0.1', () => console.log(`contrato de mentira na ${porta}`));
