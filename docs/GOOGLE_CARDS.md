@@ -293,6 +293,28 @@ apareceu três vezes hoje.
 
 ---
 
+## ➕ 2026-08-20 — dez cartões novos, em outro arquivo
+
+O Gabriel pediu duas coisas que **não** estavam aqui: a plataforma pintada na
+convenção de cores do Google (com paleta trocável por clínica, porque outras
+clínicas vão comprar isto e não devem herdar o padrão da nossa), e o
+**reencontro depois de uma desconexão** — o merge, a pergunta de conflito, e o
+agrupamento de conflitos repetidos.
+
+**GC-014 a GC-023 vivem em [GOOGLE_CORES_E_RECONCILIACAO](GOOGLE_CORES_E_RECONCILIACAO.md)**, com o desenho
+e as três lacunas de schema que eles atacam.
+
+📌 **Ficam em arquivo separado de propósito**, e não é organização: o **bloco 1
+(GC-014…GC-018) não depende da integração existir**. Ele roda sem uma chamada à
+API, e é ele que muda o que se vê na demonstração. Misturar com as trilhas B/C/D
+faria parecer que espera por elas — e não espera.
+
+⚠️ **O GC-008 daqui e o bloco 1 de lá são os dois lados da mesma convenção.**
+O GC-008 lê a cor que vem do Google; o bloco 1 pinta a cor que a psi vê aqui.
+Quem escrever um sem ler o outro cria duas tabelas de cor que divergem.
+
+---
+
 ## Como isto entra na fila sem parar o resto
 
 **Nada desta etapa começa antes da A-012.** Ela é o que separa demonstrar o
