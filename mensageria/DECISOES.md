@@ -1015,3 +1015,56 @@ para quem tem pressa**, que é quem ele existe para segurar.
 📌 E vale guardar o formato da armadilha: **o push imprimiu uma linha de erro e uma
 linha de sucesso, e a certa era a de sucesso.** Ler só a primeira daria "a proteção
 bloqueou" — falso. Ler só a segunda perderia o achado. Foi o `fetch` que decidiu.
+
+---
+
+## D-021 — O admin da clínica passa a ler prontuário; o secretário, não
+
+**Decidido por:** a CEO, relatado pelo Gabriel em 2026-08-20
+**Altera:** a **R-012**, que é regra confirmada — por isso está aqui e não como
+nota de rodapé
+**Tarefa:** [0202](0202-orla-para-vale-o-seletor-de-cores-e-o-par-que-so-se-distingue-por-matiz.md), com a `vale`
+
+Nas palavras do Gabriel: *"a ceo pediu para que o admin possa ver os prontuarios
+sim somente o secretario que nao"*.
+
+### O que muda na R-012
+
+A R-012 dizia: *"por padrão, só o psicólogo autor lê e edita o prontuário. **Nem o
+admin da clínica**, nem outro psicólogo da mesma clínica"*, com uma saída de
+emergência por flag de super-admin ligada em código.
+
+**A metade do admin cai.** O que **fica de pé**, e não foi tocado pelo pedido:
+
+- **outro psicólogo** da mesma clínica continua sem ler;
+- **o secretário** continua sem ler — e já era assim na prática, porque a
+  migration `20260817090000` nunca deu a permissão a ele;
+- **editar e excluir continuam do autor.** O pedido é *"possa ver"*.
+
+### 🔴 A contrapartida, e ela não é negociável
+
+Com o admin lendo de rotina, o **registro de acesso deixa de ser exceção e vira o
+que sustenta a regra.** Hoje `acesso_prontuario` só grava quando a flag de
+super-admin foi decisiva. Passa a gravar **toda leitura de quem não é o autor**,
+com motivo próprio — nunca reusando `flag_super_admin`, senão a auditoria mistura
+emergência com rotina e perde exatamente o que existe para separar.
+
+📌 **A tabela já existe** desde 19/08. O que falta é usá-la no caminho novo.
+
+### ⚠️ O que eu recomendo que o Gabriel confirme com a CEO
+
+Não bloqueia nada, e é de uma frase: **as leituras do admin ficam registradas com
+nome, paciente e data.** Isso é proteção para a clínica e para a psicóloga, mas é
+melhor a CEO saber que existe antes de alguém descobrir o log por acidente.
+
+E há um segundo ponto que é de conselho profissional, não de código, e que eu não
+tenho como responder: prontuário de psicologia tem regramento do CFP sobre quem
+acessa. **A decisão é dela; o registro de acesso é o que torna a decisão
+defensável.**
+
+### Por que isto virou decisão numerada em vez de um commit
+
+A R-012 saiu da boca do Gabriel e tem raciocínio escrito — a inconveniência de
+exigir código e implantação *era* o que dava sentido à regra. Mudar isso num
+commit de permissão, sem registro, deixaria a regra e o código discordando, e a
+próxima instância acreditaria no arquivo errado.

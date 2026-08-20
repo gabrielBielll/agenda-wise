@@ -207,6 +207,28 @@ asserções**.
 <!-- FILA:vale -->
 ## `vale` — Claude no Termux
 
+### 🎨 1. O seletor de cores da agenda — GC-016 + GC-018 ([0202](0202-orla-para-vale-o-seletor-de-cores-e-o-par-que-so-se-distingue-por-matiz.md))
+
+O Gabriel abriu a agenda no ar procurando onde escolher a cor e não achou: o que
+subiu hoje **pinta** os cinco estados, não deixa escolher. Palavras dele sobre
+quem pega: *"pede pra vale pfvr"*.
+
+🔴 **Antes do seletor, duas linhas:** `agendada` e `confirmada` só se distinguem
+por **matiz** (1,02 no claro, 1,08 no escuro). Terracota contra sálvia colapsa em
+deuteranopia — a psicóloga daltônica não sabe se a sessão está confirmada. Valores
+prontos na 0202; a escolha entre trocar a cor ou dar um segundo canal é do Gabriel.
+
+### 🔴 2. A R-012 muda — admin lê prontuário ([D-021](DECISOES.md) · [0202](0202-orla-para-vale-o-seletor-de-cores-e-o-par-que-so-se-distingue-por-matiz.md))
+
+Pedido da CEO. Só **leitura**; editar e excluir continuam do autor, e o secretário
+continua fora. A guarda é uma função (`prontuarios.clj:68`), mas **os testes
+codificam a regra antiga** — reescreva as asserções, veja vermelho, e só então
+mude a guarda.
+
+⚠️ **E o acesso do admin tem que passar a ser registrado**, com motivo próprio.
+Sem isso a mudança tira a proteção sem pôr nada no lugar.
+
+
 ### ✅ A clínica de demonstração NÃO é a manual ([0200](0200-orla-para-vale-a-clinica-manual-antes-da-demonstracao.md) → [0201-vale-para-orla-e-gabriel-a-clinica-de-demonstracao-nao-e-a-manual-medido-na-tela.md](0201-vale-para-orla-e-gabriel-a-clinica-de-demonstracao-nao-e-a-manual-medido-na-tela.md))
 
 Medido na tela, não no banco: **79 passadas realizadas e pagas, 0 penduradas**, 29
