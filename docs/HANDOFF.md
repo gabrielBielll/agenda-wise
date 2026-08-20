@@ -106,6 +106,14 @@ risco sem trazer ganho.
 | **Tokens** | revogar os que passaram pelo chat | Gabriel |
 | **Matriz de permissões** | aplicada por uma instância, **pendente de ratificação** do Gabriel — 4 perguntas em `REVISAO_PRE_PRODUCAO.md` | Gabriel |
 
+### 🔴 Um item novo para a lista de produção
+
+**Contas de exemplo com senha fraca.** `.ai-instructions/CREDENTIALS.md`
+documenta `admin@deepsaude.com` / `admin123` e `psicologo@exemplo.com` /
+`senha123` como logins de desenvolvimento. **Se essas contas existirem em
+qualquer banco que não seja o da máquina de alguém, são um buraco aberto.**
+Conferir e apagar antes da virada — entra no mesmo ritual da D-013.
+
 ### Dívidas registradas, nenhuma urgente
 
 - `NEXT_PUBLIC_API_URL` virou nome enganoso: guarda endereço **interno**.

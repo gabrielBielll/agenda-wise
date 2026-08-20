@@ -79,6 +79,21 @@ fiz nada" costumam ser a mesma resposta.
 
 ---
 
+## ⛔ Uma armadilha na porta de entrada
+
+**Ignore a pasta `.ai-instructions/`.** O README dela diz *"AI INSTRUCTIONS —
+READ THIS FIRST"* e foi herdado de **outro projeto**, um ERP jurídico. Em
+20/08/2026 uma instância nova leu aquilo primeiro, como mandava, e montou um
+modelo de tenants = escritórios de advocacia, tabelas `processos` e portas
+3001/5433. Nada disso existe aqui.
+
+🔴 **E ela está pela metade**, que é pior: 4 arquivos descrevem o outro projeto,
+`CREDENTIALS.md` descreve este, e `QUICK_START.md` mistura os dois. Documentação
+meio verdadeira não dá o sinal de que errou. O `README.md` de lá já tem um aviso
+no topo com a medição arquivo por arquivo.
+
+---
+
 ## Onde a memória está guardada
 
 | o quê | onde |
