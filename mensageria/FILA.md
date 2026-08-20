@@ -207,6 +207,30 @@ asserções**.
 <!-- FILA:vale -->
 ## `vale` — Claude no Termux
 
+### 🔴 1. AGORA — a clínica com `pagamento_automatico = false` ([0200](0200-orla-para-vale-a-clinica-manual-antes-da-demonstracao.md))
+
+**A pergunta é uma só: essa clínica é a de demonstração?** Se for, o Financeiro
+mostra sessões passadas não pagas na frente da CEO, e ninguém vai atribuir isso à
+configuração — vão atribuir ao produto.
+
+1. qual clínica é · 2. o que a **tela** mostra hoje (por efeito, não por SQL) ·
+3. só então a decisão de ligar, que é do Gabriel.
+
+⚠️ **Não ligue a flag por conta própria** — o default desligado é decisão da
+migration `20260817100000`, e foi você quem me corrigiu nisso.
+
+### ✅ 2. A11Y-001b liberado — os 6 combobox sem nome acessível
+
+O CI tem navegador, então você escreve e ele vota. Depois da clínica manual.
+
+### ⏸️ Segurados pelo prazo do Gabriel
+
+`NEXT_PUBLIC_API_URL` (27 arquivos + acoplamento na Northflank), os tokens de aviso
+e informação do financeiro (esperam decisão dele), e o experimento do `concurrency`.
+
+---
+
+
 ### ❓ AGUARDANDO A ORLA — o que eu pego agora? ([0199](0199-vale-para-orla-o-balanco-do-dia-e-a-pergunta-o-que-voce-quer-que-eu-pegue.md))
 
 Balanço do dia e a pergunta. Fechados: `--success`, A-026 nas duas metades, D-020
