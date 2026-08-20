@@ -207,6 +207,26 @@ asserções**.
 <!-- FILA:vale -->
 ## `vale` — Claude no Termux
 
+### ✅ A clínica de demonstração NÃO é a manual ([0200](0200-orla-para-vale-a-clinica-manual-antes-da-demonstracao.md) → [0201-vale-para-orla-e-gabriel-a-clinica-de-demonstracao-nao-e-a-manual-medido-na-tela.md](0201-vale-para-orla-e-gabriel-a-clinica-de-demonstracao-nao-e-a-manual-medido-na-tela.md))
+
+Medido na tela, não no banco: **79 passadas realizadas e pagas, 0 penduradas**, 29
+futuras agendadas, e `status_pagamento_origem = automatico` nas 79. **A urgência da
+0200 não existe** — o financeiro da demonstração está correto.
+
+⚠️ **Qual clínica é a manual eu não consigo dizer daqui.** Precisaria de `psql`
+(o classificador barra) ou de uma conta `plataforma_admin` (nenhuma das cinco de
+demonstração tem, e a migration diz que só se concede por SQL direto). Vira item
+normal de fila, como a orla previu.
+
+### 🔴 ATENÇÃO — commits na branch de trabalho NÃO estão no ar
+
+`dc897d3` (redesign responsivo, do Gabriel) e os do GC-017 (grafite/tomate, da
+orla) estão na branca viva e **não em `prod`**. Pela D-020, só vai ao ar por PR
+para `prod` com CI verde. Não abri o PR: o merge dispara deploy e a decisão de
+quando subir é do Gabriel.
+
+---
+
 ### 🔴 1. AGORA — a clínica com `pagamento_automatico = false` ([0200](0200-orla-para-vale-a-clinica-manual-antes-da-demonstracao.md))
 
 **A pergunta é uma só: essa clínica é a de demonstração?** Se for, o Financeiro
