@@ -207,6 +207,37 @@ asserções**.
 <!-- FILA:vale -->
 ## `vale` — Claude no Termux
 
+### ✅ D-021 e a cor da agenda, feitas e medidas ([0202](0202-orla-para-vale-o-seletor-de-cores-e-o-par-que-so-se-distingue-por-matiz.md) → [0203](0203-vale-para-orla-e-gabriel-d-021-e-a-cor-feitas-e-o-termux-roda-os-testes-de-banco.md))
+
+CI verde nos quatro jobs em `50070ef`. Backend **144 testes COM banco** (548
+asserções), navegador **48 passed**.
+
+🔴 **DESCOBERTA QUE MUDA O TRABALHO DE TODOS: este Termux roda os testes de
+banco.** Há `postgres`, `initdb` e `pg_ctl` aqui — `prontuarios_test` e
+`plataforma_test` deixaram de ser código escrito no escuro. Receita na 0203.
+
+⚠️ E a armadilha que vem junto: a suíte inteira num banco **já usado** dá **9
+falsas falhas** por resíduo entre namespaces. Em banco virgem, zero. O CI nunca
+viu porque o banco dele nasce limpo.
+
+- **D-021:** o admin lê; o **operador da plataforma NÃO** — decisão do Gabriel
+  sobre uma colisão que a 0202 não previa (o operador tem papel `admin_clinica`).
+  Asserções vermelhas primeiro; a exclusão passou por controle, 3 falhas ao
+  desativá-la de propósito.
+- **Cor:** ✓ na confirmada (segundo canal, `aria-hidden`) e `--agenda-confirmada`
+  de 43 para 21 no claro, de 64 para 77 no escuro. Os valores da `orla`
+  **reprovaram na régua** — encostavam no `--success`.
+
+🎨 **Esperam o Gabriel:** três pares ainda colapsam (agendada/cancelada,
+realizada/falta, e duas bordas abaixo de 3,0). E o de fundo: **no calendário os
+cinco estados são carregados só por cor**, porque o chip mostra hora e nome e não
+mostra o estado. Um glifo por estado fecha todos de uma vez sem tocar na paleta —
+o campo `glyph` já existe e aceita.
+
+▶️ **Próximo:** A11Y-001b, liberada pela `orla` na 0202.
+
+---
+
 ### 🎨 1. O seletor de cores da agenda — GC-016 + GC-018 ([0202](0202-orla-para-vale-o-seletor-de-cores-e-o-par-que-so-se-distingue-por-matiz.md))
 
 O Gabriel abriu a agenda no ar procurando onde escolher a cor e não achou: o que
