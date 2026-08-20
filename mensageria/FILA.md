@@ -220,8 +220,11 @@ prontos na 0202; a escolha entre trocar a cor ou dar um segundo canal é do Gabr
 
 ### 🔴 2. A R-012 muda — admin lê prontuário ([D-021](DECISOES.md) · [0202](0202-orla-para-vale-o-seletor-de-cores-e-o-par-que-so-se-distingue-por-matiz.md))
 
-Pedido da CEO. Só **leitura**; editar e excluir continuam do autor, e o secretário
-continua fora. A guarda é uma função (`prontuarios.clj:68`), mas **os testes
+Pedido da CEO, confirmado duas vezes pelo Gabriel: *"o admin possa ver os
+prontuarios **de todas as psis** sim somente o secretario que nao pode ver"*.
+
+📌 **Alcance:** a clínica inteira. Não há filtro por psicóloga a implementar.
+Só **leitura**; editar e excluir continuam do autor, e o secretário continua fora. A guarda é uma função (`prontuarios.clj:68`), mas **os testes
 codificam a regra antiga** — reescreva as asserções, veja vermelho, e só então
 mude a guarda.
 
