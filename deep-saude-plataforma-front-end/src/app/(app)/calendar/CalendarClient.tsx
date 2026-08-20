@@ -516,7 +516,7 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
       toast({
         title: "Sessão Cancelada",
         description: result.message,
-        className: "bg-orange-500 text-white",
+        className: "bg-tomate-suave text-tomate-foreground border-tomate",
       });
       setIsDialogOpen(false);
       setEditingAppointment(null);
@@ -834,13 +834,13 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
 
                     {/* Cancel Session Button */}
                     {editingAppointment.status !== 'cancelado' && (
-                          <Button variant="outline" type="button" className="border-orange-500 text-orange-500 hover:bg-orange-50" onClick={() => setIsCancelOpen(true)}>
+                          <Button variant="outline" type="button" className="border-destructive text-destructive hover:bg-destructive/10" onClick={() => setIsCancelOpen(true)}>
                             ✕ Cancelar Sessão
                           </Button>
                     )}
                     {editingAppointment.status === 'cancelado' && (
                         <div className="flex items-center gap-2">
-                             <span className="text-orange-500 text-sm font-medium">✕ Sessão Cancelada</span>
+                             <span className="text-tomate text-sm font-medium">✕ Sessão Cancelada</span>
                              <Button 
                                 type="button" 
                                 variant="outline" 
@@ -898,6 +898,15 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                 <AlertDialogCancel onClick={() => setForceSubmission(false)}>Cancelar</AlertDialogCancel>
+                {/* ⚠️ O ÚNICO laranja cru que sobrou nesta tela, e é de propósito.
+                    Os outros viraram token porque pintavam ESTADO (cancelada,
+                    bloqueio) e discordavam da grade. Este não é estado: é uma
+                    ação de "siga apesar do aviso", e para isso o projeto não tem
+                    token — não há `--aviso` nem `--info`. Inventar um sem o
+                    Gabriel decidir seria trocar uma escolha não feita por outra,
+                    que foi exatamente onde a `vale` parou na varredura de cor.
+                    Não colide com a convenção da R-017 porque botão não é chip
+                    de evento. Ver docs/GOOGLE_CORES_E_RECONCILIACAO.md §12. */}
                 <AlertDialogAction onClick={handleForceSubmit} className="bg-orange-500 text-white hover:bg-orange-600">
                     Sim, agendar
                 </AlertDialogAction>
@@ -921,7 +930,7 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                     handleCancel(editingAppointment.id);
                     setIsCancelOpen(false);
                     }
-                }} className="bg-orange-500 text-white hover:bg-orange-600">
+                }} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
                     Confirmar Cancelamento
                 </AlertDialogAction>
                 </AlertDialogFooter>
@@ -1232,7 +1241,7 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                   <Plus className="h-4 w-4" /> Novo Agendamento
                 </button>
                 <button
-                  className="w-full text-left px-3 py-2 text-sm hover:bg-accent rounded-sm flex items-center gap-2 text-orange-600"
+                  className="w-full text-left px-3 py-2 text-sm hover:bg-accent rounded-sm flex items-center gap-2 text-grafite"
                   onClick={handleOpenBlock}
                 >
                   🔒 Bloquear Horário

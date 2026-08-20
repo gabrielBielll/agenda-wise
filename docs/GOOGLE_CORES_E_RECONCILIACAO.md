@@ -436,3 +436,109 @@ novo passa pelos mesmos oito critérios, nos dois temas.
 foi autorizado: `CalendarClient.tsx:843` pinta *"✕ Sessão Cancelada"* de laranja,
 enquanto a grade pinta cancelada de **vermelho**. As duas telas discordam sobre a
 cor do mesmo estado. É trabalho do GC-017 completo, não desta fatia.
+
+> ✅ **Resolvido no mesmo dia**, depois de o Gabriel autorizar: *"pode ajustar as
+> coisas em desacordo que vc encontrou"*. O parágrafo acima fica como estava —
+> ele registra o momento em que o desacordo foi visto e ainda não podia ser
+> mexido. A varredura completa está na §12, e achou mais dois além deste.
+
+---
+
+## 12. A varredura dos desacordos de cor — 2026-08-20
+
+> Autorizada pelo Gabriel: *"pode ajustar as coisas em desacordo que vc
+> encontrou"*. Eu tinha achado **um**; a varredura achou **três**, e um deles
+> **eu mesma tinha criado uma hora antes**.
+
+### O que a varredura procurou
+
+Toda classe crua de cor nas telas de agenda — a da psicóloga e a do admin — e
+depois, para cada uma, a pergunta que importa: *isto pinta um **estado**, e
+alguma outra tela pinta o mesmo estado de outra cor?*
+
+### Os três desacordos
+
+| onde | estado | pintava | a grade pintava | |
+|---|---|---|---|---|
+| `CalendarClient.tsx:843` | cancelada | 🟠 laranja | 🔴 vermelho | o que eu já tinha visto |
+| `CalendarClient.tsx:519` (toast) | cancelada | 🟠 laranja | 🔴 vermelho | **novo** |
+| `CalendarClient.tsx:1235` (menu) | bloqueio | 🟠 laranja | ⚫ grafite | **eu criei este** |
+
+🔴 **O terceiro é o mais instrutivo, e é meu.** Ao trocar o bloqueio da grade
+para grafite, deixei o item de menu *"🔒 Bloquear Horário"* laranja. **Consertar
+metade de uma inconsistência cria outra** — e a nova é pior, porque agora o botão
+que cria o bloqueio tem uma cor e o bloqueio criado tem outra.
+
+📌 É por isso que a guarda do CI passou a olhar as três telas, e não só as duas
+que eu tinha mexido.
+
+### Nasce o `--tomate`, segunda das 11
+
+Para alinhar "cancelada" eu precisava de uma cor só. Podia ter usado o
+`--destructive`, mas pela **GC-016** cada clínica vai remapear estado → cor, e um
+estado apontando para o token de *ação destrutiva* impediria isso. Então
+`--tomate`, medido como o grafite.
+
+⚠️ **Um critério a menos, de propósito:** o tomate **não** precisa se distinguir
+do `--destructive`. A ação de cancelar e o estado cancelado serem a mesma família
+de vermelho é acerto, não colisão.
+
+### 🔴 A régua mudou, e isso merece mais atenção que os números
+
+Nenhum vermelho claro passava em *"preenchimento vs superfície ≥ 1,5"*. **A
+tentação era baixar o critério até o meu candidato passar** — que é ajustar o
+instrumento à resposta, exatamente o que este projeto proíbe.
+
+Fui ao fundamento em vez disso. O critério estava **mal formulado**: quem faz o
+bloco ser percebido é a **borda de 4px** (já exigida em 3:1, WCAG 1.4.11). O que
+o preenchimento precisa garantir é outra coisa — **distinguir um estado do
+outro**, que é a pergunta real da usuária: *"isto é cancelada ou bloqueio?"*
+
+Então o critério contra a superfície virou *"não sumir"* (1,15) e **nasceu um
+critério explícito de estado-contra-estado** (1,3), que antes não existia.
+
+**E aí a régua nova foi testada contra tudo, não só contra o candidato:**
+
+| caso de controle | esperado | resultado |
+|---|---|---|
+| o laranja original do bloqueio | reprovar | ✅ reprova (borda 2,48:1) |
+| o **grafite que eu já tinha aprovado** | continuar aprovando | ✅ aprova nos dois temas |
+| o vermelho cru da grade | — | 🔴 **reprova** (preenchimento 1,09:1) |
+| `--tomate` proposto | aprovar | ✅ aprova nos dois temas |
+
+📌 **A linha 2 é a que dá direito de usar a régua nova.** Se afrouxar um critério
+fizesse passar algo que antes reprovava, eu teria quebrado o instrumento em vez
+de consertá-lo.
+
+### Dois defeitos que só apareceram porque medi
+
+- **O vermelho da grade tinha preenchimento a 1,09:1** da superfície —
+  praticamente invisível. "Cancelada" se lia pelo texto riscado, não pela cor.
+- **O toast de cancelamento tinha texto branco sobre laranja a 2,78:1**, onde a
+  norma pede 4,5. Está no ar assim hoje.
+
+Nenhum dos dois era o desacordo que o Gabriel autorizou consertar — os dois
+saíram de carona, e nenhum apareceria numa leitura.
+
+### O que ficou laranja de propósito
+
+`CalendarClient.tsx:901`, o botão *"Sim, agendar"* do aviso de conflito. **Não é
+estado, é ação de "siga apesar do aviso"** — e para isso não existe token: não há
+`--aviso` nem `--info`. Inventar um sem o Gabriel decidir seria trocar uma
+escolha não feita por outra, que foi exatamente onde a `vale` parou na varredura
+de cor dela. E não colide com a R-017 porque **botão não é chip de evento**.
+
+A guarda do CI permite **exatamente um** laranja cru nesse arquivo. O segundo
+reprova o job.
+
+### As ações destrutivas foram junto
+
+*"✕ Cancelar Sessão"* e *"Confirmar Cancelamento"* eram laranja e viraram
+`destructive` — o token que o projeto já tem para isso. Não era desacordo de
+estado, mas era cor crua fazendo o papel de um token existente.
+
+### O que continua sem conferência
+
+O mesmo do grafite: o **hex real** do Tomate do Google e o **`colorId = 11`**.
+Medi a legibilidade, não a semelhança com a cor do Google — a sandbox não alcança
+a API. Fica com a GC-008, junto com os outros quatro.

@@ -56,6 +56,12 @@ export default {
           foreground: 'hsl(var(--grafite-foreground))',
           tenue: 'hsl(var(--grafite-tenue))',
         },
+        // Tomate — sessão cancelada / pausa. Ver o comentário em globals.css.
+        tomate: {
+          DEFAULT: 'hsl(var(--tomate))',
+          suave: 'hsl(var(--tomate-suave))',
+          foreground: 'hsl(var(--tomate-foreground))',
+        },
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',
         ring: 'hsl(var(--ring))',

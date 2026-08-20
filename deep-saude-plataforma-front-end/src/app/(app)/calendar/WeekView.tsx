@@ -248,7 +248,7 @@ export function WeekView({ date, appointments, bloqueios = [], onAddAppointment,
                               className={cn(
                                 "absolute left-1 right-1 rounded-md p-1 text-[10px] transition-colors cursor-pointer z-10 overflow-hidden border-l-4",
                                 app.status === 'cancelado'
-                                  ? "bg-red-100 dark:bg-red-900/20 border-red-500 text-red-700 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-900/30 opacity-80"
+                                  ? "bg-tomate-suave border-tomate text-tomate-foreground hover:brightness-95 opacity-80"
                                   : isContinuation
                                     ? "border-primary bg-primary/10 text-foreground opacity-75 hover:bg-primary/20"
                                     : "border-primary bg-primary/15 text-foreground shadow-sm hover:bg-primary/20"

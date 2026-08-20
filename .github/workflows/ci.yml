@@ -302,7 +302,9 @@ jobs:
           faltou=0
           for alvo in '--success:' '--success-foreground:' '.bg-success{' '.text-success{' '.bg-destructive{' \
                       '--grafite:' '--grafite-suave:' '--grafite-tenue:' '--grafite-foreground:' \
-                      '.bg-grafite-suave{' '.bg-grafite-tenue{' '.border-grafite{' '.text-grafite-foreground{'; do
+                      '.bg-grafite-suave{' '.bg-grafite-tenue{' '.border-grafite{' '.text-grafite-foreground{' \
+                      '--tomate:' '--tomate-suave:' '--tomate-foreground:' \
+                      '.bg-tomate-suave{' '.border-tomate{' '.text-tomate{' '.text-tomate-foreground{'; do
             grep -qF -- "$alvo" $css || { echo "::error::faltou no CSS compilado: $alvo"; faltou=1; }
           done
           # 🔴 O laranja do bloqueio nao pode voltar. Ele colide com Tangerina, que
@@ -312,6 +314,23 @@ jobs:
           # e regressao, mesmo que compile.
           if grep -rn 'orange' src/app/\(app\)/calendar/DayView.tsx src/app/\(app\)/calendar/WeekView.tsx; then
             echo "::error::o laranja voltou ao bloqueio da agenda — ver GC-017 e R-017"
+            faltou=1
+          fi
+          # 🔴 Cor crua para ESTADO na grade e regressao: a grade e o painel de
+          # detalhe ja discordaram sobre "cancelada" (grade vermelha, painel
+          # laranja) e sobre "bloqueio" (grade grafite, menu laranja). Token e o
+          # que faz as duas telas nao poderem divergir de novo.
+          if grep -rnE '(bg|text|border)-(red|orange|green|blue|yellow|amber)-[0-9]' \
+               src/app/\(app\)/calendar/DayView.tsx src/app/\(app\)/calendar/WeekView.tsx; then
+            echo "::error::cor crua voltou a grade da agenda — use os tokens (GC-015)"
+            faltou=1
+          fi
+          # No CalendarClient sobra UM laranja legitimo: o "Sim, agendar" do
+          # aviso de conflito, que e acao e nao estado. Se aparecer um segundo,
+          # alguem pintou estado com cor crua de novo.
+          n=$(grep -cE '(bg|text|border)-orange-[0-9]' src/app/\(app\)/calendar/CalendarClient.tsx || true)
+          if [ "$n" -gt 1 ]; then
+            echo "::error::CalendarClient tem $n laranjas crus; o unico permitido e o 'Sim, agendar' — ver §12"
             faltou=1
           fi
           test "$faltou" -eq 0 || exit 1

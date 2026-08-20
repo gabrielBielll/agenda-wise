@@ -170,7 +170,7 @@ export function DayView({ date, appointments, bloqueios = [], onAddAppointment, 
                             className={cn(
                               "absolute left-2 right-2 rounded-md p-1 text-xs transition-colors cursor-pointer z-10 border-l-4",
                                app.status === 'cancelado' 
-                                  ? "bg-red-100 dark:bg-red-900/20 border-red-500 text-red-700 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-900/30 opacity-80"
+                                  ? "bg-tomate-suave border-tomate text-tomate-foreground hover:brightness-95 opacity-80"
                                   : "bg-primary/10 border-primary hover:bg-primary/20"
                             )}
                             style={{ top: `${topPos}%`, height: `${height}%`, minHeight: '20px' }}
