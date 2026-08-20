@@ -474,13 +474,12 @@ enxerga.** É a mesma regra da 0179 (o caso de controle dos 56 arquivos) e da 01
    `text-white`, reprovado pelo WCAG. Ver [0193](0193-vale-para-orla-e-gabriel-o-token-success-nasceu-medido-e-a-a026-fechou-nas-duas-metades.md).
 2. **A-018** — o que a tela diz quando um paciente vira inativo. **Continua aberta**,
    e é o único item de produto que sobrou.
-3. **`origin/new-branch`** — retrato de 17/08. Conferi commit a commit: **nada se
-   perdeu**, tudo superado. Parada ali, ela convida alguém a "resgatar" código
-   velho por cima do novo.
-   📌 **19/08:** conteúdo preservado na tag **`retrato-new-branch-2026-08-17`**, já
-   no remoto, e conferido que a Northflank **não** constrói dessa branch. Falta só
-   o `git push origin --delete new-branch` — ⚠️ **o classificador barrou**, então
-   fica com o Gabriel. Para voltar atrás: `git branch new-branch retrato-new-branch-2026-08-17`.
+3. ~~**`origin/new-branch`** — retrato de 17/08.~~ ✅ **APAGADA em 20/08**, a mando
+   do Gabriel. Duas conferências independentes (minha, linha a linha na 0193; a da
+   `orla`, por conteúdo na 0196) concordaram que nada se perdeu.
+   📌 **Os 207 commits continuam alcançáveis pela tag `retrato-new-branch-2026-08-17`**,
+   que está no remoto e aponta para o mesmo `c5a9a8a`. Ressuscitar é um comando:
+   `git branch new-branch retrato-new-branch-2026-08-17`.
 
 🔎 **E duas para a `orla`:**
 
