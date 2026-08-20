@@ -149,10 +149,17 @@ Não deduza estes limites de novo — eles custaram horas:
 - ✅ **Chromium, Node 22 e Java 21** funcionam. `lein` baixa e roda; só as
   dependências é que não.
 
-📌 O jeito de contornar o backend indisponível já está pronto: um servidor que
-imita o contrato lido do fonte Clojure, com a linha de origem de cada regra.
+📌 O jeito de contornar o backend indisponível está em
+[`scripts/dev/`](scripts/dev/README.md): um servidor que imita o contrato lido do
+fonte Clojure, com a linha de origem de cada regra, e um passeio de navegador que
+tira foto de cada tela.
+
 Ele **não** prova que o backend real concorda — prova que o script faz o que se
 quis que ele fizesse. Diga sempre qual dos dois você mediu.
+
+⚠️ **Leia o README de lá antes de usar.** Um simulador incompleto produz
+**achado falso**, e achado falso sobre o trabalho de outra pessoa custa mais caro
+que achado nenhum. As quatro armadilhas que ele já pagou estão listadas.
 
 ---
 
