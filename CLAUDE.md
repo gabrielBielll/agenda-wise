@@ -107,6 +107,46 @@ no topo com a medição arquivo por arquivo.
 | **Contexto longo para instância nova** | [`docs/HANDOFF.md`](docs/HANDOFF.md) |
 | **O que NÃO pode entrar no repo** — credencial, token, acesso à Northflank | fora daqui: a memória local da instância (`~/.claude/…/memory/`), lida sozinha no início da sessão |
 
+---
+
+## 🔴 A regra do push: puxe antes, sempre
+
+**Decidida pelo Gabriel em 2026-08-20**, nas palavras dele: *"sempre que uma de
+vocês for fazer push, primeiro fazer o rebase para puxar as alterações pra branch
+de vocês e depois subir certinho, para não ficar dando esses conflitos"*.
+
+```
+git pull --rebase origin <a-branch-em-que-você-está>
+```
+
+Sempre, antes de todo `git push`. E instale o guarda, uma vez por máquina:
+
+```
+git config core.hooksPath .githooks
+```
+
+O [`pre-push`](.githooks/pre-push) recusa o push quando o remoto andou e você não
+puxou, dizendo **quem** empurrou e **o quê**. Testado de ponta a ponta nos três
+casos: deixa passar quem está em dia, recusa quem está atrás, e o trabalho dos
+dois sobrevive depois do rebase.
+
+### ⚠️ Duas precisões que mudam o que a regra significa
+
+**1. É na branch compartilhada, não na `main`.** Medido em 20/08: a `main` ficou
+parada de 18/08 20:52 até o merge do PR #7, **421 commits atrás** — ela nunca
+andou enquanto trabalhávamos, então rebasear nela não teria evitado **nenhum** dos
+nossos conflitos. O que anda é a branch em que os quatro empurram.
+
+**2. `git pull --rebase` é seguro; rebasear a branch inteira não é.** O `pull
+--rebase` move só os **seus** commits ainda não empurrados, e ninguém os viu.
+Rebasear a branch compartilhada sobre outra exigiria **force-push**, que quebra o
+checkout de todo mundo — 🔴 **nunca faça isso numa branch que outra instância usa.**
+
+📌 O guarda não substitui o [`vigia.sh`](mensageria/vigia.sh): ele olha commits, e o vigia olha
+**número de mensagem livre no remoto**, que é o que colidiu cinco vezes.
+
+---
+
 ⚠️ **Antes de empurrar mensagem, leia o número mais alto do REMOTO**, não do
 local. Três colisões de numeração já aconteceram por isso.
 
