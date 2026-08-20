@@ -1,10 +1,8 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useFormState, useFormStatus } from "react-dom";
-import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,7 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { updatePsicologo, type FormState } from "./actions";
-import { ArrowLeft, UserCog, Save, Eye } from "lucide-react";
+import { Save } from "lucide-react";
+import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 
 interface Psicologo {
   id: string;
@@ -40,7 +39,7 @@ const initialState: FormState = {
 function SubmitButton() {
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" disabled={pending}>
+    <Button className="w-full sm:w-auto" type="submit" disabled={pending}>
       <Save className="mr-2 h-4 w-4" />
       {pending ? "Salvando..." : "Salvar Alterações"}
     </Button>
@@ -123,24 +122,17 @@ export default function EditPsicologoForm({
   }, [state, router, toast]);
 
   return (
-    <Card className="w-full max-w-2xl">
+    <div className="quiet-page max-w-4xl">
+      <AdminPageHeader
+        eyebrow={readOnly ? "Consulta profissional" : "Atualização profissional"}
+        title={readOnly ? "Trajetória e detalhes." : "Um cadastro em evolução."}
+        description={readOnly ? `Dados atuais de ${psicologo.nome}.` : `Atualize os dados de ${psicologo.nome} e a regra para sessões futuras.`}
+        backHref="/admin/psicologos"
+      />
+    <Card>
       <CardHeader>
-        <div className="flex items-center gap-4">
-          <Button variant="outline" size="icon" asChild>
-            <Link href="/admin/psicologos">
-              <ArrowLeft className="h-4 w-4" />
-            </Link>
-          </Button>
-          <div>
-            <CardTitle className="flex items-center gap-2">
-              {readOnly ? <Eye className="h-6 w-6" /> : <UserCog className="h-6 w-6" />}
-              {readOnly ? "Visualizar Psicólogo" : "Editar Psicólogo"}
-            </CardTitle>
-            <CardDescription>
-              {readOnly ? "Visualize os detalhes do profissional." : "Atualize os detalhes do profissional abaixo."}
-            </CardDescription>
-          </div>
-        </div>
+        <CardTitle>{readOnly ? "Dados da profissional" : "Editar dados profissionais"}</CardTitle>
+        <CardDescription>{readOnly ? "Visualização protegida do cadastro." : "Revise identificação, atuação e remuneração."}</CardDescription>
       </CardHeader>
       <form action={formAction}>
         <CardContent className="space-y-4">
@@ -249,12 +241,13 @@ export default function EditPsicologoForm({
             </div>
           </section>
           {!readOnly && (
-            <div className="flex justify-end pt-4">
+            <div className="flex justify-end border-t border-border/50 pt-5">
               <SubmitButton />
             </div>
           )}
         </CardContent>
       </form>
     </Card>
+    </div>
   );
 }

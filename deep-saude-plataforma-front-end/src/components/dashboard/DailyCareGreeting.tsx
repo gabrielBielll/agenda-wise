@@ -16,7 +16,7 @@ export function DailyCareGreeting() {
         <h2 className="page-title">{care.period}{firstName ? `, ${firstName}` : ''}. <em className="font-normal text-accent">{care.accent}</em></h2>
         <p className="page-subtitle">{care.subtitle}</p>
       </div>
-      <div className="flex h-12 items-center gap-2.5 self-start rounded-[15px] border border-secondary/35 bg-white/35 px-4 text-secondary shadow-sm md:self-auto">
+      <div className="flex min-h-12 items-center gap-2.5 self-start rounded-[15px] border border-secondary/40 bg-card/45 px-4 py-2 text-secondary shadow-sm md:self-auto">
         <Sparkles className="h-4 w-4" /><span className="text-[11px] text-muted-foreground">Intenção do dia</span><strong className="border-l pl-2 font-headline text-lg font-normal italic text-foreground">{care.intention}</strong>
       </div>
     </section>

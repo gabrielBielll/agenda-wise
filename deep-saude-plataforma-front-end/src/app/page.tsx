@@ -10,6 +10,7 @@ import { ArrowRight, Leaf, Lock, ShieldCheck, Sparkles } from "lucide-react";
 import { useRouter } from 'next/navigation';
 import { useSession, signIn, signOut } from 'next-auth/react';
 import { useLoading } from '@/components/LoadingOverlay';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -107,16 +108,17 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="grid min-h-screen overflow-hidden lg:grid-cols-[1.05fr_.95fr]">
-      <section className="relative hidden min-h-screen overflow-hidden bg-primary p-12 text-primary-foreground lg:flex lg:flex-col lg:justify-between">
-        <span className="absolute -right-24 -top-32 h-[430px] w-[430px] rounded-full border border-white/10 shadow-[0_0_0_60px_rgba(255,255,255,.025),0_0_0_120px_rgba(255,255,255,.018)]" />
+    <main className="relative grid min-h-screen overflow-hidden lg:grid-cols-[1.05fr_.95fr]">
+      <ThemeToggle className="fixed right-4 top-4 z-20 bg-background/75 lg:right-6 lg:top-6" />
+      <section className="relative hidden min-h-screen overflow-hidden bg-accent p-12 text-accent-foreground lg:flex lg:flex-col lg:justify-between">
+        <span className="absolute -right-24 -top-32 h-[430px] w-[430px] rounded-full border border-accent-foreground/10" />
         <span className="absolute -bottom-44 -left-20 h-[390px] w-[390px] rounded-full bg-secondary/15 blur-2xl" />
-        <div className="relative flex items-center gap-3"><span className="grid h-11 w-11 place-items-center rounded-[15px_15px_15px_5px] bg-white/15"><Leaf className="h-5 w-5" /></span><span className="font-headline text-2xl">agenda<em className="text-[#efb393]">wise</em></span></div>
-        <div className="relative max-w-xl"><span className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/8 px-3 py-1.5 text-[10px] uppercase tracking-[.15em]"><Sparkles className="h-3.5 w-3.5" /> Cuidado também é organização</span><h1 className="font-headline text-6xl font-normal leading-[.98] tracking-[-.04em]">Sua prática clínica,<br/><em className="text-[#efb393]">em equilíbrio.</em></h1><p className="mt-6 max-w-md text-sm leading-relaxed text-white/65">Uma agenda desenhada para diminuir ruído, proteger seu tempo e abrir espaço para o que importa: estar presente.</p></div>
-        <div className="relative flex items-center gap-3 text-[10px] text-white/55"><ShieldCheck className="h-4 w-4" /><span>Dados clínicos protegidos com privacidade e cuidado.</span></div>
+        <div className="relative flex items-center gap-3"><span className="grid h-11 w-11 place-items-center rounded-[15px_15px_15px_5px] bg-accent-foreground/10"><Leaf className="h-5 w-5" /></span><span className="font-headline text-2xl">agenda<em className="text-secondary">wise</em></span></div>
+        <div className="relative max-w-xl"><span className="mb-6 inline-flex items-center gap-2 rounded-full border border-accent-foreground/15 bg-accent-foreground/10 px-3 py-1.5 text-[10px] uppercase tracking-[.15em]"><Sparkles className="h-3.5 w-3.5" /> Cuidado também é organização</span><h1 className="font-headline text-6xl font-normal leading-[.98] tracking-[-.04em]">Sua prática clínica,<br/><em className="text-secondary">em equilíbrio.</em></h1><p className="mt-6 max-w-md text-sm leading-relaxed text-accent-foreground/70">Uma agenda desenhada para diminuir ruído, proteger seu tempo e abrir espaço para o que importa: estar presente.</p></div>
+        <div className="relative flex items-center gap-3 text-[10px] text-accent-foreground/60"><ShieldCheck className="h-4 w-4" /><span>Dados clínicos protegidos com privacidade e cuidado.</span></div>
       </section>
       <section className="flex min-h-screen items-center justify-center p-5 sm:p-10">
-      <Card className="w-full max-w-[460px] border-white/80 bg-white/55 shadow-[0_30px_90px_rgba(74,67,55,.12)]">
+      <Card className="w-full max-w-[460px] border-border/70 bg-card/60 shadow-[var(--quiet-shadow-strong)]">
         <CardHeader className="p-7 pb-4 sm:p-9 sm:pb-5">
           <div className="mb-8 flex items-center gap-2.5 lg:hidden"><span className="grid h-10 w-10 place-items-center rounded-[14px_14px_14px_5px] bg-primary text-primary-foreground"><Leaf className="h-[18px] w-[18px]" /></span><span className="font-headline text-2xl">agenda<em className="text-accent">wise</em></span></div>
           <p className="page-eyebrow mb-2">Bem-vinda de volta</p>
@@ -150,7 +152,7 @@ export default function LoginPage() {
 
           <div className="relative my-6">
             <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
-            <div className="relative flex justify-center text-[9px] uppercase tracking-[.12em]"><span className="bg-[#faf7f1] px-3 text-muted-foreground">Ou continue com</span></div>
+            <div className="relative flex justify-center text-[9px] uppercase tracking-[.12em]"><span className="bg-card px-3 text-muted-foreground">Ou continue com</span></div>
           </div>
           
           <Button onClick={() => { showLoading("Conectando com Google..."); signIn('google'); }} variant="outline" className="w-full">

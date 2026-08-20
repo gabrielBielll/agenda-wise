@@ -111,10 +111,10 @@ export default function AdminLoginPage() {
   };
 
   return (
-    <Card className="w-full max-w-md border-white/80 bg-white/60 shadow-[0_30px_90px_rgba(74,67,55,.13)]">
+    <Card className="w-full max-w-md border-border/70 bg-card/60 shadow-[var(--quiet-shadow-strong)]">
       <CardHeader className="space-y-1 p-8 pb-5 text-center">
         <div className="mb-4 flex justify-center">
-            <span className="grid h-14 w-14 place-items-center rounded-[18px_18px_18px_6px] bg-primary text-primary-foreground shadow-[0_12px_30px_rgba(104,113,91,.24)]"><Leaf className="h-6 w-6" /></span>
+            <span className="grid h-14 w-14 place-items-center rounded-[18px_18px_18px_6px] bg-accent text-accent-foreground shadow-[var(--quiet-shadow-soft)]"><Leaf className="h-6 w-6" /></span>
         </div>
         <p className="page-eyebrow">Deep Saúde</p>
         <CardTitle className="text-3xl">Acesso administrativo</CardTitle>
@@ -140,7 +140,7 @@ export default function AdminLoginPage() {
               {...form.register("email")}
             />
             {form.formState.errors.email && (
-              <p className="text-sm text-red-500">{form.formState.errors.email.message}</p>
+              <p className="text-sm text-destructive">{form.formState.errors.email.message}</p>
             )}
           </div>
           <div className="grid gap-2">
@@ -152,7 +152,7 @@ export default function AdminLoginPage() {
               {...form.register("password")}
             />
             {form.formState.errors.password && (
-              <p className="text-sm text-red-500">{form.formState.errors.password.message}</p>
+              <p className="text-sm text-destructive">{form.formState.errors.password.message}</p>
             )}
           </div>
         </CardContent>
@@ -167,8 +167,10 @@ export default function AdminLoginPage() {
               <><ShieldCheck />Entrar com segurança</>
             )}
           </Button>
-          <Button type="button" variant="link" size="sm" className="w-full" onClick={() => alert("Link 'Esqueci minha senha' clicado.")}>
-            Esqueceu sua senha?
+          {/* TODO(admin-password-recovery): habilitar após criar o fluxo com token
+              de uso único e envio de e-mail. Um alert não é recuperação de senha. */}
+          <Button type="button" variant="link" size="sm" className="w-full" disabled title="Recuperação de senha em implementação">
+            Recuperação de senha · em breve
           </Button>
         </CardFooter>
       </form>

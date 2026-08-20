@@ -2,10 +2,8 @@ import React from 'react';
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, CalendarPlus } from "lucide-react";
+import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import NovoAgendamentoForm from './NovoAgendamentoForm';
 import { carregar } from "@/lib/carregar";
 import { FalhaDeCarregamento } from "@/components/FalhaDeCarregamento";
@@ -48,26 +46,15 @@ export default async function AdminNovoAgendamentoPage() {
   if (!pacientes.ok) return <FalhaDeCarregamento motivo={pacientes.motivo} oQue="os pacientes" />;
 
   return (
-    <Card className="w-full max-w-3xl">
+    <div className="quiet-page max-w-5xl">
+      <AdminPageHeader eyebrow="Novo encontro" title="Reserve um tempo de cuidado." description="Escolha paciente, profissional e duração; recorrências continuam sob seu controle." backHref="/admin/agendamentos" />
+    <Card>
       <CardHeader>
-        <div className="flex items-center gap-4">
-          <Button variant="outline" size="icon" asChild>
-            <Link href="/admin/agendamentos">
-              <ArrowLeft className="h-4 w-4" />
-            </Link>
-          </Button>
-          <div>
-            <CardTitle className="flex items-center gap-2">
-              <CalendarPlus className="h-6 w-6" />
-              Novo Agendamento
-            </CardTitle>
-            <CardDescription>
-              Agende uma nova sessão para um paciente.
-            </CardDescription>
-          </div>
-        </div>
+        <CardTitle>Dados da sessão</CardTitle>
+        <CardDescription>Os horários são interpretados no fuso da clínica.</CardDescription>
       </CardHeader>
       <NovoAgendamentoForm psicologos={psicologos.dados} pacientes={pacientes.dados} />
     </Card>
+    </div>
   );
 }

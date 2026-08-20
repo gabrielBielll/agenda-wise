@@ -126,7 +126,7 @@ export function WeekView({ date, appointments, bloqueios = [], onAddAppointment,
   };
 
   return (
-    <div className="flex h-full flex-col overflow-hidden rounded-[20px] border border-white/70 bg-card/65 shadow-[0_18px_55px_rgba(74,67,55,.08)] backdrop-blur-md">
+    <div className="flex h-full flex-col overflow-hidden rounded-[20px] border border-border/70 bg-card/70 shadow-[var(--quiet-shadow-soft)] backdrop-blur-md">
       {/* Header Row */}
       <div className="sticky top-0 z-20 grid grid-cols-[54px_repeat(7,1fr)] divide-x divide-border/40 border-b border-border/40 bg-card/90 backdrop-blur-xl">
         <div className="p-2 text-center text-xs font-semibold text-muted-foreground bg-muted/30">

@@ -134,7 +134,7 @@ export default function ProntuarioForm({
   };
 
   return (
-    <div className={`mb-6 space-y-4 rounded-[20px] border border-white/70 bg-white/55 p-5 shadow-[0_16px_45px_rgba(74,67,55,.06)] backdrop-blur-md dark:bg-card/60 ${isEditing ? 'border-primary/50 ring-1 ring-primary/20' : ''}`}>
+    <div className={`mb-6 space-y-4 rounded-[20px] border border-border/70 bg-card/55 p-5 shadow-[var(--quiet-shadow-soft)] backdrop-blur-md ${isEditing ? 'border-primary/50 ring-1 ring-primary/20' : ''}`}>
         
         {/* Toggle de Visualização (Header) */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-4">
@@ -280,7 +280,7 @@ export default function ProntuarioForm({
                 </div>
 
                 <div className="space-y-2">
-                    <Label htmlFor="conteudo">Conteúdo / Anotação Geral <span className="text-red-500">*</span></Label>
+                    <Label htmlFor="conteudo">Conteúdo / Anotação Geral <span className="text-destructive">*</span></Label>
                     <Textarea 
                     id="conteudo" 
                     name="conteudo" 
@@ -290,7 +290,7 @@ export default function ProntuarioForm({
                     value={campos.conteudo}
                         onChange={mudar("conteudo")}
                     />
-                    {state.errors?.conteudo && <p className="text-sm text-red-500">{state.errors.conteudo[0]}</p>}
+                    {state.errors?.conteudo && <p className="text-sm text-destructive">{state.errors.conteudo[0]}</p>}
                 </div>
 
                 <div className="flex justify-end">

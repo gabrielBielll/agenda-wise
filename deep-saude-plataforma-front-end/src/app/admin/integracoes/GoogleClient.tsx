@@ -83,7 +83,7 @@ export type Psicologo = { id: string; nome: string; email: string };
 /**
  * ⚠️ **Por token, não por cor crua** — e aqui não é preferência de estilo.
  *
- * A versão anterior usava `bg-emerald-100`, `bg-amber-100`, `bg-red-100`. Elas
+ * A versão anterior usava cores literais de três famílias diferentes. Elas
  * são claras por definição: no modo escuro do `8109afc` viravam **manchas claras
  * numa página escura**, e ninguém percebe isso lendo o diff — só abrindo a tela
  * no tema certo, que é o que eu não consigo fazer.
@@ -91,8 +91,8 @@ export type Psicologo = { id: string; nome: string; email: string };
  * O mapeamento usa os tokens que **ele** definiu nos dois temas, então inverte
  * sozinho:
  *
- *   ativo             -> `primary`      (o verde-sálvia dele)
- *   pendente/convite  -> `accent`       (a terracota — o idioma do `terra-icon`)
+ *   ativo             -> `success`      (o verde-sálvia de estado saudável)
+ *   pendente/convite  -> `primary`      (a terracota de ação necessária)
  *   pausado           -> `muted`        (neutro, é decisão de alguém e não falha)
  *   sem_acesso/orfao  -> `destructive`  (definido em `:root` E em `.dark`)
  *
@@ -101,9 +101,9 @@ export type Psicologo = { id: string; nome: string; email: string };
  * manter a distinção seria perder a informação para ganhar coerência.
  */
 const APARENCIA: Record<string, { rotulo: string; classe: string; grave?: boolean }> = {
-  ativo: { rotulo: "Sincronizando", classe: "bg-primary/10 text-primary border-primary/30" },
-  pendente: { rotulo: "Sem dono definido", classe: "bg-accent/15 text-accent border-accent/30" },
-  convite_pendente: { rotulo: "Convite pendente", classe: "bg-accent/15 text-accent border-accent/30" },
+  ativo: { rotulo: "Sincronizando", classe: "bg-success/10 text-success border-success/30" },
+  pendente: { rotulo: "Sem dono definido", classe: "bg-primary/10 text-primary border-primary/30" },
+  convite_pendente: { rotulo: "Convite pendente", classe: "bg-primary/10 text-primary border-primary/30" },
   pausado: { rotulo: "Pausada", classe: "bg-muted text-muted-foreground border-border" },
   sem_acesso: { rotulo: "SEM ACESSO", classe: "bg-destructive/10 text-destructive border-destructive/50 font-semibold", grave: true },
   orfao: { rotulo: "ÓRFÃ NO GOOGLE", classe: "bg-destructive/10 text-destructive border-destructive/50 font-semibold", grave: true },
@@ -112,7 +112,7 @@ const APARENCIA: Record<string, { rotulo: string; classe: string; grave?: boolea
 function Selo({ status }: { status: string }) {
   /**
    * ⚠️ O padrão é para status que a tela ainda não conhece — e ele também tem de
-   * inverter. `bg-slate-100` era claro por definição: no tema escuro, um status
+   * inverter. A superfície literal anterior era clara por definição: no tema escuro, um status
    * novo apareceria como mancha clara, que é o oposto de "neutro".
    */
   const a = APARENCIA[status] ?? { rotulo: status, classe: "bg-muted text-muted-foreground border-border" };
@@ -228,10 +228,10 @@ export default function GoogleClient({
               : "Nenhuma conta do Google conectada."}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
           {status.conectada && (
             <>
-              <Button
+              <Button className="w-full sm:w-auto"
                 variant="outline"
                 disabled={pendente}
                 onClick={() => iniciar(async () => avisar(await sincronizarAgendas()))}
@@ -242,7 +242,7 @@ export default function GoogleClient({
              </>
           )}
           {!status.conectada && (
-            <Button
+            <Button className="w-full sm:w-auto"
               disabled={pendente}
               onClick={() =>
                 iniciar(async () => {
@@ -270,7 +270,7 @@ export default function GoogleClient({
         <div
           role="alert"
           /* A faixa que grita, agora por token: `destructive` existe em `:root` e
-             em `.dark`, então ela continua alta nos dois temas. Com `bg-red-50`
+             em `.dark`, então ela continua alta nos dois temas. Com uma cor literal
              ela era um retângulo claro no meio da página escura — chamava
              atenção pelo motivo errado. */
           className="rounded-lg border-2 border-destructive/60 bg-destructive/10 p-4 text-foreground"
@@ -327,14 +327,14 @@ export default function GoogleClient({
           <CardContent>
             <div className="divide-y">
               {status.conexoes.map((conexao) => (
-                <div key={conexao.usuario_id} className="flex flex-wrap items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
+                <div key={conexao.usuario_id} className="flex flex-col items-start justify-between gap-3 py-3 first:pt-0 last:pb-0 sm:flex-row sm:items-center">
                   <div>
                     <p className="font-medium">{conexao.nome_psicologa ?? "Psicóloga"}</p>
                     <p className="text-sm text-muted-foreground">
                       {conexao.google_account_email ?? "Conta Google sem e-mail"} · {conexao.status}
                     </p>
                   </div>
-                  <Button size="sm" variant="outline" disabled={pendente} onClick={() => setADesconectar(conexao)}>
+                  <Button className="w-full sm:w-auto" size="sm" variant="outline" disabled={pendente} onClick={() => setADesconectar(conexao)}>
                     <Unplug className="mr-2 h-4 w-4" aria-hidden="true" />
                     Desconectar
                   </Button>
@@ -368,8 +368,8 @@ export default function GoogleClient({
                 : "Conecte uma conta do Google para ver as agendas."}
             </p>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+            <><p className="mobile-scroll-hint mb-2">Deslize para revisar acessos e responsáveis.</p><div className="overflow-x-auto">
+              <table className="min-w-[920px] w-full text-sm">
                 <thead>
                   <tr className="border-b text-left">
                     <th className="py-2 pr-4 font-medium">Agenda no Google</th>
@@ -440,7 +440,7 @@ export default function GoogleClient({
                   ))}
                 </tbody>
               </table>
-            </div>
+            </div></>
           )}
         </CardContent>
       </Card>

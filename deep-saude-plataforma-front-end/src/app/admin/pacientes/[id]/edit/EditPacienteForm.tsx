@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useEffect, useActionState } from "react";
-import Link from "next/link";
 import { useFormStatus } from "react-dom";
 import { 
   Select,
@@ -17,7 +16,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { updatePaciente, type FormState } from "./actions";
-import { ArrowLeft, UserCog, Save, Eye } from "lucide-react";
+import { Save } from "lucide-react";
+import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 
 interface Paciente {
   id: string;
@@ -40,7 +40,7 @@ const initialState: FormState = { message: "", errors: {}, success: false };
 function SubmitButton() {
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" disabled={pending}>
+    <Button className="w-full sm:w-auto" type="submit" disabled={pending}>
       <Save className="mr-2 h-4 w-4" />
       {pending ? "Salvando..." : "Salvar Alterações"}
     </Button>
@@ -97,24 +97,17 @@ export default function EditPacienteForm({
   }, [state, toast]);
 
   return (
-    <Card className="w-full max-w-2xl">
+    <div className="quiet-page max-w-4xl">
+      <AdminPageHeader
+        eyebrow={readOnly ? "Consulta de cadastro" : "Atualização de cadastro"}
+        title={readOnly ? "Detalhes do paciente." : "Cuidado também nos detalhes."}
+        description={readOnly ? `Dados atuais de ${paciente.nome}.` : `Atualize as informações de ${paciente.nome} com segurança.`}
+        backHref="/admin/pacientes"
+      />
+    <Card>
       <CardHeader>
-        <div className="flex items-center gap-4">
-          <Button variant="outline" size="icon" asChild>
-            <Link href="/admin/pacientes"><ArrowLeft className="h-4 w-4" /></Link>
-          </Button>
-          <div>
-            <CardTitle className="flex items-center gap-2">
-              {readOnly ? <Eye className="h-6 w-6" /> : <UserCog className="h-6 w-6" />}
-              {readOnly ? "Visualizar Paciente" : "Editar Paciente"}
-            </CardTitle>
-            <CardDescription>
-              {readOnly 
-                ? `Visualizando dados de ${paciente.nome}.` 
-                : `Atualize os detalhes de ${paciente.nome}.`}
-            </CardDescription>
-          </div>
-        </div>
+        <CardTitle>{readOnly ? "Dados do paciente" : "Editar dados do paciente"}</CardTitle>
+        <CardDescription>{readOnly ? "Visualização protegida do cadastro." : "Revise os campos antes de salvar."}</CardDescription>
       </CardHeader>
       <form action={readOnly ? undefined : formAction}>
         <CardContent className="space-y-4">
@@ -178,10 +171,11 @@ export default function EditPacienteForm({
             <Textarea id="endereco" name="endereco" disabled={readOnly} value={campos.endereco} onChange={mudar("endereco")} />
           </div>
           {!readOnly && (
-            <div className="flex justify-end pt-4"><SubmitButton /></div>
+            <div className="flex justify-end border-t border-border/50 pt-5"><SubmitButton /></div>
           )}
         </CardContent>
       </form>
     </Card>
+    </div>
   );
 }

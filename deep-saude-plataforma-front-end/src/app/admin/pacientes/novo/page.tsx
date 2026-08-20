@@ -4,10 +4,8 @@ import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { carregar } from "@/lib/carregar";
 import { FalhaDeCarregamento } from "@/components/FalhaDeCarregamento";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, UserPlus } from "lucide-react";
+import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import NovoPacienteForm from './NovoPacienteForm'; // Criaremos este componente cliente separado
 
 // Interface para os dados do psicólogo
@@ -33,27 +31,16 @@ export default async function AdminNovoPacientePage() {
   }
 
   return (
-    <Card className="w-full max-w-2xl">
+    <div className="quiet-page max-w-4xl">
+      <AdminPageHeader eyebrow="Novo cadastro" title="Uma nova história começa aqui." description="Registre os dados essenciais e vincule a pessoa à profissional responsável." backHref="/admin/pacientes" />
+    <Card>
       <CardHeader>
-        <div className="flex items-center gap-4">
-          <Button variant="outline" size="icon" asChild>
-            <Link href="/admin/pacientes">
-              <ArrowLeft className="h-4 w-4" />
-            </Link>
-          </Button>
-          <div>
-            <CardTitle className="flex items-center gap-2">
-              <UserPlus className="h-6 w-6" />
-              Adicionar Novo Paciente
-            </CardTitle>
-            <CardDescription>
-              Preencha os detalhes e vincule o paciente a um psicólogo.
-            </CardDescription>
-          </div>
-        </div>
+        <CardTitle>Dados do paciente</CardTitle>
+        <CardDescription>Campos opcionais podem ser completados mais tarde.</CardDescription>
       </CardHeader>
       {/* Passamos a lista de psicólogos para o formulário (Client Component) */}
       <NovoPacienteForm psicologos={psicologos.dados} />
     </Card>
+    </div>
   );
 }

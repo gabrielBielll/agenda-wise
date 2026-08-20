@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useFormState, useFormStatus } from "react-dom";
 
@@ -11,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { createPsicologo, type FormState } from "./actions"; // Importe a Server Action
-import { ArrowLeft, PlusCircle, UserPlus } from "lucide-react";
+import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 
 const initialState: FormState = {
   message: "",
@@ -22,8 +21,8 @@ const initialState: FormState = {
 function SubmitButton() {
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" disabled={pending}>
-      {pending ? "Criando..." : "Criar Psicólogo"}
+    <Button className="w-full sm:w-auto" type="submit" disabled={pending}>
+      {pending ? "Criando..." : "Criar psicólogo"}
     </Button>
   );
 }
@@ -92,24 +91,12 @@ export default function AdminNovoPsicologoPage() {
   }, [state, router, toast]);
 
   return (
-    <Card className="w-full max-w-2xl">
+    <div className="quiet-page max-w-4xl">
+      <AdminPageHeader eyebrow="Nova profissional" title="Amplie o espaço de cuidado." description="Cadastre a profissional e defina sua regra de remuneração com clareza." backHref="/admin/psicologos" />
+    <Card>
       <CardHeader>
-        <div className="flex items-center gap-4">
-          <Button variant="outline" size="icon" asChild>
-            <Link href="/admin/psicologos">
-              <ArrowLeft className="h-4 w-4" />
-            </Link>
-          </Button>
-          <div>
-            <CardTitle className="flex items-center gap-2">
-              <UserPlus className="h-6 w-6" />
-              Adicionar Novo Psicólogo
-            </CardTitle>
-            <CardDescription>
-              Preencha os detalhes abaixo para cadastrar um novo profissional.
-            </CardDescription>
-          </div>
-        </div>
+        <CardTitle>Dados profissionais</CardTitle>
+        <CardDescription>Identificação, atuação e remuneração em um único cadastro.</CardDescription>
       </CardHeader>
       <form action={formAction}>
         <CardContent className="space-y-4">
@@ -212,11 +199,12 @@ export default function AdminNovoPsicologoPage() {
               )}
             </div>
           </section>
-          <div className="flex justify-end pt-4">
+          <div className="flex justify-end border-t border-border/50 pt-5">
             <SubmitButton />
           </div>
         </CardContent>
       </form>
     </Card>
+    </div>
   );
 }

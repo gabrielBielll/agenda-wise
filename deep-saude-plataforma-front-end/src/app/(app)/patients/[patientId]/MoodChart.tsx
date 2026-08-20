@@ -29,7 +29,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     const moodValue = payload[0].value;
     return (
-      <div className="bg-white dark:bg-gray-950 p-3 border rounded-md shadow-lg text-sm">
+      <div className="rounded-xl border border-border/70 bg-popover/95 p-3 text-sm shadow-[var(--quiet-shadow)]">
         <p className="font-semibold mb-1">{label}</p>
         <p className="text-primary font-medium">
           {MOOD_LABELS[moodValue] || `Nota: ${moodValue}`}
@@ -103,7 +103,7 @@ export default function MoodChart({ data }: MoodChartProps) {
               data={chartData}
               margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
             >
-              <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-gray-200 dark:stroke-gray-800" />
+              <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-border" />
               <XAxis 
                 dataKey="date" 
                 tick={{ fontSize: 12 }} 

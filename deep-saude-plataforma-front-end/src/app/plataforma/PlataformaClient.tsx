@@ -76,7 +76,7 @@ function Numero({ rotulo, valor, icone }: { rotulo: string; valor: number; icone
         {icone}
       </CardHeader>
       <CardContent>
-        <div className="text-2xl font-bold tabular-nums">{valor ?? 0}</div>
+        <div className="font-headline text-3xl font-normal tabular-nums">{valor ?? 0}</div>
       </CardContent>
     </Card>
   );
@@ -172,7 +172,7 @@ export default function PlataformaClient({ estado }: { estado: Estado }) {
 
         <Dialog open={dialogoAberto} onOpenChange={setDialogoAberto}>
           <DialogTrigger asChild>
-            <Button><Plus className="mr-2 h-4 w-4" /> Nova clínica</Button>
+            <Button className="w-full sm:w-auto"><Plus className="mr-2 h-4 w-4" /> Nova clínica</Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[480px]">
             <DialogHeader>
@@ -249,8 +249,9 @@ export default function PlataformaClient({ estado }: { estado: Estado }) {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          <p className="mobile-scroll-hint mb-2">Deslize a tabela para ver todas as métricas.</p>
           <div className="overflow-x-auto">
-            <Table>
+            <Table className="min-w-[760px]">
               <TableHeader>
                 <TableRow>
                   <TableHead>Clínica</TableHead>
@@ -278,7 +279,7 @@ export default function PlataformaClient({ estado }: { estado: Estado }) {
                           isso valer, clínica em outro fuso é dado que a tela
                           mostra e o resto do app ignora. Ver lib/datetime.ts. */}
                       {c.timezone && c.timezone !== FUSO_CLINICA && (
-                        <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-900 dark:bg-amber-950 dark:text-amber-200">
+                        <span className="ml-2 rounded border border-secondary/40 bg-secondary/20 px-1.5 py-0.5 text-[10px] font-medium text-secondary-foreground">
                           o app ainda renderiza em {FUSO_CLINICA}
                         </span>
                       )}

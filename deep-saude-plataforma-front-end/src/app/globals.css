@@ -7,12 +7,13 @@
     --background: 38 39% 94%; --foreground: 60 3% 22%;
     --card: 40 33% 98%; --card-foreground: 60 3% 22%;
     --popover: 40 33% 98%; --popover-foreground: 60 3% 22%;
-    --primary: 88 12% 40%; --primary-foreground: 40 33% 98%;
+    /* Terracota conduz ações; sálvia acolhe navegação, apoio e sucesso. */
+    --primary: 21 58% 59%; --primary-foreground: 40 33% 98%;
     --secondary: 30 33% 64%; --secondary-foreground: 60 3% 22%;
     --muted: 76 13% 90%; --muted-foreground: 60 3% 44%;
-    --accent: 21 58% 59%; --accent-foreground: 40 33% 98%;
+    --accent: 88 12% 43%; --accent-foreground: 40 33% 98%;
     --destructive: 5 55% 50%; --destructive-foreground: 40 33% 98%;
-    --success: 142 45% 26%; --success-foreground: 40 33% 98%;
+    --success: 88 14% 38%; --success-foreground: 40 33% 98%;
     /* Grafite — a primeira das 11 cores do Google (GC-015).
        Nomeada pela COR e não pelo estado de propósito: pela GC-016 cada clínica
        escolhe qual cor significa qual estado, então um token `--bloqueio` teria
@@ -31,28 +32,32 @@
        ⚠️ Nao precisa se distinguir do --destructive, e isso e proposital: a acao
        de cancelar e o estado cancelado sao a mesma familia de cor de proposito. */
     --tomate: 4 68% 45%; --tomate-suave: 6 65% 89%; --tomate-foreground: 4 72% 27%;
-    --border: 34 17% 82%; --input: 34 17% 82%; --ring: 88 12% 40%;
+    --border: 34 17% 82%; --input: 34 17% 82%; --ring: 21 58% 59%;
     --chart-1: 88 12% 50%; --chart-2: 21 58% 59%; --chart-3: 30 33% 64%; --chart-4: 87 11% 67%; --chart-5: 21 45% 72%;
     --radius: 1.15rem;
     --sidebar-background: 40 33% 98%; --sidebar-foreground: 60 3% 32%;
-    --sidebar-primary: 88 12% 40%; --sidebar-primary-foreground: 40 33% 98%;
+    --sidebar-primary: 21 58% 59%; --sidebar-primary-foreground: 40 33% 98%;
     --sidebar-accent: 76 13% 90%; --sidebar-accent-foreground: 88 12% 34%;
     --sidebar-border: 34 17% 86%; --sidebar-ring: 21 58% 59%;
     --sage-green: #95a084; --sage-deep: #68715b; --warm-beige: #c4a584;
     --cream: #f5f0e8; --terracotta: #d2845a; --charcoal: #4a4a4a;
     --paper: rgba(255,255,255,.68); --quiet-line: rgba(74,74,74,.11);
     --quiet-shadow: 0 22px 70px rgba(74,67,55,.09);
+    --quiet-shadow-soft: 0 14px 38px rgba(74,67,55,.07);
+    --quiet-shadow-strong: 0 32px 90px rgba(74,67,55,.16);
+    --background-glow: rgba(255,255,255,.86);
+    --background-glow-warm: rgba(196,165,132,.12);
   }
   .dark {
     --background: 72 8% 12%; --foreground: 38 24% 91%;
     --card: 72 7% 15%; --card-foreground: 38 24% 91%;
     --popover: 72 7% 14%; --popover-foreground: 38 24% 91%;
-    --primary: 87 12% 67%; --primary-foreground: 72 8% 12%;
+    --primary: 21 55% 66%; --primary-foreground: 72 8% 12%;
     --secondary: 30 22% 44%; --secondary-foreground: 38 24% 91%;
     --muted: 72 6% 21%; --muted-foreground: 38 10% 68%;
-    --accent: 21 52% 64%; --accent-foreground: 72 8% 12%;
+    --accent: 88 13% 66%; --accent-foreground: 72 8% 12%;
     --destructive: 5 52% 48%; --destructive-foreground: 38 24% 95%;
-    --success: 142 45% 44%; --success-foreground: 72 8% 12%;
+    --success: 88 14% 64%; --success-foreground: 72 8% 12%;
     /* Grafite no escuro: superfície escura com texto claro. Aqui o bloqueio NÃO
        inverte como o --success faz, e o motivo é de hierarquia: bloqueio é
        informação de fundo ("este horário não existe"), não sinal. Superfície
@@ -60,40 +65,45 @@
     --grafite: 40 5% 62%; --grafite-suave: 40 4% 30%;
     --grafite-foreground: 38 24% 91%; --grafite-tenue: 40 4% 18%;
     --tomate: 6 60% 60%; --tomate-suave: 4 40% 26%; --tomate-foreground: 8 60% 90%;
-    --border: 72 5% 25%; --input: 72 5% 25%; --ring: 87 12% 67%;
+    --border: 72 5% 25%; --input: 72 5% 25%; --ring: 21 55% 66%;
     --sidebar-background: 72 8% 11%; --sidebar-foreground: 38 20% 88%;
-    --sidebar-primary: 87 12% 67%; --sidebar-primary-foreground: 72 8% 12%;
+    --sidebar-primary: 21 55% 66%; --sidebar-primary-foreground: 72 8% 12%;
     --sidebar-accent: 72 6% 21%; --sidebar-accent-foreground: 38 20% 92%;
     --sidebar-border: 72 5% 23%; --paper: rgba(43,44,39,.74);
     --quiet-line: rgba(245,240,232,.1); --quiet-shadow: 0 22px 70px rgba(0,0,0,.2);
+    --quiet-shadow-soft: 0 14px 38px rgba(0,0,0,.16);
+    --quiet-shadow-strong: 0 32px 90px rgba(0,0,0,.32);
+    --background-glow: rgba(149,160,132,.08);
+    --background-glow-warm: rgba(210,132,90,.07);
   }
   * { @apply border-border; }
   html { scroll-behavior: smooth; }
   body {
     @apply bg-background text-foreground font-body antialiased;
     min-width: 320px;
-    background-image: radial-gradient(circle at 8% 6%,rgba(255,255,255,.86),transparent 28%), radial-gradient(circle at 91% 92%,rgba(196,165,132,.12),transparent 29%);
+    background-image: radial-gradient(circle at 8% 6%,var(--background-glow),transparent 28%), radial-gradient(circle at 91% 92%,var(--background-glow-warm),transparent 29%);
     background-attachment: fixed;
   }
   body::before {
     content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none; opacity: .16;
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.16'/%3E%3C/svg%3E");
   }
-  ::selection { background: rgba(210,132,90,.23); }
-  :focus-visible { outline: 2px solid rgba(104,113,91,.7); outline-offset: 3px; }
+  ::selection { background: hsl(var(--primary) / .23); }
+  :focus-visible { outline: 2px solid hsl(var(--ring) / .75); outline-offset: 3px; }
 }
 
 @layer components {
-  .quiet-page { @apply mx-auto w-full max-w-[1500px] space-y-7; }
-  .quiet-card { background: var(--paper); border: 1px solid rgba(255,255,255,.76); box-shadow: var(--quiet-shadow); backdrop-filter: blur(16px); }
-  .page-eyebrow { @apply text-[9px] font-semibold uppercase tracking-[0.18em] text-primary; }
-  .page-title { @apply font-headline text-4xl font-normal leading-none tracking-[-0.035em] md:text-5xl; }
+  .quiet-page { @apply mx-auto w-full max-w-[1500px] space-y-6 sm:space-y-7; }
+  .quiet-card { background: var(--paper); border: 1px solid hsl(var(--border) / .7); box-shadow: var(--quiet-shadow); backdrop-filter: blur(16px); }
+  .page-eyebrow { @apply text-[9px] font-bold uppercase tracking-[0.18em] text-accent; }
+  .page-title { @apply font-headline text-[clamp(2.25rem,6vw,3.25rem)] font-normal leading-[.98] tracking-[-0.035em]; }
   .page-subtitle { @apply mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground; }
-  .section-title { @apply font-headline text-2xl font-normal tracking-[-0.02em]; }
+  .section-title { @apply font-headline text-[clamp(1.5rem,4vw,2rem)] font-normal tracking-[-0.02em]; }
   .page-enter { animation: quiet-page-in .42s cubic-bezier(.22,1,.36,1) both; }
-  .soft-icon { @apply grid h-11 w-11 place-items-center rounded-[14px] bg-primary/10 text-primary; }
-  .terra-icon { @apply grid h-11 w-11 place-items-center rounded-[14px] bg-accent/15 text-accent; }
+  .soft-icon { @apply grid h-11 w-11 place-items-center rounded-[14px] bg-accent/10 text-accent; }
+  .terra-icon { @apply grid h-11 w-11 place-items-center rounded-[14px] bg-primary/10 text-primary; }
   .quiet-divider { border-color: var(--quiet-line); }
+  .mobile-scroll-hint { @apply text-[10px] text-muted-foreground md:hidden; }
 }
 
 @keyframes quiet-page-in { from { opacity: 0; transform: translateY(12px); filter: blur(4px); } to { opacity: 1; transform: translateY(0); filter: blur(0); } }

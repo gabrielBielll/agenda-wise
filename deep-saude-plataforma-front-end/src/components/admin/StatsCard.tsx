@@ -24,15 +24,15 @@ export default function StatsCard({
   const getVariantClasses = () => {
     switch (colorVariant) {
       case 'primary':
-        return 'bg-primary/10 border-primary/10';
+        return 'bg-primary/10 border-primary/20';
       case 'success':
-        return 'bg-primary/5 border-primary/10';
+        return 'bg-success/10 border-success/20';
       case 'warning':
         return 'bg-secondary/15 border-secondary/20';
       case 'danger':
-        return 'bg-accent/10 border-accent/15';
+        return 'bg-destructive/10 border-destructive/20';
       default:
-        return 'bg-card/70 border-white/70';
+        return 'bg-card/70 border-border/70';
     }
   };
 
@@ -41,21 +41,21 @@ export default function StatsCard({
       case 'primary':
         return 'text-primary';
       case 'success':
-        return 'text-primary';
+        return 'text-success';
       case 'warning':
         return 'text-secondary';
       case 'danger':
-        return 'text-accent';
+        return 'text-destructive';
       default:
         return 'text-muted-foreground';
     }
   };
 
   return (
-    <div className={`rounded-[20px] border p-6 shadow-[0_16px_45px_rgba(74,67,55,.06)] backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_22px_55px_rgba(74,67,55,.1)] ${getVariantClasses()}`}>
+    <div className={`rounded-[20px] border p-5 shadow-[var(--quiet-shadow-soft)] backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:shadow-[var(--quiet-shadow)] sm:p-6 ${getVariantClasses()}`}>
       <div className="flex items-center justify-between space-y-0 pb-2">
         <h3 className="page-eyebrow text-muted-foreground">{title}</h3>
-        <span className="grid h-10 w-10 place-items-center rounded-[13px] bg-white/55 shadow-sm"><Icon className={`h-5 w-5 ${getIconColor()}`} /></span>
+        <span className="grid h-10 w-10 place-items-center rounded-[13px] bg-card/60 shadow-sm"><Icon className={`h-5 w-5 ${getIconColor()}`} /></span>
       </div>
       <div className="pt-0">
         <div className="font-headline text-4xl font-normal">{value}</div>

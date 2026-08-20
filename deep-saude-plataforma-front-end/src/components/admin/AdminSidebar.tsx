@@ -10,6 +10,7 @@ import { Home, Users, CalendarDays, DollarSign, BriefcaseMedical, LogOut, Leaf, 
 import { cn } from "@/lib/utils";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"; // Para tooltips nos ícones
+import { SheetClose } from "@/components/ui/sheet";
 
 interface NavLinkItem {
   href: string;
@@ -58,8 +59,8 @@ function NavLink({ href, label, icon: Icon, isCollapsed }: NavLinkItem & { isCol
             className={cn(
               buttonVariants({ variant: isActive ? "default" : "ghost", size: isCollapsed ? "icon" : "default" }),
               "w-full justify-start gap-3 rounded-[13px]",
-              isActive && "bg-primary/10 text-primary shadow-none hover:bg-primary/15 hover:text-primary",
-              !isActive && "text-muted-foreground hover:bg-primary/5 hover:text-primary",
+              isActive && "bg-accent/10 text-accent shadow-none hover:bg-accent/15 hover:text-accent",
+              !isActive && "text-muted-foreground hover:bg-accent/10 hover:text-accent",
               isCollapsed && "h-9 w-9"
             )}
             aria-current={isActive ? "page" : undefined}
@@ -86,7 +87,7 @@ export default function AdminSidebar({ isCollapsed = false, className }: { isCol
   return (
     <aside
       className={cn(
-        "group flex h-full flex-col gap-4 border-r border-border/45 bg-white/55 py-4 backdrop-blur-xl data-[collapsed=true]:py-4 dark:bg-card/70",
+        "group flex h-full flex-col gap-4 border-r border-border/50 bg-card/55 py-4 backdrop-blur-xl data-[collapsed=true]:py-4",
         isCollapsed && "data-[collapsed=true]:w-14", // Largura quando colapsada
         !isCollapsed && "w-64", // Largura quando expandida
         className
@@ -95,7 +96,7 @@ export default function AdminSidebar({ isCollapsed = false, className }: { isCol
     >
       <div className={cn("flex items-center gap-2 px-4", isCollapsed && "h-9 justify-center px-2")}>
         <Link href="/admin/dashboard" className="flex items-center gap-2 overflow-hidden">
-          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[13px_13px_13px_4px] bg-primary text-primary-foreground"><Leaf className={cn("h-5 w-5", isCollapsed && "h-4 w-4")} /></span>
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[13px_13px_13px_4px] bg-accent text-accent-foreground shadow-[var(--quiet-shadow-soft)]"><Leaf className={cn("h-5 w-5", isCollapsed && "h-4 w-4")} /></span>
           {!isCollapsed && <div><h1 className="font-headline text-xl font-normal">Deep Saúde</h1><p className="text-[8px] uppercase tracking-[.14em] text-muted-foreground">Administração</p></div>}
         </Link>
       </div>
@@ -139,49 +140,39 @@ export default function AdminSidebar({ isCollapsed = false, className }: { isCol
 
 // Este é o conteúdo que pode ser usado dentro do Sheet no AdminHeader
 export function AdminSidebarSheetContent() {
+  const pathname = usePathname();
+
   return (
     <>
       <div className="flex items-center gap-2 border-b px-4 py-3.5">
         <Link href="/admin/dashboard" className="flex items-center gap-2 overflow-hidden">
-          <span className="grid h-9 w-9 place-items-center rounded-[13px_13px_13px_4px] bg-primary text-primary-foreground"><Leaf className="h-4 w-4" /></span>
+          <span className="grid h-9 w-9 place-items-center rounded-[13px_13px_13px_4px] bg-accent text-accent-foreground"><Leaf className="h-4 w-4" /></span>
           <h1 className="font-headline text-xl">Deep Saúde</h1>
         </Link>
       </div>
       <nav className="grid gap-2 p-2 text-base font-medium">
-        {mainNavLinks.map((link) => (
-          <Link
-            key={link.href}
-            href={link.href}
-            className={cn(
-                buttonVariants({ variant: usePathname() === link.href ? "default" : "ghost" }),
-                "w-full justify-start gap-2",
-                usePathname() === link.href && "bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary",
-                usePathname() !== link.href && "text-muted-foreground hover:text-foreground"
-            )}
-            aria-current={usePathname() === link.href ? "page" : undefined}
-          >
-            <link.icon className="h-5 w-5" />
-            {link.label}
-          </Link>
-        ))}
+        {mainNavLinks.map((link) => {
+          const active = pathname === link.href || (link.href !== "/admin/dashboard" && pathname.startsWith(link.href));
+          return (
+            <SheetClose asChild key={link.href}>
+              <Link
+                href={link.href}
+                className={cn(
+                  buttonVariants({ variant: "ghost" }),
+                  "w-full justify-start gap-3 rounded-[13px]",
+                  active && "bg-accent/10 text-accent hover:bg-accent/15 hover:text-accent",
+                  !active && "text-muted-foreground hover:text-foreground"
+                )}
+                aria-current={active ? "page" : undefined}
+              >
+                <link.icon className="h-5 w-5" />
+                {link.label}
+              </Link>
+            </SheetClose>
+          );
+        })}
       </nav>
-      <div className="mt-auto grid gap-2 p-2 text-base font-medium">
-         {secondaryNavLinks.map((link) => (
-          <Link
-            key={link.href}
-            href={link.href}
-            className={cn(
-                buttonVariants({ variant: usePathname().startsWith(link.href) ? "default" : "ghost" }),
-                "w-full justify-start gap-2",
-                usePathname().startsWith(link.href) && "bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary",
-                usePathname().startsWith(link.href) !== true && "text-muted-foreground hover:text-foreground"
-            )}
-            aria-current={usePathname().startsWith(link.href) ? "page" : undefined}
-          >
-            <link.icon className="h-5 w-5" />
-            {link.label}
-          </Link>
-        ))}
+      <div className="mt-auto grid gap-2 border-t border-border/50 p-2 pt-3 text-base font-medium">
         <Button
           variant="ghost"
           className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground"

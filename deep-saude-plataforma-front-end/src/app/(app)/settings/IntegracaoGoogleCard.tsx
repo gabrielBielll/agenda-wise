@@ -48,7 +48,7 @@ import {
  * backend de integração); aqui seria a A-013 de novo, agora escrita por nós.
  *
  * ✅ **Ficou o comportamento daqui, com o vocabulário visual dele:** `soft-icon`
- * no título, painéis `rounded-2xl border-border/60 bg-white/30 p-5`, e o
+ * no título, painéis translúcidos com tokens de superfície, e o
  * `CardTitle` sem sobrescrever o tamanho — o componente já traz
  * `font-headline text-2xl` desde o redesign, e o `text-xl` que estava aqui
  * deixava este cartão menor que os irmãos na mesma página.
@@ -112,7 +112,7 @@ export default function IntegracaoGoogleCard() {
       <CardContent className="space-y-4">
         {!estado.ok ? (
           /* A-013: falha classificada, nunca "não há nada". */
-          <div className="rounded-2xl border border-border/60 bg-white/30 p-5">
+          <div className="rounded-2xl border border-border/60 bg-card/30 p-5">
             <p className="font-medium">Não consegui verificar sua conexão</p>
             <p className="text-sm text-muted-foreground">{estado.mensagem}</p>
           </div>
@@ -143,7 +143,7 @@ export default function IntegracaoGoogleCard() {
               </div>
             )}
 
-            <div className="flex flex-col justify-between gap-4 rounded-2xl border border-border/60 bg-white/30 p-5 sm:flex-row sm:items-center">
+            <div className="flex flex-col justify-between gap-4 rounded-2xl border border-border/60 bg-card/30 p-5 sm:flex-row sm:items-center">
               {estado.dados.conectada ? (
                 <div className="flex items-start gap-2">
                   {!estado.dados.precisa_atencao && (
