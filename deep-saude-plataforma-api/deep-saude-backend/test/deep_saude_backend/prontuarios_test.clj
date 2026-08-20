@@ -1,5 +1,14 @@
 (ns deep-saude-backend.prontuarios-test
-  "R-012 — prontuário é do psicólogo. Guardas de leitura e exclusão.
+  "R-012 + **D-021** — quem lê prontuário, e quem fica registrado ao ler.
+
+   🔴 **A D-021 (20/08) reverteu parte da R-012 a pedido do Gabriel:** o admin da
+   clínica passou a LER. O secretário continua fora, e o operador da plataforma
+   também — ele tem papel `admin_clinica`, e a exclusão dele está em
+   `prontuarios/admin-da-clinica?`, guardada por `plataforma_test`.
+   Editar e excluir continuam do autor.
+
+   📌 A tabela de decisão inteira, sem banco, está em `prontuarios_guarda_test` —
+   aquele roda em qualquer máquina, este precisa de Postgres.
 
    Cobre a A-003 (`docs/REVISAO_PRE_PRODUCAO.md`): o admin da clínica lia
    prontuário sem flag nenhuma. A escrita já estava certa; era a leitura que
@@ -119,14 +128,28 @@
     (is (= 200 (:status resp)))
     (is (= 1 (count (:body resp))))))
 
-(deftest admin-nao-le-prontuario
-  ;; A-003. O `wrap-checar-permissao` da rota exige `visualizar_pacientes`, que
-  ;; o admin tem — permissão de tela não é autorização clínica, e era por aí
-  ;; que a leitura passava.
+(deftest admin-le-prontuario-e-o-acesso-fica-registrado
+  ;; 🔴 **D-021 — esta asserção era o contrário até 20/08**, e a virada é a
+  ;; pedido do Gabriel: *"a ceo pediu para que o admin possa ver os prontuarios
+  ;; sim somente o secretario que nao"*.
+  ;;
+  ;; A A-003 continua valendo no que ela ensinou — permissão de tela não é
+  ;; autorização clínica, e `visualizar_pacientes` nunca deveria ter aberto
+  ;; prontuário sozinho. O que mudou é a regra de negócio, não o mecanismo: hoje
+  ;; o admin passa por ser admin, explicitamente, e o acesso é **registrado**.
+  ;;
+  ;; 📌 A R-012 deixou de proibir e passou a rastrear. Por isso o registro não é
+  ;; enfeite desta mudança — é o que sustenta a regra nova.
   (semear-prontuario!)
   (let [resp (listar-como admin "admin_clinica")]
-    (is (= 403 (:status resp))
-        "R-012: nem o admin da clínica lê prontuário sem a flag")))
+    (is (= 200 (:status resp))
+        "D-021: o admin da clínica lê os prontuários dela")
+    (is (= 1 (quantos-acessos))
+        "leitura de quem não é o autor tem que deixar rastro")
+    (let [acesso (db/execute-one! ["SELECT usuario_id, papel, motivo FROM acesso_prontuario LIMIT 1"])]
+      (is (= admin (:usuario_id acesso)))
+      (is (= "admin_clinica" (:motivo acesso))
+          "motivo próprio: rotina e emergência não podem cair no mesmo balde"))))
 
 (deftest outro-psicologo-da-mesma-clinica-nao-le
   (semear-prontuario!)
@@ -138,11 +161,20 @@
   ;; guarda que ninguém sabe se funciona — e esta nunca dispara no caminho
   ;; normal, porque nasce desligada.
   (semear-prontuario!)
+  ;; ⚠️ Era `admin` quem exercitava isto até a D-021. Com o admin lendo por
+  ;; direito próprio, a flag deixou de ser decisiva **para ele** — e um teste
+  ;; cuja variável não muda mais nada é teste que passa sem medir. Trocado por
+  ;; `colega`, que continua barrado sem a flag.
   (let [v #'deep-saude-backend.core/super-admin-le-prontuario?]
     (is (false? @v) "a flag tem que nascer desligada")
+    ;; 📌 A pré-condição vai ANTES de ligar a flag, senão ela não é
+    ;; pré-condição nenhuma: mede o mesmo mundo que a asserção seguinte.
+    (is (= 403 (:status (listar-como colega "psicologo")))
+        "com a flag desligada, outro psicólogo é barrado — sem isto o 200 abaixo
+         não prova que foi a flag que abriu a porta")
     (alter-var-root v (constantly true))
     (try
-      (is (= 200 (:status (listar-como admin "admin_clinica")))
+      (is (= 200 (:status (listar-como colega "psicologo")))
           "com a flag ligada em código, o super-admin lê")
       (finally
         (alter-var-root v (constantly false))))))
@@ -154,7 +186,7 @@
 (deftest flag-decisiva-grava-o-acesso
   (semear-prontuario!)
   (let [resp (prontuarios/listar-handler
-              {:identity (identidade admin "admin_clinica")
+              {:identity (identidade colega "psicologo")
                :params {:paciente-id (str paciente)}} true)
         acesso (db/execute-one!
                 ["SELECT clinica_id, paciente_id, usuario_id, papel, motivo, lido_em
@@ -163,9 +195,10 @@
     (is (= 1 (quantos-acessos)))
     (is (= clinica (:clinica_id acesso)))
     (is (= paciente (:paciente_id acesso)))
-    (is (= admin (:usuario_id acesso)))
-    (is (= "admin_clinica" (:papel acesso)))
-    (is (= "flag_super_admin" (:motivo acesso)))
+    (is (= colega (:usuario_id acesso)))
+    (is (= "psicologo" (:papel acesso)))
+    (is (= "flag_super_admin" (:motivo acesso))
+        "a flag continua tendo motivo PRÓPRIO, distinto do acesso de rotina do admin")
     (is (some? (:lido_em acesso)))))
 
 (deftest flag-ligada-nao-grava-acesso-normal-do-autor
@@ -177,8 +210,11 @@
     (is (zero? (quantos-acessos)))))
 
 (deftest leitura-negada-nao-grava-acesso
+  ;; ⚠️ Era o `admin` quem apanhava aqui. Depois da D-021 ele lê, então quem
+  ;; exercita "negada" passou a ser o `colega` — senão este teste mediria uma
+  ;; negação que não existe mais.
   (semear-prontuario!)
-  (is (= 403 (:status (listar-como admin "admin_clinica"))))
+  (is (= 403 (:status (listar-como colega "psicologo"))))
   (is (zero? (quantos-acessos))))
 (deftest falha-ao-gravar-auditoria-nao-derruba-leitura-e-aparece-no-log
   (semear-prontuario!)
