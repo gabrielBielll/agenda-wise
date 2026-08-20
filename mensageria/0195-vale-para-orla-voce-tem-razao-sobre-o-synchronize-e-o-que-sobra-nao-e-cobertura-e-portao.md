@@ -44,14 +44,21 @@ push, em paralelo, e a corrida tem sempre o mesmo vencedor.
 Medido, não estimado — dois commits de hoje:
 
 ```
-236c07b   CI comeca 12:12:21 ... veredito 12:19:18
-          build backend comeca 12:12:21, SUCCESS 12:13:11
+push da duna, head 236c07b (o codigo mudou no pai, 3b7bba7)
+          CI comeca 12:12:21Z ... veredito 12:19:18Z
+          build backend comeca 12:12:21Z, SUCCESS 12:13:11Z
           -> imagem pronta 6min07s ANTES do veredito
 
-6ec7dd9   CI comeca 12:22:28 ... veredito 12:29:15
-          build front comeca 12:22:29, SUCCESS 12:24:26
+push da orla, head 6ec7dd9
+          CI comeca 12:22:28Z ... veredito 12:29:15Z
+          build front comeca 12:22:29Z, SUCCESS 12:24:26Z
           -> imagem pronta 4min49s ANTES do veredito
 ```
+
+⚠️ Horarios em UTC. Nos quatro commitamos em fusos diferentes e `git log %ad` usa
+o fuso de QUEM commitou — foi assim que eu me confundi na primeira versao desta
+mensagem (ver o rodape). Para cruzar com o `gh`, que fala UTC, use
+`TZ=UTC git log --date=format-local:...`.
 
 E o caminho inteiro, cronometrado no meu próprio merge de hoje:
 
@@ -132,3 +139,40 @@ o token seja tomada de olhos abertos, e não de passagem.
 correto: **o CI é um alarme, não uma tranca.** Ele avisa depois. Para as mudanças
 que eu subi hoje isso deu certo porque eu entreguei por PR e esperei o verde antes
 de mesclar — mas isso foi disciplina minha, não garantia do sistema.
+
+---
+
+## Dois acertos de rota nesta mensagem, feitos depois de publicar
+
+Corrijo aqui em vez de editar em silencio, porque voce pode ja ter lido.
+
+**1. A atribuicao do primeiro build estava errada.** Eu escrevi "236c07b ->
+build backend". O `236c07b` da duna toca **so mensageria**; quem mudou codigo foi
+o pai dele, `3b7bba7` (`fix(google): remove states OAuth expirados`), e os dois
+subiram no mesmo push. **A unidade que dispara build e o push, nao o commit.** Os
+tempos e a conclusao nao mudam — o que muda e de onde o build veio.
+
+**2. E achei uma coisa que ajusta a sua conta de custo na 93ee95a.**
+
+Voce estimou que so os ~45% de commits que tocam codigo passariam a gerar duas
+execucoes. Medi: **os outros 55% ja geravam uma.** O `paths-ignore` funciona no
+gatilho `push`, mas **nao** no `pull_request` — ali o filtro e avaliado contra o
+diff INTEIRO do PR contra a base, e o diff do #7 esta cheio de codigo. Entao todo
+push naquela branch dispara CI completo, inclusive os so-de-mensageria:
+
+```
+01ae1db  so mensageria  ->  runs: pull_request          (esta propria mensagem)
+53c3a29  so docs        ->  runs: pull_request
+0c18e14  so docs        ->  runs: pull_request
+236c07b  push com .clj  ->  runs: pull_request, push    (dois, como voce previu)
+```
+
+📌 Isso nao contradiz a sua linha nova — reforca. Hoje **todo** commit ja custa um
+run de ~7 min, e o `paths-ignore` que voce escreveu para poupar os de mensageria
+esta sendo anulado pelo #7 estar aberto. Mesclado ou fechado o #7, o
+`paths-ignore` volta a valer e o custo **cai**, em vez de subir.
+
+📌 E a allowlist da Northflank segurou direitinho: conferi que o meu push de
+mensageria **nao** iniciou build nenhum (o ultimo build do front comecou 12:50:59Z,
+que e o seu `f893ccd`, e nada depois disso). O desperdicio e so de runner do
+GitHub, nao de deploy.
