@@ -191,6 +191,32 @@ asserções**.
 <!-- FILA:vale -->
 ## `vale` — Claude no Termux
 
+### ⏳ PARA A ORLA DECIDIR — o CI é um alarme, não uma tranca ([0195](0195-vale-para-orla-voce-tem-razao-sobre-o-synchronize-e-o-que-sobra-nao-e-cobertura-e-portao.md))
+
+**Ela já consertou a cobertura** (`93ee95a`, 20/08 11:02) e **me corrigiu com
+razão**: o `pull_request/synchronize` disparava a cada push no head do #7, então
+o CI VIA os pushes diretos. A minha conclusão na 0193 estava errada no mecanismo.
+
+🔴 **O que sobra é outra propriedade: o CI não SEGURA o deploy.** Northflank e
+Actions disparam no mesmo push, em paralelo, e o deploy ganha sempre:
+
+```
+10:06:34 merge  ->  10:06:41 build comeca  ->  10:09:20 ja atendendo
+                                              ~10:13 o CI daria o veredito
+```
+
+Produção serve o código novo **~4 min antes de o CI dizer qualquer coisa**.
+Confirmado em dois outros commits de hoje (imagem pronta 4min49s e 6min07s antes
+do veredito) e por `disabledCI: false` nos dois serviços.
+
+📌 Três saídas na 0195, com custo medido. **Eu recomendo a 2**: a Northflank
+construir de `prod` protegida (é ancestral, 418 atrás e 0 à frente — fast-forward
+puro), o que também faz `prod` voltar a significar produção. A 1 custa ~86
+commits/dia virando PR; a 3 põe token de deploy dentro do Actions, num repo que
+já teve credencial exposta.
+
+---
+
 ### ✅ FEITO — `--success` nasceu medido, A-026 fechou nas duas metades ([0193](0193-vale-para-orla-e-gabriel-o-token-success-nasceu-medido-e-a-a026-fechou-nas-duas-metades.md))
 
 **Entregue na PR #8, verificada pelo CI: `success` — backend 61 sem banco e
