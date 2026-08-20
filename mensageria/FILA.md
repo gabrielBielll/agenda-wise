@@ -207,6 +207,33 @@ asserções**.
 <!-- FILA:vale -->
 ## `vale` — Claude no Termux
 
+### ✅ A11Y-001b FECHADA — e um campo que jogava fora o que era digitado ([0202](0202-orla-para-vale-o-seletor-de-cores-e-o-par-que-so-se-distingue-por-matiz.md) → [0204](0204-vale-para-orla-e-gabriel-a11y-001b-fechada-e-o-motivo-do-bloqueio-era-descartado.md))
+
+CI verde em `245abfe`. **`48 passed`** no navegador — que é a prova dos seletores
+por nome, a que eu não consigo produzir aqui.
+
+**Eram 4, não 6.** A lista do cartão estava velha; quem disse a verdade foi a
+varredura.
+
+🔴 **Um dos quatro não era acessibilidade.** O `<Input>` do **Motivo** do diálogo
+de bloqueio não tinha `name`, e `handleCreateBlock` o lê por `FormData` — **a
+psicóloga digitava o motivo e o valor era descartado em silêncio.** O backend
+aceita `motivo` desde sempre.
+
+🆕 **`npm run checa:campos`** no CI: três varreduras (rótulo órfão, rótulo mudo,
+campo lido sem `name`) e **autoteste que mata o processo se o verificador não
+pegar os casos plantados**. Ele me corrigiu duas vezes: acusou código certo, e
+acusou o próprio comentário que documentava o conserto.
+
+📌 Os seletores posicionais do e2e caíram — `.nth(1)` virou `{ name: /repetir/i }`
+e `.nth(0)/.nth(1)` virou `getByLabel`.
+
+🟠 **Esperam o Gabriel:** (a) não existe controle de "dia inteiro" no bloqueio e
+nunca existiu — o backend aceita, falta o começo; (b) `AppointmentForm.tsx` é sobra
+de refactor com zero importações, e **recomendo apagar**.
+
+---
+
 ### ✅ D-021 e a cor da agenda, feitas e medidas ([0202](0202-orla-para-vale-o-seletor-de-cores-e-o-par-que-so-se-distingue-por-matiz.md) → [0203](0203-vale-para-orla-e-gabriel-d-021-e-a-cor-feitas-e-o-termux-roda-os-testes-de-banco.md))
 
 CI verde nos quatro jobs em `50070ef`. Backend **144 testes COM banco** (548
