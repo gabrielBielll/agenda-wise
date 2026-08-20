@@ -108,7 +108,7 @@ sem gastar auditoria.
 
 **R-021** — ✅ confirmada, ver abaixo: **nada apaga sessão que já aconteceu ou que tem dinheiro**, de nenhum dos dois lados.
 
-**R-022** — ✅ confirmada, ver abaixo: **modo de pagamento automático**, pedido da CEO. Sessão passada é considerada paga e a equipe cuida só das exceções. ⚠️ **Por clínica, desligado por padrão, e a marca automática tem que ser distinguível da manual.**
+**R-022** — ✅ revisada em 2026-08-20: **presença é sempre confirmada manualmente pela psicóloga**. O modo automático, quando ligado pela clínica, fecha o pagamento somente depois dessa confirmação. ⚠️ **Por clínica, desligado por padrão, e a marca automática tem que ser distinguível da manual.**
 
 **R-020** — ✅ confirmada, ver abaixo: **o admin sempre tem força**; **editar e excluir bloqueio é só da clínica**; **configurações avançadas é só do admin**.
 
@@ -704,24 +704,30 @@ caminho do bloqueio. A R-021 fecha o círculo em vez de abrir uma exceção.
 
 ### R-022 — Modo de pagamento automático (pedido da CEO)
 
-Confirmada em **2026-08-16**, e é **funcionalidade pedida**, não defeito.
+Confirmada em **2026-08-16** e **revisada por decisão explícita do Gabriel em
+2026-08-20**. É funcionalidade pedida, não defeito.
 
 Nas palavras do Gabriel: *"é um modo automático. Dessa forma eles só ficam
 atentos nas que não aconteceram. É um modo mais fácil para se tiver muita demanda
 e poucas pessoas ajudando. Essa funcionalidade foi um pedido da CEO. Se der
 falha, é falha humana."*
 
-**O que o modo faz:** sessão que passou é considerada realizada e paga, sem
-ninguém clicar. A operação inverte — em vez de marcar uma a uma o que aconteceu,
-a equipe só cuida das **exceções**: o que não aconteceu.
+**Regra atual:** a passagem do relógio nunca confirma presença. Depois que o
+horário de término passou, a psicóloga precisa confirmar na agenda que a sessão
+aconteceu. Só então o estado vira `realizado`.
+
+**O que o modo automático faz agora:** depois dessa confirmação humana, fecha o
+pagamento sem exigir um segundo clique do financeiro. Se a clínica não habilitou
+o modo, a sessão fica realizada e com pagamento pendente.
 
 ### Como isto convive com a R-007, que diz que só o admin marca pagamento
 
 Não são contraditórias, e vale escrever por quê, senão o auditor cego vai apontar
 conflito:
 
-> **Ligar o modo É o admin marcando** — de uma vez, adiantado, para o que vier.
-> A autorização acontece no momento de ligar, não em cada sessão.
+> **Ligar o modo É o admin autorizando o fechamento financeiro** das presenças
+> que forem confirmadas. A psicóloga confirma o fato clínico; a configuração da
+> clínica decide o efeito financeiro.
 
 A R-007 continua valendo integralmente para quem **não** ligou o modo, e continua
 valendo para a marcação manual dentro dele.
@@ -737,14 +743,14 @@ consiga corrigir**. Hoje ela não consegue nenhum dos dois:
    ✅ Confirmado em 2026-08-16: *"pode deixar desligado sim; se precisar vamos na
    configuração e ligamos"*. O interruptor fica nas configurações da **clínica**,
    com o admin (R-020) — **não** no painel da plataforma.
-2. **A marca tem que dizer que foi automática.** Hoje `status_pagamento = 'pago'`
+2. **A marca tem que dizer que foi automática.** `status_pagamento = 'pago'`
    fica idêntico, tenha sido um clique ou o job. Sem distinguir, ninguém consegue
    revisar "o que o sistema assumiu" nem desfazer — e a falha deixa de ser
    corrigível, o que a torna injusta de atribuir a alguém.
 3. **A tela precisa mostrar a diferença.** "Ficar atento no que não aconteceu"
    só é possível se a lista separar *pago porque alguém disse* de *pago porque o
    sistema assumiu*.
-4. **Cada passagem deixa registro** — quantas sessões, quando, em qual clínica.
+4. **Cada confirmação e fechamento deixa registro** — quantas sessões, quando, em qual clínica.
    É a R-010, e aqui ela não é luxo: é o que permite auditar um mês.
 
 ⚠️ **Sem os quatro, o modo não é "mais fácil": é mais rápido e cego.** Com os
@@ -756,10 +762,10 @@ incluindo o que fazer com o histórico que já foi marcado: ele entra como
 `desconhecido`, porque o dado **não guarda** pista de quem marcou o quê —
 `agendamentos` não tem `updated_at` e `origem_ultima_alteracao` nunca foi escrita.
 
-💡 **E uma observação de operação, não de regra:** hoje o job roda **no boot**.
-Isso significa que o fechamento do mês acontece quando alguém faz deploy. Sem
-deploy numa semana, nada é marcado; com três deploys num dia, roda três vezes.
-Recomendação: horário fixo diário. Não muda a regra, muda a previsibilidade.
+💡 **E uma observação de operação, não de regra:** o job no boot continua como
+reconciliação financeira de sessões que já estão `realizado`; ele não muda mais
+o estado clínico. A confirmação manual também tenta fechar imediatamente o
+pagamento quando o modo está ligado.
 
 ---
 
@@ -1112,3 +1118,19 @@ registrado como limitação a resolver, e não é: é a regra.
 precisa de nenhum mecanismo de "mesma pessoa em duas clínicas", e **não deve
 inventar um**. Se um dia a regra mudar, muda o schema junto — não se prepara
 terreno para regra que não existe.
+
+## R-025 — A base de pacientes é portátil, o prontuário não entra no atalho
+
+**Confirmada por:** Gabriel, 2026-08-20
+
+A clínica pode baixar e importar o cadastro de pacientes em CSV, JSON ou SQL.
+Essa facilidade não autoriza fabricar histórico clínico: **prontuários e sessões
+não entram na operação** e continuam sujeitos às regras próprias de autoria,
+imutabilidade e sigilo.
+
+A psicóloga só movimenta a própria carteira; administração e secretaria ficam
+limitadas à própria clínica. Todo upload passa por prévia sem escrita e exige
+confirmação explícita. Arquivo SQL recebido **nunca é executado** — apenas o
+envelope portátil gerado pela AgendaWise é lido e novamente validado pelo
+backend. O contrato completo está em
+[PORTABILIDADE_PACIENTES](PORTABILIDADE_PACIENTES.md).

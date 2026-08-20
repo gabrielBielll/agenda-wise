@@ -4,10 +4,10 @@ import { Sparkles } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useCareMessage } from '@/hooks/use-care-message';
 
-export function DailyCareGreeting() {
+export function DailyCareGreeting({ name }: { name?: string } = {}) {
   const { data: session } = useSession();
   const care = useCareMessage();
-  const firstName = session?.user?.name?.trim().split(/\s+/)[0];
+  const firstName = (name || session?.user?.name)?.trim().split(/\s+/)[0];
 
   return (
     <section className="flex flex-col justify-between gap-5 md:flex-row md:items-end">

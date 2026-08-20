@@ -6,6 +6,7 @@ import { authOptions } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { paraPayloadParede } from "@/lib/datetime";
 import { lerRecusaDeBloqueio, type ResultadoDeBloqueio } from "@/lib/conflitos";
+import type { AppointmentStatus } from "@/lib/appointment-status";
 
 const agendamentoSchema = z.object({
   paciente_id: z.string().uuid({ message: "Selecione um paciente válido." }),
@@ -223,6 +224,46 @@ export async function reactivateAgendamento(id: string): Promise<{ message: stri
 
   revalidatePath("/calendar");
   return { message: "Sessão reativada com sucesso!", success: true };
+}
+
+export async function updateAppointmentStatus(
+  id: string,
+  status: Extract<AppointmentStatus, 'confirmado' | 'realizado'>,
+): Promise<{ message: string; success: boolean }> {
+  const session = await getServerSession(authOptions);
+  const token = (session as any)?.backendToken;
+
+  if (!token) return { message: "Erro de autenticação.", success: false };
+
+  try {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/agendamentos/${id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`,
+      },
+      body: JSON.stringify({ status }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        message: errorData.erro || "Não foi possível atualizar a confirmação da sessão.",
+        success: false,
+      };
+    }
+  } catch {
+    return { message: "Erro de conexão com o servidor.", success: false };
+  }
+
+  revalidatePath("/calendar");
+  revalidatePath("/dashboard");
+  return {
+    message: status === 'realizado'
+      ? "Sessão confirmada como realizada."
+      : "Agendamento confirmado com sucesso.",
+    success: true,
+  };
 }
 
 // ============ BLOQUEIOS DE AGENDA ============

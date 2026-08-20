@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,26 +11,51 @@ import { Bell, UserCog, Palette, ShieldCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import IntegracaoGoogleCard from "./IntegracaoGoogleCard";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { getOwnProfile, updateOwnProfile } from "./actions";
 
 export default function SettingsPage() {
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const { data: session } = useSession();
+  const { data: session, update: updateSession } = useSession();
   const [profileName, setProfileName] = useState('');
   const [profileEmail, setProfileEmail] = useState('');
+  const [loadingProfile, setLoadingProfile] = useState(true);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const profileEdited = useRef(false);
   const { toast } = useToast();
 
   useEffect(() => {
-    setProfileName(session?.user?.name || '');
-    setProfileEmail(session?.user?.email || '');
+    if (!profileEdited.current) setProfileName(current => current || session?.user?.name || '');
+    setProfileEmail(current => current || session?.user?.email || '');
   }, [session?.user?.name, session?.user?.email]);
 
-  const handleSaveChanges = () => {
-    // TODO(settings-persistence): trocar este retorno demonstrativo por PATCH /me/preferences.
-    // O payload deve incluir nome, notificações e fuso; após salvar, revalidar a sessão.
+  useEffect(() => {
+    let active = true;
+    getOwnProfile().then((result) => {
+      if (!active || !result.success || !result.profile) return;
+      if (!profileEdited.current) setProfileName(result.profile.nome);
+      setProfileEmail(result.profile.email);
+    }).finally(() => active && setLoadingProfile(false));
+    return () => { active = false; };
+  }, []);
+
+  const handleSaveChanges = async () => {
+    setSavingProfile(true);
+    const result = await updateOwnProfile(profileName);
+    setSavingProfile(false);
+
+    if (!result.success || !result.profile) {
+      toast({ title: "Não foi possível salvar", description: result.message, variant: "destructive" });
+      return;
+    }
+
+    setProfileName(result.profile.nome);
+    setProfileEmail(result.profile.email);
+    profileEdited.current = false;
+    await updateSession({ name: result.profile.nome, user: { name: result.profile.nome } });
     toast({
-      title: "Prévia atualizada",
-      description: "A aparência já vale neste dispositivo; dados da conta aguardam a API de preferências.",
-      className: "bg-primary text-primary-foreground"
+      title: "Preferências salvas",
+      description: result.message,
+      className: "bg-success text-success-foreground"
     });
   };
 
@@ -47,11 +72,12 @@ export default function SettingsPage() {
         <CardContent className="space-y-6">
           <div className="space-y-2">
             <Label htmlFor="profileName">Nome de Exibição</Label>
-            <Input id="profileName" value={profileName} onChange={(event) => setProfileName(event.target.value)} placeholder="Seu nome" />
+            <Input id="profileName" value={profileName} onChange={(event) => { profileEdited.current = true; setProfileName(event.target.value); }} placeholder="Seu nome" />
           </div>
           <div className="space-y-2">
             <Label htmlFor="profileEmail">Endereço de E-mail</Label>
-            <Input id="profileEmail" type="email" value={profileEmail} onChange={(event) => setProfileEmail(event.target.value)} placeholder="voce@exemplo.com" />
+            <Input id="profileEmail" type="email" value={profileEmail} readOnly aria-readonly="true" className="bg-muted/35 text-muted-foreground" />
+            <p className="text-xs text-muted-foreground">O e-mail de acesso não é alterado por esta tela.</p>
           </div>
            <div className="flex items-start gap-3 rounded-2xl border border-border/60 bg-muted/30 p-4 sm:items-center">
             <Switch
@@ -92,7 +118,9 @@ export default function SettingsPage() {
       </Card>
 
       <div className="flex justify-end border-t border-border/50 pt-5">
-        <Button className="w-full sm:w-auto" size="lg" onClick={handleSaveChanges}>Aplicar prévia</Button>
+        <Button className="w-full sm:w-auto" size="lg" onClick={handleSaveChanges} disabled={loadingProfile || savingProfile || !profileName.trim()}>
+          {loadingProfile ? 'Carregando perfil...' : savingProfile ? 'Salvando...' : 'Salvar preferências'}
+        </Button>
       </div>
     </div>
   );

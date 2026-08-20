@@ -26,6 +26,10 @@ interface Block {
   data_fim: string;
 }
 
+interface OwnProfile {
+  nome?: string;
+}
+
 const partsInSaoPaulo = (value: Date) => {
   const parts = new Intl.DateTimeFormat('en-US', {
     timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit',
@@ -44,9 +48,10 @@ const initials = (name?: string) => (name || 'Paciente')
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
   const token = (session as any)?.backendToken;
-  const [appointments, blocks] = await Promise.all([
+  const [appointments, blocks, profile] = await Promise.all([
     carregar<Appointment[]>('/api/agendamentos', token),
     carregar<Block[]>('/api/bloqueios', token),
+    carregar<OwnProfile>('/api/me', token),
   ]);
   if (!appointments.ok) return <FalhaDeCarregamento motivo={appointments.motivo} oQue="seu dia" />;
   if (!blocks.ok) return <FalhaDeCarregamento motivo={blocks.motivo} oQue="suas pausas" />;
@@ -88,7 +93,7 @@ export default async function DashboardPage() {
 
   return (
     <div className="quiet-page">
-      <DailyCareGreeting />
+      <DailyCareGreeting name={profile.ok ? profile.dados.nome : undefined} />
 
       <section className="grid gap-4 md:grid-cols-3">
         <Card className="group overflow-hidden hover:shadow-[var(--quiet-shadow)]"><CardContent className="relative flex items-center gap-4 p-5"><span className="terra-icon"><CalendarDays className="h-5 w-5" /></span><div className="min-w-0"><p className="page-eyebrow text-muted-foreground">Sessões hoje</p><div className="mt-1 flex flex-wrap items-end gap-2"><strong className="font-headline text-4xl font-normal">{today.length}</strong><small className="mb-1.5 text-[10px] text-muted-foreground">{minutesUntilNext === null ? 'Agenda concluída' : minutesUntilNext < 60 ? `Próxima em ${minutesUntilNext} min` : `Próxima às ${timeInSaoPaulo(next.data_hora_sessao)}`}</small></div></div><span className="absolute -right-7 -top-7 h-24 w-24 rounded-full bg-primary/10 transition-transform duration-500 group-hover:scale-125" /></CardContent></Card>
@@ -119,7 +124,57 @@ export default async function DashboardPage() {
           </CardContent></Card>
         </div>
 
-        <Card className="h-fit"><CardHeader className="flex-row items-center justify-between space-y-0"><div><p className="page-eyebrow">Hoje</p><CardTitle className="mt-1">Minha agenda</CardTitle></div><Button variant="outline" size="icon" asChild><Link href="/calendar"><ArrowRight /></Link></Button></CardHeader><CardContent>{today.length > 0 ? <div className="relative space-y-1 before:absolute before:bottom-5 before:left-[48px] before:top-5 before:w-px before:bg-border/70">{today.map(item => { const current = item.id === next?.id; const done = item.status === 'realizado' || new Date(item.data_hora_sessao).getTime() < now.getTime(); return <Link href="/calendar" key={item.id} className={current ? 'relative grid grid-cols-[42px_18px_1fr] items-center rounded-xl bg-primary/10 px-2 py-3' : 'relative grid grid-cols-[42px_18px_1fr] items-center rounded-xl px-2 py-3 transition-colors hover:bg-accent/5'}><span className="text-[9px] text-muted-foreground">{timeInSaoPaulo(item.data_hora_sessao)}</span><span className={current ? 'z-10 h-2 w-2 rounded-full bg-primary ring-4 ring-primary/10' : done ? 'z-10 text-success' : 'z-10 h-2 w-2 rounded-full border-2 border-accent bg-background'}>{done && <CheckCircle2 className="h-3 w-3 -translate-x-0.5" />}</span><span className="ml-1 min-w-0"><strong className="block truncate text-[11px]">{item.nome_paciente || 'Sessão clínica'}</strong><small className="text-[9px] text-muted-foreground">{item.duracao || 50} minutos</small></span></Link>; })}</div> : <p className="rounded-xl bg-muted/35 p-4 text-sm text-muted-foreground">Nenhuma sessão marcada para hoje.</p>}<Button variant="outline" className="mt-4 w-full border-dashed" asChild><Link href="/calendar?nova=1"><Plus />Adicionar horário</Link></Button></CardContent></Card>
+        <Card className="h-fit">
+          <CardHeader className="flex-row items-center justify-between space-y-0">
+            <div><p className="page-eyebrow">Hoje</p><CardTitle className="mt-1">Minha agenda</CardTitle></div>
+            <Button variant="outline" size="icon" asChild><Link href="/calendar"><ArrowRight /></Link></Button>
+          </CardHeader>
+          <CardContent>
+            {today.length > 0 ? (
+              <div className="relative space-y-1 before:absolute before:bottom-5 before:left-[48px] before:top-5 before:w-px before:bg-border/70">
+                {today.map(item => {
+                  const current = item.id === next?.id;
+                  const done = item.status === 'realizado';
+                  const missed = item.status === 'falta';
+                  const waitingForConfirmation = !done && !missed
+                    && new Date(item.data_hora_sessao).getTime() + (item.duracao || 50) * 60_000 < now.getTime();
+                  const statusText = done
+                    ? 'Realizada'
+                    : missed
+                      ? 'Falta registrada'
+                      : waitingForConfirmation
+                        ? 'Aguardando sua confirmação'
+                        : item.status === 'confirmado'
+                          ? 'Confirmada'
+                          : 'Agendada';
+                  const markerClass = current
+                    ? 'z-10 h-2 w-2 rounded-full bg-primary ring-4 ring-primary/10'
+                    : done
+                      ? 'z-10 text-success'
+                      : missed
+                        ? 'z-10 h-2 w-2 rounded-full bg-tomate ring-4 ring-tomate/10'
+                        : waitingForConfirmation
+                          ? 'z-10 h-2 w-2 rounded-full bg-agenda-agendada ring-4 ring-agenda-agendada/10'
+                          : item.status === 'confirmado'
+                            ? 'z-10 h-2 w-2 rounded-full bg-agenda-confirmada ring-4 ring-agenda-confirmada/10'
+                            : 'z-10 h-2 w-2 rounded-full border-2 border-accent bg-background';
+
+                  return (
+                    <Link href="/calendar" key={item.id} className={current ? 'relative grid grid-cols-[42px_18px_1fr] items-center rounded-xl bg-primary/10 px-2 py-3' : 'relative grid grid-cols-[42px_18px_1fr] items-center rounded-xl px-2 py-3 transition-colors hover:bg-accent/5'}>
+                      <span className="text-[9px] text-muted-foreground">{timeInSaoPaulo(item.data_hora_sessao)}</span>
+                      <span className={markerClass}>{done && <CheckCircle2 className="h-3 w-3 -translate-x-0.5" />}</span>
+                      <span className="ml-1 min-w-0">
+                        <strong className="block truncate text-[11px]">{item.nome_paciente || 'Sessão clínica'}</strong>
+                        <small className={waitingForConfirmation ? 'text-[9px] font-medium text-agenda-agendada-foreground' : 'text-[9px] text-muted-foreground'}>{statusText} · {item.duracao || 50} min</small>
+                      </span>
+                    </Link>
+                  );
+                })}
+              </div>
+            ) : <p className="rounded-xl bg-muted/35 p-4 text-sm text-muted-foreground">Nenhuma sessão marcada para hoje.</p>}
+            <Button variant="outline" className="mt-4 w-full border-dashed" asChild><Link href="/calendar?nova=1"><Plus />Adicionar horário</Link></Button>
+          </CardContent>
+        </Card>
       </section>
     </div>
   );

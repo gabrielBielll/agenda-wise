@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useTransition } from 'react';
+import React, { useCallback, useEffect, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { ArrowRight, CalendarDays, Edit, Leaf, Loader2, Search, Trash2, UserPlus } from 'lucide-react';
@@ -14,6 +14,7 @@ import { Pagination, PaginationContent, PaginationItem, PaginationLink, Paginati
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { deletePaciente, getPacientes } from './actions';
+import { PatientPortabilityDialog } from './PatientPortabilityDialog';
 
 // Reconstruído a partir do uso: a definição havia sido apagada por uma edição
 // parcial e substituída por um comentário "... existing code".
@@ -40,18 +41,36 @@ export default function PatientsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 9;
 
-  useEffect(() => {
+  const loadPatients = useCallback(async () => {
     if (sessionStatus === 'authenticated') {
       setLoading(true);
-      getPacientes().then(result => {
+      setError(null);
+      try {
+        const result = await getPacientes();
         if (result.success && result.data) setPatients(result.data);
         else setError(result.error || 'Falha ao buscar os dados dos pacientes.');
-      }).catch(err => setError(err.message)).finally(() => setLoading(false));
+      } catch (loadError) {
+        setError(loadError instanceof Error ? loadError.message : 'Falha ao buscar os dados dos pacientes.');
+      } finally {
+        setLoading(false);
+      }
     } else if (sessionStatus === 'unauthenticated') {
       setError('Usuário não autenticado.');
       setLoading(false);
     }
   }, [sessionStatus]);
+
+  const refreshPatients = useCallback(async () => {
+    const result = await getPacientes();
+    if (result.success && result.data) {
+      setPatients(result.data);
+      setError(null);
+      return;
+    }
+    throw new Error(result.error || 'A importação terminou, mas a lista não pôde ser atualizada.');
+  }, []);
+
+  useEffect(() => { void loadPatients(); }, [loadPatients]);
 
   useEffect(() => setCurrentPage(1), [searchTerm, statusFilter]);
 
@@ -77,6 +96,10 @@ export default function PatientsPage() {
   const currentPatients = filteredPatients.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
   const initials = (name: string) => name.split(' ').map(part => part[0]).join('').slice(0, 2).toUpperCase();
 
+  useEffect(() => {
+    setCurrentPage(previous => Math.min(previous, Math.max(totalPages, 1)));
+  }, [totalPages]);
+
   if (loading) return <div className="flex h-72 flex-col items-center justify-center gap-4"><span className="grid h-16 w-16 place-items-center rounded-full bg-primary/10"><Loader2 className="h-7 w-7 animate-spin text-primary" /></span><div className="text-center"><p className="font-headline text-xl">Preparando seu espaço de cuidado...</p><p className="mt-1 text-xs text-muted-foreground">Buscando seus pacientes com segurança.</p></div></div>;
   if (error) return <Card className="mx-auto max-w-xl border-destructive/20"><CardContent className="flex flex-col items-center p-10 text-center"><Leaf className="mb-4 h-10 w-10 text-destructive/60" /><CardTitle>Não conseguimos carregar seus pacientes</CardTitle><p className="mt-2 text-sm text-muted-foreground">{error}</p></CardContent></Card>;
 
@@ -84,7 +107,13 @@ export default function PatientsPage() {
     <div className="quiet-page">
       <section className="flex flex-col justify-between gap-5 md:flex-row md:items-end">
         <div><p className="mb-2 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[.12em] text-muted-foreground"><span className="h-px w-6 bg-accent" /> Cuidado contínuo</p><h2 className="page-title">Pessoas, não prontuários.</h2><p className="page-subtitle">Uma visão delicada de cada jornada que você acompanha.</p></div>
-        <div className="flex w-full items-end justify-between gap-5 md:w-auto"><div className="text-left md:text-right"><strong className="block font-headline text-4xl font-normal text-accent">{filteredPatients.length}</strong><span className="page-eyebrow text-muted-foreground">pacientes {statusFilter === 'ativo' ? 'ativos' : ''}</span></div><Button asChild><Link href="/patients/new"><UserPlus />Novo paciente</Link></Button></div>
+        <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-end sm:justify-between md:w-auto">
+          <div className="text-left md:text-right"><strong className="block font-headline text-4xl font-normal text-accent">{filteredPatients.length}</strong><span className="page-eyebrow text-muted-foreground">pacientes {statusFilter === 'ativo' ? 'ativos' : ''}</span></div>
+          <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2">
+            <PatientPortabilityDialog onImported={refreshPatients} />
+            <Button asChild><Link href="/patients/new"><UserPlus />Novo paciente</Link></Button>
+          </div>
+        </div>
       </section>
 
       <section className="flex flex-col gap-3 sm:flex-row">

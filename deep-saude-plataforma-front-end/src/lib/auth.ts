@@ -66,6 +66,7 @@ export const authOptions: AuthOptions = {
           if (data.token && data.user) {
             return {
               id: data.user.id,
+              name: data.user.nome,
               email: credentials.email,
               backendToken: data.token,
               clinica_id: data.user.clinica_id,
@@ -86,7 +87,16 @@ export const authOptions: AuthOptions = {
       // ... existing google logic ...
       return true; 
     },
-    async jwt({ token, user, account, profile }) {
+    async jwt({ token, user, account, profile, trigger, session }) {
+      const updatedName = typeof session?.name === 'string'
+        ? session.name
+        : typeof session?.user?.name === 'string'
+          ? session.user.name
+          : undefined;
+      if (trigger === 'update' && updatedName?.trim()) {
+        token.name = updatedName.trim();
+      }
+
       if (user) {
         // Login com Google: guarda o e-mail VERIFICADO. É o que permite sugerir
         // com segurança de quem é cada agenda na tela de mapeamento (spec 5.4).
@@ -121,6 +131,7 @@ export const authOptions: AuthOptions = {
     },
     async session({ session, token }) {
       (session as any).backendToken = token.backendToken;
+      if (session.user && typeof token.name === 'string') session.user.name = token.name;
       (session.user as any).id = token.id;
       (session.user as any).clinica_id = token.clinica_id;
       (session.user as any).papel_id = token.papel_id;

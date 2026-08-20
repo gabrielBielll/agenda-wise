@@ -342,7 +342,13 @@ jobs:
                       '--grafite:' '--grafite-suave:' '--grafite-tenue:' '--grafite-foreground:' \
                       '.bg-grafite-suave{' '.bg-grafite-tenue{' '.border-grafite{' '.text-grafite-foreground{' \
                       '--tomate:' '--tomate-suave:' '--tomate-foreground:' \
-                      '.bg-tomate-suave{' '.border-tomate{' '.text-tomate{' '.text-tomate-foreground{'; do
+                      '.bg-tomate-suave{' '.border-tomate{' '.text-tomate-foreground{' \
+                      '--agenda-agendada:' '--agenda-agendada-suave:' '--agenda-agendada-foreground:' \
+                      '--agenda-confirmada:' '--agenda-confirmada-suave:' '--agenda-confirmada-foreground:' \
+                      '.bg-agenda-agendada{' '.bg-agenda-agendada-suave{' '.border-agenda-agendada{' \
+                      '.text-agenda-agendada-foreground{' '.bg-agenda-confirmada{' \
+                      '.bg-agenda-confirmada-suave{' '.border-agenda-confirmada{' \
+                      '.text-agenda-confirmada-foreground{'; do
             grep -qF -- "$alvo" $css || { echo "::error::faltou no CSS compilado: $alvo"; faltou=1; }
           done
           # 🔴 O laranja do bloqueio nao pode voltar. Ele colide com Tangerina, que
@@ -372,7 +378,7 @@ jobs:
             faltou=1
           fi
           test "$faltou" -eq 0 || exit 1
-          echo "ok: --success e --grafite nos dois temas, classes geradas, bloqueio sem laranja"
+          echo "ok: tokens semanticos nos dois temas, classes geradas, bloqueio sem laranja"
 
   navegador:
     name: Navegador — Playwright (o que a pico levou embora)

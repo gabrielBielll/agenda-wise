@@ -6,6 +6,10 @@ export default {
     './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
     './src/components/**/*.{js,ts,jsx,tsx,mdx}',
     './src/app/**/*.{js,ts,jsx,tsx,mdx}',
+    // Mapeamentos semânticos compartilhados (ex.: estados da agenda) também
+    // contêm classes completas. Sem esta linha o build fica verde, mas o
+    // Tailwind elimina exatamente as cores centralizadas em `src/lib`.
+    './src/lib/**/*.{js,ts,jsx,tsx,mdx}',
   ],
   theme: {
     extend: {
@@ -61,6 +65,14 @@ export default {
           DEFAULT: 'hsl(var(--tomate))',
           suave: 'hsl(var(--tomate-suave))',
           foreground: 'hsl(var(--tomate-foreground))',
+        },
+        agenda: {
+          agendada: 'hsl(var(--agenda-agendada))',
+          'agendada-suave': 'hsl(var(--agenda-agendada-suave))',
+          'agendada-foreground': 'hsl(var(--agenda-agendada-foreground))',
+          confirmada: 'hsl(var(--agenda-confirmada))',
+          'confirmada-suave': 'hsl(var(--agenda-confirmada-suave))',
+          'confirmada-foreground': 'hsl(var(--agenda-confirmada-foreground))',
         },
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',
