@@ -37,7 +37,7 @@
        sálvia = confirmada/realizada. Eles são tokens próprios porque ação
        primária e estado de uma sessão não são a mesma responsabilidade. */
     --agenda-agendada: 21 58% 55%; --agenda-agendada-suave: 24 66% 92%; --agenda-agendada-foreground: 18 58% 29%;
-    --agenda-confirmada: 88 18% 43%; --agenda-confirmada-suave: 86 20% 90%; --agenda-confirmada-foreground: 90 22% 25%;
+    --agenda-confirmada: 88 18% 21%; --agenda-confirmada-suave: 86 20% 90%; --agenda-confirmada-foreground: 90 22% 25%;
     --border: 34 17% 82%; --input: 34 17% 82%; --ring: 21 58% 59%;
     --chart-1: 88 12% 50%; --chart-2: 21 58% 59%; --chart-3: 30 33% 64%; --chart-4: 87 11% 67%; --chart-5: 21 45% 72%;
     --radius: 1.15rem;
@@ -72,7 +72,7 @@
     --grafite-foreground: 38 24% 91%; --grafite-tenue: 40 4% 18%;
     --tomate: 6 60% 60%; --tomate-suave: 4 40% 26%; --tomate-foreground: 8 60% 90%;
     --agenda-agendada: 21 58% 66%; --agenda-agendada-suave: 20 30% 25%; --agenda-agendada-foreground: 24 62% 90%;
-    --agenda-confirmada: 88 18% 64%; --agenda-confirmada-suave: 88 18% 24%; --agenda-confirmada-foreground: 84 24% 91%;
+    --agenda-confirmada: 88 18% 77%; --agenda-confirmada-suave: 88 18% 24%; --agenda-confirmada-foreground: 84 24% 91%;
     --border: 72 5% 25%; --input: 72 5% 25%; --ring: 21 55% 66%;
     --sidebar-background: 72 8% 11%; --sidebar-foreground: 38 20% 88%;
     --sidebar-primary: 21 55% 66%; --sidebar-primary-foreground: 72 8% 12%;

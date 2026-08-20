@@ -285,7 +285,7 @@ export function WeekView({ date, appointments, bloqueios = [], onAddAppointment,
                                 <span className="font-semibold block truncate">↩ {app.nome_paciente}</span>
                               ) : (
                                 <>
-                                  <span className="font-semibold block">{startLabel} - {endLabel}</span>
+                                  <span className="font-semibold block">{appearance.glyph && <span aria-hidden="true" className="mr-0.5 font-bold">{appearance.glyph}</span>}{startLabel} - {endLabel}</span>
                                   <span className={cn("truncate block font-medium", app.status === 'cancelado' && "line-through opacity-70")}>
                                       {app.nome_paciente}
                                   </span>

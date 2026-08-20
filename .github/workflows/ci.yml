@@ -333,6 +333,13 @@ jobs:
         # familia de defeito deste projeto, sinal de sucesso sem verificacao.
         # Este passo e o controle positivo do `--success`: ele falha se a classe
         # nao existir de verdade no bundle.
+        #
+        # 🔴 As DUAS ultimas entradas sao VALORES, nao nomes. O par
+        # agendada/confirmada colapsava em 1,02 de luminancia — indistinguivel em
+        # deuteranopia, e e a distincao que decide se a psi liga confirmando. Os
+        # numeros 21% e 77% sairam de busca numerica com controle; um ajuste
+        # distraido de paleta os desfaz sem nada ficar vermelho, e o defeito volta
+        # invisivel para quem enxerga cor.
         run: |
           set -euo pipefail
           css=$(find .next -name '*.css' -path '*static*' | tr '\n' ' ')
@@ -348,7 +355,8 @@ jobs:
                       '.bg-agenda-agendada{' '.bg-agenda-agendada-suave{' '.border-agenda-agendada{' \
                       '.text-agenda-agendada-foreground{' '.bg-agenda-confirmada{' \
                       '.bg-agenda-confirmada-suave{' '.border-agenda-confirmada{' \
-                      '.text-agenda-confirmada-foreground{'; do
+                      '.text-agenda-confirmada-foreground{' \
+                      '--agenda-confirmada:88 18% 21%' '--agenda-confirmada:88 18% 77%'; do
             grep -qF -- "$alvo" $css || { echo "::error::faltou no CSS compilado: $alvo"; faltou=1; }
           done
           # 🔴 O laranja do bloqueio nao pode voltar. Ele colide com Tangerina, que

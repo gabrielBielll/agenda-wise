@@ -199,6 +199,7 @@ export function DayView({ date, appointments, bloqueios = [], onAddAppointment, 
                             }}
                         >
                             <span className="font-semibold block">
+                                {appearance.glyph && <span aria-hidden="true" className="mr-0.5 font-bold">{appearance.glyph}</span>}
                                 {String(appDate.getHours()).padStart(2, '0')}:{String(minutes).padStart(2, '0')} - {
                                   (() => {
                                     const end = new Date(appDate.getTime() + duration * 60000);

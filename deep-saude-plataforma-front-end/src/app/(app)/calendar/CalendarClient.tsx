@@ -1450,20 +1450,23 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                                         {dayDate.getDate()}
                                      </span>
                                      <div className="flex flex-col gap-1 w-full overflow-hidden">
-                                         {dayAppointments.slice(0, 4).map(app => (
+                                         {dayAppointments.slice(0, 4).map(app => {
+                                           const appearance = appointmentStatusAppearance(app.status);
+                                           return (
                                              <div key={app.id} 
                                                 className={cn(
                                                   "w-full cursor-pointer truncate rounded border-l-2 px-1 py-0.5 text-[10px]",
-                                                  appointmentStatusAppearance(app.status).eventClassName,
+                                                  appearance.eventClassName,
                                                 )}
                                                 onClick={(e) => {
                                                     e.stopPropagation();
                                                     handleOpenEdit(app);
                                                 }}
                                              >
-                                                <span className="font-bold">{paredeDaClinica(app.data_hora_sessao).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}</span> <span>{app.nome_paciente}</span>
+                                                {appearance.glyph && <span aria-hidden="true" className="mr-0.5 font-bold">{appearance.glyph}</span>}<span className="font-bold">{paredeDaClinica(app.data_hora_sessao).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}</span> <span>{app.nome_paciente}</span>
                                              </div>
-                                         ))}
+                                           );
+                                         })}
                                          {dayAppointments.length > 4 && (
                                              <div className="text-[10px] text-muted-foreground pl-1">
                                                  +{dayAppointments.length - 4} mais
