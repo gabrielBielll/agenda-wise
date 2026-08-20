@@ -26,6 +26,15 @@ export function DatePickerWithRange({
     setDate,
     className,
 }: DatePickerWithRangeProps) {
+  const [months, setMonths] = React.useState(1);
+
+  React.useEffect(() => {
+    const media = window.matchMedia("(min-width: 640px)");
+    const update = () => setMonths(media.matches ? 2 : 1);
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
 
   return (
     <div className={cn("grid gap-2", className)}>
@@ -35,7 +44,7 @@ export function DatePickerWithRange({
             id="date"
             variant={"outline"}
             className={cn(
-              "w-[260px] justify-start text-left font-normal",
+              "w-full justify-start text-left font-normal sm:w-[260px]",
               !date && "text-muted-foreground"
             )}
           >
@@ -54,14 +63,14 @@ export function DatePickerWithRange({
             )}
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="start">
+        <PopoverContent className="max-w-[calc(100vw-2rem)] overflow-x-auto p-0" align="start">
           <Calendar
             initialFocus
             mode="range"
             defaultMonth={date?.from}
             selected={date}
             onSelect={setDate}
-            numberOfMonths={2}
+            numberOfMonths={months}
           />
         </PopoverContent>
       </Popover>

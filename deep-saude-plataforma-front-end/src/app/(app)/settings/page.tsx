@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useSession } from 'next-auth/react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
@@ -9,16 +10,26 @@ import { Input } from "@/components/ui/input";
 import { Bell, UserCog, Palette, ShieldCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import IntegracaoGoogleCard from "./IntegracaoGoogleCard";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export default function SettingsPage() {
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const { data: session } = useSession();
+  const [profileName, setProfileName] = useState('');
+  const [profileEmail, setProfileEmail] = useState('');
   const { toast } = useToast();
 
+  useEffect(() => {
+    setProfileName(session?.user?.name || '');
+    setProfileEmail(session?.user?.email || '');
+  }, [session?.user?.name, session?.user?.email]);
+
   const handleSaveChanges = () => {
-    // Placeholder for saving settings
+    // TODO(settings-persistence): trocar este retorno demonstrativo por PATCH /me/preferences.
+    // O payload deve incluir nome, notificações e fuso; após salvar, revalidar a sessão.
     toast({
-      title: "Configurações Salvas (Simulado)",
-      description: "Suas preferências foram atualizadas com sucesso.",
+      title: "Prévia atualizada",
+      description: "A aparência já vale neste dispositivo; dados da conta aguardam a API de preferências.",
       className: "bg-primary text-primary-foreground"
     });
   };
@@ -36,21 +47,19 @@ export default function SettingsPage() {
         <CardContent className="space-y-6">
           <div className="space-y-2">
             <Label htmlFor="profileName">Nome de Exibição</Label>
-            <Input id="profileName" defaultValue="Usuário AgendaWise" />
+            <Input id="profileName" value={profileName} onChange={(event) => setProfileName(event.target.value)} placeholder="Seu nome" />
           </div>
           <div className="space-y-2">
             <Label htmlFor="profileEmail">Endereço de E-mail</Label>
-            <Input id="profileEmail" type="email" defaultValue="usuario@agendawise.com" />
+            <Input id="profileEmail" type="email" value={profileEmail} onChange={(event) => setProfileEmail(event.target.value)} placeholder="voce@exemplo.com" />
           </div>
-           <div className="flex items-center space-x-2">
+           <div className="flex items-start gap-3 rounded-2xl border border-border/60 bg-muted/30 p-4 sm:items-center">
             <Switch
               id="notifications-enabled"
               checked={notificationsEnabled}
               onCheckedChange={setNotificationsEnabled}
             />
-            <Label htmlFor="notifications-enabled" className="flex items-center">
-              <Bell className="mr-2 h-4 w-4" /> Ativar Notificações por E-mail
-            </Label>
+            <div><Label htmlFor="notifications-enabled" className="flex items-center"><Bell className="mr-2 h-4 w-4" /> Ativar notificações por e-mail</Label><p className="mt-1 text-xs text-muted-foreground">Preferência demonstrativa até a API de notificações ser conectada.</p></div>
           </div>
         </CardContent>
       </Card>
@@ -60,11 +69,10 @@ export default function SettingsPage() {
           <CardTitle className="flex items-center"><span className="terra-icon mr-3"><Palette className="h-5 w-5" /></span>Aparência</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-            <div className="flex items-center space-x-2">
-                <Switch id="dark-mode" disabled /> {/* Dark mode toggle could be implemented here */}
-                <Label htmlFor="dark-mode">Ativar Modo Escuro (Em Breve)</Label>
+            <div className="flex flex-col justify-between gap-4 rounded-2xl border border-border/60 bg-muted/30 p-4 sm:flex-row sm:items-center">
+              <div><p className="text-sm font-semibold">Tema da interface</p><p className="mt-1 text-xs text-muted-foreground">A escolha é aplicada em toda a AgendaWise e lembrada neste dispositivo.</p></div>
+              <ThemeToggle showLabel className="w-full sm:w-auto" />
             </div>
-            <p className="text-sm text-muted-foreground">Personalize a aparência do aplicativo.</p>
         </CardContent>
       </Card>
 
@@ -73,14 +81,18 @@ export default function SettingsPage() {
           <CardTitle className="flex items-center"><span className="soft-icon mr-3"><ShieldCheck className="h-5 w-5" /></span>Segurança e privacidade</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-            <Button variant="outline">Alterar Senha (Espaço reservado)</Button>
-            <Button variant="outline">Exportar Meus Dados (Espaço reservado)</Button>
+            {/* TODO(account-security): conectar alteração de senha ao provedor de identidade e
+                exportação a um job LGPD autenticado. Não simular ações sensíveis. */}
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <Button variant="outline" disabled title="Integração de identidade pendente">Alterar senha · em breve</Button>
+              <Button variant="outline" disabled title="Job de exportação LGPD pendente">Exportar meus dados · em breve</Button>
+            </div>
             <p className="text-sm text-muted-foreground">Gerencie a segurança da sua conta e as configurações de privacidade de dados.</p>
         </CardContent>
       </Card>
 
       <div className="flex justify-end border-t border-border/50 pt-5">
-        <Button size="lg" onClick={handleSaveChanges}>Salvar Todas as Configurações</Button>
+        <Button className="w-full sm:w-auto" size="lg" onClick={handleSaveChanges}>Aplicar prévia</Button>
       </div>
     </div>
   );

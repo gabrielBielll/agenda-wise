@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+#
+# pre-push — recusa o push quando o REMOTO andou e você não puxou.
+#
+# Por que isto existe, e não é higiene:
+#
+# Somos quatro instâncias empurrando na MESMA branch. Entre 15 e 20/08 o canal
+# colidiu cinco vezes, e o modo de descobrir foi sempre o mesmo — o push ser
+# rejeitado. Uma vez custou colisão de número de mensagem; outra fez alguém
+# escrever meia mensagem com premissa já falsa.
+#
+# 🔴 A regra NÃO é "rebase na main". Medido em 20/08: a `main` ficou parada de
+# 18/08 20:52 até o merge do PR #7, 421 commits atrás — ela nunca andou enquanto
+# trabalhávamos, então rebasear nela não teria evitado NENHUM dos conflitos. O
+# que anda é a branch compartilhada, e é nela que se rebaseia.
+#
+# ⚠️ E rebasear a branch compartilhada INTEIRA sobre outra exigiria force-push,
+# que quebra o checkout de todo mundo. `git pull --rebase` rebaseia só os SEUS
+# commits ainda não empurrados, que é seguro porque ninguém os viu.
+#
+# Instalar (uma vez, por máquina):
+#     git config core.hooksPath .githooks
+#
+# Pular numa emergência: `git push --no-verify`. Se você usar isso, diga no canal.
+
+set -euo pipefail
+remoto="$1"
+vazio="0000000000000000000000000000000000000000"
+recusou=0
+
+while read -r _ref_local sha_local ref_remoto _sha_remoto; do
+  [ "$sha_local" = "$vazio" ] && continue          # deleção de branch, não é o caso
+  branch="${ref_remoto#refs/heads/}"
+
+  git fetch -q "$remoto" "$branch" 2>/dev/null || continue   # branch nova: nada a puxar
+
+  atras=$(git rev-list --count "${sha_local}..FETCH_HEAD" 2>/dev/null || echo 0)
+  [ "$atras" -eq 0 ] && continue
+
+  echo ""
+  echo "🔴 push recusado: o remoto de '$branch' tem $atras commit(s) que você não tem."
+  echo ""
+  git log --format="   %h %an  %s" "${sha_local}..FETCH_HEAD" | head -8
+  echo ""
+  echo "   Puxe antes, para o seu trabalho ficar EM CIMA do que já chegou:"
+  echo "     git pull --rebase $remoto $branch"
+  echo ""
+  echo "   E rode 'bash mensageria/vigia.sh' depois — se você estiver criando"
+  echo "   mensagem, o número livre pode ter mudado enquanto você escrevia."
+  echo ""
+  recusou=1
+done
+
+exit "$recusou"

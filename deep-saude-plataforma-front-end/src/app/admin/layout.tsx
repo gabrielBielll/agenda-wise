@@ -201,8 +201,8 @@ export default function AdminLayout({
           isSidebarCollapsed ? "md:ml-14" : "md:ml-64"
         )}
       >
-        <AdminHeader />
-        <main className="page-enter mt-14 flex-1 gap-4 p-4 sm:px-7 sm:py-0 md:mt-0 md:gap-8 lg:px-10">
+        <AdminHeader onDrawerToggle={toggleSidebar} />
+        <main className="page-enter flex-1 gap-4 p-4 pb-10 sm:px-7 sm:py-0 sm:pb-10 md:gap-8 lg:px-10">
           {children}
         </main>
       </div>

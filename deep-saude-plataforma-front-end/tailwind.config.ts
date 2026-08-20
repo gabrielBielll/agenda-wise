@@ -10,8 +10,8 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        headline: ['Newsreader', 'Georgia', 'serif'],
-        body: ['DM Sans', 'sans-serif'],
+        headline: ['Playfair Display', 'Georgia', 'serif'],
+        body: ['Montserrat', 'sans-serif'],
         code: ['monospace'],
       },
       colors: {
@@ -65,12 +65,12 @@ export default {
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',
         ring: 'hsl(var(--ring))',
-        // Custom admin colors
+        // Aliases administrativos também apontam para tokens que invertem no tema.
         admin: {
-          primary: '#68715B',
-          success: '#95A084',
-          warning: '#C4A584',
-          danger: '#D2845A',
+          primary: 'hsl(var(--primary))',
+          success: 'hsl(var(--success))',
+          warning: 'hsl(var(--secondary))',
+          danger: 'hsl(var(--destructive))',
         },
         chart: {
           '1': 'hsl(var(--chart-1))',

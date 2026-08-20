@@ -12,10 +12,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { User, FileText, UploadCloud, CalendarDays, Mail, Phone, StickyNote } from "lucide-react";
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { User, FileText, UploadCloud, CalendarDays, Mail, Phone } from "lucide-react";
 import ProntuarioForm from './ProntuarioForm'; // Importar o formulário
-import ProntuarioItem from './ProntuarioItem'; // Importar o item colapsável
 import ProntuarioList from './ProntuarioList';
 import MoodChart from "./MoodChart";
 
@@ -56,8 +54,6 @@ interface Prontuario {
   humor?: number;
 }
 
-interface Document { id: string; name: string; uploadDate: string; url: string; }
-
 // --- FUNÇÃO PARA BUSCAR OS DADOS DO PACIENTE NA API ---
 async function getPatientDetails(patientId: string, token: string): Promise<Patient | null> {
   const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/pacientes/${patientId}`;
@@ -81,12 +77,6 @@ async function getPatientDetails(patientId: string, token: string): Promise<Pati
 
 // --- FUNÇÃO PARA BUSCAR PRONTUÁRIOS ---
 // --- FUNÇÃO PARA BUSCAR AGENDAMENTOS ---
-// --- DADOS MOCKADOS DOCUMENTOS ---
-const mockDocuments: Document[] = [
-    { id: 'd1', name: 'Formulário de Admissão.pdf', uploadDate: '2023-01-10', url: '#' },
-    { id: 'd2', name: 'Carta de Encaminhamento.docx', uploadDate: '2023-02-20', url: '#' },
-];
-
 // --- O COMPONENTE DA PÁGINA (SERVER COMPONENT) ---
 export default async function PatientDetailPage({ params }: { params: Promise<{ patientId: string }> }) {
   const { patientId } = await params;
@@ -152,10 +142,10 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
   return (
     <div className="quiet-page">
       {/* SEÇÃO PRINCIPAL COM DADOS REAIS */}
-      <Card className="overflow-hidden bg-gradient-to-br from-white/75 to-primary/5">
+      <Card className="overflow-hidden bg-gradient-to-br from-card/75 to-primary/5">
         <CardHeader className="relative flex flex-col items-start gap-5 p-7 md:flex-row md:items-center">
-          <span className="absolute -right-16 -top-20 h-56 w-56 rounded-full border border-primary/10 shadow-[0_0_0_38px_rgba(149,160,132,.035)]" />
-          <Avatar className="h-24 w-24 border-[4px] border-white shadow-md">
+          <span className="absolute -right-16 -top-20 h-56 w-56 rounded-full border border-primary/10 shadow-[var(--quiet-shadow-soft)]" />
+          <Avatar className="h-24 w-24 border-[4px] border-card shadow-md">
             <AvatarImage src={patient.avatar_url || ''} alt={patient.nome} />
             <AvatarFallback className="bg-accent/15 font-headline text-3xl text-accent">{getInitials(patient.nome)}</AvatarFallback>
           </Avatar>
@@ -273,16 +263,17 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
 
         <TabsContent value="documents">
           <Card>
-            <CardHeader><CardTitle className="font-headline text-2xl">Documentos do Paciente (Mock)</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="font-headline text-2xl">Documentos do paciente</CardTitle></CardHeader>
             <CardContent>
-                <ul className="space-y-3">
-                  {mockDocuments.map(doc => (
-                    <li key={doc.id} className="flex items-center justify-between rounded-xl border border-border/60 bg-white/35 p-4 transition-colors hover:bg-secondary/15">
-                      <div><a href={doc.url} className="text-primary hover:underline font-medium">{doc.name}</a><p className="text-xs text-muted-foreground">Carregado em: {new Date(doc.uploadDate).toLocaleDateString('pt-BR')}</p></div>
-                      <Button variant="outline" size="sm" asChild><a href={doc.url} download>Baixar</a></Button>
-                    </li>
-                  ))}
-                </ul>
+              {/* TODO(patient-documents): criar endpoints de metadados e upload,
+                  armazenamento privado e downloads com URL assinada e curta. A API
+                  deve aplicar a mesma autorização do prontuário antes de listar. */}
+              <div className="flex flex-col items-center rounded-2xl border border-dashed border-border/70 bg-muted/25 px-5 py-12 text-center">
+                <span className="soft-icon mb-4 h-14 w-14 rounded-full"><UploadCloud className="h-6 w-6" /></span>
+                <h3 className="section-title">Arquivos com o mesmo cuidado.</h3>
+                <p className="mt-2 max-w-md text-sm text-muted-foreground">O espaço está desenhado, mas o armazenamento clínico seguro ainda será conectado antes de aceitar documentos reais.</p>
+                <Button className="mt-5" variant="outline" disabled title="Armazenamento seguro em implementação">Enviar documento · em breve</Button>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

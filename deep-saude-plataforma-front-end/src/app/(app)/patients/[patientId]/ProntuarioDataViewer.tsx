@@ -80,7 +80,7 @@ export default function ProntuarioDataViewer({ patientId, patientData }: { patie
   }, [state, toast]);
 
   return (
-    <div className="border rounded-md p-4 bg-white dark:bg-gray-950">
+    <div className="rounded-2xl border border-border/70 bg-card/45 p-4">
         <h4 className="font-semibold text-lg mb-4 flex items-center gap-2">
             <span className="text-primary">📋</span> Dados Clínicos (Prontuário)
         </h4>

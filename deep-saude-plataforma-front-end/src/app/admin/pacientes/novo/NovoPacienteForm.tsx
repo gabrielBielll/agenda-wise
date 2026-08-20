@@ -25,7 +25,7 @@ const initialState: FormState = {
 
 function SubmitButton() {
   const { pending } = useFormStatus();
-  return <Button type="submit" disabled={pending}>{pending ? "Salvando..." : "Salvar Paciente"}</Button>;
+  return <Button className="w-full sm:w-auto" type="submit" disabled={pending}>{pending ? "Salvando..." : "Salvar paciente"}</Button>;
 }
 
 export default function NovoPacienteForm({ psicologos }: { psicologos: Psicologo[] }) {
@@ -125,7 +125,7 @@ export default function NovoPacienteForm({ psicologos }: { psicologos: Psicologo
           <Textarea id="endereco" name="endereco" placeholder="Ex: Rua das Flores, 123..." value={campos.endereco} onChange={mudar("endereco")} />
         </div>
 
-        <div className="flex justify-end pt-4">
+        <div className="flex justify-end border-t border-border/50 pt-5">
           <SubmitButton />
         </div>
       </CardContent>

@@ -101,13 +101,13 @@ export default function ProntuarioItem({ data, patientId, appointments }: Prontu
 
   return (
     <Card 
-      className={`cursor-pointer border-l-[3px] border-l-primary bg-white/45 transition-all duration-300 hover:-translate-y-0.5 hover:bg-white/65 ${isExpanded ? 'shadow-[0_18px_50px_rgba(74,67,55,.1)]' : ''}`}
+      className={`cursor-pointer border-l-[3px] border-l-primary bg-card/45 transition-all duration-300 hover:-translate-y-0.5 hover:bg-card/70 ${isExpanded ? 'shadow-[var(--quiet-shadow)]' : ''}`}
       onClick={toggleExpand}
     >
       <CardHeader className="pb-2">
         <div className="flex justify-between items-center">
           <CardTitle className="text-md font-semibold flex items-center gap-2">
-            {data.tipo === 'anotacao' ? <StickyNote className="h-4 w-4 text-yellow-500" /> : <FileText className="h-4 w-4 text-blue-500" />}
+            {data.tipo === 'anotacao' ? <StickyNote className="h-4 w-4 text-secondary" /> : <FileText className="h-4 w-4 text-accent" />}
             {displayDate}
           </CardTitle>
           <div className="flex items-center gap-2">

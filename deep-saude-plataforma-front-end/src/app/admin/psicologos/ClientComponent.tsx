@@ -131,12 +131,12 @@ export default function ClientComponent({
 
       <Card>
       <CardHeader>
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
           <div>
             <CardTitle>Gestão de Psicólogos</CardTitle>
             <CardDescription>Adicione, edite e gerencie os psicólogos da clínica.</CardDescription>
           </div>
-          <Button asChild>
+          <Button asChild className="w-full sm:w-auto">
             <Link href="/admin/psicologos/novo">
               <PlusCircle className="mr-2 h-4 w-4" />
               Adicionar Psicólogo
@@ -148,12 +148,13 @@ export default function ClientComponent({
             placeholder="Buscar psicólogo por nome..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="max-w-sm"
+            className="w-full sm:max-w-sm"
           />
         </div>
       </CardHeader>
       <CardContent>
-        <Table>
+        <p className="mobile-scroll-hint mb-2">Deslize a tabela para ver contatos e ações.</p>
+        <Table className="min-w-[620px]">
           <TableHeader>
             <TableRow>
               <TableHead>Nome</TableHead>
@@ -167,7 +168,7 @@ export default function ClientComponent({
                 <TableRow key={psicologo.id}>
                   <TableCell className="font-medium">{psicologo.nome}</TableCell>
                   <TableCell>{psicologo.email}</TableCell>
-                  <TableCell className="text-right space-x-2">
+                  <TableCell className="text-right"><div className="flex justify-end gap-2">
                       <Button variant="outline" size="icon" className="h-8 w-8" asChild>
                         <Link href={`/admin/psicologos/${psicologo.id}/view`}>
                           <Eye className="h-4 w-4" />
@@ -210,7 +211,7 @@ export default function ClientComponent({
                           </AlertDialogAction>
                         </AlertDialogFooter>
                       </AlertDialogContent>
-                    </AlertDialog>
+                    </AlertDialog></div>
                   </TableCell>
                 </TableRow>
               ))

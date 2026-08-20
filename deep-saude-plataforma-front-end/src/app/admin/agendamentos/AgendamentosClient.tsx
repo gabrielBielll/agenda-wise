@@ -286,7 +286,7 @@ export default function AgendamentosClient({
    *
    * 📌 Tudo por token (`text-muted-foreground`, `bg-accent`, `bg-card`) e nunca
    * cor crua — ele definiu a paleta escura inteira no `globals.css`, e um
-   * `bg-white` aqui quebraria o modo escuro em silêncio.
+   * uma superfície literal aqui quebraria o modo escuro em silêncio.
    *
    * 🔴 **Nenhum comportamento mudou.** Os `id` da A11Y-001a, o fluxo de forçar da
    * A-009, o diálogo de bloqueio e os filtros continuam idênticos — só a casca
@@ -314,7 +314,7 @@ export default function AgendamentosClient({
 
     <Card>
       <CardHeader>
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+        <div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-end">
           <div>
             <CardTitle className="section-title flex items-center gap-2">
               <span className="soft-icon h-9 w-9"><Calendar className="h-[18px] w-[18px]"/></span>
@@ -322,8 +322,8 @@ export default function AgendamentosClient({
             </CardTitle>
             <CardDescription>Visualize e gerencie os agendamentos da clínica.</CardDescription>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="bg-muted p-1 rounded-md flex">
+          <div className="grid w-full gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center sm:justify-end">
+            <div className="flex justify-self-start rounded-xl bg-muted p-1">
               <Button 
                 variant={viewMode === "list" ? "secondary" : "ghost"} 
                 size="sm" 
@@ -341,7 +341,7 @@ export default function AgendamentosClient({
                 <CalendarDays className="h-4 w-4" />
               </Button>
             </div>
-            <Button asChild>
+            <Button asChild className="w-full sm:w-auto">
               <Link href="/admin/agendamentos/novo">
                 <PlusCircle className="mr-2 h-4 w-4" />
                 Novo Agendamento
@@ -352,7 +352,7 @@ export default function AgendamentosClient({
               <DialogTrigger asChild>
                 {/* Por token: o laranja cru não conhece o tema escuro, e `accent` é
                     exatamente a terracota que ele usa para chamar atenção sem alarmar. */}
-                <Button variant="outline" className="gap-2 border-accent/40 text-accent hover:bg-accent/10">
+                <Button variant="outline" className="w-full gap-2 border-accent/40 text-accent hover:bg-accent/10 sm:w-auto">
                   <Lock className="h-4 w-4" />
                   Bloquear Horário
                 </Button>
@@ -628,7 +628,8 @@ export default function AgendamentosClient({
       <CardContent>
         {viewMode === "list" ? (
           <>
-          <Table>
+          <p className="mobile-scroll-hint mb-2">Deslize a tabela para ver todos os dados da sessão.</p>
+          <Table className="min-w-[760px]">
             <TableHeader>
               <TableRow>
                 <TableHead>Paciente</TableHead>
@@ -732,7 +733,7 @@ export default function AgendamentosClient({
           )}
           </>
         ) : (
-          <div className="h-[600px] border rounded-md p-2 overflow-hidden">
+          <div className="h-[70vh] min-h-[520px] overflow-hidden rounded-2xl border border-border/60 p-1 sm:p-2 lg:h-[650px]">
              {selectedPsicologo === "all" ? (
                <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
                  <AlertTriangle className="h-10 w-10 mb-2 opacity-50" />
@@ -747,7 +748,9 @@ export default function AgendamentosClient({
                    nome_paciente: ag.nome_paciente || "",
                  } as any))}
                  bloqueios={bloqueios.filter(b => b.psicologo_id === selectedPsicologo)}
-                 onAddAppointment={() => {}} 
+                 // TODO(admin-calendar-create-from-slot): abrir /novo com psicólogo e
+                 // data/hora pré-preenchidos quando WeekView expuser o instante clicado.
+                 onAddAppointment={() => {}}
                  onEditAppointment={(app) => {
                     window.location.href = `/admin/agendamentos/${app.id}/edit`;
                  }}

@@ -165,3 +165,76 @@ veredito, e a pessoa vai reclicar em vez de entender.
   cancelamento tem texto branco sobre laranja a **2,78:1**.
 - O CI ganhou três guardas novas, e **fecharam verdes no `f893ccd`** — nos dois
   runs, não só no meu terminal.
+
+---
+
+## 8. Acrescentado depois de publicar — o merge saiu, e a proteção não protege
+
+O Gabriel pediu para consolidar tudo: *"todos os avanços têm que estar na mesma
+branch e ir pro ar […] joga logo tudo pro ar"*. Feito, nesta ordem:
+
+```
+PR #7 mesclado na main   -> aab7949  (merge commit, NAO squash)
+prod  adiantada          -> aab7949
+staging adiantada        -> aab7949   (estava em 15/05)
+```
+
+As quatro linhas agora têm o **mesmo conteúdo**: conferi que a árvore da `main` é
+idêntica byte a byte à da branch viva.
+
+📌 **Mesclei com merge commit e não com squash de propósito.** Metade do valor
+deste repositório é o registro de como cada decisão foi tomada — inclusive os
+diagnósticos que estavam errados. Squash de 421 commits apagaria isso.
+
+### 🔴 E aqui está a resposta para a pergunta da §3, medida sem querer
+
+Ao adiantar `prod`, o push respondeu **as duas coisas ao mesmo tempo**:
+
+```
+remote: - Changes must be made through a pull request.
+To https://github.com/gabrielBielll/agenda-wise
+   8109afc..aab7949  origin/main -> prod
+```
+
+Uma linha diz que é proibido; a outra parece sucesso. **Conferi por efeito** —
+`git fetch` e comparação de SHA — e o push **passou**. Repeti em `staging`: mesma
+mensagem, mesmo resultado.
+
+🔴 **Então a proteção de `prod` avisa e deixa passar, para esta conta.** Duas
+medições independentes, dois branches.
+
+**Isso muda o desenho do portão da D-020.** Apontar a Northflank para `prod` e
+marcar os quatro checks **não basta**: quem tiver este nível de permissão continua
+empurrando direto, e o portão vira decorativo justamente para quem tem pressa —
+que é quem ele existe para segurar.
+
+⚠️ **O que falta, e é do Gabriel:** ligar *"incluir administradores"* na proteção
+de `prod` (no GitHub, `enforce_admins`). Sem isso o resto é teatro.
+
+📌 E vale notar o formato da armadilha: **o push imprimiu uma linha de erro e uma
+linha de sucesso, e a de sucesso estava certa.** Se eu tivesse lido só a primeira,
+teria reportado "a proteção bloqueou" — falso. Se tivesse lido só a segunda, teria
+perdido o achado. Foi o `fetch` que decidiu, e é sempre o efeito que decide.
+
+### O que NÃO mudou
+
+**Nada no ar.** A Northflank constrói a branch de trabalho, não a `main` — então
+o merge não moveu o site um milímetro. Tudo o que subimos hoje já estava no ar
+minutos depois de cada push. O merge acabou com a `main` mentindo, que é outra
+coisa.
+
+### Nada se perdeu — medido por conteúdo, não por SHA
+
+| branch | commits só dela | conteúdo |
+|---|---|---|
+| `Hotfix-ui-calendar`, `main`, `prod`, `staging` | 0 | tudo já estava na viva |
+| `vale/token-success-e-a026-20260819` | 3 | os três equivalentes (`git cherry` = `-`) |
+| `new-branch` | 15 | 14 equivalentes + **1 órfão** |
+
+O órfão é o `6258bc14`, o WIP do ROB-008 da `duna` (GPT no Termux). Conferi as
+**131 linhas não triviais** que ele acrescenta: **todas** estão na branch viva.
+Com controle nos dois sentidos — o verificador acha o que existe e não acha o que
+não existe. **A sua conferência linha a linha na 0193 se confirma.**
+
+✅ As duas branches podem ser apagadas com segurança. A `new-branch` já tem o
+retrato na tag `retrato-new-branch-2026-08-17`.

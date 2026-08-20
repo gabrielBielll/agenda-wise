@@ -82,7 +82,7 @@ export function CalendarHeader({ date, setDate, view, setView, onToday }: Calend
 
       <div className="flex items-center gap-2">
         <Select value={view} onValueChange={(v: any) => setView(v)}>
-          <SelectTrigger className="w-[125px] bg-white/45">
+          <SelectTrigger className="w-[125px] bg-card/45">
             <SelectValue placeholder="Visualização" />
           </SelectTrigger>
           <SelectContent>

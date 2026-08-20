@@ -697,14 +697,14 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
   return (
     <div className="quiet-page">
       <div className="flex flex-col gap-6">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
             <div>
             <p className="page-eyebrow mb-2">Dinheiro da clínica</p>
             <h1 className="page-title">O que entra e o que sai.</h1>
             <p className="page-subtitle">Repasses das psicólogas e o que fica com a clínica.</p>
             </div>
-            <div className="flex gap-2">
-              <Button onClick={exportToCSV} variant="outline" className="gap-2">
+            <div className="w-full sm:w-auto">
+              <Button onClick={exportToCSV} variant="outline" className="w-full gap-2 sm:w-auto">
                 <Download className="h-4 w-4" />
                 Exportar CSV
               </Button>
@@ -712,16 +712,16 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
         </div>
 
         {/* Filters */}
-        <div className="flex flex-wrap gap-4 items-center bg-card p-4 rounded-lg border">
-            <div className="flex items-center gap-2 mr-2">
+        <div className="grid gap-3 rounded-2xl border border-border/70 bg-card/60 p-4 sm:grid-cols-2 xl:flex xl:flex-wrap xl:items-center">
+            <div className="flex items-center gap-2 sm:col-span-2 xl:mr-2">
                 <Filter className="h-4 w-4 text-muted-foreground" />
                 <span className="text-sm font-medium">Filtros:</span>
             </div>
             
-            <DatePickerWithRange date={dateRange} setDate={setDateRange} />
+            <DatePickerWithRange date={dateRange} setDate={setDateRange} className="w-full" />
 
             <Select value={selectedPsicologo} onValueChange={setSelectedPsicologo}>
-                <SelectTrigger className="w-[200px]">
+                <SelectTrigger className="w-full xl:w-[200px]">
                     <SelectValue placeholder="Todos os Psicólogos" />
                 </SelectTrigger>
                 <SelectContent>
@@ -733,7 +733,7 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
             </Select>
 
             <Select value={selectedPaciente} onValueChange={setSelectedPaciente}>
-                <SelectTrigger className="w-[200px]">
+                <SelectTrigger className="w-full xl:w-[200px]">
                     <SelectValue placeholder="Todos os Pacientes" />
                 </SelectTrigger>
                 <SelectContent>
@@ -745,7 +745,7 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
             </Select>
 
             <Select value={selectedRepasse} onValueChange={setSelectedRepasse}>
-                <SelectTrigger className="w-[180px]">
+                <SelectTrigger className="w-full xl:w-[180px]">
                     <SelectValue placeholder="Status Pagamento" />
                 </SelectTrigger>
                 <SelectContent>
@@ -757,13 +757,13 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
 
 
 
-            <div className="flex items-center gap-2 border-l pl-4 ml-2">
+            <div className="flex items-center gap-2 border-t border-border/60 pt-3 sm:col-span-2 xl:ml-2 xl:border-l xl:border-t-0 xl:pl-4 xl:pt-0">
                 <span className="text-sm font-medium text-muted-foreground flex items-center gap-1">
                     <ArrowUpDown className="h-4 w-4" />
                     Ordenar:
                 </span>
                 <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
-                    <SelectTrigger className="w-[140px]">
+                    <SelectTrigger className="w-full min-w-[140px]">
                         <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -850,7 +850,7 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
       </div>
 
       {chartData.length > 0 && (
-        <Card className="col-span-4">
+        <Card>
           <CardHeader>
             <CardTitle>Evolução da Receita</CardTitle>
             <CardDescription>Visualização diária da receita no mês.</CardDescription>
@@ -861,20 +861,20 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
                 <AreaChart data={chartData}>
                     <defs>
                         <linearGradient id="colorReceita" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#16a34a" stopOpacity={0.8}/>
-                        <stop offset="95%" stopColor="#16a34a" stopOpacity={0}/>
+                        <stop offset="5%" stopColor="hsl(var(--success))" stopOpacity={0.8}/>
+                        <stop offset="95%" stopColor="hsl(var(--success))" stopOpacity={0}/>
                         </linearGradient>
                     </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
                   <XAxis 
                     dataKey="name" 
-                    stroke="#888888" 
+                    stroke="hsl(var(--muted-foreground))"
                     fontSize={12} 
                     tickLine={false} 
                     axisLine={false} 
                   />
                   <YAxis 
-                    stroke="#888888" 
+                    stroke="hsl(var(--muted-foreground))"
                     fontSize={12} 
                     tickLine={false} 
                     axisLine={false} 
@@ -887,7 +887,7 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
                   <Area 
                     type="monotone" 
                     dataKey="value" 
-                    stroke="#16a34a" 
+                    stroke="hsl(var(--success))"
                     strokeWidth={2}
                     fillOpacity={1} 
                     fill="url(#colorReceita)" 
@@ -906,7 +906,8 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
             <CardDescription>Receita e repasse calculado pela regra individual aplicada em cada sessão.</CardDescription>
         </CardHeader>
         <CardContent>
-            <Table>
+            <p className="mobile-scroll-hint mb-2">Deslize para comparar todos os valores por profissional.</p>
+            <Table className="min-w-[720px]">
                 <TableHeader>
                     <TableRow>
                         <TableHead>Psicólogo</TableHead>
@@ -945,7 +946,7 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
                             <TableCell className="text-right font-bold text-success">
                                 {formatCurrency(stats.total)}
                             </TableCell>
-                            <TableCell className="text-right font-medium text-orange-600">
+                            <TableCell className="text-right font-medium text-primary">
                                 {formatCurrency(stats.repasse)}
                             </TableCell>
                              <TableCell className="text-right text-xs text-muted-foreground">
@@ -971,7 +972,8 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
           <CardDescription>Lista detalhada de todos os registros do mês.</CardDescription>
         </CardHeader>
         <CardContent>
-          <Table>
+          <p className="mobile-scroll-hint mb-2">Deslize para editar os detalhes financeiros de cada sessão.</p>
+          <Table className="min-w-[1420px]">
             <TableHeader>
               <TableRow>
                 <TableHead>Data</TableHead>
@@ -1092,7 +1094,7 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
                                 size="sm"
                                 className={cn(
                                     "h-8 px-2 text-xs font-medium",
-                                    ag.status_repasse === 'transferido' ? "text-success hover:text-success/80" : "text-blue-600 hover:text-blue-700"
+                                    ag.status_repasse === 'transferido' ? "text-success hover:text-success/80" : "text-primary hover:text-primary/80"
                                 )}
                                 onClick={() => handleUpdateRepasseStatus(ag.id, ag.status_repasse)}
                             >
@@ -1182,7 +1184,7 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
                             />
                         ) : (
                             <span 
-                                className="font-bold text-success cursor-pointer hover:bg-gray-100 px-2 py-1 rounded"
+                                className="cursor-pointer rounded px-2 py-1 font-bold text-success hover:bg-success/10"
                                 onClick={() => {
                                     setEditingValorId(ag.id);
                                     setEditingValorValue(String(Number(ag.valor_consulta)));

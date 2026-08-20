@@ -563,7 +563,7 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
   return (
     <div className="flex h-full w-full overflow-hidden bg-transparent">
       {/* Sidebar */}
-      <aside className="hidden w-[260px] flex-shrink-0 flex-col gap-6 border-r border-border/40 bg-white/35 p-4 backdrop-blur-md lg:flex dark:bg-card/45">
+      <aside className="hidden w-[260px] flex-shrink-0 flex-col gap-6 border-r border-border/40 bg-card/35 p-4 backdrop-blur-md lg:flex">
         
         <Dialog open={isDialogOpen} onOpenChange={(open) => {
             setIsDialogOpen(open);
@@ -907,7 +907,7 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                     que foi exatamente onde a `vale` parou na varredura de cor.
                     Não colide com a convenção da R-017 porque botão não é chip
                     de evento. Ver docs/GOOGLE_CORES_E_RECONCILIACAO.md §12. */}
-                <AlertDialogAction onClick={handleForceSubmit} className="bg-orange-500 text-white hover:bg-orange-600">
+                <AlertDialogAction onClick={handleForceSubmit} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
                     Sim, agendar
                 </AlertDialogAction>
                 </AlertDialogFooter>
@@ -1259,7 +1259,7 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
           />
         )}
 
-        <div className="rounded-[18px] border border-white/70 bg-white/55 p-3 shadow-[0_12px_35px_rgba(74,67,55,.06)] dark:bg-card/55">
+        <div className="rounded-[18px] border border-border/70 bg-card/55 p-3 shadow-[var(--quiet-shadow-soft)]">
             <Calendar
                 mode="single"
                 selected={date}
@@ -1318,7 +1318,7 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                     mode="single"
                     selected={date}
                     onSelect={(d) => d && setDate(d)}
-                    className="h-full w-full rounded-[20px] border border-white/70 bg-card/65 p-0 shadow-[0_18px_55px_rgba(74,67,55,.08)] backdrop-blur-md"
+                    className="h-full w-full rounded-[20px] border border-border/70 bg-card/70 p-0 shadow-[var(--quiet-shadow-soft)] backdrop-blur-md"
                     month={date}
                     onMonthChange={setDate}
                     classNames={{

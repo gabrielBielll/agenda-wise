@@ -57,8 +57,8 @@ const initialState: FormState = {
 function SubmitButton() {
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" className="w-full" disabled={pending}>
-      {pending ? "Agendando..." : "Confirmar Agendamento"}
+    <Button type="submit" className="w-full sm:w-auto" disabled={pending}>
+      {pending ? "Agendando..." : "Confirmar agendamento"}
     </Button>
   );
 }
@@ -502,7 +502,7 @@ export default function NovoAgendamentoForm({
           </div>
         )}
 
-        <div className="flex justify-end pt-4"><SubmitButton /></div>
+        <div className="flex justify-end border-t border-border/50 pt-5"><SubmitButton /></div>
       </CardContent>
 
       {/* R-006, terceiro passo: a gestão decide sobre o conflito. */}
