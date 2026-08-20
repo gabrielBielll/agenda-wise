@@ -988,3 +988,30 @@ As três branches estão `protected: true`, mas **isso não diz que a proteção
 os quatro checks**. Se não exigir, o portão não existe: vira só *"precisa de PR"*,
 e PR se mescla com CI vermelho. **Conferir por efeito** — abrir um PR que reprova
 e ver o merge ser recusado —, nunca lendo a tela de configuração.
+
+### 🔴 Medido em 2026-08-20, algumas horas depois: a proteção avisa e deixa passar
+
+Ao adiantar `prod` e `staging` a mando do Gabriel, o push respondeu as duas coisas
+ao mesmo tempo:
+
+```
+remote: - Changes must be made through a pull request.
+To https://github.com/gabrielBielll/agenda-wise
+   8109afc..aab7949  origin/main -> prod
+```
+
+Uma linha proíbe, a outra parece sucesso. Conferido **por efeito** (`fetch` e
+comparação de SHA): o push **passou**. Repetido em `staging`, mesmo resultado —
+duas medições independentes.
+
+🔴 **Então esta decisão, como está escrita acima, não entrega o portão.** Apontar a
+Northflank para `prod` e marcar os quatro checks não basta: quem tiver este nível
+de permissão continua empurrando direto, e o portão vira decorativo **justamente
+para quem tem pressa**, que é quem ele existe para segurar.
+
+⚠️ **O que falta, e é do Gabriel:** ligar *"incluir administradores"*
+(`enforce_admins`) na proteção de `prod`. Sem isso o resto é teatro.
+
+📌 E vale guardar o formato da armadilha: **o push imprimiu uma linha de erro e uma
+linha de sucesso, e a certa era a de sucesso.** Ler só a primeira daria "a proteção
+bloqueou" — falso. Ler só a segunda perderia o achado. Foi o `fetch` que decidiu.
