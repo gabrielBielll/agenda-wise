@@ -317,6 +317,18 @@ jobs:
       - name: typecheck do e2e (tsconfig separado)
         run: npm run typecheck:e2e
 
+      - name: rotulos e campos — A11Y-001 e o motivo descartado
+        # 🔴 Tres varreduras mecanicas da mesma familia: o rotulo promete e o
+        # campo nao cumpre. As duas primeiras sao a A11Y-001 (nome acessivel); a
+        # terceira nasceu fechando a A11Y-001b, quando apareceu que o campo
+        # "Motivo" do bloqueio nao tinha `name` e o valor digitado pela psicologa
+        # era DESCARTADO em silencio.
+        #
+        # 📌 O verificador testa a si mesmo antes de varrer, e morre com codigo 2
+        # se o autoteste falhar — scanner quebrado devolve zero achados, que e
+        # indistinguivel de "esta tudo certo".
+        run: npm run checa:campos
+
       - name: next build
         # Segredos de mentira: o build precisa das variáveis existirem, não
         # valerem alguma coisa. Nenhuma delas é usada em tempo de build para

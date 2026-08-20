@@ -467,24 +467,29 @@ test.describe('o que sobrevive à mudança de campo descontrolado para controlad
     const dialogo = await abrirDialogoDeSessao(page);
 
     // A quantidade só existe depois de escolher uma recorrência.
-    const repetir = dialogo.getByRole('combobox').nth(1);
+    const repetir = dialogo.getByRole('combobox', { name: /repetir/i });
     /**
-     * ⚠️ Âncora antes do clique, pelo mesmo motivo da `orla` no
-     * `forcar-e-privilegio-da-clinica`: nenhum destes combobox tem nome
-     * acessível (A11Y-001b), então o alvo é posicional. Se a ordem do DOM mudar,
-     * o `.nth(1)` abre o seletor de PACIENTE, a opção "Semanalmente" não existe
-     * ali, e a morte seria um timeout culpando o teto de 120 por um defeito de
-     * seletor. O de recorrência nasce "Não repetir"; o de paciente, "Selecione".
+     * 📌 Era `.nth(1)` até a **A11Y-001b**, e o comentário que morava aqui
+     * explicava por quê: nenhum destes combobox tinha nome acessível, então o
+     * alvo era posicional. Uma mudança de ordem do DOM abriria o seletor de
+     * PACIENTE, "Semanalmente" não existiria ali, e a morte seria um timeout
+     * **culpando o teto de 120 por um defeito de seletor**.
+     *
+     * Os controles ganharam `id` casando com o `<Label htmlFor>`, então o alvo
+     * passou a ser o NOME e a ordem do DOM deixou de importar. A âncora fica,
+     * agora medindo outra coisa: que o nome acessível não regrediu.
      */
     await expect(
       repetir,
-      'o segundo combobox do diálogo não é o de recorrência — a ordem do DOM ' +
-        'mudou. NÃO é o teto de 120.'
+      'o combobox "Repetir" não foi encontrado pelo nome — a A11Y-001b regrediu, ' +
+        'e um leitor de tela volta a anunciar só "combobox". NÃO é o teto de 120.'
     ).toContainText(/n[ãa]o (se )?repet/i);
     await repetir.click();
     await page.getByRole('option', { name: /semanalmente/i }).first().click();
 
-    const quantidade = dialogo.locator('#quantidade_recorrencia_input');
+    // Por rótulo, não por id: assim o teste também guarda a associação
+    // `<Label htmlFor>` ↔ `id` que a A11Y-001b acabou de estabelecer.
+    const quantidade = dialogo.getByLabel(/x vezes/i);
     await expect(
       quantidade,
       'o campo de quantidade não apareceu depois de escolher "Semanalmente" — sem ' +
