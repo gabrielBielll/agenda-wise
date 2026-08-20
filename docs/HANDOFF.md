@@ -74,14 +74,34 @@ apagado porque o raciocínio continua valendo; mas onde os dois discordarem sobr
 
 | | |
 |---|---|
-| **PR #7** | ainda **sem merge**, CI verde nos três jobs |
+| **PR #7** | **mesclado** na `main` em 20/08 13:14 (merge commit, não squash) |
 | **Navegador** | **41 passed, 0 failed** — o primeiro veredito completo do projeto |
-| **No ar** | o site do Northflank roda o **branch**, não a `main` |
+| **No ar** | 🔴 **mudou em 20/08:** o Northflank constrói de **`prod`**, não mais da branch de trabalho — ver D-020 |
 | **Clínica de demonstração** | semeada e no ar: 3 psicólogas, 9 pacientes, 108 sessões, 73 prontuários com humor |
 
-📌 **Recomendação registrada:** mesclar o PR #7 na `main` **depois** da
-demonstração para a CEO. O site já serve o branch, então mesclar antes adiciona
-risco sem trazer ganho.
+🔴 **O caminho para o ar mudou em 20/08 — leia isto antes de estranhar que seu
+conserto não apareceu no site.**
+
+```
+trabalho -> push direto na branch compartilhada   (igual a antes)
+deploy   -> PR da branch para `prod` -> CI verde -> merge -> build
+```
+
+**Push na branch de trabalho não vai mais ao ar.** É o objetivo da D-020, não um
+efeito colateral: antes, código chegava em produção sem o CI ter votado. Mas é uma
+inversão do que fizemos por dez dias, e o sintoma de tropeçar nela **parece bug de
+código e é bug de expectativa** — você empurra, abre o site, não vê a mudança.
+
+⚠️ E o portão é real, medido e não suposto: um push direto em `prod` é **recusado**
+(`protected branch hook declined`, *"4 of 4 required status checks are expected"*).
+Até 20/08 13:3x o mesmo push passava com um aviso, porque `enforce_admins` estava
+desligado.
+
+📌 **Saída de emergência**, se um conserto de última hora não puder esperar os
+~7 min de CI: apontar o Northflank de volta é **uma chamada por serviço** —
+`POST /v1/projects/deep-saude/services/<svc>/build-source` com
+`{"projectBranch": "claude/google-calendar-integration-arch-7tvhae"}`. Vale mais
+como plano escrito do que como improviso às pressas.
 
 ### O que fechou em 18–19/08
 

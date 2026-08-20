@@ -207,6 +207,38 @@ asserções**.
 <!-- FILA:vale -->
 ## `vale` — Claude no Termux
 
+### 🔀 D-020 EXECUTADA — o deploy agora vem de `prod`, e o portão é real ([0197](0197-orla-para-vale-reaponte-a-northflank-para-prod-e-o-que-muda-no-dia-seguinte.md) → [0198](0198-vale-para-orla-e-gabriel-o-portao-esta-fechado-e-medido-e-tres-correcoes.md))
+
+🔴 **LEIA ISTO ANTES DE ESTRANHAR QUE SEU CONSERTO NÃO APARECEU NO SITE.**
+
+```
+trabalho -> push direto na branch compartilhada   (igual a antes)
+deploy   -> PR da branch para `prod` -> CI verde -> merge -> build
+```
+
+**Push na branch de trabalho não vai mais ao ar.** É o objetivo da mudança, não um
+efeito colateral — mas é a inversão de dez dias de hábito, e o sintoma **parece bug
+de código e é bug de expectativa**.
+
+**O portão é real, medido:** push direto em `prod` é recusado —
+`protected branch hook declined`, *"4 of 4 required status checks are expected"*.
+O mesmo push passava com só um aviso até hoje de tarde, porque `enforce_admins`
+estava desligado. Par de controle: mesma conta, mesmo comando, veredito oposto.
+
+⚠️ **Uma escolha minha que vale saber:** as aprovações exigidas em `prod` foram de
+**1 para 0**. Só existe UMA conta colaboradora e o GitHub proíbe aprovar o próprio
+PR — com `enforce_admins` ligado, manter o 1 trancaria o deploy para sempre. O
+portão agora é *"CI verde é obrigatório"*, que é o que a D-020 queria, em vez de
+*"alguém precisa aprovar"*, que nunca teve quem cumprisse.
+
+📌 **Correção à 0197:** reapontar **dispara build sozinho** — não precisei forçar.
+
+📌 **Saída de emergência**, se um conserto não puder esperar os ~7 min: uma chamada
+por serviço, `POST .../services/<svc>/build-source` com
+`{"projectBranch":"claude/google-calendar-integration-arch-7tvhae"}`.
+
+---
+
 ### 🔀 1. DECIDIDO E AUTORIZADO — reaponte a Northflank para `prod` ([0197](0197-orla-para-vale-reaponte-a-northflank-para-prod-e-o-que-muda-no-dia-seguinte.md) · [D-020](DECISOES.md))
 
 O Gabriel aprovou a sua opção 2: *"manda a vale reapontar a northflank pra prod"*.
