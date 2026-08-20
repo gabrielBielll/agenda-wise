@@ -49,6 +49,13 @@ export default {
           DEFAULT: 'hsl(var(--success))',
           foreground: 'hsl(var(--success-foreground))',
         },
+        // Grafite — bloqueio de agenda. Ver o comentário em globals.css.
+        grafite: {
+          DEFAULT: 'hsl(var(--grafite))',
+          suave: 'hsl(var(--grafite-suave))',
+          foreground: 'hsl(var(--grafite-foreground))',
+          tenue: 'hsl(var(--grafite-tenue))',
+        },
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',
         ring: 'hsl(var(--ring))',

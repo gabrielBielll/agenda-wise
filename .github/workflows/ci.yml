@@ -300,11 +300,22 @@ jobs:
           css=$(find .next -name '*.css' -path '*static*' | tr '\n' ' ')
           test -n "$css" || { echo "::error::o build nao emitiu CSS nenhum"; exit 1; }
           faltou=0
-          for alvo in '--success:' '--success-foreground:' '.bg-success{' '.text-success{' '.bg-destructive{'; do
+          for alvo in '--success:' '--success-foreground:' '.bg-success{' '.text-success{' '.bg-destructive{' \
+                      '--grafite:' '--grafite-suave:' '--grafite-tenue:' '--grafite-foreground:' \
+                      '.bg-grafite-suave{' '.bg-grafite-tenue{' '.border-grafite{' '.text-grafite-foreground{'; do
             grep -qF -- "$alvo" $css || { echo "::error::faltou no CSS compilado: $alvo"; faltou=1; }
           done
+          # 🔴 O laranja do bloqueio nao pode voltar. Ele colide com Tangerina, que
+          # na convencao da R-017 significa *sessao agendada* — a mesma cor com
+          # sentidos opostos nas duas telas faz a psicologa errar. Esta guarda
+          # olha o FONTE e nao o CSS: classe de laranja nas duas visoes da agenda
+          # e regressao, mesmo que compile.
+          if grep -rn 'orange' src/app/\(app\)/calendar/DayView.tsx src/app/\(app\)/calendar/WeekView.tsx; then
+            echo "::error::o laranja voltou ao bloqueio da agenda — ver GC-017 e R-017"
+            faltou=1
+          fi
           test "$faltou" -eq 0 || exit 1
-          echo "ok: --success nos dois temas, .bg-success e .text-success gerados"
+          echo "ok: --success e --grafite nos dois temas, classes geradas, bloqueio sem laranja"
 
   navegador:
     name: Navegador — Playwright (o que a pico levou embora)

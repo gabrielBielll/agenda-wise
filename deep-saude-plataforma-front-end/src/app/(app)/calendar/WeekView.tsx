@@ -171,7 +171,7 @@ export function WeekView({ date, appointments, bloqueios = [], onAddAppointment,
                   key={hour} 
                   className={cn(
                     "group relative h-20 cursor-pointer border-b border-border/20 transition-colors",
-                    isBlocked ? "bg-orange-100/50 dark:bg-orange-900/20" : "hover:bg-accent/5"
+                    isBlocked ? "bg-grafite-tenue" : "hover:bg-accent/5"
                   )}
                   onClick={(e) => handleSlotClick(day, hour, e)}
                 >
@@ -200,7 +200,7 @@ export function WeekView({ date, appointments, bloqueios = [], onAddAppointment,
                     return (
                       <div
                         key={block.id}
-                        className="absolute left-0 right-0 bg-orange-200/80 dark:bg-orange-800/60 border-l-4 border-orange-500 p-1 text-[10px] z-10 overflow-hidden flex items-center gap-1"
+                        className="absolute left-0 right-0 bg-grafite-suave border-l-4 border-grafite p-1 text-[10px] z-10 overflow-hidden flex items-center gap-1"
                         style={{ top: `${topPos}%`, height: `${height}%`, minHeight: '0px' }}
                         onClick={(e) => {
                           e.stopPropagation();
@@ -211,7 +211,7 @@ export function WeekView({ date, appointments, bloqueios = [], onAddAppointment,
                         title={block.motivo || 'Horário bloqueado'}
                       >
                         <span className="font-semibold">🔒</span>
-                        <span className="truncate text-orange-800 dark:text-orange-200">
+                        <span className="truncate text-grafite-foreground">
                           {block.motivo || 'Bloqueado'}
                         </span>
                       </div>

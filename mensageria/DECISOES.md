@@ -866,3 +866,56 @@ do Gabriel remove até o resíduo.
 O item fica **fechado**. A porta do backend permanece privada, sem exceção a
 abrir. Se algum dia for preciso provisionar de fora, o caminho já existe e está
 medido: host do front + `PROVISIONING_TOKEN`.
+
+---
+
+## D-019 — A paleta da clínica escolhe entre as 11 cores do Google, e o bloqueio deixa de ser laranja
+
+**Decidido por:** Gabriel, 2026-08-20
+**Onde vive:** [docs/GOOGLE_CORES_E_RECONCILIACAO.md](../docs/GOOGLE_CORES_E_RECONCILIACAO.md), cartões GC-015 e GC-017
+
+Nas palavras dele: *"pode restringir somente ao padrão do Google, é isso que é o
+esperado mesmo, a esse padrão de restrição das onze cores, e sim já pode trocar o
+laranja do bloqueio por grafite sim"*.
+
+### O que isso decide
+
+**1. A paleta por clínica é fechada nas 11 cores do Google.** Cada clínica troca
+qual cor significa qual estado, mas não inventa cor. Três razões, e a primeira é
+do próprio pedido dele:
+
+- o seletor do Google **é** 11 cores nomeadas, então "imitar o Google" já entrega
+  a restrição — ela não foi imposta, foi herdada;
+- cor que existe aqui e não existe lá é **intraduzível** na hora de escrever no
+  Google, e a integração precisa que os dois lados sempre consigam conversar;
+- a legibilidade vira trabalho **finito**: 11 cores × 2 temas = 22 medições,
+  feitas uma vez por nós. Sem a restrição, cada clínica poderia configurar uma
+  agenda ilegível — e a culpa seria do produto, não dela.
+
+**2. O bloqueio passa a ser grafite.** 🔴 Não é ajuste estético: laranja na
+convenção da R-017 é **sessão agendada**. A mesma cor com sentidos opostos nas
+duas telas faz a psicóloga **errar**, enquanto cor diferente ela só reaprende.
+
+### Contrapartida aceita
+
+Uma clínica que queira uma identidade visual própria na agenda não vai poder.
+Aceito porque o que a agenda pinta é **estado**, não marca — e a R-017 já diz que
+a cor confirma o estado. Marca própria na agenda entraria em conflito com isso
+antes de entrar em conflito com o Google.
+
+### O que NÃO foi decidido, e tem dono
+
+⛔ **O estado `confirmado`** — hoje o vocabulário é
+`#{"agendado" "realizado" "cancelado" "falta"}` (`dominio.clj:16`), e a convenção
+da R-017 separa Tangerina (agendada, não confirmada) de Sálvia (confirmada). Sem
+esse estado, duas das cinco cores não têm o que pintar.
+
+📌 **Não é uma lacuna nossa: o Gabriel levou a pergunta para a CEO e o time**, nas
+palavras dele *"pra eles entenderem e decidirem, junto comigo aqui, como deve ser
+esse comportamento"*. Fica registrado como **decisão em curso com dono e fórum**,
+não como pendência à espera de alguém — a diferença importa, porque pendência sem
+dono convida uma instância a preencher por conta própria.
+
+⚠️ E a pergunta que vai junto, para o fórum não decidir metade: **quem confirma
+uma sessão, e por qual ação?** O estado sem a transição que o produz é coluna
+morta.

@@ -1,8 +1,12 @@
 # Cores da plataforma e reconciliação com o Google — o plano
 
 > **Escrito em 2026-08-20 pela `orla`.** Nasce de um pedido do Gabriel em
-> conversa, e **ainda não passou por ratificação dele nos três pontos marcados
-> com ⛔** no fim. O resto é desenho meu a partir do que já estava decidido.
+> conversa. Das três perguntas que ele levantou, **duas foram respondidas no
+> mesmo dia** ([D-019](../mensageria/DECISOES.md)) e uma está com ele, na CEO e no time — ver §9.
+> O resto é desenho meu a partir do que já estava decidido.
+>
+> ✅ **Uma parte já é código:** o bloqueio deixou de ser laranja, com a medição
+> na §11. Todo o resto ainda é plano.
 >
 > 📖 **Leia antes:** [D-011](../mensageria/DECISOES.md) (o Google propõe, a plataforma registra),
 > **R-017** e **R-018** em [REGRAS_DE_NEGOCIO](REGRAS_DE_NEGOCIO.md), e a Trilha C
@@ -301,15 +305,31 @@ integração existir — e é ele que muda o que se vê na demonstração.
 
 ---
 
-## 9. ⛔ O que depende do Gabriel antes de virar código
+## 9. O que o Gabriel respondeu em 2026-08-20 — [D-019](../mensageria/DECISOES.md)
 
-1. **`confirmado` entra no vocabulário?** É o GC-014, e sem ele a convenção não
-   fecha. **E a pergunta que vem junto: quem confirma uma sessão, e por qual
-   ação?** Isso é regra de negócio.
-2. **A paleta fica restrita às 11 cores do Google?** Recomendo que sim — é o que
-   mantém os dois lados conversando.
-3. **Faço já o GC-017 parcial** (bloqueio deixa de ser laranja), antes da
-   demonstração? Não depende de 1 nem de 2.
+✅ **A paleta fica restrita às 11 cores do Google.** Decidido. É o que mantém os
+dois lados conversando e o que torna a legibilidade um trabalho finito.
+
+✅ **O bloqueio deixa de ser laranja.** Feito no mesmo dia — o token `--grafite`
+existe nos dois temas, `DayView` e `WeekView` usam os tokens, e o CI ganhou uma
+guarda que reprova se a classe `orange` voltar a qualquer uma das duas. As
+medições estão na §11.
+
+⛔ **O estado `confirmado` não foi decidido, e tem dono.** O Gabriel levou a
+pergunta para a CEO e o time — *"pra eles entenderem e decidirem, junto comigo
+aqui, como deve ser esse comportamento"*.
+
+📌 **Está registrado como decisão em curso, não como pendência.** A diferença não
+é vocabulário: pendência sem dono convida uma instância a preencher por conta
+própria, e este é justamente o tipo de escolha que só o oráculo pode fazer.
+
+⚠️ **A pergunta que vai junto, para o fórum não decidir metade:** *quem* confirma
+uma sessão, e por qual ação? Estado sem a transição que o produz é coluna morta.
+
+🔴 **E o que isso bloqueia, para o tamanho ficar claro:** sem `confirmado`, o
+GC-014 não sai, e sem o GC-014 duas das cinco cores da convenção não têm o que
+pintar. O GC-015, o GC-016 e a parte do GC-017 que **não** depende do estado
+podem andar assim mesmo — a paleta e os tokens não esperam o vocabulário.
 
 ---
 
@@ -334,3 +354,85 @@ Separando, como manda a casa:
   Isso pode mudar o GC-018.
 - ❌ **Não dá para medir daqui:** a sandbox não alcança a API do Google nem o
   `*.code.run`. As duas conferências acima são da `vale` ou da `duna`.
+
+---
+
+## 11. A medição do grafite — a primeira das 11 cores
+
+> Feita em 2026-08-20, na régua que a `vale` (Claude no Termux) usou para o
+> `--success`. Registrada aqui porque as outras 10 cores vão passar pela mesma —
+> e porque **régua sem caso de controle não mede nada**.
+
+### Os critérios, e por que cada um existe
+
+| critério | pede | protege |
+|---|---|---|
+| texto sobre o preenchimento | ≥ 4,5:1 | ler o motivo do bloqueio (WCAG AA) |
+| **borda** vs superfície | ≥ 3:1 | é a borda que delimita o bloco (WCAG 1.4.11) |
+| preenchimento vs superfície | ≥ 1,5:1 | perceber que ali há um bloco |
+| borda destaca do preenchimento | ≥ 1,8:1 | a borda ler como borda |
+| distingue de `primary`/`destructive`/`success` | ≥ 1,3:1 | quem não distingue matiz separa por **luminância** |
+| tinte da linha | 1,03..1,6:1 | discreto — é fundo, não sinal |
+
+⚠️ **Duas correções que eu fiz na própria régua, e valem mais que os números.**
+
+**1. Eu tinha escrito "preenchimento vs fundo ≥ 3:1" e estava errado.** Quem
+carrega a percepção do bloco é a **borda de 4px**, não o preenchimento — e exigir
+3:1 do preenchimento faria o bloqueio **gritar mais alto que a sessão**, que é o
+oposto da hierarquia certa. Bloqueio é informação de fundo: *"este horário não
+existe"*. O critério virou 3:1 **na borda** e 1,5:1 no preenchimento.
+
+**2. O bloco não fica sobre o fundo da página, fica sobre a grade** (`bg-card`).
+A régua mede contra os **dois** e vale o pior — medir só contra o mais favorável
+é como se aprova o que não deveria passar.
+
+### Os números
+
+| | claro | escuro |
+|---|---|---|
+| texto sobre o preenchimento | 6,83:1 | 6,95:1 |
+| borda vs superfície (pior caso) | 6,33:1 | 5,61:1 |
+| preenchimento vs superfície | 1,74:1 | 1,75:1 |
+| distingue de `primary` | 2,59:1 | 3,93:1 |
+| distingue de `destructive` | 2,49:1 | 1,60:1 |
+| distingue de `success` | 3,81:1 | 2,63:1 |
+
+### O caso de controle, que é o que dá valor ao resto
+
+A mesma régua, aplicada ao **laranja que estava lá**, reprova:
+
+```
+preenchimento vs superfície   1,21:1   (pede 1,5)
+borda vs superfície           2,48:1   (pede 3,0)
+```
+
+📌 **O bloqueio de hoje é um defeito de legibilidade medido, não só de
+convenção** — o laranja claro mal se separava do creme da página. A troca resolve
+as duas coisas de uma vez, e eu só soube da segunda porque medi.
+
+### E a guarda, porque medir uma vez não segura nada
+
+O CI ganhou dois passos no job do front:
+
+1. os quatro `--grafite*` e as quatro classes têm que **materializar no CSS
+   compilado**. Classe de Tailwind fora da config não vira erro de build: vira
+   **CSS nenhum**, e o bloco ficaria transparente com tudo verde.
+2. `orange` no fonte do `DayView` ou do `WeekView` **reprova o job**. O laranja
+   não pode voltar por distração.
+
+✅ Os dois rodados aqui antes de empurrar, com controle negativo: a busca reprova
+um alvo inexistente, então ela não aprova qualquer coisa.
+
+### 🔴 O que continua sem conferência
+
+O **hex exato** do Grafite do Google e o **`colorId = 8`**. Escolhi um cinza
+quase neutro que lê como grafite e **medi a legibilidade dele**, mas não comparei
+com a cor real do Google — a sandbox não alcança a API. Quando a `vale` ou a
+`duna` (GPT no Termux) conferirem os `colorId` contra a API (GC-008), o valor
+pode ter que andar alguns pontos. **O que não muda é a régua**: qualquer valor
+novo passa pelos mesmos oito critérios, nos dois temas.
+
+⚠️ E um achado de carona, que **não** entrou nesta mudança porque está fora do que
+foi autorizado: `CalendarClient.tsx:843` pinta *"✕ Sessão Cancelada"* de laranja,
+enquanto a grade pinta cancelada de **vermelho**. As duas telas discordam sobre a
+cor do mesmo estado. É trabalho do GC-017 completo, não desta fatia.
