@@ -39,8 +39,11 @@
     (apply str (map #(format "%02x" (bit-and (int %) 0xff)) digest))))
 
 (defn guardar-state!
-  "Guarda somente o hash do state, ligado à identidade do JWT por 10 minutos."
+  "Remove states vencidos e guarda somente o hash do novo state, ligado à
+   identidade do JWT por 10 minutos."
   [state clinica-id usuario-id]
+  (execute-one!
+   ["DELETE FROM google_oauth_state WHERE expira_em < now()"])
   (execute-one!
    ["INSERT INTO google_oauth_state (state_hash, clinica_id, usuario_id, expira_em)
      VALUES (?, ?, ?, now() + interval '10 minutes')"

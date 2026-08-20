@@ -24,6 +24,21 @@
             [deep-saude-backend.google.handlers :as handlers]
             [deep-saude-backend.google.oauth :as oauth]))
 
+(deftest guardar-state-remove-expirados-antes-de-criar-o-novo
+  (let [consultas (atom [])]
+    (with-redefs [db/execute-one! (fn [query]
+                                    (swap! consultas conj query)
+                                    {:update-count 1})]
+      (handlers/guardar-state!
+       "state-novo"
+       #uuid "aaaaaaaa-4000-0000-0000-000000000001"
+       #uuid "aaaaaaaa-4000-0000-0000-000000000002"))
+    (is (= 2 (count @consultas)))
+    (is (clojure.string/includes? (ffirst @consultas)
+                                  "DELETE FROM google_oauth_state"))
+    (is (clojure.string/includes? (first (second @consultas))
+                                  "INSERT INTO google_oauth_state"))))
+
 (deftest callback-oauth-recusa-state-invalido-antes-de-falar-com-google
   (let [trocas (atom [])]
     (with-redefs [handlers/consumir-state! (constantly nil)
