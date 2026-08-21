@@ -48,6 +48,16 @@ const HOURS = Array.from({ length: 24 }, (_, i) => i); // 00:00 to 23:00
 // valendo sem mudar de forma. Com o navegador em São Paulo o valor é idêntico ao
 // de antes; fora dele, deixa de deslocar. Ver o cabeçalho de lib/datetime.ts.
 
+/**
+ * 🔴 Uma constante, e não duas strings iguais.
+ *
+ * O cabeçalho e o corpo PRECISAM ter trilhos idênticos: se divergirem, os dias
+ * do topo param de corresponder às colunas de baixo — e foi exatamente assim que
+ * o defeito de 21/08 nasceu, com `1fr` no cabeçalho e `min-w-[120px]` no corpo.
+ * Escrever a definição duas vezes é convidar a divergência de volta.
+ */
+const TRILHOS = "grid-cols-[54px_repeat(7,minmax(120px,1fr))]";
+
 export function WeekView({ date, appointments, bloqueios = [], onAddAppointment, onEditAppointment, onDeleteBloqueio, cores }: WeekViewProps & { cores?: CoresEscolhidas }) {
   const scrollContainerRef = React.useRef<HTMLDivElement>(null);
 
@@ -145,8 +155,23 @@ export function WeekView({ date, appointments, bloqueios = [], onAddAppointment,
 
   return (
     <div className="flex h-full flex-col overflow-hidden rounded-[20px] border border-border/70 bg-card/70 shadow-[var(--quiet-shadow-soft)] backdrop-blur-md">
+      {/*
+        🔴 UM rolador só, para o cabeçalho e o corpo, e os DOIS com a mesma
+        definição de trilhos.
+
+        Antes eram duas grades independentes: o cabeçalho com `repeat(7,1fr)`
+        (que encolhe até caber na tela) e o corpo com `min-w-[120px]` por dia
+        (que exige 894px). Em qualquer tela menor que isso — todo telefone — o
+        corpo transbordava e rolava SOZINHO, com o cabeçalho parado.
+
+        ⚠️ O efeito não era cosmético: os dias do topo deixavam de corresponder às
+        colunas de baixo. Uma sessão de hoje aparecia debaixo do rótulo de outro
+        dia, e não havia como perceber olhando — a tela mostrava um dia e
+        significava outro.
+      */}
+      <div className="flex-1 overflow-auto">
       {/* Header Row */}
-      <div className="sticky top-0 z-20 grid grid-cols-[54px_repeat(7,1fr)] divide-x divide-border/40 border-b border-border/40 bg-card/90 backdrop-blur-xl">
+      <div className={"sticky top-0 z-20 grid " + TRILHOS + " divide-x divide-border/40 border-b border-border/40 bg-card/90 backdrop-blur-xl"}>
         <div className="p-2 text-center text-xs font-semibold text-muted-foreground bg-muted/30">
           GMT−3
         </div>
@@ -165,8 +190,8 @@ export function WeekView({ date, appointments, bloqueios = [], onAddAppointment,
         })}
       </div>
 
-      {/* Grid */}
-      <div ref={scrollContainerRef} className="grid flex-1 grid-cols-[54px_repeat(7,1fr)] divide-x divide-border/35 overflow-y-auto">
+      {/* Grid — MESMOS trilhos do cabeçalho, e sem rolador próprio. */}
+      <div ref={scrollContainerRef} className={"grid " + TRILHOS + " divide-x divide-border/35"}>
         {/* Time Column */}
         <div className="divide-y divide-border/35 bg-muted/15">
           {HOURS.map(hour => (
@@ -178,7 +203,7 @@ export function WeekView({ date, appointments, bloqueios = [], onAddAppointment,
 
         {/* Days Columns */}
         {days.map((day, dayIndex) => (
-          <div key={dayIndex} className="relative min-w-[120px] divide-y divide-border/35">
+          <div key={dayIndex} className="relative divide-y divide-border/35">
             {HOURS.map(hour => {
               const hourAppointments = getAppointmentsForDayAndHour(day, hour);
               const hourBloqueios = getBloqueiosForDayAndHour(day, hour);
@@ -304,6 +329,7 @@ export function WeekView({ date, appointments, bloqueios = [], onAddAppointment,
           </div>
         ))}
       </div>
+      </div>{/* fim do rolador unico: cabecalho e corpo rolam JUNTOS */}
     </div>
   );
 }

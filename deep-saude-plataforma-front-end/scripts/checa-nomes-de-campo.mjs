@@ -44,6 +44,29 @@ import { join } from 'node:path';
  *
  * Mesma família das outras três: **o link promete e a rota não cumpre.**
  */
+/**
+ * (5) O cabeçalho e o corpo do `WeekView` com trilhos escritos duas vezes.
+ *
+ * 🔴 Em 21/08 eles divergiram — `repeat(7,1fr)` no cabeçalho e `min-w-[120px]` no
+ * corpo — e os dias do topo pararam de corresponder às colunas de baixo em toda
+ * tela estreita. O Gabriel viu no telefone: criou uma sessão para hoje, deslizou,
+ * e ela apareceu debaixo do rótulo de outro dia.
+ *
+ * A definição virou UMA constante. Esta varredura impede que alguém a reescreva
+ * inline e traga a divergência de volta.
+ */
+function trilhosDaSemanaNaoSaoDuplicados() {
+  const arq = 'src/app/(app)/calendar/WeekView.tsx';
+  if (!existsSync(arq)) return [];
+  const t = readFileSync(arq, 'utf8');
+  const literais = [...t.matchAll(/grid-cols-\[/g)].length;
+  if (literais > 1) {
+    return [{ forma: 5, caminho: arq, linha: t.slice(0, t.indexOf('grid-cols-[')).split('\n').length,
+      porque: `o trilho da grade aparece ${literais} vezes escrito a mao — tem de ser UMA constante, senao cabecalho e corpo divergem` }];
+  }
+  return [];
+}
+
 function rotasProminidasExistem() {
   const arq = 'src/components/admin/AdminSidebar.tsx';
   if (!existsSync(arq)) return [];
@@ -133,6 +156,7 @@ autoteste();
 const achados = [
   ...arquivos('src').filter((p) => !ISENTOS.has(p)).flatMap((p) => varrer(p, readFileSync(p, 'utf8'))),
   ...rotasProminidasExistem(),
+  ...trilhosDaSemanaNaoSaoDuplicados(),
 ];
 
 for (const a of achados) {
