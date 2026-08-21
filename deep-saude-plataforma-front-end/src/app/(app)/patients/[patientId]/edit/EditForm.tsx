@@ -1,6 +1,9 @@
 'use client';
 
 import React, { useEffect } from 'react';
+import { formatarCpf, digitosDoCpf, cpfValido } from '@/lib/cpf';
+import { formatarCep, digitosDoCep, buscarCep } from '@/lib/viacep';
+import { aplicarCep, type CamposDeEndereco } from '@/lib/aplicar-cep';
 import { useRouter } from 'next/navigation';
 import { useFormState, useFormStatus } from 'react-dom';
 import { Button } from "@/components/ui/button";
@@ -66,6 +69,16 @@ export default function EditForm({ patient, updateAction }: { patient: any, upda
     data_nascimento: patient.data_nascimento ?? "",
     email: patient.email || '',
     telefone: patient.telefone || '',
+    // 📌 O que vem do banco é dígito puro; a máscara é da tela. Formatar aqui
+    // faz o campo abrir legível sem mudar o que será gravado de volta.
+    cpf: formatarCpf(patient.cpf || ''),
+    cep: formatarCep(patient.cep || ''),
+    logradouro: patient.logradouro || '',
+    numero: patient.numero || '',
+    complemento: patient.complemento || '',
+    bairro: patient.bairro || '',
+    cidade: patient.cidade || '',
+    uf: patient.uf || '',
     endereco: patient.endereco || '',
     status: patient.status || "ativo",
   });
@@ -73,6 +86,50 @@ export default function EditForm({ patient, updateAction }: { patient: any, upda
     (nome: keyof typeof campos) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
       setCampos((c) => ({ ...c, [nome]: e.target.value }));
+
+  const [avisoCep, setAvisoCep] = React.useState<string | null>(null);
+  const [buscandoCep, setBuscandoCep] = React.useState(false);
+  /**
+   * O que a ÚLTIMA consulta escreveu. É isto que distingue "preenchido pelo CEP"
+   * de "digitado à mão" — sem essa memória, a regra não tem como saber o que
+   * pode substituir.
+   */
+  const origemDoEndereco = React.useRef<CamposDeEndereco | null>(null);
+
+  const mudarCpf = (e: React.ChangeEvent<HTMLInputElement>) =>
+    setCampos((c) => ({ ...c, cpf: formatarCpf(e.target.value) }));
+
+  const cpfIncompleto = digitosDoCpf(campos.cpf).length > 0 && digitosDoCpf(campos.cpf).length < 11;
+  const cpfErrado = digitosDoCpf(campos.cpf).length === 11 && !cpfValido(campos.cpf);
+
+  /**
+   * Igual ao cadastro — inclusive no que NÃO faz.
+   *
+   * 🔴 Aqui o cuidado de não sobrescrever pesa mais ainda: na edição os campos
+   * já vêm preenchidos com o que a psicóloga gravou. Um CEP redigitado que
+   * apagasse o logradouro existente destruiria dado sem ninguém pedir.
+   */
+  const mudarCep = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const cep = formatarCep(e.target.value);
+    setCampos((c) => ({ ...c, cep }));
+    setAvisoCep(null);
+    if (digitosDoCep(cep).length !== 8) return;
+    setBuscandoCep(true);
+    const r = await buscarCep(cep);
+    setBuscandoCep(false);
+    // 🔴 A decisão mora no `aplicar-cep.ts`, com prova. Ela esteve DENTRO desta
+    // função e estava errada — e errada igual nas duas telas, porque foi
+    // copiada. Regra duplicada é regra que diverge; e aqui dentro só dava para
+    // exercitá-la clicando, que foi como o defeito passou.
+    const d = aplicarCep(
+      { logradouro: campos.logradouro, bairro: campos.bairro, cidade: campos.cidade, uf: campos.uf },
+      r,
+      origemDoEndereco.current
+    );
+    origemDoEndereco.current = d.vindoDaConsulta;
+    setCampos((c) => ({ ...c, ...d.campos }));
+    setAvisoCep(d.aviso);
+  };
 
   useEffect(() => {
     if (state.success) {
@@ -126,8 +183,59 @@ export default function EditForm({ patient, updateAction }: { patient: any, upda
         </div>
         
         <div className="space-y-2">
-          <Label htmlFor="endereco">Endereço</Label>
-          <Textarea id="endereco" name="endereco" className="min-h-[100px]" value={campos.endereco} onChange={mudar("endereco")} />
+          <Label htmlFor="cpf">CPF</Label>
+          <Input
+            id="cpf"
+            name="cpf"
+            inputMode="numeric"
+            placeholder="000.000.000-00"
+            value={campos.cpf}
+            onChange={mudarCpf}
+            aria-invalid={cpfErrado || undefined}
+            aria-describedby={cpfErrado ? "cpf-erro" : undefined}
+          />
+          {cpfErrado && <p id="cpf-erro" className="text-sm font-medium text-destructive">CPF inválido — confira os números.</p>}
+          {cpfIncompleto && !cpfErrado && <p className="text-sm text-muted-foreground">Faltam dígitos.</p>}
+        </div>
+
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-4">
+          <div className="space-y-2">
+            <Label htmlFor="cep">CEP</Label>
+            <Input id="cep" name="cep" inputMode="numeric" placeholder="00000-000" value={campos.cep} onChange={mudarCep} />
+            {buscandoCep && <p className="text-sm text-muted-foreground">Consultando…</p>}
+            {avisoCep && <p className="text-sm text-muted-foreground">{avisoCep}</p>}
+          </div>
+          <div className="space-y-2 md:col-span-3">
+            <Label htmlFor="logradouro">Logradouro</Label>
+            <Input id="logradouro" name="logradouro" value={campos.logradouro} onChange={mudar("logradouro")} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="numero">Número</Label>
+            <Input id="numero" name="numero" value={campos.numero} onChange={mudar("numero")} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="complemento">Complemento</Label>
+            <Input id="complemento" name="complemento" value={campos.complemento} onChange={mudar("complemento")} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="bairro">Bairro</Label>
+            <Input id="bairro" name="bairro" value={campos.bairro} onChange={mudar("bairro")} />
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <div className="col-span-2 space-y-2">
+              <Label htmlFor="cidade">Cidade</Label>
+              <Input id="cidade" name="cidade" value={campos.cidade} onChange={mudar("cidade")} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="uf">UF</Label>
+              <Input id="uf" name="uf" maxLength={2} value={campos.uf} onChange={mudar("uf")} />
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="endereco">Complemento de endereço (texto livre)</Label>
+          <Textarea id="endereco" name="endereco" className="min-h-[80px]" placeholder="Referências, observações de acesso…" value={campos.endereco} onChange={mudar("endereco")} />
         </div>
 
         <div className="flex justify-end border-t border-border/50 pt-5">

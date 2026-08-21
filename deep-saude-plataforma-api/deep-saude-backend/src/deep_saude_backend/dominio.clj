@@ -84,6 +84,57 @@
    ⚠️ **Não está em `campos-validados` de propósito** — ver o comentário lá."
   #{"bloqueio" "disponivel"})
 
+(defn digitos
+  "Só os dígitos de um texto. `nil` e branco viram string vazia."
+  [s]
+  (str/replace (str (or s "")) #"\D" ""))
+
+(defn cpf-valido?
+  "O CPF fecha nos dois dígitos verificadores?
+
+   🔴 **Isto é aritmética, não opinião** — e por isso mora aqui, com teste, em vez
+   de virar uma regex na tela. Um CPF com formato certo e dígito errado é o caso
+   comum de digitação trocada, e é exatamente o que uma regex de formato deixa
+   passar.
+
+   ⚠️ **Os onze dígitos repetidos são recusados de propósito.** `111.111.111-11`,
+   `000.000.000-00` e os outros nove FECHAM na conta dos verificadores — a
+   matemática os aceita. São inválidos por convenção da Receita, e quem digita um
+   deles está preenchendo o campo para se livrar dele, não informando um CPF.
+   Sem esta linha, o validador diria \"ok\" para o valor mais comum de lixo.
+
+   📌 Aceita com ou sem máscara: a tela pode formatar como quiser."
+  [cpf]
+  (let [d (digitos cpf)]
+    (and (= 11 (count d))
+         (not (apply = (seq d)))
+         (let [ns (mapv #(Character/digit ^char % 10) d)
+               dv (fn [ate]
+                    (let [soma (reduce + (map-indexed (fn [i n] (* n (- (inc ate) i)))
+                                                      (take ate ns)))
+                          r (mod (* soma 10) 11)]
+                      (if (= r 10) 0 r)))]
+           (and (= (dv 9) (ns 9))
+                (= (dv 10) (ns 10)))))))
+
+(defn cep-valido?
+  "Oito dígitos. O ViaCEP decide se o CEP EXISTE; aqui só se tem forma de CEP.
+
+   📌 A distinção importa: o servidor não pode depender de uma API de terceiro
+   para aceitar um cadastro. Se o ViaCEP estiver fora, a psicóloga ainda precisa
+   conseguir salvar a paciente — o endereço entra à mão e a vida segue."
+  [cep]
+  ;; 🔴 A ausência é medida no TEXTO ORIGINAL, não nos dígitos.
+  ;;
+  ;; A primeira versão fazia `(str/blank? (digitos cep))` e o teste pegou: um
+  ;; "abcdefgh" perde todos os caracteres na limpeza, vira string vazia e era
+  ;; aceito como "não informou". Lixo entrando por ausência — o defeito que a
+  ;; `data-de-formulario`, quarenta linhas abaixo, existe para não repetir:
+  ;; *"branco vira nil; lixo continua lançando"*.
+  (if (str/blank? (str (or cep "")))
+    true
+    (= 8 (count (digitos cep)))))
+
 (def campos-validados
   "Campo -> conjunto de valores aceitos, para a validação automática de `validar`.
 
