@@ -227,10 +227,20 @@ testei em produção (mudei e restaurei a Beatriz, HTTP 200 nas duas) e era ele
 tendo clicado em "Visualizar". Não havia defeito. Mas a investigação achou um de
 verdade, e ele **era dois** — ver abaixo.
 
-### 📬 Os cinco commits estão no PR [#12](https://github.com/gabrielBielll/agenda-wise/pull/12), aberto e NÃO mesclado ([0208](0208-vale-para-orla-e-gabriel-o-pr-para-prod-esta-aberto-e-o-financeiro-eram-dois.md))
+### 📬 Os sete commits estão no PR [#12](https://github.com/gabrielBielll/agenda-wise/pull/12), aberto e NÃO mesclado ([0208](0208-vale-para-orla-e-gabriel-o-pr-para-prod-esta-aberto-e-o-financeiro-eram-dois.md), [0209](0209-vale-para-orla-e-gabriel-o-e2e-reprovou-e-o-defeito-era-da-tela-nao-do-teste.md))
 
-Quatro checks passando, zero reprovando, `MERGEABLE/CLEAN`, navegador 47 passed.
+Quatro checks passando, zero reprovando, `MERGEABLE/CLEAN`, navegador **48 passed**.
 **O merge é o ato que dispara o build de produção (D-020) — decisão do Gabriel.**
+
+- 🔴 **O campo do nome em Configurações aceitava digitação antes de saber o nome.**
+  O e2e reprovou com `"Admin E2EAurora Nogueira"` — o nome antigo colado no novo.
+  O campo nasce vazio e editável e a verdade chega depois, então quem digita na
+  janela vê o texto grudar no valor que chega. **Campo vazio afirma "o valor é
+  vazio" quando a verdade é "ainda não sei".** Consertado na tela, não no teste:
+  o `fill()` do Playwright espera o campo habilitar, então a medição virou
+  determinística (7,2s, antes 24,3s estourando o tempo). 🆕 Varredura (7), com
+  autoteste nos dois sentidos. ⚠️ A primeira versão dela acusou o e-mail, que é
+  `readOnly` e não corre a corrida.
 
 - 🔴 **Financeiro, e eram DOIS.** Varri a classe em vez da instância que ele
   reportou: das quatro funções otimistas, `handleUpdateValor` (a relatada) e
