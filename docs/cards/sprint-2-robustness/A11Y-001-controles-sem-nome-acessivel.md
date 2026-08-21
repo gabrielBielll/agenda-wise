@@ -152,11 +152,19 @@ cartão: `getByRole('combobox').nth(1)` virou `{ name: /repetir/i }`, e
    `dia_inteiro` e a ação o repassa**: o caminho existe do meio para trás e falta
    o começo. Construir o controle é decisão, não conserto.
 
-2. **`AppointmentForm.tsx` é sobra de refactor** — este cartão delegava a decisão
-   a quem fizesse a A11Y-001b, e a resposta é: criado em 30/01 trazendo detecção
-   de conflito, que hoje vive no `CalendarClient` (A-008). **Zero importações**,
-   conferido com controle. Recomendo apagar; não apaguei porque é código do
-   Gabriel e ele estava disponível para dizer.
+2. ✅ **`AppointmentForm.tsx` APAGADO em 2026-08-20**, com o Gabriel autorizando.
+   Este cartão delegava a decisão a quem fizesse a A11Y-001b, e a resposta foi:
+   criado em 30/01 trazendo detecção de conflito, que hoje vive no
+   `CalendarClient` (A-008) — **sobra de refactor, não substituto planejado**.
+
+   As três condições foram reconferidas no momento de apagar, não herdadas do que
+   estava escrito: **zero importações** (com controle mostrando que a busca acha
+   `WeekView` em 4 arquivos), **não é rota** (o App Router só roteia `page.tsx`), e
+   o único `export` não é importado por ninguém. Depois de apagar: nenhuma
+   referência pendurada, e o verificador de campos seguiu verde.
+
+   📌 **Restaurar, se um dia fizer falta:**
+   `git checkout f5a099b -- 'deep-saude-plataforma-front-end/src/app/(app)/calendar/AppointmentForm.tsx'`
 
 ### 🔴 A11Y-001b — o enunciado original (precisava de navegador)
 
@@ -214,10 +222,11 @@ O diálogo de agendamento do calendário é **inline no `CalendarClient.tsx`**.
 mas o cartão precisa dizer: **um dos controles contados não é alcançável por
 usuário nenhum.**
 
-⚠️ **Não apagar agora.** A decisão cabe a quem fizer a **A11Y-001b**, que vai
-estar dentro do `CalendarClient` e é quem pode dizer se este arquivo era um
-substituto planejado do diálogo inline ou sobra de refactor. **Apagar antes disso
-é decidir sem o contexto.**
+~~⚠️ **Não apagar agora.**~~ ✅ **Decidido e apagado em 2026-08-20.** A `vale`,
+fazendo a A11Y-001b, determinou que era **sobra de refactor** — a detecção de
+conflito que ele trazia vive no `CalendarClient` desde a A-008 — e o Gabriel
+autorizou. Ver o item 2 dos achados de carona, acima, com as condições
+reconferidas na hora e o comando de restauração.
 
 ## Solução proposta
 
