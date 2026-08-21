@@ -1,4 +1,4 @@
-import { CLASSES_DE_COR, type CoresEscolhidas } from "./cores-agenda";
+import { CLASSES_DE_COR, PALETA_PADRAO, type CoresEscolhidas } from "./cores-agenda";
 
 export type AppointmentStatus =
   | 'agendado'
@@ -148,7 +148,26 @@ export function appointmentStatusAppearance(
 ): AppointmentStatusAppearance {
   const estado = normalizeAppointmentStatus(status);
   const base = appearances[estado];
-  const cor = escolhidas?.[estado];
+  /**
+   * 🔴 **Sem escolha da clínica, o padrão é a convenção do GOOGLE — não mais o
+   * pastel da plataforma.** Mudado em 21/08 a pedido do Gabriel.
+   *
+   * O que ele viu: *"as cores dos horários estão bem ruins ainda, no Google
+   * Agenda fica bem mais fácil de perceber."* Medido: os chips vinham em 89–92%
+   * de luminosidade — lavagens quase brancas, que separavam mal os estados uns
+   * dos outros. As cores do Google saem da régua, com contraste medido nos dois
+   * temas, e são as que a equipe já reconhece do outro lado.
+   *
+   * ⚠️ **A ausência de escolha continua sendo informação.** `escolhidas` é o que
+   * a clínica ESCOLHEU, não a paleta efetiva — a distinção existe porque a
+   * clínica pode escolher, de propósito, a mesma cor do padrão. O que mudou é só
+   * qual paleta o "não escolheu" desenha.
+   *
+   * 📌 O glifo continua carregando o estado. Isto melhora o reconhecimento para
+   * quem enxerga cor; para quem não enxerga, quem separa é o símbolo — e as 462
+   * combinações medidas na §13 continuam valendo.
+   */
+  const cor = escolhidas?.[estado] ?? PALETA_PADRAO[estado];
   const c = cor ? CLASSES_DE_COR[cor] : undefined;
   const comCor = c
     ? {

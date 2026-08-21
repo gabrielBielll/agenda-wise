@@ -271,7 +271,7 @@ export function WeekView({ date, appointments, bloqueios = [], onAddAppointment,
                       <div
                         key={block.id}
                         className={cn(
-                          "absolute left-0 right-0 p-1 text-[10px] z-10 overflow-hidden flex items-center gap-1",
+                          "absolute left-1 right-1 rounded-md p-1 text-[10px] z-10 overflow-hidden flex items-center gap-1",
                           janela.blocoClassName
                         )}
                         style={{ top: `${topPos}%`, height: `${height}%`, minHeight: '0px' }}
@@ -285,7 +285,7 @@ export function WeekView({ date, appointments, bloqueios = [], onAddAppointment,
                       >
                         {/* Glifo `aria-hidden` + estado no `sr-only` — ver o
                             comentário gêmeo no DayView. */}
-                        <span className="font-semibold" aria-hidden="true">{janela.glyph}</span>
+                        <janela.Icone className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                         <span className="sr-only">{janela.label}: </span>
                         <span className={cn("truncate", janela.textoClassName)}>
                           {block.motivo || janela.rotuloPadrao}

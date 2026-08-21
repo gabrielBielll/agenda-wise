@@ -359,6 +359,18 @@ jobs:
         # Este passo e o controle positivo do `--success`: ele falha se a classe
         # nao existir de verdade no bundle.
         #
+        # 🔴 ATUALIZADO 21/08: `.bg-grafite-suave{` e `.border-grafite{` SAIRAM
+        # desta lista, e a remocao e deliberada. Quando o padrao dos estados de
+        # sessao virou a convencao do Google (saturada), o bloqueio passou a usar
+        # a familia de PALETA (`cor-grafite`) para nao ser o unico pastel da
+        # grade. O Tailwind so emite classe que encontra no fonte — manter a
+        # checagem de uma classe que ninguem mais usa deixaria o CI vermelho por
+        # motivo errado, e ensinaria a proxima pessoa a afrouxar a guarda.
+        #
+        # ⚠️ Os TOKENS `--grafite*` continuam na lista, e isso e proposital: eles
+        # sao CSS literal no `:root`, emitidos independentemente de uso, e o
+        # `--grafite-tenue` segue pintando a celula da hora.
+        #
         # 🔴 Algumas entradas sao VALORES, nao nomes — as de `--agenda-confirmada`
         # e as de `--disponivel`. (Ate 21/08 eram so as duas ULTIMAS; a D-024
         # inseriu as do azul no meio, e esta frase foi corrigida junto. Comentario
@@ -381,7 +393,8 @@ jobs:
           faltou=0
           for alvo in '--success:' '--success-foreground:' '.bg-success{' '.text-success{' '.bg-destructive{' \
                       '--grafite:' '--grafite-suave:' '--grafite-tenue:' '--grafite-foreground:' \
-                      '.bg-grafite-suave{' '.bg-grafite-tenue{' '.border-grafite{' '.text-grafite-foreground{' \
+                      '.bg-grafite-tenue{' '.text-grafite-foreground{' \
+                      '.bg-cor-grafite-suave{' '.border-cor-grafite{' '.text-cor-grafite-foreground{' \
                       '--disponivel:' '--disponivel-suave:' '--disponivel-tenue:' '--disponivel-foreground:' \
                       '.bg-disponivel-suave{' '.bg-disponivel-tenue{' '.border-disponivel{' '.text-disponivel-foreground{' \
                       '.text-disponivel{' \

@@ -185,7 +185,7 @@ export function DayView({ date, appointments, bloqueios = [], onAddAppointment, 
                     <div
                       key={block.id}
                       className={cn(
-                        "absolute left-0 right-0 p-2 text-xs z-10 overflow-hidden flex items-center gap-2",
+                        "absolute left-2 right-2 rounded-md p-1.5 text-xs z-10 overflow-hidden flex items-center gap-2",
                         janela.blocoClassName
                       )}
                       style={{ top: `${topPos}%`, height: `${height}%`, minHeight: '0px' }}
@@ -202,7 +202,7 @@ export function DayView({ date, appointments, bloqueios = [], onAddAppointment, 
                           motivo — e "reunião de equipe" não diz se o horário está
                           fechado ou oferecido. É o achado que a `orla` deixou
                           aberto sobre a grade de sessões; aqui ele não nasce. */}
-                      <span className="font-semibold" aria-hidden="true">{janela.glyph}</span>
+                      <janela.Icone className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                       <span className="sr-only">{janela.label}: </span>
                       <span className={cn("truncate", janela.textoClassName)}>
                         {block.motivo || janela.rotuloPadrao}
