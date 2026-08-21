@@ -45,9 +45,45 @@ function glifosDoFonte() {
   return achados.map((m) => ({ estado: m[1], glifo: m[3] ?? null }));
 }
 
+/**
+ * 🔴 O glifo não pode entrar no `span.font-semibold` das grades.
+ *
+ * `e2e/apoio.ts` lê esse span e exige que o texto seja **só** `HH:MM - HH:MM` —
+ * é assim que a suíte de fuso compara semana e dia. Em 20/08 eu pus o glifo lá
+ * dentro, sujei o texto e derrubei três testes; o teste estava certo, a
+ * implementação é que estava errada. O horário é um dado que outra coisa lê,
+ * não é lugar de enfeite.
+ */
+function glifoNaoSujaOHorario() {
+  const erros = [];
+  for (const arq of ['src/app/(app)/calendar/DayView.tsx', 'src/app/(app)/calendar/WeekView.tsx']) {
+    const t = readFileSync(arq, 'utf8');
+    // ⚠️ Contador de aninhamento, e não regex. A primeira versao usava
+    // `<span ...>([\s\S]{0,400}?)</span>` e casava 1 de 3 spans do arquivo: o
+    // conteudo do span do horario passa de 400 caracteres, entao o quantificador
+    // desistia antes do fechamento. A guarda dava "ok" com o defeito plantado —
+    // falso negativo, que e o defeito que este projeto persegue.
+    const abre = /<span[^>]*className="[^"]*font-semibold[^"]*"[^>]*>/g;
+    let m;
+    while ((m = abre.exec(t)) !== null) {
+      let i = m.index + m[0].length, prof = 1, dentro = '';
+      while (i < t.length && prof > 0) {
+        if (t.startsWith('<span', i)) prof++;
+        else if (t.startsWith('</span>', i)) prof--;
+        if (prof > 0) dentro += t[i];
+        i++;
+      }
+      if (dentro.includes('appearance.glyph')) {
+        erros.push(`${arq}: o glifo esta dentro de um span.font-semibold — o e2e le esse span como dado (HH:MM - HH:MM)`);
+      }
+    }
+  }
+  return erros;
+}
+
 function guarda() {
   const g = glifosDoFonte();
-  const erros = [];
+  const erros = [...glifoNaoSujaOHorario()];
   if (g.length !== 5) erros.push(`esperava 5 estados em ${ARQUIVO}, achei ${g.length}`);
   for (const { estado, glifo } of g) {
     if (!glifo) erros.push(`${estado} está sem glifo — a cor sozinha não separa os cinco estados`);
