@@ -27,11 +27,47 @@
    compatibilidade, mas a UI não grava."
   #{"pendente" "bloqueado" "disponivel" "transferido"})
 
+(def cores-agenda
+  "As 11 cores do Google Agenda — a paleta que uma clínica pode escolher.
+
+   🔴 **O conjunto é fechado por decisão, não por preguiça** ([D-019]). O seletor
+   do Google *é* onze cores nomeadas: imitar já entrega a restrição, cor que
+   existe aqui e não existe lá seria intraduzível na hora de escrever no Google,
+   e a legibilidade vira trabalho **finito** — 11 × 2 temas, medidas uma vez.
+
+   ⚠️ **Os nomes são a chave, não o hex.** O valor visual de cada uma está nos
+   tokens do `globals.css`, medido nos dois temas (§13 do
+   `docs/GOOGLE_CORES_E_RECONCILIACAO.md`). Guardar hex aqui seria guardar a
+   aparência no banco e perder o tema escuro.
+
+   📌 **E a cor NÃO carrega o estado.** Medido: das 462 formas de escolher 5
+   cores entre estas 11, **nenhuma** deixa os cinco estados distinguíveis por
+   luminância. A cor carrega o reconhecimento; quem carrega o estado é o glifo.
+   Por isso trocar a paleta é seguro — não há escolha que quebre a leitura."
+  #{"lavanda" "salvia" "uva" "flamingo" "banana" "tangerina"
+    "pavao" "grafite" "blueberry" "manjericao" "tomate"})
+
+(def paleta-padrao
+  "O \"Padrão Deep Saúde\": a cor de cada estado quando a clínica não escolheu.
+
+   📌 Reproduz **exatamente** o que a agenda já pinta hoje, para que a migration
+   não mude a aparência de ninguém. Trocar é escolha da clínica, não efeito
+   colateral de subir a tabela.
+
+   ⚠️ `cancelado` e `falta` compartilham o tomate, como hoje. Elas colapsam entre
+   si na régua — e é o glifo que as separa, não a cor."
+  {"agendado"   "tangerina"
+   "confirmado" "salvia"
+   "realizado"  "manjericao"
+   "cancelado"  "tomate"
+   "falta"      "tomate"})
+
 (def campos-validados
   "Campo -> conjunto de valores aceitos."
   {:status           status-sessao
    :status_pagamento status-pagamento
-   :status_repasse   status-repasse})
+   :status_repasse   status-repasse
+   :cor              cores-agenda})
 
 (defn valor-invalido
   "Devolve uma mensagem se `valor` não pertence ao vocabulário de `campo`.

@@ -317,6 +317,31 @@ jobs:
       - name: typecheck do e2e (tsconfig separado)
         run: npm run typecheck:e2e
 
+      - name: rotulos e campos — A11Y-001 e o motivo descartado
+        # 🔴 Tres varreduras mecanicas da mesma familia: o rotulo promete e o
+        # campo nao cumpre. As duas primeiras sao a A11Y-001 (nome acessivel); a
+        # terceira nasceu fechando a A11Y-001b, quando apareceu que o campo
+        # "Motivo" do bloqueio nao tinha `name` e o valor digitado pela psicologa
+        # era DESCARTADO em silencio.
+        #
+        # 📌 O verificador testa a si mesmo antes de varrer, e morre com codigo 2
+        # se o autoteste falhar — scanner quebrado devolve zero achados, que e
+        # indistinguivel de "esta tudo certo".
+        run: npm run checa:campos
+
+      - name: os cinco estados tem glifo, e sao distintos
+        # 🔴 A cor NAO carrega o estado, e isso foi medido: das 462 formas de
+        # escolher 5 cores entre as 11 do Google, NENHUMA deixa os cinco estados
+        # distinguiveis por luminancia (§13 do GOOGLE_CORES_E_RECONCILIACAO).
+        # Quem carrega o estado e o glifo — entao glifo repetido ou ausente e
+        # estado que some, e some justamente para quem ja nao lia a cor.
+        #
+        # 📌 A guarda e offline. A medicao de cobertura da fonte (`--fonte`)
+        # precisa de rede e fica fora do CI de proposito: foi ela que mostrou que
+        # o `✓` U+2713 nao esta na Montserrat, mas depender do Google Fonts para
+        # o job ficar verde trocaria um defeito por uma flakiness.
+        run: npm run checa:glifos
+
       - name: next build
         # Segredos de mentira: o build precisa das variáveis existirem, não
         # valerem alguma coisa. Nenhuma delas é usada em tempo de build para
@@ -333,6 +358,13 @@ jobs:
         # familia de defeito deste projeto, sinal de sucesso sem verificacao.
         # Este passo e o controle positivo do `--success`: ele falha se a classe
         # nao existir de verdade no bundle.
+        #
+        # 🔴 As DUAS ultimas entradas sao VALORES, nao nomes. O par
+        # agendada/confirmada colapsava em 1,02 de luminancia — indistinguivel em
+        # deuteranopia, e e a distincao que decide se a psi liga confirmando. Os
+        # numeros 21% e 77% sairam de busca numerica com controle; um ajuste
+        # distraido de paleta os desfaz sem nada ficar vermelho, e o defeito volta
+        # invisivel para quem enxerga cor.
         run: |
           set -euo pipefail
           css=$(find .next -name '*.css' -path '*static*' | tr '\n' ' ')
@@ -348,7 +380,8 @@ jobs:
                       '.bg-agenda-agendada{' '.bg-agenda-agendada-suave{' '.border-agenda-agendada{' \
                       '.text-agenda-agendada-foreground{' '.bg-agenda-confirmada{' \
                       '.bg-agenda-confirmada-suave{' '.border-agenda-confirmada{' \
-                      '.text-agenda-confirmada-foreground{'; do
+                      '.text-agenda-confirmada-foreground{' \
+                      '--agenda-confirmada:88 18% 21%' '--agenda-confirmada:88 18% 77%'; do
             grep -qF -- "$alvo" $css || { echo "::error::faltou no CSS compilado: $alvo"; faltou=1; }
           done
           # 🔴 O laranja do bloqueio nao pode voltar. Ele colide com Tangerina, que
@@ -377,8 +410,16 @@ jobs:
             echo "::error::CalendarClient tem $n laranjas crus; o unico permitido e o 'Sim, agendar' — ver §12"
             faltou=1
           fi
+          # GC-015 — as 11 do Google. Verificadas UMA A UMA, e nao por amostra: um
+          # nome errado no mapa estatico do `AparenciaClient` nao vira erro de
+          # build, vira quadradinho transparente na tela de escolher cor.
+          for cor in lavanda salvia uva flamingo banana tangerina pavao grafite blueberry manjericao tomate; do
+            for alvo in "--cor-$cor:" "--cor-$cor-suave:" ".bg-cor-$cor-suave{" ".border-cor-$cor{"; do
+              grep -qF -- "$alvo" $css || { echo "::error::faltou no CSS compilado: $alvo"; faltou=1; }
+            done
+          done
           test "$faltou" -eq 0 || exit 1
-          echo "ok: tokens semanticos nos dois temas, classes geradas, bloqueio sem laranja"
+          echo "ok: tokens semanticos, as 11 cores do Google nos dois temas, e bloqueio sem laranja"
 
   navegador:
     name: Navegador — Playwright (o que a pico levou embora)

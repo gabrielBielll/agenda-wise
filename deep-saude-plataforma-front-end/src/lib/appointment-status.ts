@@ -8,6 +8,53 @@ export type AppointmentStatus =
 export type AppointmentStatusAppearance = {
   label: string;
   shortLabel: string;
+  /**
+   * 🔴 **Segundo canal, independente de cor — e aqui ele carrega peso, não enfeita.**
+   *
+   * O chip do calendário mostra hora e nome do paciente. **Não mostra o estado.**
+   * Então, até 20/08, a cor era o único canal que separava "aguardando
+   * confirmação" de "confirmada" — e essas duas foram medidas em **1,02 de
+   * luminância**: terracota contra sálvia, o par que colapsa em deuteranopia.
+   *
+   * Quem não distingue matiz não separava as duas, e é justamente essa distinção
+   * que decide se a psicóloga liga para a paciente confirmando.
+   *
+   * O glifo é lido por quem não lê a cor. É `aria-hidden` de propósito: o estado
+   * já chega ao leitor de tela pelo `label`, e anunciar o símbolo junto viraria
+   * ruído.
+   *
+   * ## 🔴 Por que os cinco, e não só a confirmada
+   *
+   * Medido em 2026-08-20 (§13 de `docs/GOOGLE_CORES_E_RECONCILIACAO.md`): das
+   * **462** formas de escolher 5 cores entre as 11 do Google, **nenhuma** deixa
+   * os cinco estados distinguíveis por luminância. Não é escolha ruim de
+   * valores — cabem 9 cores no tema claro e 8 no escuro, e as 11 não cabem.
+   *
+   * Ou seja: **a cor não consegue carregar o estado.** Ela carrega o
+   * reconhecimento (a convenção do Google); o estado é do glifo. Com a paleta
+   * por clínica (GC-016), sem os cinco a tela deixaria a clínica escolher
+   * combinações ilegíveis — a paleta viraria a fonte do problema.
+   *
+   * ## ⚠️ Por que `√` e não `✓`
+   *
+   * A fonte do corpo é **Montserrat**, e ela **não tem o U+2713 (`✓`)** — medido
+   * baixando o subconjunto do Google Fonts e comparando o tamanho com um caso
+   * presente e um ausente. O `✓` que entrou aqui em 19/08 caía em fonte de
+   * sistema: métrica diferente, forma dependente de plataforma, e quadradinho
+   * onde o sistema não tivesse.
+   *
+   * Os cinco abaixo **estão todos na Montserrat**, medidos um a um. A rotina
+   * está em `scripts/mede-cobertura-de-glifo.mjs`.
+   *
+   * 📌 E nenhum é de largura dupla (`east_asian_width` W ou F), o que evitaria o
+   * texto do chip pular quando o glifo aparece.
+   *
+   * 📌 **A escolha das FORMAS é julgamento, não medição** — separando, como manda
+   * a casa. O que foi medido é a cobertura da fonte e a largura. Que `√` leia
+   * como "confirmado" e `∅` como "não veio" é decisão do Gabriel, e ela pode
+   * mudar sem que nada aqui quebre: são cinco strings.
+   */
+  glyph: string | null;
   eventClassName: string;
   badgeClassName: string;
 };
@@ -16,30 +63,35 @@ const appearances: Record<AppointmentStatus, AppointmentStatusAppearance> = {
   agendado: {
     label: 'Aguardando confirmação',
     shortLabel: 'Agendada',
+    glyph: '?', // aguardando confirmação — a pergunta ainda sem resposta, e é o estado em que a psicóloga precisa AGIR
     eventClassName: 'border-agenda-agendada bg-agenda-agendada-suave text-agenda-agendada-foreground hover:brightness-[.98]',
     badgeClassName: 'border-agenda-agendada/35 bg-agenda-agendada-suave text-agenda-agendada-foreground',
   },
   confirmado: {
     label: 'Sessão confirmada',
     shortLabel: 'Confirmada',
+    glyph: '√', // confirmado. Era `✓` até 20/08; trocado porque a Montserrat não tem o U+2713
     eventClassName: 'border-agenda-confirmada bg-agenda-confirmada-suave text-agenda-confirmada-foreground hover:brightness-[.98]',
     badgeClassName: 'border-agenda-confirmada/35 bg-agenda-confirmada-suave text-agenda-confirmada-foreground',
   },
   realizado: {
     label: 'Sessão realizada',
     shortLabel: 'Realizada',
+    glyph: '■', // bloco fechado: aconteceu e acabou
     eventClassName: 'border-success bg-success/15 text-foreground hover:bg-success/20',
     badgeClassName: 'border-success/35 bg-success/10 text-success',
   },
   cancelado: {
     label: 'Sessão cancelada',
     shortLabel: 'Cancelada',
+    glyph: '×', // cancelado. É o U+00D7 da fonte, não o `✕` U+2715, que está fora dela
     eventClassName: 'border-tomate bg-tomate-suave text-tomate-foreground hover:brightness-95 opacity-80',
     badgeClassName: 'border-tomate/35 bg-tomate-suave text-tomate-foreground',
   },
   falta: {
     label: 'Paciente não compareceu',
     shortLabel: 'Falta',
+    glyph: '∅', // vazio: o horário existiu e ninguém veio
     eventClassName: 'border-tomate bg-tomate-suave text-tomate-foreground hover:brightness-95',
     badgeClassName: 'border-tomate/35 bg-tomate-suave text-tomate-foreground',
   },

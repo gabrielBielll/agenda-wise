@@ -422,7 +422,23 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
     const dataInicio = formData.get('data_inicio') as string;
     const dataFim = formData.get('data_fim') as string;
     const motivo = formData.get('motivo') as string;
-    const diaInteiro = formData.get('dia_inteiro') === 'on';
+    /**
+     * ⚠️ **Não há controle de "dia inteiro" nesta tela, e nunca houve.**
+     *
+     * Aqui morava uma leitura de `dia_inteiro` pelo `FormData`, buscando um campo
+     * que não existe em `src/` inteiro — varrido em 2026-08-20 fechando a
+     * A11Y-001b. (A chamada não é citada literalmente porque o verificador lê
+     * texto cru e acusaria o próprio comentário.) O
+     * resultado era `false` em toda execução desde sempre, então **trocar a
+     * leitura por `false` não muda comportamento nenhum**; muda só o código
+     * parar de fingir que consulta o usuário.
+     *
+     * 📌 O backend aceita `dia_inteiro` (`core.clj`) e a ação o repassa. Ou seja,
+     * o caminho existe do meio para trás e falta o começo. **Construir o controle
+     * é decisão do Gabriel, não conserto** — por isso fica registrado aqui e no
+     * cartão, em vez de eu inventar um checkbox.
+     */
+    const diaInteiro = false;
 
     // Sem pré-checagem: o backend recusa e devolve as sessões atingidas na
     // própria recusa (R-014). Perguntar antes seria uma ida a mais que responde
@@ -773,7 +789,7 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                                         className="w-20" 
                                         min="2" 
                                     max="120" 
-                                    id="quantidade_recorrencia_input"
+                                    id="quantidade_recorrencia"
                                     value={sessao.quantidade_recorrencia}
                                     onChange={(e) => setQuantidadeSessao(e.target.value)}
                                 />
@@ -1085,7 +1101,14 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="motivo" className="text-right">Motivo</Label>
                 <div className="col-span-3">
+                  {/* 🔴 `name` não é detalhe aqui: o formulário é lido por
+                      `formData.get('motivo')` em `handleCreateBlock`. Sem ele,
+                      `get` devolvia null e o motivo que a psicóloga digitava era
+                      DESCARTADO em silêncio — a tela aceitava e jogava fora.
+                      O `id` fecha a A11Y-001b; o `name` fecha o defeito. */}
                   <Input
+                    id="motivo"
+                    name="motivo"
                     placeholder="Ex: Reunião, Compromisso pessoal..."
                   />
                 </div>
@@ -1099,7 +1122,7 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                  <div className="col-span-3 flex flex-col gap-2">
                      <div className="flex gap-2">
                          <Select value={blockRecurrenceType} onValueChange={setBlockRecurrenceType}>
-                             <SelectTrigger className="w-[180px]">
+                             <SelectTrigger id="block_recurrence_type" className="w-[180px]">
                                  <SelectValue placeholder="Não repetir" />
                              </SelectTrigger>
                              <SelectContent>
@@ -1113,6 +1136,7 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                              <div className="flex items-center gap-2">
                                  <Label htmlFor="block_recurrence_count" className="whitespace-nowrap text-sm text-muted-foreground">x vezes:</Label>
                                  <Input 
+                                     id="block_recurrence_count"
                                      type="number" 
                                      className="w-20" 
                                      min="2" 
@@ -1450,20 +1474,23 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                                         {dayDate.getDate()}
                                      </span>
                                      <div className="flex flex-col gap-1 w-full overflow-hidden">
-                                         {dayAppointments.slice(0, 4).map(app => (
+                                         {dayAppointments.slice(0, 4).map(app => {
+                                           const appearance = appointmentStatusAppearance(app.status);
+                                           return (
                                              <div key={app.id} 
                                                 className={cn(
                                                   "w-full cursor-pointer truncate rounded border-l-2 px-1 py-0.5 text-[10px]",
-                                                  appointmentStatusAppearance(app.status).eventClassName,
+                                                  appearance.eventClassName,
                                                 )}
                                                 onClick={(e) => {
                                                     e.stopPropagation();
                                                     handleOpenEdit(app);
                                                 }}
                                              >
-                                                <span className="font-bold">{paredeDaClinica(app.data_hora_sessao).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}</span> <span>{app.nome_paciente}</span>
+                                                {appearance.glyph && <span aria-hidden="true" className="mr-0.5 font-bold">{appearance.glyph}</span>}<span className="font-bold">{paredeDaClinica(app.data_hora_sessao).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}</span> <span>{app.nome_paciente}</span>
                                              </div>
-                                         ))}
+                                           );
+                                         })}
                                          {dayAppointments.length > 4 && (
                                              <div className="text-[10px] text-muted-foreground pl-1">
                                                  +{dayAppointments.length - 4} mais

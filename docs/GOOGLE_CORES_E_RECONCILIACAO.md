@@ -573,3 +573,128 @@ estado, mas era cor crua fazendo o papel de um token existente.
 O mesmo do grafite: o **hex real** do Tomate do Google e o **`colorId = 11`**.
 Medi a legibilidade, não a semelhança com a cor do Google — a sandbox não alcança
 a API. Fica com a GC-008, junto com os outros quatro.
+
+---
+
+## 13. As 11 cores medidas, e o achado que muda o GC-016 — 2026-08-20
+
+> Feito pela `vale` (Claude no Termux) começando o GC-016, com a régua da §11.
+
+### 🔴 O achado primeiro, porque ele reordena o cartão
+
+**Nenhuma escolha de 5 cores entre as 11 é segura. Zero de 462, nos dois temas.**
+
+A clínica escolhe uma cor por estado — 5 das 11, o que dá 462 combinações. Medi
+todas. Em **todas** existe pelo menos um par que **colapsa nos dois canais**:
+preenchimento e borda com menos de 1,3 de razão de luminância, ou seja,
+indistinguível para quem não separa matiz.
+
+```
+claro    14 de 55 pares colapsam entre si
+escuro   24 de 55  — quase metade
+escolhas de 5 seguras: 0 de 462, nos dois temas
+```
+
+📌 **O controle que dá valor a esse zero:** com o limiar afrouxado para 1,0 a
+mesma contagem devolve **462 de 462**. O zero vem da exigência, não de um
+contador travado.
+
+### Por que isso não é conserto de paleta
+
+Antes de derivar as cores eu calculei o **teto**: quantas cores cabem, dado que a
+régua da casa exige texto ≥ 4,5:1, preenchimento ≥ 1,5:1 do fundo e separação de
+1,3 entre cores?
+
+```
+claro    cabem 9 de 11        (3 com texto escuro + 6 com texto claro)
+escuro   cabem 8 de 11        (5 + 3)
+```
+
+**As 11 não cabem, e não é escolha ruim de valores — é aritmética.** A faixa de
+luminância utilizável é limitada nas duas pontas pelas próprias exigências, e
+degraus de 1,3 dentro dela não chegam a 11. Espremer as 11 num degrau menor
+resolveria a conta e destruiria o que a **D-019** existe para preservar: que a
+cor seja **reconhecível** como a do Google.
+
+### 🔴 A consequência de desenho
+
+**A cor não pode carregar o estado. Ela carrega o reconhecimento; o estado precisa
+de um segundo canal.**
+
+Isso não é reforço opcional — com 11 opções livres, é o único mecanismo que
+funciona. As alternativas medidas e descartadas:
+
+| saída | por que não |
+|---|---|
+| escolher 5 cores "boas" | não existem: 0 de 462 |
+| a plataforma recusar combinações ruins | recusaria **todas** as 462 |
+| espremer as 11 numa escada de luminância | mata o reconhecimento, que é a razão da D-019 |
+| **glifo por estado, cor livre** | ✅ preserva a escolha da clínica *e* a legibilidade |
+
+📌 O campo `glyph` já existe em `appointment-status.ts` desde 2026-08-20 e hoje
+carrega o `✓` da confirmada. **O GC-016 deve nascer com os cinco preenchidos**, e
+não deixar isso para depois: sem eles, a paleta por clínica multiplica por 11 o
+problema que a A11Y acabou de fechar para um par.
+
+⚠️ **E isso muda o GC-018 também:** se o glifo carrega o estado, pintar um evento
+de outra cor deixa de ser ambíguo — a cor vira preferência visual da clínica, e a
+proposta de mudança de estado continua vindo do fluxo, não da cor.
+
+### As 22 medições — as 11 cores nos dois temas
+
+Derivadas igualando a **matiz** do hex canônico do Google e buscando saturação e
+luminosidade que passem nos cinco critérios da §11, com o objetivo de **ficar o
+mais perto possível do original** (não de maximizar folga — maximizar folga
+empurra toda borda para quase-preto e mata o reconhecimento; errei assim na
+primeira rodada e a tabela saiu inutilizável).
+
+```
+########## claro ##########
+cor          matiz  preench      borda        texto  borda/sup  fill/sup  borda/fill  vs tokens
+  Lavanda      230   #abb3de 44% 77%  #6a7ddc 64%  escuro   3.34    1.83      1.83  1.30
+  Salvia       152   #44ca8c 56% 53%  #17975b 34%  escuro   3.34    1.85      1.80  1.30
+  Uva          287   #8c24a8 65% 40%  #520a67 22%  claro   11.70    6.40      1.83  1.76
+  Flamingo       5   #eda29b 70% 77%  #f24536 58%  escuro   3.29    1.82      1.80  1.32
+  Banana        44   #f6bf28 92% 56%  #ae8209 36%  escuro   3.10    1.51      2.06  1.40
+  Tangerina     14   #b43108 91% 37%  #f45525 55%  claro    3.04    5.53      1.82  1.43
+  Pavao        200   #076492 91% 30%  #0b92d5 44%  claro    3.08    5.78      1.88  1.41
+  Grafite        0   #616161 0% 38%  #4b3434 25%  claro   10.13    5.53      1.83  1.52
+  Blueberry    231   #4051b5 48% 48%  #6b7de1 65%  claro    3.33    6.10      1.83  1.30
+  Manjericao   149   #0b7f43 84% 27%  #044e28 16%  claro    8.86    4.55      1.95  1.33
+  Tomate         0   #ce0909 92% 42%  #830707 27%  claro    9.38    5.12      1.83  1.41
+
+########## escuro ##########
+cor          matiz  preench      borda        texto  borda/sup  fill/sup  borda/fill  vs tokens
+  Lavanda      230   #7b88cc 44% 64%  #c1c9f0 85%  escuro   9.00    4.36      2.06  1.31
+  Salvia       152   #30ab72 56% 43%  #4ee49e 60%  escuro   9.06    5.03      1.80  1.31
+  Uva          287   #8c24a8 65% 40%  #ecbef9 86%  claro    9.28    2.04      4.54  1.34
+  Flamingo       5   #e77e74 70% 68%  #fbc6c1 87%  escuro   9.72    5.32      1.83  1.41
+  Banana        44   #bf8e08 92% 39%  #f5c542 61%  escuro   9.07    4.96      1.83  1.32
+  Tangerina     14   #f4511f 91% 54%  #fbbfad 83%  escuro   9.18    4.23      2.17  1.33
+  Pavao        200   #0a96db 91% 45%  #8bd4f9 76%  escuro   9.01    4.45      2.02  1.31
+  Grafite        0   #616161 0% 38%  #d9c9c9 82%  claro    9.19    2.37      3.88  1.33
+  Blueberry    231   #4051b5 48% 48%  #c4cbf3 86%  claro    9.20    2.15      4.29  1.33
+```
+
+📌 **Várias saem praticamente idênticas ao Google:** Grafite `#616161` é exato,
+Banana `#f6bf28` contra `#F6BF26`, Blueberry `#4051b5` contra `#3F51B5`, Uva
+`#8c24a8` contra `#8E24AA`. Onde o valor do Google já passava, ele ficou — o que
+confirma a hipótese da §8: o hex deles serve para fundo claro, e é no **tema
+escuro** que quase todos precisam andar.
+
+### 🔴 O que continua sem conferência
+
+O **`colorId`** de nove das onze. Só Pavão (7) e Blueberry (9) estão confirmados,
+e a GC-008 depende da API do Google, que **não alcanço deste Termux**. As matizes
+vêm do hex canônico que eu conheço, não de leitura da API — se a GC-008 mostrar
+que uma delas é outra, **a régua não muda**: o valor novo passa pelos mesmos cinco
+critérios, nos dois temas, e a rotina que fez esta tabela está no repositório
+para ser rodada de novo:
+
+```sh
+cd deep-saude-plataforma-front-end && node scripts/mede-paleta-google.mjs
+```
+
+📌 Ela **não** entra no CI de propósito: é rotina de **decisão**, não guarda. O
+que o CI guarda são os valores já escolhidos, no passo *"os tokens de cor
+materializaram no CSS"*.

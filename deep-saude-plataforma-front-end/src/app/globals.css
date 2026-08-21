@@ -37,7 +37,25 @@
        sálvia = confirmada/realizada. Eles são tokens próprios porque ação
        primária e estado de uma sessão não são a mesma responsabilidade. */
     --agenda-agendada: 21 58% 55%; --agenda-agendada-suave: 24 66% 92%; --agenda-agendada-foreground: 18 58% 29%;
-    --agenda-confirmada: 88 18% 43%; --agenda-confirmada-suave: 86 20% 90%; --agenda-confirmada-foreground: 90 22% 25%;
+    --agenda-confirmada: 88 18% 21%; --agenda-confirmada-suave: 86 20% 90%; --agenda-confirmada-foreground: 90 22% 25%;
+    /* GC-015 — as 11 cores do Google, medidas nos DOIS temas.
+       🔴 GERADAS, não transcritas: `node scripts/mede-paleta-google.mjs --css`.
+       Igualam a MATIZ do hex canônico do Google e derivam a luminância por tema —
+       copiar o hex deles daria 2,30:1 no escuro, que foi o que o `bg-green-500`
+       dava antes do `--success`.
+       📌 A cor NÃO carrega o estado: das 462 escolhas de 5 entre as 11, nenhuma
+       deixa os cinco distinguíveis por luminância. Quem carrega é o glifo. */
+    --cor-lavanda: 230 62% 64%; --cor-lavanda-suave: 230 44% 77%; --cor-lavanda-foreground: 60 3% 22%;
+    --cor-salvia: 152 74% 34%; --cor-salvia-suave: 152 56% 53%; --cor-salvia-foreground: 60 3% 22%;
+    --cor-uva: 287 83% 22%; --cor-uva-suave: 287 65% 40%; --cor-uva-foreground: 40 33% 98%;
+    --cor-flamingo: 5 88% 58%; --cor-flamingo-suave: 5 70% 77%; --cor-flamingo-foreground: 60 3% 22%;
+    --cor-banana: 44 90% 36%; --cor-banana-suave: 44 92% 56%; --cor-banana-foreground: 60 3% 22%;
+    --cor-tangerina: 14 90% 52%; --cor-tangerina-suave: 14 91% 75%; --cor-tangerina-foreground: 60 3% 22%;
+    --cor-pavao: 200 90% 21%; --cor-pavao-suave: 200 91% 54%; --cor-pavao-foreground: 60 3% 22%;
+    --cor-grafite: 0 0% 23%; --cor-grafite-suave: 0 0% 38%; --cor-grafite-foreground: 40 33% 98%;
+    --cor-blueberry: 231 66% 30%; --cor-blueberry-suave: 231 48% 48%; --cor-blueberry-foreground: 40 33% 98%;
+    --cor-manjericao: 149 90% 16%; --cor-manjericao-suave: 149 84% 27%; --cor-manjericao-foreground: 40 33% 98%;
+    --cor-tomate: 0 90% 27%; --cor-tomate-suave: 0 92% 42%; --cor-tomate-foreground: 40 33% 98%;
     --border: 34 17% 82%; --input: 34 17% 82%; --ring: 21 58% 59%;
     --chart-1: 88 12% 50%; --chart-2: 21 58% 59%; --chart-3: 30 33% 64%; --chart-4: 87 11% 67%; --chart-5: 21 45% 72%;
     --radius: 1.15rem;
@@ -72,7 +90,18 @@
     --grafite-foreground: 38 24% 91%; --grafite-tenue: 40 4% 18%;
     --tomate: 6 60% 60%; --tomate-suave: 4 40% 26%; --tomate-foreground: 8 60% 90%;
     --agenda-agendada: 21 58% 66%; --agenda-agendada-suave: 20 30% 25%; --agenda-agendada-foreground: 24 62% 90%;
-    --agenda-confirmada: 88 18% 64%; --agenda-confirmada-suave: 88 18% 24%; --agenda-confirmada-foreground: 84 24% 91%;
+    --agenda-confirmada: 88 18% 77%; --agenda-confirmada-suave: 88 18% 24%; --agenda-confirmada-foreground: 84 24% 91%;
+    --cor-lavanda: 230 62% 85%; --cor-lavanda-suave: 230 44% 64%; --cor-lavanda-foreground: 72 8% 12%;
+    --cor-salvia: 152 74% 60%; --cor-salvia-suave: 152 56% 43%; --cor-salvia-foreground: 72 8% 12%;
+    --cor-uva: 287 83% 86%; --cor-uva-suave: 287 65% 40%; --cor-uva-foreground: 38 24% 91%;
+    --cor-flamingo: 5 88% 87%; --cor-flamingo-suave: 5 70% 68%; --cor-flamingo-foreground: 72 8% 12%;
+    --cor-banana: 44 90% 61%; --cor-banana-suave: 44 92% 39%; --cor-banana-foreground: 72 8% 12%;
+    --cor-tangerina: 14 90% 83%; --cor-tangerina-suave: 14 91% 54%; --cor-tangerina-foreground: 72 8% 12%;
+    --cor-pavao: 200 90% 76%; --cor-pavao-suave: 200 91% 45%; --cor-pavao-foreground: 72 8% 12%;
+    --cor-grafite: 0 0% 80%; --cor-grafite-suave: 0 0% 38%; --cor-grafite-foreground: 38 24% 91%;
+    --cor-blueberry: 231 66% 86%; --cor-blueberry-suave: 231 48% 48%; --cor-blueberry-foreground: 38 24% 91%;
+    --cor-manjericao: 149 90% 48%; --cor-manjericao-suave: 149 84% 26%; --cor-manjericao-foreground: 38 24% 91%;
+    --cor-tomate: 0 90% 86%; --cor-tomate-suave: 0 92% 42%; --cor-tomate-foreground: 38 24% 91%;
     --border: 72 5% 25%; --input: 72 5% 25%; --ring: 21 55% 66%;
     --sidebar-background: 72 8% 11%; --sidebar-foreground: 38 20% 88%;
     --sidebar-primary: 21 55% 66%; --sidebar-primary-foreground: 72 8% 12%;

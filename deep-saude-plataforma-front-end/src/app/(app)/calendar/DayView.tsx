@@ -198,6 +198,12 @@ export function DayView({ date, appointments, bloqueios = [], onAddAppointment, 
                                 onEditAppointment(app);
                             }}
                         >
+                            {/* 🔴 O glifo fica na linha do NOME, e não na do horário, e isso
+                                não é estética: `e2e/apoio.ts` lê `span.font-semibold` e exige
+                                que o texto seja **só** `HH:MM - HH:MM`. Pôr o glifo lá dentro
+                                sujou esse texto e derrubou três testes de fuso em 20/08 — o
+                                teste estava certo, a minha implementação e que estava. O
+                                horário e um dado que outra coisa le; nao e lugar de enfeite. */}
                             <span className="font-semibold block">
                                 {String(appDate.getHours()).padStart(2, '0')}:{String(minutes).padStart(2, '0')} - {
                                   (() => {
@@ -207,6 +213,7 @@ export function DayView({ date, appointments, bloqueios = [], onAddAppointment, 
                                 }
                             </span>
                             <span className={cn("truncate block font-medium", app.status === 'cancelado' && "line-through opacity-70")}>
+                                {appearance.glyph && <span aria-hidden="true" className="mr-0.5 font-bold">{appearance.glyph}</span>}
                                 {app.nome_paciente}
                             </span>
                         </div>

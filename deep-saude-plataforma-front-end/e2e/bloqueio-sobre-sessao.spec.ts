@@ -36,6 +36,8 @@ import { CONTA, DURACAO_DA_SESSAO, HORA_DA_SESSAO } from './preparar-dados';
  */
 
 /** Janela que engloba a sessão semeada (14:00–14:50) com folga dos dois lados. */
+/** Texto reconhecível: se ele sumir, sumiu porque o campo foi descartado. */
+const MOTIVO_DO_BLOQUEIO = 'Consulta médica minha';
 const BLOQUEIO_INICIO = '13:00';
 const BLOQUEIO_FIM = '15:00';
 
@@ -108,9 +110,17 @@ async function tentarBloquearPorCimaDaSessao(page: Page) {
       'ter aberto o combobox de "Repetição", que é o outro deste diálogo'
   ).toContainText(CONTA.psicologoNome);
 
-  const datas = dialogo.locator('input[type="datetime-local"]');
-  await datas.nth(0).fill(`${dia}T${BLOQUEIO_INICIO}`);
-  await datas.nth(1).fill(`${dia}T${BLOQUEIO_FIM}`);
+  // 📌 Por rótulo desde a A11Y-001b. Era `input[type=datetime-local]` com
+  // `.nth(0)`/`.nth(1)`, porque os dois campos não tinham nome acessível — e
+  // trocar a ordem deles no DOM inverteria início e fim em silêncio, criando um
+  // bloqueio de duração negativa que o teste leria como "a recusa funcionou".
+  await dialogo.getByLabel(/^in[íi]cio$/i).fill(`${dia}T${BLOQUEIO_INICIO}`);
+  await dialogo.getByLabel(/^fim$/i).fill(`${dia}T${BLOQUEIO_FIM}`);
+
+  // 🔴 O motivo entra AQUI para virar guarda de um defeito real: até 20/08 este
+  // campo não tinha `name`, e `handleCreateBlock` o lê por
+  // `formData.get('motivo')` — a psicóloga digitava e o valor era descartado.
+  await dialogo.getByLabel(/^motivo$/i).fill(MOTIVO_DO_BLOQUEIO);
 
   await dialogo.getByRole('button', { name: /criar bloqueio/i }).click();
 
@@ -226,14 +236,18 @@ test.describe('a recusa devolve o formulário — guarda do lado que já está c
     await recusa.getByRole('button', { name: /voltar e ajustar/i }).click();
     await expect(dialogo).toBeVisible();
 
-    const datas = dialogo.locator('input[type="datetime-local"]');
     await expect(
-      datas.nth(0),
+      dialogo.getByLabel(/^in[íi]cio$/i),
       'o início se perdeu: "Voltar e ajustar" devolveu formulário em branco'
     ).toHaveValue(periodo.inicio);
     await expect(
-      datas.nth(1),
+      dialogo.getByLabel(/^fim$/i),
       'o fim se perdeu pelo mesmo motivo'
     ).toHaveValue(periodo.fim);
+    await expect(
+      dialogo.getByLabel(/^motivo$/i),
+      'o motivo se perdeu na recusa — e este campo já foi descartado uma vez, ' +
+        'por não ter `name` (A11Y-001b, 20/08)'
+    ).toHaveValue(MOTIVO_DO_BLOQUEIO);
   });
 });

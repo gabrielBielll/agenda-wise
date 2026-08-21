@@ -286,7 +286,10 @@ export function WeekView({ date, appointments, bloqueios = [], onAddAppointment,
                               ) : (
                                 <>
                                   <span className="font-semibold block">{startLabel} - {endLabel}</span>
+                                  {/* Ver a nota no DayView: o glifo NAO entra no span do
+                                      horario, que o e2e le como dado. */}
                                   <span className={cn("truncate block font-medium", app.status === 'cancelado' && "line-through opacity-70")}>
+                                      {appearance.glyph && <span aria-hidden="true" className="mr-0.5 font-bold">{appearance.glyph}</span>}
                                       {app.nome_paciente}
                                   </span>
                                 </>

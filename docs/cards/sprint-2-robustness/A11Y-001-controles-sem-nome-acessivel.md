@@ -115,7 +115,58 @@ está coberto por um critério MECÂNICO**, não por julgamento: ao terminar, to
 `htmlFor="X"` em `src/` tem que ter um `id="X"` no mesmo arquivo. Foi a varredura
 da `vale` que estabeleceu isso, e é o que torna esta metade segura sem navegador.
 
-### 🔴 A11Y-001b — os seis do `CalendarClient` · precisa de navegador
+### ✅ A11Y-001b — FECHADA em 2026-08-20 por `vale`
+
+Liberada pela `orla` na 0202. **Eram 4, não 6** — `paciente` e `recorrencia_tipo`
+já tinham sido consertados antes; a lista escrita estava desatualizada, e a
+varredura é que disse a verdade.
+
+| controle | o que faltava |
+|---|---|
+| `quantidade_recorrencia` | tinha `id`, mas `quantidade_recorrencia_input` — **não batia** com o `htmlFor` |
+| `motivo` | sem `id` **e sem `name`** — ver abaixo |
+| `block_recurrence_type` | `SelectTrigger` sem `id` |
+| `block_recurrence_count` | `Input` sem `id` |
+
+🔴 **E o conserto do `motivo` não era de acessibilidade.** O formulário do
+bloqueio é lido por `FormData` em `handleCreateBlock`, que busca o campo pelo
+**nome**. Sem `name`, a busca devolvia nulo: **a psicóloga digitava o motivo do
+bloqueio e o valor era descartado em silêncio.** A tela aceitava e jogava fora.
+
+⚠️ **Nasceu daí uma terceira varredura**, e ela pega a classe inteira:
+`formData.get('X')` sem `name="X"` no mesmo arquivo. Está em
+`deep-saude-plataforma-front-end/scripts/checa-nomes-de-campo.mjs`, roda no CI
+(`npm run checa:campos`) e **testa a si mesmo antes de varrer** — scanner
+quebrado devolve zero achados, que é indistinguível de "está tudo certo".
+
+📌 **Os seletores posicionais do e2e caíram**, que era metade do motivo do
+cartão: `getByRole('combobox').nth(1)` virou `{ name: /repetir/i }`, e
+`input[type=datetime-local]` com `.nth(0)/.nth(1)` virou `getByLabel`.
+
+### 🟠 Dois achados de carona, e os dois são decisão do Gabriel
+
+1. **Não existe controle de "dia inteiro"** no diálogo de bloqueio, e nunca
+   existiu — o código lia um campo ausente, então o valor era `false` em toda
+   execução desde sempre. Troquei a leitura pendurada por `false` explícito
+   (comportamento idêntico) com o porquê no lugar. **O backend aceita
+   `dia_inteiro` e a ação o repassa**: o caminho existe do meio para trás e falta
+   o começo. Construir o controle é decisão, não conserto.
+
+2. ✅ **`AppointmentForm.tsx` APAGADO em 2026-08-20**, com o Gabriel autorizando.
+   Este cartão delegava a decisão a quem fizesse a A11Y-001b, e a resposta foi:
+   criado em 30/01 trazendo detecção de conflito, que hoje vive no
+   `CalendarClient` (A-008) — **sobra de refactor, não substituto planejado**.
+
+   As três condições foram reconferidas no momento de apagar, não herdadas do que
+   estava escrito: **zero importações** (com controle mostrando que a busca acha
+   `WeekView` em 4 arquivos), **não é rota** (o App Router só roteia `page.tsx`), e
+   o único `export` não é importado por ninguém. Depois de apagar: nenhuma
+   referência pendurada, e o verificador de campos seguiu verde.
+
+   📌 **Restaurar, se um dia fizer falta:**
+   `git checkout f5a099b -- 'deep-saude-plataforma-front-end/src/app/(app)/calendar/AppointmentForm.tsx'`
+
+### 🔴 A11Y-001b — o enunciado original (precisava de navegador)
 
 `CalendarClient.tsx` tem **1309 linhas** e concentra `paciente`,
 `recorrencia_tipo`, `quantidade_recorrencia`, `block_recurrence_type`,
@@ -171,10 +222,11 @@ O diálogo de agendamento do calendário é **inline no `CalendarClient.tsx`**.
 mas o cartão precisa dizer: **um dos controles contados não é alcançável por
 usuário nenhum.**
 
-⚠️ **Não apagar agora.** A decisão cabe a quem fizer a **A11Y-001b**, que vai
-estar dentro do `CalendarClient` e é quem pode dizer se este arquivo era um
-substituto planejado do diálogo inline ou sobra de refactor. **Apagar antes disso
-é decidir sem o contexto.**
+~~⚠️ **Não apagar agora.**~~ ✅ **Decidido e apagado em 2026-08-20.** A `vale`,
+fazendo a A11Y-001b, determinou que era **sobra de refactor** — a detecção de
+conflito que ele trazia vive no `CalendarClient` desde a A-008 — e o Gabriel
+autorizou. Ver o item 2 dos achados de carona, acima, com as condições
+reconferidas na hora e o comando de restauração.
 
 ## Solução proposta
 
