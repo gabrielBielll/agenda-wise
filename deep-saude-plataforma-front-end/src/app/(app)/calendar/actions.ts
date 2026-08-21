@@ -275,6 +275,14 @@ export interface Bloqueio {
   motivo?: string;
   dia_inteiro?: boolean;
   recorrencia_id?: string;
+  /**
+   * `bloqueio` (proíbe) ou `disponivel` (oferece) — D-024.
+   *
+   * ⚠️ Opcional porque o backend só passou a gravar a coluna em 21/08 e o
+   * default dela é `bloqueio`. Ausente lê como bloqueio em todo lugar
+   * (`normalizarTipoJanela`), que é o que mantém compatível o que já está no ar.
+   */
+  tipo?: string;
 }
 
 export async function fetchBloqueios(dataInicio?: string, dataFim?: string): Promise<Bloqueio[]> {

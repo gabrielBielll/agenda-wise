@@ -25,6 +25,23 @@
        contra a API — ver §10 de docs/GOOGLE_CORES_E_RECONCILIACAO.md. */
     --grafite: 40 4% 34%; --grafite-suave: 40 6% 72%;
     --grafite-foreground: 60 3% 18%; --grafite-tenue: 40 8% 90%;
+    /* Disponivel — o par oposto do bloqueio (D-024). Azul Pavao, terceira das 11.
+       🔴 Token SEMANTICO, como o --grafite, e nao a paleta --cor-pavao. Hoje os
+       valores sao os mesmos; o que difere e o significado. `--cor-pavao` e uma
+       ESCOLHA da clinica e pode ir parar em qualquer estado de sessao; este aqui
+       e o significado fixo "a psicologa ofereceu este horario". Se fossem a
+       mesma variavel, a clinica escolher Pavao para "agendada" repintaria as
+       janelas oferecidas junto — e o oposto tambem.
+       📌 Os valores saem da regua, nao do hex do Google: `node
+       scripts/mede-paleta-google.mjs` deriva Pavao sob os cinco criterios e
+       devolve exatamente 200 91% 54% / 200 90% 21% no claro. O Gabriel autorizou
+       tolerancia de matiz ("se for azul, pegue qualquer tom de azul"), e a
+       escolha foi ficar no tom que a regua aprova.
+       ⚠️ O `-tenue` NAO passa pelos cinco criterios: e uma lavagem de fundo da
+       celula da hora, nao superficie de texto de estado — mesma funcao do
+       --grafite-tenue. */
+    --disponivel: 200 90% 21%; --disponivel-suave: 200 91% 54%;
+    --disponivel-foreground: 60 3% 22%; --disponivel-tenue: 200 45% 93%;
     /* Tomate — segunda das 11 (GC-015). Cancelada/pausa na convencao da R-017.
        Substitui 7 classes cruas de vermelho na grade e o laranja que o painel
        e o toast usavam para o MESMO estado: a grade dizia vermelho e o detalhe
@@ -88,6 +105,13 @@
        clara faria ele gritar mais alto que a própria sessão. */
     --grafite: 40 5% 62%; --grafite-suave: 40 4% 30%;
     --grafite-foreground: 38 24% 91%; --grafite-tenue: 40 4% 18%;
+    /* Disponivel no escuro. Aqui a borda e MAIS CLARA que o preenchimento, e o
+       claro e o contrario — e a mesma inversao que a regua impoe a todas as 11
+       (`tema === 'claro' ? lb >= lf : lb <= lf` em mede-paleta-google.mjs). Sem
+       ela o conjunto sai com bordas ora mais claras ora mais escuras e a grade
+       perde a leitura de contorno. */
+    --disponivel: 200 90% 76%; --disponivel-suave: 200 91% 45%;
+    --disponivel-foreground: 72 8% 12%; --disponivel-tenue: 200 30% 16%;
     --tomate: 6 60% 60%; --tomate-suave: 4 40% 26%; --tomate-foreground: 8 60% 90%;
     --agenda-agendada: 21 58% 66%; --agenda-agendada-suave: 20 30% 25%; --agenda-agendada-foreground: 24 62% 90%;
     --agenda-confirmada: 88 18% 77%; --agenda-confirmada-suave: 88 18% 24%; --agenda-confirmada-foreground: 84 24% 91%;

@@ -1079,3 +1079,225 @@ A R-012 saiu da boca do Gabriel e tem raciocínio escrito — a inconveniência 
 exigir código e implantação *era* o que dava sentido à regra. Mudar isso num
 commit de permissão, sem registro, deixaria a regra e o código discordando, e a
 próxima instância acreditaria no arquivo errado.
+
+---
+
+## D-022 — O horário disponível vira estado, e "vazio" deixa de significar "pode marcar"
+
+**Decidido por:** a CEO, relatado pelo Gabriel em 2026-08-21
+**Estende:** a linha 4 da tabela da **R-017**, que já previa 🔵 azul = `[DISPONÍVEL]`
+**Tarefa:** [0210](0210-orla-para-vale-e-duna-o-disponivel-e-o-vazio-que-vira-telefonema.md)
+
+Nas palavras dele: *"nós temos muitas psicólogas que não trabalham o tempo
+inteiro com a nossa empresa, então elas têm outros trabalhos, então somente
+alguns horários específicos dos dias delas são disponíveis […] no Google Agenda
+existe a cor azul pra indicar disponibilidade […] um operador consegue ir lá na
+agenda dela, clicar no azul e marcar uma sessão nesse horário disponível"*.
+
+### 🔴 O defeito que isso expõe, e ele custa um telefonema por vez
+
+Ele descreveu o problema real melhor do que qualquer card:
+
+> *"às vezes acontece de um paciente sair e muitas vezes elas simplesmente
+> esquecem de colocar que o horário está disponível ali. E aí fica uma dúvida […]
+> os horários vazios acabam se tornando dúvidas."*
+
+**O mundo real tem TRÊS estados de horário, e a plataforma só modela dois:**
+
+| | o que significa | existe hoje? |
+|---|---|---|
+| 🔵 **disponível** | *"pode marcar aqui"* — afirmação positiva da psicóloga | ❌ **não existe** |
+| ⚫ **bloqueado** | *"não existe horário aqui"* | ✅ `bloqueios_agenda` |
+| ⬜ **não dito** | ninguém afirmou nada | ❌ hoje some dentro de "vazio" |
+
+🔴 **E é o terceiro que gera o telefonema.** Hoje a plataforma trata *vazio* como
+*disponível* por omissão — e é exatamente a leitura errada. O operador vê espaço
+livre, não sabe se pode marcar, e liga para perguntar. Quando é bloqueio, ele sabe;
+quando é azul, ele sabe. A dúvida mora só no que ninguém disse.
+
+📌 **A plataforma precisa poder dizer "eu não sei".** Um sistema que responde
+"disponível" para o que nunca foi afirmado está inventando informação — é a mesma
+família do `200` que quer dizer "não fiz nada".
+
+### A cor não precisa ser a mesma; a família, sim
+
+Segunda coisa que ele decidiu, e que **afrouxa** a D-019 de um jeito útil:
+
+> *"na plataforma a gente não precisa necessariamente seguir o padrão visual exato
+> do Google […] no fim das contas você entende que é vermelho, é azul, é laranja,
+> é cinza escuro que é grafite […] se for azul, pegue qualquer tom de azul, se for
+> azul é isso"*.
+
+**Efeito nos dois sentidos:**
+
+- **Pintando aqui:** basta a cor ser reconhecivelmente da mesma família. Isso
+  libera a luminância para servir à legibilidade, em vez de perseguir o hex do
+  Google — que era o que apertava a medição das 11.
+- **Lendo o Google:** classificar por **família de matiz**, não por `colorId`
+  exato. 📌 O `lista-psis` já faz assim: `GOOGLE_AVAILABLE_EVENT_COLOR_IDS` aceita
+  Pavão, Blueberry **ou ausência de cor**. A tolerância já é o padrão que funciona
+  em produção há mais tempo que este projeto.
+
+### E os dois canais, confirmados por ele
+
+> *"a pessoa pode muitas vezes não entender a cor, mas ela pode entender os
+> glifos […] a psicóloga pode seguir tanto pelo padrão de cor quanto pelo glifo"*.
+
+Isso ratifica o que a `vale` mediu e implementou ontem: cor **e** glifo, os dois
+canais, cada um bastando sozinho. O `disponível` nasce precisando dos dois desde o
+primeiro dia — não repetir o caminho de descobrir depois.
+
+### ⚠️ O que eu quero deixar dito antes de alguém implementar
+
+**`disponível` não é estado de sessão.** Não entra em `status-sessao`, não vira
+linha em `agendamentos`. É estado de **janela de agenda**, vizinho de
+`bloqueios_agenda` — e provavelmente a mesma tabela com um sinal invertido, não
+uma tabela nova.
+
+Pôr `disponivel` no vocabulário de sessão criaria uma sessão sem paciente, sem
+valor e sem psicóloga responsável, que é como `status_repasse` acabou com cinco
+valores de três vocabulários na mesma coluna.
+
+---
+
+## D-023 — O "disponível" NÃO vira estado da plataforma. Reverte a D-022, um dia depois
+
+**Decidido por:** Gabriel, 2026-08-21
+**Reverte:** a [D-022](#d-022--o-horário-disponível-vira-estado-e-vazio-deixa-de-significar-pode-marcar), escrita algumas horas antes
+**Efeito:** o vazio continua ambíguo, e isso passa a ser **de propósito**
+
+Nas palavras dele: *"a plataforma pode se manter da maneira que está, deixar o
+espaço em branco como uma dúvida mesmo ali e não precisar sinalizar nada"*.
+
+### Por que ele reverteu, e o argumento é melhor que o meu
+
+> *"esse é um problema que a Deep Saúde tem, porque a Deep Saúde usa esse modelo
+> de explicitamente deixar um horário azul disponível […] porém outras clínicas,
+> já que a plataforma vai ser replicável, podem simplesmente não seguir esse
+> padrão, simplesmente nem usar o horário azul pra dizer disponível, só ir lá e
+> marcar um horário na agenda."*
+
+📌 **A D-022 confundiu uma prática de UMA clínica com uma regra do produto.** O
+azul de disponibilidade é convenção da Deep Saúde, não do mercado. Modelar os três
+estados obrigaria toda clínica compradora a declarar disponibilidade para o
+sistema funcionar — e a maioria não trabalha assim: marca a sessão direto no
+horário vazio.
+
+**A ambiguidade do vazio é o comportamento correto para um produto multi-clínica**,
+porque é o único que serve aos dois modos sem impor nenhum.
+
+⚠️ **E o Google faz igual.** Lá o vazio também não diz nada; quem dá sentido a ele
+é a convenção de cada equipe. Copiar isso é herdar um desenho já testado, não
+deixar um buraco.
+
+### O contexto de produto, que vale registrar porque explica outras decisões
+
+> *"uma das clínicas desse sistema multi-clínicas vai ser nossa, da própria Deep
+> Saúde […] e vamos criar outras clínicas ali e poder vender pra outros
+> consultórios […] como também vamos estar vendendo esse sistema para psicólogas
+> individuais […] mas isso são versões futuras."*
+
+🎯 **A Deep Saúde é usuária E vendedora do mesmo sistema.** Toda vez que uma
+prática interna parecer candidata a virar funcionalidade, a pergunta é: *isto é do
+produto, ou é do nosso jeito de trabalhar?* A D-022 falhou nessa pergunta, e este
+parágrafo existe para a próxima não falhar.
+
+📌 **Psicóloga individual fica para versão futura** — não modelar para ela agora.
+
+### O que a D-022 deixa de válido, e não é pouco
+
+A reversão é da **funcionalidade**, não das observações:
+
+- ✅ **O diagnóstico continua verdadeiro:** o vazio é ambíguo e gera telefonema na
+  Deep Saúde. Só deixa de ser problema *da plataforma* e volta a ser processo
+  *da clínica*.
+- ✅ **`disponível` não seria estado de sessão** — se um dia voltar, essa parte
+  continua valendo.
+- ✅ **A tolerância de matiz** (*"se for azul, pegue qualquer tom de azul"*) segue
+  decidida e útil, e não dependia da D-022.
+
+### 🔴 E uma armadilha que a reversão NÃO apaga — ela fica marcada aqui
+
+A **GC-009** diz: *"evento externo do Google vira bloqueio"*.
+
+Um evento **`[DISPONÍVEL]` azul** na agenda da Deep Saúde é, para o sincronizador,
+um evento externo como qualquer outro. **Importado por essa regra, ele viraria
+bloqueio — o oposto exato do que significa.**
+
+⚠️ A psicóloga marcaria azul para dizer *"pode marcar aqui"* e a plataforma
+entenderia *"não existe horário aqui"*. Silencioso, e ao contrário.
+
+📌 **A GC-009 precisa excluir o azul-disponível antes de importar**, junto com o
+filtro de `origem != plataforma` que ela já prevê. Isso vale mesmo com a D-023,
+porque a Deep Saúde vai continuar usando o azul no Google dela — e o
+`lista-psis` já tem o reconhecimento pronto e configurável.
+
+---
+
+## D-024 — O `disponível` ENTRA. O que não entra é o que eu inventei em volta dele
+
+**Decidido por:** Gabriel, 2026-08-21, corrigindo a minha leitura da D-023
+**Corrige:** a [D-023](#d-023--o-disponível-não-vira-estado-da-plataforma-reverte-a-d-022-um-dia-depois), que reverteu coisa demais
+**Vale sobre:** a D-022 e a D-023 — esta é a leitura boa das três
+
+Nas palavras dele: *"vamos precisar sim de ter o padrão de bloqueio na agenda, de
+especificar claramente o azul pra disponível, tudo isso precisa existir […] todo o
+padrão de cores que a Deep Saúde usa vai precisar estar dentro da plataforma, a
+CEO pediu, isso é regra"*.
+
+E o limite, que é a outra metade da decisão:
+
+> *"o que a gente não pode fazer, que foi algo que você lá estava começando a
+> cogitar, é ir além disso […] 'ah, é o espaço vazio, gera uma ambiguidade,
+> etcétera, etcétera'. Não, cara, para por aqui onde eu falei, e aplica exatamente
+> o que a CEO pediu."*
+
+### ✅ O que ENTRA
+
+| | |
+|---|---|
+| 🔵 **`disponível`** | azul, na plataforma, com glifo próprio. **É o único que falta** |
+| ⚫ **`bloqueio`** | grafite — já está no ar desde 20/08 |
+| 🟠🟢🔴 o resto da R-017 | agendada, confirmada, realizada, cancelada/falta — já estão no ar |
+
+E os **dois canais** para todos, cor e glifo, ratificados por ele.
+
+### ❌ O que NÃO entra — e era invenção minha, não pedido de ninguém
+
+- o terceiro estado *"não dito"*;
+- a tese de que o vazio é ambíguo e a plataforma precisa dizer *"eu não sei"*;
+- a pergunta no sino quando um horário vaga;
+- qualquer máquina em volta da lacuna.
+
+**O vazio segue vazio, sem sinalizar nada.** Se a dor aparecer depois, ele decide
+depois.
+
+### 🔴 O erro que eu cometi, e ele é de forma, não de conteúdo
+
+**Eu extrapolei o pedido, e depois reverti demais ao ser corrigido.** As duas
+falhas são a mesma: não parar onde o pedido para.
+
+O caso de uso da CEO veio com um problema anexo — *"elas esquecem de marcar que
+vagou"*. Eu tratei o problema anexo como parte do pedido e desenhei uma solução
+para ele. Quando o Gabriel disse *"não vá além"*, eu li como *"não faça nada"* e
+matei também o que **era** pedido.
+
+📌 **A regra que fica:** o pedido do oráculo tem uma borda, e observação minha
+sobre o que vi no caminho **não** move essa borda. Insight se registra como
+observação, separado, e espera decisão — não se anexa ao escopo por parecer
+óbvio.
+
+⚠️ **E as duas decisões erradas ficam preservadas acima**, com o motivo. Quem ler
+a D-022 e a D-023 sem esta vai implementar coisa errada em duas direções
+diferentes.
+
+### O que sobrevive das duas, e continua valendo
+
+- ✅ **`disponível` não é estado de sessão.** Não entra em `status-sessao`, não
+  vira linha em `agendamentos` — é estado de **janela de agenda**, vizinho de
+  `bloqueios_agenda`. Isso é modelagem, não extrapolação, e é necessário para
+  implementar certo.
+- ✅ **A tolerância de matiz** — *"se for azul, pegue qualquer tom de azul"*.
+- ✅ **A armadilha da GC-009:** evento externo do Google vira bloqueio, e um
+  `[DISPONÍVEL]` azul importado por essa regra viraria **bloqueio — o oposto do
+  que significa.** A Deep Saúde usa azul no Google, então isso vai acontecer.

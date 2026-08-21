@@ -939,3 +939,102 @@
                               :cancelar_conflitos true})]
     (is (= 201 (:status resp)))
     (is (= 1 (conta "bloqueios_agenda")))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; D-024 — a janela `disponivel` divide a tabela com o bloqueio e NÃO proíbe
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(deftest janela-disponivel-nao-impede-agendar-e-bloqueio-ainda-impede
+  ;; 🔴 Os dois casos vivem no MESMO teste de propósito, e isto é o ponto.
+  ;;
+  ;; "disponível deixa agendar", sozinho, não mede nada: ele passaria igual se o
+  ;; filtro `tipo = 'bloqueio'` estivesse certo E se a checagem de bloqueio
+  ;; tivesse sumido por inteiro. As duas hipóteses dão o mesmo verde. O que as
+  ;; separa é o controle positivo — a linha de bloqueio que CONTINUA recusando.
+  (let [manha     (parede 8 9)
+        manha-fim (parede 8 10)
+        tarde     (parede 8 15)
+        tarde-fim (parede 8 16)]
+    (is (= 201 (:status (criar-bloqueio {:data_inicio manha :data_fim manha-fim
+                                         :tipo "disponivel"})))
+        "a psicóloga oferece a manhã")
+    (is (= 201 (:status (criar-bloqueio {:data_inicio tarde :data_fim tarde-fim
+                                         :tipo "bloqueio"})))
+        "e fecha a tarde")
+
+    (testing "agendar na janela OFERECIDA é permitido"
+      (is (= 201 (:status (criar (assoc sessao-base :data_hora_sessao manha))))))
+
+    (testing "CONTROLE — agendar no horário FECHADO continua recusado"
+      (let [resp (criar (assoc sessao-base :data_hora_sessao tarde))]
+        (is (= 409 (:status resp)))
+        (is (= "block_conflict" (:code (:body resp))))))))
+
+(deftest janela-disponivel-nao-impede-mover-sessao-e-bloqueio-ainda-impede
+  ;; O mesmo par, no caminho de ATUALIZAR. São duas consultas distintas no
+  ;; `core.clj` (criação e atualização) e já houve defeito que existia numa e
+  ;; não na outra — a assimetria é a regra desta casa, não a exceção.
+  (let [origem         (parede 9 8)
+        oferecido      (parede 9 11)
+        oferecido-fim  (parede 9 12)
+        fechado        (parede 9 17)
+        fechado-fim    (parede 9 18)
+        sessao (:body (criar (assoc sessao-base :data_hora_sessao origem)))]
+    (is (= 201 (:status (criar-bloqueio {:data_inicio oferecido :data_fim oferecido-fim
+                                         :tipo "disponivel"}))))
+    (is (= 201 (:status (criar-bloqueio {:data_inicio fechado :data_fim fechado-fim
+                                         :tipo "bloqueio"}))))
+
+    (testing "mover para dentro da janela OFERECIDA é permitido"
+      (is (= 200 (:status (atualizar (:id sessao) {:data_hora_sessao oferecido})))))
+
+    (testing "CONTROLE — mover para dentro do horário FECHADO continua recusado"
+      (let [resp (atualizar (:id sessao) {:data_hora_sessao fechado})]
+        (is (= 409 (:status resp)))
+        (is (= "block_conflict" (:code (:body resp))))))))
+
+(deftest janela-sem-tipo-continua-sendo-bloqueio
+  ;; Compatibilidade, e ela não é detalhe: a tela de bloquear horário não manda
+  ;; `tipo` e não deve precisar mandar. Se o default escorregasse para
+  ;; `disponivel`, TODO bloqueio que já existe deixaria de proibir — e o sintoma
+  ;; seria uma ausência, que é a família de defeito mais cara deste projeto.
+  (let [inicio (parede 11 14)
+        fim    (parede 11 15)]
+    (is (= 201 (:status (criar-bloqueio {:data_inicio inicio :data_fim fim}))))
+    (is (= "bloqueio" (:tipo (db/execute-one! ["SELECT tipo FROM bloqueios_agenda LIMIT 1"])))
+        "sem `tipo` no corpo, o banco grava proibição")
+    (let [resp (criar (assoc sessao-base :data_hora_sessao inicio))]
+      (is (= 409 (:status resp)))
+      (is (= "block_conflict" (:code (:body resp)))))))
+
+(deftest tipo-de-janela-fora-do-vocabulario-e-recusado
+  ;; Coluna de estado sem validação é campo de texto livre com nome bonito — a
+  ;; lição que o `status_repasse` pagou com cinco valores de três vocabulários.
+  (let [resp (criar-bloqueio {:data_inicio (parede 10 14)
+                              :data_fim    (parede 10 15)
+                              :tipo        "disponivel_talvez"})]
+    (is (= 422 (:status resp)))
+    (is (= "tipo_invalido" (:code (:body resp))))
+    (is (zero? (conta "bloqueios_agenda"))
+        "nada foi gravado")))
+
+(deftest oferecer-janela-sobre-sessao-existente-e-permitido
+  ;; Bloquear por cima de sessão é contradição (R-014) e continua 409. Oferecer
+  ;; não é: a psicóloga abre 14h-18h e as 15h já estão ocupadas — o resto segue
+  ;; oferecido. Aplicar a recusa do bloqueio ao sinal oposto obrigaria ela a
+  ;; picotar a janela em volta de cada sessão para conseguir salvar.
+  (let [sessao        (parede 12 15)
+        janela-inicio (parede 12 14)
+        janela-fim    (parede 12 18)]
+    (is (= 201 (:status (criar (assoc sessao-base :data_hora_sessao sessao)))))
+
+    (testing "OFERECER por cima da sessão é aceito"
+      (is (= 201 (:status (criar-bloqueio {:data_inicio janela-inicio :data_fim janela-fim
+                                           :tipo "disponivel"})))))
+
+    (testing "CONTROLE — BLOQUEAR por cima da mesma sessão continua recusado"
+      (let [resp (criar-bloqueio {:data_inicio janela-inicio :data_fim janela-fim
+                                  :tipo "bloqueio"})]
+        (is (= 409 (:status resp)))
+        (is (= "session_conflict" (:code (:body resp))))))))
+

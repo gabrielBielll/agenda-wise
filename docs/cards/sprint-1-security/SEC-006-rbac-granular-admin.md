@@ -91,3 +91,32 @@ Para cada um, confirmar que `(get-in request [:identity :clinica_id])` é usado 
 - **Esforço alto:** depende de quantos endpoints precisam de auditoria. Pode ser feito por endpoint em PRs separadas.
 - **Risco:** se a tabela de permissões não estiver completa, admin pode perder acesso a fluxos legítimos no momento da troca. Mitigação: rodar primeiro em staging, ou popular antes de mergear.
 - **Dependência indireta:** [SEC-009](SEC-009-remover-logs-sensíveis.md) — o `println` da função revela papel e permissão nos logs, mas isso é tratado lá.
+
+---
+
+## 🔴 Acrescentado em 2026-08-21 — uma permissão que só existe pelo bypass
+
+A tela de cores da clínica (**GC-016**) é escrita atrás de
+`gerenciar_configuracoes_clinica`, e essa permissão **não existe em
+`papel_permissoes`** — conferido, não deduzido: `grep` nas migrations não acha
+nenhuma linha que a conceda.
+
+Isso funciona hoje **só porque o admin bypassa toda permissão**, que é
+exatamente o que este cartão existe para remover.
+
+⚠️ **No dia em que o bypass sair, a tela de cores passa a devolver 403 em
+silêncio**, e ninguém vai ligar o sintoma a esta mudança — o admin vai abrir
+`/admin/aparencia` e ver erro, semanas depois de alguém ter mexido no RBAC.
+
+📌 **O conserto é uma linha, e tem que sair no MESMO PR** que remove o bypass:
+
+```sql
+-- conceder `gerenciar_configuracoes_clinica` ao papel `admin_clinica`
+```
+
+E vale a pena tratar isto como um caso de teste, não como lembrete: o desenho da
+GC-016 escolheu de propósito uma permissão inexistente para dizer *"só admin"*
+sem migration nova (ver o comentário em `core.clj`, nas `paleta-routes`). É uma
+escolha legítima e documentada — **mas ela transforma o bypass em dependência
+funcional**, e a varredura deste cartão precisa procurar **outras** permissões
+citadas em rota que também não existam na tabela. Se há uma, pode haver mais.

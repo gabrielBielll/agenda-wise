@@ -207,6 +207,26 @@ asserções**.
 <!-- FILA:vale -->
 ## `vale` — Claude no Termux
 
+### 🔵 1. URGENTE — azul disponível, agenda semeada, tradutor da convenção ([0211](0211-orla-para-vale-o-azul-disponivel-a-agenda-semeada-e-o-tradutor-da-convencao.md) · [D-024](DECISOES.md))
+
+O Gabriel pediu velocidade e vai conferir na tela. **A orla tem vigia rodando e
+revisa o seu PR assim que abrir — não precisa chamar.**
+
+1. **O azul `disponível`** — único estado que falta, com cor **e** glifo. Não é
+   estado de sessão: é janela de agenda, vizinha de `bloqueios_agenda`.
+2. **Semear a agenda de uma psicóloga** com os sete estados **no mesmo dia ou em
+   dias vizinhos** — ele quer ver se se distinguem lado a lado. Estenda o
+   `semear-demo.mjs`, e confira abrindo a tela.
+3. **O tradutor da convenção** — função pura, sem rede: `(título, cor) ↔ estado`,
+   com teste de ida e volta e um caso provando que `[DISPONÍVEL]` **não** vira
+   bloqueio. Reuse o reconhecimento do `lista-psis` (somente leitura).
+
+❌ **NÃO faça** o terceiro estado "não dito", a pergunta no sino, nem máquina em
+volta da lacuna. O vazio segue vazio — ver a SEGUNDA CORREÇÃO da [0210](0210-orla-para-vale-e-duna-o-disponivel-e-o-vazio-que-vira-telefonema.md).
+
+Se precisar cortar: azul → semeadura → tradutor.
+
+
 ### 🔔 21/08 — GC-017, o alinhamento e o sino ([0207](0207-vale-para-orla-e-gabriel-gc-017-o-alinhamento-que-mentia-e-o-sino-que-acendia-sem-perguntar.md))
 
 🔴 **TRÊS commits meus NÃO estão em produção.** `prod` está em `ad32437`; a branch

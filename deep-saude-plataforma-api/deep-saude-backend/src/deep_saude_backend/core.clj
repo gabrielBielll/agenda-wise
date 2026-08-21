@@ -744,10 +744,16 @@
                                       (tempo/ocorrencias inicio-zdt recorrencia_tipo
                                                          qtd-sessoes duracao-sessao))
 
+              ;; 🔴 `AND tipo = 'bloqueio'` não é filtro de conveniência: sem ele,
+              ;; um horário que a psicóloga OFERECEU (D-024, `tipo = 'disponivel'`,
+              ;; mesma tabela com o sinal invertido) passaria a IMPEDIR o
+              ;; agendamento. É a forma da GC-009 acontecendo dentro do nosso
+              ;; banco, e o sintoma seria uma ausência: sem erro, sem log.
               bloqueio-existente (some (fn [{:keys [start end]}]
-                                         (execute-one! ["SELECT id FROM bloqueios_agenda 
-                                                         WHERE clinica_id = ? 
+                                         (execute-one! ["SELECT id FROM bloqueios_agenda
+                                                         WHERE clinica_id = ?
                                                          AND psicologo_id = ?
+                                                         AND tipo = 'bloqueio'
                                                          AND data_inicio < ?::timestamp
                                                          AND data_fim > ?::timestamp"
                                                         clinica-id psicologo-uuid end start]))
@@ -1072,10 +1078,14 @@
               ;; Lá a checagem de bloqueio vem antes do `force` no mesmo `cond`.
               ;; Mantido igual de propósito: a R-020 deu ao admin força sobre
               ;; conflito de agenda, não sobre a agenda fechada de alguém.
+              ;; 🔴 Mesmo filtro da criação, e pelo mesmo motivo: janela oferecida
+              ;; (`tipo = 'disponivel'`, D-024) não impede remanejar sessão para
+              ;; dentro dela — impedir seria o oposto exato do que ela significa.
               bloqueio-existente (when mudou-ocupacao?
-                                   (execute-one! ["SELECT id FROM bloqueios_agenda 
-                                                  WHERE clinica_id = ? 
+                                   (execute-one! ["SELECT id FROM bloqueios_agenda
+                                                  WHERE clinica_id = ?
                                                   AND psicologo_id = ?
+                                                  AND tipo = 'bloqueio'
                                                   AND data_inicio < ?::timestamp
                                                   AND data_fim > ?::timestamp"
                                                  clinica-id novo-psicologo-uuid novo-fim novo-data]))
@@ -1447,15 +1457,30 @@
     (let [clinica-id (get-in request [:identity :clinica_id])
           usuario-id (get-in request [:identity :user_id])
           papel (get-in request [:identity :role])
-          {:keys [data_inicio data_fim motivo dia_inteiro recorrencia_tipo quantidade_recorrencia psicologo_id]} (:body request)
-          
-          target-psicologo-id (if (and (or (= papel "admin_clinica") (= papel "secretario")) 
+          {:keys [data_inicio data_fim motivo dia_inteiro recorrencia_tipo quantidade_recorrencia psicologo_id tipo]} (:body request)
+
+          ;; 📌 Ausente = `bloqueio`, e isso é o que mantém compatível todo
+          ;; cliente que já existe: a tela de bloquear horário não manda `tipo`
+          ;; e continua criando proibição, exatamente como antes da D-024.
+          tipo-janela (or (not-empty (str/trim (or tipo ""))) "bloqueio")
+
+          target-psicologo-id (if (and (or (= papel "admin_clinica") (= papel "secretario"))
                                        (not (str/blank? psicologo_id)))
                                 (java.util.UUID/fromString psicologo_id)
                                 usuario-id)]
-                                
-      (if (or (nil? data_inicio) (nil? data_fim))
+
+      (cond
+        (or (nil? data_inicio) (nil? data_fim))
         {:status 400 :body {:erro "data_inicio e data_fim são obrigatórios."}}
+
+        ;; Vocabulário fechado no servidor. O CHECK do banco é a rede embaixo
+        ;; disto; aqui é onde a mensagem sai legível para quem chamou.
+        (not (contains? dominio/tipo-janela-agenda tipo-janela))
+        {:status 422 :body {:erro (str "Valor inválido para tipo: '" tipo-janela
+                                       "'. Aceitos: bloqueio, disponivel.")
+                            :code "tipo_invalido"}}
+
+        :else
         (let [fuso (fuso-da-clinica clinica-id)
               intervalos (gerar-intervalos-bloqueio data_inicio data_fim recorrencia_tipo
                                                    quantidade_recorrencia fuso)
@@ -1469,19 +1494,31 @@
               ;; caminho sem conflito. Uma recorrência no limite da R-005 pode
               ;; chegar a 120 consultas; agrupar intervalos numa única query é
               ;; otimização futura, não mudança silenciosa desta guarda.
-              conflitos (reduce (fn [acc {:keys [start end]}]
-                                  (into acc
-                                        (execute-query!
-                                         ["SELECT id, data_hora_sessao, COALESCE(duracao, 50) AS duracao
+              ;; 🔴 Esta recusa é do BLOQUEIO, não da janela de agenda.
+              ;;
+              ;; Bloquear por cima de sessão marcada é contradição — a sessão
+              ;; ficaria dentro de um horário proibido. Já OFERECER um intervalo
+              ;; que contém uma sessão não é contradição nenhuma: a psicóloga
+              ;; abre 14h-18h e as 15h já estão ocupadas; o resto continua
+              ;; oferecido. Aplicar a mesma recusa aos dois faria a tela dizer
+              ;; "há sessões marcadas no período" para quem só quis anunciar
+              ;; disponibilidade — e ela seria obrigada a picotar a janela em
+              ;; volta de cada sessão para conseguir salvar.
+              conflitos (if (= tipo-janela "bloqueio")
+                          (reduce (fn [acc {:keys [start end]}]
+                                    (into acc
+                                          (execute-query!
+                                           ["SELECT id, data_hora_sessao, COALESCE(duracao, 50) AS duracao
                                              FROM agendamentos
                                             WHERE clinica_id = ?
                                               AND psicologo_id = ?
                                               AND status != 'cancelado'
                                               AND data_hora_sessao < ?
                                               AND (data_hora_sessao + (COALESCE(duracao, 50) * interval '1 minute')) > ?"
-                                          clinica-id target-psicologo-id end start])))
-                                []
-                                intervalos)
+                                            clinica-id target-psicologo-id end start])))
+                                  []
+                                  intervalos)
+                          [])
               recorrencia-uuid (when (and recorrencia_tipo (not= recorrencia_tipo "none"))
                                  (java.util.UUID/randomUUID))]
 
@@ -1504,6 +1541,7 @@
                                                                 :data_inicio   start
                                                                 :data_fim      end
                                                                 :motivo        motivo
+                                                                :tipo          tipo-janela
                                                                 :dia_inteiro   (or dia_inteiro false)
                                                                 :recorrencia_id recorrencia-uuid}
                                                                {:builder-fn rs/as-unqualified-lower-maps :return-keys true}))

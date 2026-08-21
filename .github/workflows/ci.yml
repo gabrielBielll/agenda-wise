@@ -359,12 +359,21 @@ jobs:
         # Este passo e o controle positivo do `--success`: ele falha se a classe
         # nao existir de verdade no bundle.
         #
-        # 🔴 As DUAS ultimas entradas sao VALORES, nao nomes. O par
-        # agendada/confirmada colapsava em 1,02 de luminancia — indistinguivel em
-        # deuteranopia, e e a distincao que decide se a psi liga confirmando. Os
-        # numeros 21% e 77% sairam de busca numerica com controle; um ajuste
-        # distraido de paleta os desfaz sem nada ficar vermelho, e o defeito volta
-        # invisivel para quem enxerga cor.
+        # 🔴 Algumas entradas sao VALORES, nao nomes — as de `--agenda-confirmada`
+        # e as de `--disponivel`. (Ate 21/08 eram so as duas ULTIMAS; a D-024
+        # inseriu as do azul no meio, e esta frase foi corrigida junto. Comentario
+        # que descreve a lista errada e pior que comentario nenhum.)
+        #
+        # O par agendada/confirmada colapsava em 1,02 de luminancia —
+        # indistinguivel em deuteranopia, e e a distincao que decide se a psi liga
+        # confirmando. Os numeros 21% e 77% sairam de busca numerica com controle;
+        # um ajuste distraido de paleta os desfaz sem nada ficar vermelho, e o
+        # defeito volta invisivel para quem enxerga cor.
+        #
+        # O mesmo vale para o `--disponivel`: 200 e a MATIZ do Pavao, e o azul e o
+        # significado, nao enfeite (D-024, a CEO pediu o padrao de cores da Deep
+        # Saude na plataforma). Se alguem "ajustar" a matiz para fora do azul, o
+        # estado continua renderizando e para de comunicar.
         run: |
           set -euo pipefail
           css=$(find .next -name '*.css' -path '*static*' | tr '\n' ' ')
@@ -373,6 +382,9 @@ jobs:
           for alvo in '--success:' '--success-foreground:' '.bg-success{' '.text-success{' '.bg-destructive{' \
                       '--grafite:' '--grafite-suave:' '--grafite-tenue:' '--grafite-foreground:' \
                       '.bg-grafite-suave{' '.bg-grafite-tenue{' '.border-grafite{' '.text-grafite-foreground{' \
+                      '--disponivel:' '--disponivel-suave:' '--disponivel-tenue:' '--disponivel-foreground:' \
+                      '.bg-disponivel-suave{' '.bg-disponivel-tenue{' '.border-disponivel{' '.text-disponivel-foreground{' \
+                      '--disponivel:200 90% 21%' '--disponivel:200 90% 76%' \
                       '--tomate:' '--tomate-suave:' '--tomate-foreground:' \
                       '.bg-tomate-suave{' '.border-tomate{' '.text-tomate-foreground{' \
                       '--agenda-agendada:' '--agenda-agendada-suave:' '--agenda-agendada-foreground:' \
