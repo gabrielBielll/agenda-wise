@@ -159,6 +159,43 @@ function varrer(caminho, texto) {
   return achados;
 }
 
+/**
+ * (7) Campo de texto EDITÁVEL enquanto a verdade dele ainda não chegou.
+ *
+ * 🔴 Um campo vazio afirma "o valor é vazio". Enquanto a resposta do servidor não
+ * chegou, o que é verdade é outra coisa: "ainda não sei". São estados diferentes
+ * e a tela mostra o mesmo para os dois — a família de defeito deste projeto.
+ *
+ * ⚠️ E o dano não é estético. Em 21/08 o e2e do perfil recebeu
+ * `"Admin E2EAurora Nogueira"`: a resposta caiu no meio da digitação, a seleção
+ * se perdeu, e o texto novo grudou no antigo. Quem digitar rápido em
+ * `/settings` vê o mesmo — com o próprio nome.
+ *
+ * 📌 `readOnly` também isenta: campo que não aceita digitação não corre a corrida.
+ * Foi o que a primeira versão desta varredura errou, acusando o e-mail.
+ *
+ * ⚠️ Textual, não análise de fluxo: mira `value={X}` onde `setX` recebe resposta
+ * de servidor. Pega a forma comum; não prova ausência.
+ */
+function campoEditavelAntesDaVerdade(caminho, texto) {
+  const doServidor = new Set(
+    [...texto.matchAll(/set(\w+)\(\s*(?:result|r|data|perfil|profile)[\w?.]*\)/g)].map((m) => m[1]),
+  );
+  if (!doServidor.size) return [];
+  const erros = [];
+  for (const m of texto.matchAll(/<Input\b[^>]*?\/?>/gs)) {
+    const tag = m[0];
+    const val = /value=\{(\w+)\}/.exec(tag);
+    if (!val) continue;
+    const nome = val[1];
+    if (!doServidor.has(nome[0].toUpperCase() + nome.slice(1))) continue;
+    if (/\bdisabled\b/.test(tag) || /\breadOnly\b/.test(tag)) continue;
+    erros.push({ forma: 7, caminho, linha: texto.slice(0, m.index).split('\n').length,
+      porque: `o campo ${nome} e' editavel antes de o servidor responder — vazio ali quer dizer "ainda nao sei", e quem digitar antes ve o texto grudar no valor que chega depois` });
+  }
+  return erros;
+}
+
 /** 🔴 Controle positivo: o verificador precisa pegar as três formas de propósito. */
 function autoteste() {
   const isca = `
@@ -181,6 +218,23 @@ function autoteste() {
     console.error('::error::o verificador acusou código correto — ele reprova tudo, e um vermelho dele não valeria nada');
     process.exit(2);
   }
+
+  // (7) tem controle nos dois sentidos: precisa pegar o editável e deixar passar
+  // o desabilitado e o readOnly. Sem os dois lados ela poderia estar aprovando
+  // (ou reprovando) tudo, e daria o mesmo resultado com a hipótese verdadeira e falsa.
+  const iscaCampo = `setNome(result.profile.nome);
+    <Input id="a" value={nome} onChange={f} />`;
+  if (!campoEditavelAntesDaVerdade('isca', iscaCampo).length) {
+    console.error('::error::o verificador não pegou a forma 7 no próprio autoteste — um zero dele não valeria nada');
+    process.exit(2);
+  }
+  const campoLimpo = `setNome(result.profile.nome);
+    <Input id="a" value={nome} disabled={carregando} onChange={f} />
+    <Input id="b" value={email} readOnly />`;
+  if (campoEditavelAntesDaVerdade('limpo', campoLimpo).length) {
+    console.error('::error::o verificador acusou campo já protegido na forma 7 — um vermelho dele não valeria nada');
+    process.exit(2);
+  }
 }
 
 function arquivos(dir) {
@@ -192,7 +246,10 @@ function arquivos(dir) {
 
 autoteste();
 const achados = [
-  ...arquivos('src').filter((p) => !ISENTOS.has(p)).flatMap((p) => varrer(p, readFileSync(p, 'utf8'))),
+  ...arquivos('src').filter((p) => !ISENTOS.has(p)).flatMap((p) => {
+    const t = readFileSync(p, 'utf8');
+    return [...varrer(p, t), ...campoEditavelAntesDaVerdade(p, t)];
+  }),
   ...rotasProminidasExistem(),
   ...trilhosDaSemanaNaoSaoDuplicados(),
   ...otimistaSemDesfazer(),
@@ -202,6 +259,6 @@ for (const a of achados) {
   console.error(`::error file=${a.caminho},line=${a.linha}::forma (${a.forma}) — ${a.porque}`);
 }
 console.log(achados.length === 0
-  ? 'ok: nenhum rótulo órfão, nenhum rótulo mudo, nenhum campo lido sem name, nenhum link para rota inexistente, nenhum otimista sem desfazer'
+  ? 'ok: nenhum rótulo órfão, nenhum rótulo mudo, nenhum campo lido sem name, nenhum link para rota inexistente, nenhum otimista sem desfazer, nenhum campo editavel antes da verdade'
   : `${achados.length} achado(s)`);
 process.exit(achados.length === 0 ? 0 : 1);

@@ -72,7 +72,19 @@ export default function SettingsPage() {
         <CardContent className="space-y-6">
           <div className="space-y-2">
             <Label htmlFor="profileName">Nome de Exibição</Label>
-            <Input id="profileName" value={profileName} onChange={(event) => { profileEdited.current = true; setProfileName(event.target.value); }} placeholder="Seu nome" />
+            {/*
+              🔴 O campo fica desabilitado ATE o nome chegar do servidor, porque
+              enquanto ele nao chegou o campo vazio nao quer dizer "o nome e
+              vazio" — quer dizer "ainda nao sei". Editavel e vazio, ele afirma
+              uma coisa que nao verificou.
+
+              ⚠️ E nao e so estetica: quem digitasse antes da resposta chegar
+              via o proprio texto grudado no nome antigo. Foi assim que o e2e
+              recebeu "Admin E2EAurora Nogueira" — a resposta caiu no meio da
+              digitacao, a selecao se perdeu, e o que restou foi a soma dos dois.
+              O `profileEdited` so protege DEPOIS da primeira tecla.
+            */}
+            <Input id="profileName" value={profileName} disabled={loadingProfile} onChange={(event) => { profileEdited.current = true; setProfileName(event.target.value); }} placeholder={loadingProfile ? "Carregando seu nome…" : "Seu nome"} />
           </div>
           <div className="space-y-2">
             <Label htmlFor="profileEmail">Endereço de E-mail</Label>
