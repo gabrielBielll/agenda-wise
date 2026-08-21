@@ -49,6 +49,13 @@ produto:
 | login devolvia `null` em silêncio | a chave da resposta é `user`, não `usuario` (`core.clj:352`, lido em `lib/auth.ts:66`) |
 | a psicóloga via a agenda de todo mundo | faltava o filtro por `psicologo_id` (`core.clj:1231`) — e eu quase reportei defeito de privacidade que o produto não tem |
 | `Invalid Date` na ficha do paciente | faltava `data_registro`, que no banco é `DEFAULT CURRENT_TIMESTAMP` |
+| a agenda aparecia **sem janela nenhuma** — nem o bloqueio grafite, que já existia | `/api/bloqueios` devolvia `[]` com o comentário *"não precisa simular de verdade"*. Era verdade até a D-024; depois do azul, quem tirasse foto concluiria que o `disponivel` não foi implementado |
+
+📌 **A quinta tem forma própria, e vale dizer separado:** ela nasceu de um
+atalho que era *correto quando foi escrito*. `[]` bastava para a tela desenhar —
+até existir um estado que só aparece se a lista vier cheia. **Simulador não
+envelhece sozinho: ele envelhece quando o produto anda.** Ao usar este arquivo
+para conferir algo novo, pergunte primeiro se ele já sabe da existência daquilo.
 
 📌 As duas últimas são a lição maior: **um simulador incompleto produz achados
 falsos**, e achado falso sobre o trabalho de outra pessoa custa mais caro que
