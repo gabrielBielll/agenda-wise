@@ -384,6 +384,7 @@ jobs:
                       '.bg-grafite-suave{' '.bg-grafite-tenue{' '.border-grafite{' '.text-grafite-foreground{' \
                       '--disponivel:' '--disponivel-suave:' '--disponivel-tenue:' '--disponivel-foreground:' \
                       '.bg-disponivel-suave{' '.bg-disponivel-tenue{' '.border-disponivel{' '.text-disponivel-foreground{' \
+                      '.text-disponivel{' \
                       '--disponivel:200 90% 21%' '--disponivel:200 90% 76%' \
                       '--tomate:' '--tomate-suave:' '--tomate-foreground:' \
                       '.bg-tomate-suave{' '.border-tomate{' '.text-tomate-foreground{' \

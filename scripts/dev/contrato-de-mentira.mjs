@@ -32,6 +32,11 @@ const db = {
   usuarios: [],   // {id,nome,email,senha,papel,clinica_id,modalidade_repasse,percentual_repasse,valor_fixo_repasse}
   pacientes: [],  // {id,nome,email,psicologo_id,clinica_id,status}
   agendamentos: [],
+  // D-024 — janela de agenda. `tipo` separa os DOIS sinais que dividem esta
+  // tabela: `bloqueio` proibe, `disponivel` oferece. Ate 21/08 este simulador
+  // devolvia [] aqui, entao NENHUMA janela desenhava — nem a grafite, que ja
+  // existia. Quem tirasse foto da agenda concluiria que o bloqueio sumiu.
+  bloqueios: [],   // {id,clinica_id,psicologo_id,data_inicio,data_fim,motivo,tipo,recorrencia_id}
   prontuarios: [],
 };
 
@@ -382,9 +387,61 @@ const server = createServer(async (req, res) => {
     return responder(200, a);
   }
 
-  // Rotas que o front consulta e que este contrato de mentira nao precisa
-  // simular de verdade — devolver vazio e o suficiente para a tela desenhar.
-  if (req.method === 'GET' && (p === '/api/bloqueios' || p.startsWith('/api/google'))) {
+  // --- janelas de agenda (D-024) -------------------------------------------
+  //
+  // 🔴 Ate 21/08 este bloco devolvia [] para /api/bloqueios, e era o suficiente
+  // "para a tela desenhar" — mas desenhava a agenda SEM janela nenhuma. Depois
+  // da D-024 isso vira armadilha: a janela azul nao apareceria, e quem olhasse a
+  // foto concluiria que o azul nao foi implementado. Achado falso sobre o
+  // trabalho de outra pessoa, que e o que o README desta pasta manda evitar.
+  if (p === '/api/bloqueios' && req.method === 'GET') {
+    if (!eu) return responder(401, { erro: 'sem token' });
+    // core.clj:1565 — a listagem filtra por clinica, e devolve os DOIS tipos.
+    // Quem separa e o front (`normalizarTipoJanela`), nao esta consulta.
+    const minhas = db.bloqueios.filter((b) => b.clinica_id === eu.clinica_id
+      && (eu.papel === 'psicologo' ? b.psicologo_id === eu.id : true));
+    return responder(200, minhas);
+  }
+
+  if (p === '/api/bloqueios' && req.method === 'POST') {
+    if (!eu) return responder(401, { erro: 'sem token' });
+    if (!corpo.data_inicio || !corpo.data_fim)
+      return responder(400, { erro: 'data_inicio e data_fim são obrigatórios.' });
+
+    // core.clj:1463 — ausente e `bloqueio`, e e isso que mantem compativel a
+    // tela de bloquear horario, que nao manda `tipo`.
+    const tipo = (corpo.tipo ?? '').trim() || 'bloqueio';
+    // core.clj:1471 — vocabulario fechado no servidor, 422 legivel.
+    if (tipo !== 'bloqueio' && tipo !== 'disponivel')
+      return responder(422, { erro: `Valor inválido para tipo: '${tipo}'. Aceitos: bloqueio, disponivel.`,
+                              code: 'tipo_invalido' });
+
+    // core.clj:1497 — a recusa por sessao existente e do BLOQUEIO, nao da
+    // janela oferecida: oferecer 14h-18h com as 15h ocupadas nao e contradicao.
+    if (tipo === 'bloqueio') {
+      const bate = db.agendamentos.some((a) => a.psicologo_id === (corpo.psicologo_id ?? eu.id)
+        && a.status !== 'cancelado'
+        && new Date(a.data_hora_sessao) < new Date(corpo.data_fim)
+        && new Date(new Date(a.data_hora_sessao).getTime() + (a.duracao ?? 50) * 60000) > new Date(corpo.data_inicio));
+      if (bate) return responder(409, { erro: 'há sessões marcadas no período', code: 'session_conflict' });
+    }
+
+    const nova = {
+      id: randomUUID(),
+      clinica_id: eu.clinica_id,
+      psicologo_id: corpo.psicologo_id ?? eu.id,
+      data_inicio: corpo.data_inicio,
+      data_fim: corpo.data_fim,
+      motivo: corpo.motivo ?? null,
+      dia_inteiro: corpo.dia_inteiro ?? false,
+      tipo,
+      recorrencia_id: null,
+    };
+    db.bloqueios.push(nova);
+    return responder(201, nova);
+  }
+
+  if (req.method === 'GET' && p.startsWith('/api/google')) {
     return responder(200, []);
   }
 

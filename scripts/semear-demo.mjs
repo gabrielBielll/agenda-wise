@@ -44,8 +44,20 @@
  *
  * ⚠️ **`BASE_URL` deve ser o host do FRONT**, não o do backend. Desde que o
  * backend virou rede privada (19/08), ele não é alcançável de fora — quem
- * atravessa é o proxy do `next.config.ts`. O host do front funciona de dentro e
- * de fora; o do backend, só de dentro.
+ * atravessa é o proxy do `next.config.ts`.
+ *
+ * 🔴 **CORREÇÃO 21/08 — este parágrafo estava incompleto, e o buraco custou uma
+ * execução.** O proxy encaminha só oito prefixos (`agendamentos`, `pacientes`,
+ * `psicologos`, `prontuarios`, `bloqueios`, `usuarios`, `admin`, `google`).
+ * **`auth` não está entre eles**, e no front `/api/auth/*` pertence ao NextAuth.
+ * Então o `POST /api/auth/login` deste script — o primeiro passo dele — recebia
+ * `400 This action with HTTP POST is not supported by NextAuth.js` e a mensagem
+ * de erro apontava para *senha errada*, que é outra coisa.
+ *
+ * ✅ Resolvido na `entrarComo`, que tenta o backend direto e cai para o fluxo do
+ * NextAuth. **Preservo o texto errado com o motivo** porque a lição não é sobre
+ * `auth`: é que "o front atravessa" vale por rota, não por host, e uma frase que
+ * generaliza demais manda a próxima instância para o mesmo lugar.
  *
  * Para semear um backend local em desenvolvimento, `BASE_URL=http://localhost:3999`
  * também funciona: as rotas são as mesmas.
@@ -196,6 +208,72 @@ async function api(caminho, { metodo = 'GET', token, corpo, tokenProv } = {}) {
     corpoResposta = texto.slice(0, 300);
   }
   return { status: res.status, ok: res.ok, corpo: corpoResposta };
+}
+
+/**
+ * 🔴 **Entrar, pelos dois caminhos que existem — e o segundo nasceu de um defeito.**
+ *
+ * O caminho direto é `POST /api/auth/login` do backend. Ele funciona quando
+ * `BASE_URL` aponta para o **backend** (desenvolvimento local).
+ *
+ * ⚠️ **Contra a produção ele NÃO funciona, e o cabeçalho deste arquivo dizia que
+ * sim.** Desde 19/08 o backend está em rede privada e quem atravessa é o proxy do
+ * `next.config.ts` — mas esse proxy encaminha apenas `agendamentos`, `pacientes`,
+ * `psicologos`, `prontuarios`, `bloqueios`, `usuarios`, `admin` e `google`.
+ * **`auth` não está na lista**, e no front `/api/auth/*` pertence ao NextAuth,
+ * que responde `400 This action with HTTP POST is not supported`.
+ *
+ * 📌 Medido em 21/08 com o par de controle que separa as duas hipóteses: a
+ * administradora falhava com 400, o que **parecia senha errada** — a própria
+ * mensagem de erro sugeria isso. Tentei a MESMA rota com uma psicóloga cuja senha
+ * eu tinha acabado de usar com sucesso, e ela falhou igual. Senha errada e rota
+ * errada davam a mesma resposta; só o controle distinguiu.
+ *
+ * 📌 Por que ninguém tinha visto: a clínica foi semeada em 19/08, no mesmo dia em
+ * que a porta fechou — e antes de fechar.
+ *
+ * ✅ O segundo caminho entra pelo NextAuth, como uma pessoa entraria, e pega o
+ * `backendToken` que a sessão expõe. É o mesmo token do primeiro caminho.
+ */
+async function entrarComo(email, oQue) {
+  const direto = await api('/api/auth/login', { metodo: 'POST', corpo: { email, senha: SENHA } });
+  if (direto.ok && direto.corpo?.token) return direto.corpo.token;
+
+  // Caminho do NextAuth. `fetch` não guarda cookie sozinho, então o pote é a mão.
+  const pote = new Map();
+  const guardar = (res) => {
+    for (const c of (res.headers.getSetCookie?.() ?? [])) {
+      const [par] = c.split(';');
+      const i = par.indexOf('=');
+      if (i > 0) pote.set(par.slice(0, i).trim(), par.slice(i + 1).trim());
+    }
+  };
+  const biscoitos = () => [...pote].map(([k, v]) => `${k}=${v}`).join('; ');
+
+  const rCsrf = await fetch(`${BASE}/api/auth/csrf`);
+  guardar(rCsrf);
+  const { csrfToken } = await rCsrf.json();
+
+  const rLogin = await fetch(`${BASE}/api/auth/callback/credentials`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded', Cookie: biscoitos() },
+    body: new URLSearchParams({ csrfToken, email, password: SENHA, json: 'true' }),
+    redirect: 'manual',
+  });
+  guardar(rLogin);
+
+  const rSessao = await fetch(`${BASE}/api/auth/session`, { headers: { Cookie: biscoitos() } });
+  const sessao = await rSessao.json().catch(() => ({}));
+
+  if (!sessao?.backendToken) {
+    throw new Error(
+      `${oQue} falhou pelos dois caminhos.\n` +
+        `  Direto no backend: HTTP ${direto.status}.\n` +
+        `  Pelo NextAuth: sessão sem backendToken (login HTTP ${rLogin.status}).\n` +
+        `  Se a clínica já existia, SENHA_DEMO tem de ser a da execução que a criou.`
+    );
+  }
+  return sessao.backendToken;
 }
 
 /** Falha alto, com o corpo da resposta junto. */
@@ -388,18 +466,7 @@ async function main() {
   }
 
   /* 2. Entrar como admin -------------------------------------------------- */
-  const login = await api('/api/auth/login', {
-    metodo: 'POST',
-    corpo: { email: ADMIN.email, senha: SENHA },
-  });
-  if (!login.ok) {
-    throw new Error(
-      `Login da administradora falhou (HTTP ${login.status}).\n` +
-        `  Se a clínica já existia de uma execução anterior, a senha dela é a\n` +
-        `  daquela execução — SENHA_DEMO precisa ser a mesma.`
-    );
-  }
-  const tokenAdmin = login.corpo.token;
+  const tokenAdmin = await entrarComo(ADMIN.email, 'Login da administradora');
 
   /* 3. Psicólogas e secretário -------------------------------------------- */
   passo('Equipe');
@@ -665,14 +732,7 @@ async function main() {
    */
   let totalProntuarios = 0;
   for (const psi of PSICOLOGAS) {
-    const entrada = await api('/api/auth/login', {
-      metodo: 'POST',
-      corpo: { email: psi.email, senha: SENHA },
-    });
-    if (!entrada.ok) {
-      throw new Error(`Login de ${psi.nome} falhou (HTTP ${entrada.status}).`);
-    }
-    const tokenPsi = entrada.corpo.token;
+    const tokenPsi = await entrarComo(psi.email, `Login de ${psi.nome}`);
 
     const meusPacientes = PACIENTES.filter((p) => PSICOLOGAS[p.psi].email === psi.email);
     for (const pac of meusPacientes) {
