@@ -5,6 +5,7 @@ import { paredeDaClinica, agoraNaClinica } from "@/lib/datetime";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { appointmentStatusAppearance } from "@/lib/appointment-status";
+import type { CoresEscolhidas } from "@/lib/cores-agenda";
 
 interface Appointment {
   id: string;
@@ -47,7 +48,7 @@ const HOURS = Array.from({ length: 24 }, (_, i) => i); // 00:00 to 23:00
 // valendo sem mudar de forma. Com o navegador em São Paulo o valor é idêntico ao
 // de antes; fora dele, deixa de deslocar. Ver o cabeçalho de lib/datetime.ts.
 
-export function WeekView({ date, appointments, bloqueios = [], onAddAppointment, onEditAppointment, onDeleteBloqueio }: WeekViewProps) {
+export function WeekView({ date, appointments, bloqueios = [], onAddAppointment, onEditAppointment, onDeleteBloqueio, cores }: WeekViewProps & { cores?: CoresEscolhidas }) {
   const scrollContainerRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
@@ -242,7 +243,7 @@ export function WeekView({ date, appointments, bloqueios = [], onAddAppointment,
 
                   {/* Render Appointments */}
                   {hourAppointments.map(app => {
-                      const appearance = appointmentStatusAppearance(app.status);
+                      const appearance = appointmentStatusAppearance(app.status, cores);
                       const appDate = paredeDaClinica(app.data_hora_sessao);
                       const duration = app.duracao || 50;
                       const endDate = new Date(appDate.getTime() + duration * 60000);

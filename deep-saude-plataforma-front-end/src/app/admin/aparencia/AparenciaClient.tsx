@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { appointmentStatusAppearance, type AppointmentStatus } from "@/lib/appointment-status";
+import { CLASSES_DE_COR, NOMES_DE_COR, type CoresEscolhidas } from "@/lib/cores-agenda";
 import { definirCor, voltarAoPadrao } from "./actions";
 
 /**
@@ -30,49 +31,41 @@ import { definirCor, voltarAoPadrao } from "./actions";
  * existe para pegar, e a razão de este mapa ser escrito por extenso.
  */
 
-const CLASSES: Record<string, { fundo: string; borda: string; texto: string }> = {
-  lavanda:    { fundo: "bg-cor-lavanda-suave",    borda: "border-cor-lavanda",    texto: "text-cor-lavanda-foreground" },
-  salvia:     { fundo: "bg-cor-salvia-suave",     borda: "border-cor-salvia",     texto: "text-cor-salvia-foreground" },
-  uva:        { fundo: "bg-cor-uva-suave",        borda: "border-cor-uva",        texto: "text-cor-uva-foreground" },
-  flamingo:   { fundo: "bg-cor-flamingo-suave",   borda: "border-cor-flamingo",   texto: "text-cor-flamingo-foreground" },
-  banana:     { fundo: "bg-cor-banana-suave",     borda: "border-cor-banana",     texto: "text-cor-banana-foreground" },
-  tangerina:  { fundo: "bg-cor-tangerina-suave",  borda: "border-cor-tangerina",  texto: "text-cor-tangerina-foreground" },
-  pavao:      { fundo: "bg-cor-pavao-suave",      borda: "border-cor-pavao",      texto: "text-cor-pavao-foreground" },
-  grafite:    { fundo: "bg-cor-grafite-suave",    borda: "border-cor-grafite",    texto: "text-cor-grafite-foreground" },
-  blueberry:  { fundo: "bg-cor-blueberry-suave",  borda: "border-cor-blueberry",  texto: "text-cor-blueberry-foreground" },
-  manjericao: { fundo: "bg-cor-manjericao-suave", borda: "border-cor-manjericao", texto: "text-cor-manjericao-foreground" },
-  tomate:     { fundo: "bg-cor-tomate-suave",     borda: "border-cor-tomate",     texto: "text-cor-tomate-foreground" },
-};
-
-/** Como o Google chama cada uma — é o vocabulário que a psicóloga já conhece. */
-const NOMES: Record<string, string> = {
-  lavanda: "Lavanda", salvia: "Sálvia", uva: "Uva", flamingo: "Flamingo",
-  banana: "Banana", tangerina: "Tangerina", pavao: "Pavão", grafite: "Grafite",
-  blueberry: "Blueberry", manjericao: "Manjericão", tomate: "Tomate",
-};
-
 const ESTADOS: AppointmentStatus[] = ["agendado", "confirmado", "realizado", "cancelado", "falta"];
 
 type Props = {
-  paleta: Record<string, string>;
+  escolhidas: CoresEscolhidas;
   cores: string[];
   padrao: Record<string, string>;
 };
 
-export default function AparenciaClient({ paleta: inicial, cores, padrao }: Props) {
-  const [paleta, setPaleta] = useState(inicial);
+export default function AparenciaClient({ escolhidas: inicial, cores, padrao }: Props) {
+  /**
+   * 🔴 O estado guarda **o que foi escolhido**, não a paleta efetiva — o mesmo
+   * campo que a agenda usa. Assim a prévia abaixo renderiza pela MESMA função
+   * que pinta a agenda, e não por um caminho paralelo que poderia divergir dela.
+   * Prévia que não é o que vai acontecer é pior que prévia nenhuma.
+   */
+  const [escolhidas, setEscolhidas] = useState<CoresEscolhidas>(inicial);
+  const paleta: Record<string, string> = { ...padrao, ...escolhidas };
   const [pendente, iniciar] = useTransition();
   const { toast } = useToast();
 
-  const aplicar = (estado: string, cor: string) => {
-    const anterior = paleta[estado];
-    setPaleta((p) => ({ ...p, [estado]: cor })); // otimista: a grade responde na hora
+  const aplicar = (estado: string, cor: string | null) => {
+    const anterior = escolhidas;
+    // otimista: a prévia responde na hora
+    setEscolhidas((e) => {
+      const novo = { ...e };
+      if (cor === null) delete novo[estado];
+      else novo[estado] = cor;
+      return novo;
+    });
     iniciar(async () => {
-      const r = cor === padrao[estado] ? await voltarAoPadrao(estado) : await definirCor(estado, cor);
+      const r = cor === null ? await voltarAoPadrao(estado) : await definirCor(estado, cor);
       if (!r.ok) {
         // ⚠️ Desfaz. Sem isto a tela mostraria a cor nova com o servidor tendo
         // recusado — a tela mentindo sobre o estado, que é a A-013 de novo.
-        setPaleta((p) => ({ ...p, [estado]: anterior }));
+        setEscolhidas(anterior);
         toast({ title: "Não salvou", description: r.mensagem, className: "bg-destructive text-destructive-foreground" });
       } else {
         toast({ title: "Pronto", description: r.mensagem, className: "bg-success text-success-foreground" });
@@ -94,22 +87,25 @@ export default function AparenciaClient({ paleta: inicial, cores, padrao }: Prop
 
       <div className="space-y-5">
         {ESTADOS.map((estado) => {
-          const ap = appointmentStatusAppearance(estado);
+          // 🔴 A MESMA chamada que a agenda faz, com o MESMO argumento. Se a prévia
+          // usasse um caminho próprio, ela poderia mostrar uma coisa e o
+          // calendário desenhar outra — e prévia que não é o que vai acontecer é
+          // pior que prévia nenhuma.
+          const ap = appointmentStatusAppearance(estado, escolhidas);
           const atual = paleta[estado];
-          const c = CLASSES[atual] ?? CLASSES[padrao[estado]];
-          const noPadrao = atual === padrao[estado];
+          const noPadrao = escolhidas[estado] === undefined;
           return (
             <section key={estado} className="quiet-card rounded-2xl p-5">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <h2 className="section-title">{ap.label}</h2>
                   <p className="text-xs text-muted-foreground">
-                    {noPadrao ? "Usando o Padrão Deep Saúde" : `Escolhida: ${NOMES[atual] ?? atual}`}
+                    {noPadrao ? "Usando o Padrão Deep Saúde" : `Escolhida: ${NOMES_DE_COR[atual] ?? atual}`}
                   </p>
                 </div>
 
                 {/* A prévia mostra o chip como a agenda vai desenhá-lo, com o glifo. */}
-                <div className={cn("rounded-md border-l-4 px-2 py-1 text-xs", c.fundo, c.borda, c.texto)}>
+                <div className={cn("rounded-md border-l-4 px-2 py-1 text-xs", ap.eventClassName)}>
                   <span className="block font-semibold">14:00 - 14:50</span>
                   <span className="block font-medium">
                     {ap.glyph && <span aria-hidden="true" className="mr-0.5 font-bold">{ap.glyph}</span>}
@@ -120,7 +116,7 @@ export default function AparenciaClient({ paleta: inicial, cores, padrao }: Prop
 
               <div className="mt-4 flex flex-wrap gap-2">
                 {cores.map((cor) => {
-                  const cc = CLASSES[cor];
+                  const cc = CLASSES_DE_COR[cor];
                   if (!cc) return null;
                   const escolhida = cor === atual;
                   return (
@@ -130,7 +126,7 @@ export default function AparenciaClient({ paleta: inicial, cores, padrao }: Prop
                       disabled={pendente}
                       onClick={() => aplicar(estado, cor)}
                       aria-pressed={escolhida}
-                      title={NOMES[cor] ?? cor}
+                      title={NOMES_DE_COR[cor] ?? cor}
                       className={cn(
                         "h-9 w-9 rounded-full border-2 transition-transform focus-visible:outline-none",
                         cc.fundo, cc.borda,
@@ -140,7 +136,7 @@ export default function AparenciaClient({ paleta: inicial, cores, padrao }: Prop
                     >
                       {/* O nome não é só `title`: leitor de tela precisa dele, e `title`
                           não é anunciado de forma confiável. */}
-                      <span className="sr-only">{NOMES[cor] ?? cor}{escolhida ? " (escolhida)" : ""}</span>
+                      <span className="sr-only">{NOMES_DE_COR[cor] ?? cor}{escolhida ? " (escolhida)" : ""}</span>
                     </button>
                   );
                 })}
@@ -150,10 +146,10 @@ export default function AparenciaClient({ paleta: inicial, cores, padrao }: Prop
                 <button
                   type="button"
                   disabled={pendente}
-                  onClick={() => aplicar(estado, padrao[estado])}
+                  onClick={() => aplicar(estado, null)}
                   className="mt-3 text-xs font-medium text-muted-foreground underline underline-offset-4 hover:text-foreground"
                 >
-                  Voltar ao padrão ({NOMES[padrao[estado]] ?? padrao[estado]})
+                  Voltar ao padrão ({NOMES_DE_COR[padrao[estado]] ?? padrao[estado]})
                 </button>
               )}
             </section>

@@ -3,6 +3,7 @@ import React from 'react';
 import { cn } from "@/lib/utils";
 import { paredeDaClinica } from "@/lib/datetime";
 import { appointmentStatusAppearance } from "@/lib/appointment-status";
+import type { CoresEscolhidas } from "@/lib/cores-agenda";
 
 interface Appointment {
   id: string;
@@ -34,7 +35,7 @@ interface DayViewProps {
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i); // 00:00 to 23:00
 
-export function DayView({ date, appointments, bloqueios = [], onAddAppointment, onEditAppointment, onDeleteBloqueio }: DayViewProps) {
+export function DayView({ date, appointments, bloqueios = [], onAddAppointment, onEditAppointment, onDeleteBloqueio, cores }: DayViewProps & { cores?: CoresEscolhidas }) {
   const containerRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
@@ -178,7 +179,7 @@ export function DayView({ date, appointments, bloqueios = [], onAddAppointment, 
 
                 {/* Render Appointments */}
                 {hourAppointments.map(app => {
-                    const appearance = appointmentStatusAppearance(app.status);
+                    const appearance = appointmentStatusAppearance(app.status, cores);
                     const appDate = paredeDaClinica(app.data_hora_sessao);
                     const minutes = appDate.getMinutes();
                     const topPos = (minutes / 60) * 100; // Percentage from top

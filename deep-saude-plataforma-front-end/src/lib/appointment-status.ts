@@ -1,3 +1,5 @@
+import { CLASSES_DE_COR, type CoresEscolhidas } from "./cores-agenda";
+
 export type AppointmentStatus =
   | 'agendado'
   | 'confirmado'
@@ -101,8 +103,36 @@ export function normalizeAppointmentStatus(status?: string): AppointmentStatus {
   return status && status in appearances ? status as AppointmentStatus : 'agendado';
 }
 
-export function appointmentStatusAppearance(status?: string): AppointmentStatusAppearance {
-  return appearances[normalizeAppointmentStatus(status)];
+/**
+ * A aparência de um estado, já com a cor que a clínica escolheu — se escolheu.
+ *
+ * 🔴 **Sem `escolhidas`, nada muda.** Quem nunca abriu `/admin/aparencia` continua
+ * vendo exatamente as cores de hoje: os tokens da plataforma, que foram medidos
+ * um a um e cujo par agendada/confirmada foi corrigido em 20/08. Subir esta
+ * função não repinta a agenda de ninguém — repintar é consequência de escolher.
+ *
+ * ⚠️ E o parâmetro é **o que foi escolhido**, não a paleta efetiva. Se fosse a
+ * efetiva, todo estado teria cor e a agenda inteira mudaria de aparência no
+ * primeiro deploy. A ausência é a informação.
+ *
+ * 📌 O `glyph` **não** depende da cor e nunca vem daqui alterado: é ele que
+ * carrega o estado, e a cor carrega o reconhecimento. Trocar a paleta não mexe
+ * na leitura.
+ */
+export function appointmentStatusAppearance(
+  status?: string,
+  escolhidas?: CoresEscolhidas
+): AppointmentStatusAppearance {
+  const estado = normalizeAppointmentStatus(status);
+  const base = appearances[estado];
+  const cor = escolhidas?.[estado];
+  const c = cor ? CLASSES_DE_COR[cor] : undefined;
+  if (!c) return base;
+  return {
+    ...base,
+    eventClassName: `${c.borda} ${c.fundo} ${c.texto} hover:brightness-[.98]`,
+    badgeClassName: `${c.borda} ${c.fundo} ${c.texto}`,
+  };
 }
 
 export function appointmentHasEnded(start: string, duration = 50, now = Date.now()) {

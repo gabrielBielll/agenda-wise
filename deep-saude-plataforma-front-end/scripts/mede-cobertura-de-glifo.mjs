@@ -34,7 +34,7 @@
  * **tamanho do woff2 subsetado**: ~1664 bytes quando a fonte não tem o glifo,
  * ~3300 quando tem. Os dois controles ficaram no código.
  */
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 
 const ARQUIVO = 'src/lib/appointment-status.ts';
 const VAZIO_APROX = 2000; // um subconjunto sem glifo fica em ~1664; com glifo, ~3300
@@ -81,9 +81,36 @@ function glifoNaoSujaOHorario() {
   return erros;
 }
 
+/**
+ * 🔴 O front tem de saber pintar TODA cor que o backend aceita.
+ *
+ * O vocabulário fechado mora em `dominio.clj` (`cores-agenda`) e o mapa de
+ * classes em `src/lib/cores-agenda.ts`. Se o backend aceitar uma cor que o mapa
+ * não tem, o chip fica **transparente** — a clínica escolhe, o servidor grava,
+ * e a agenda não pinta. Sucesso sem efeito, e do tipo que só aparece para quem
+ * escolheu justo aquela.
+ */
+function vocabularioDeCorBate() {
+  const arqBack = '../deep-saude-plataforma-api/deep-saude-backend/src/deep_saude_backend/dominio.clj';
+  if (!existsSync(arqBack)) return [];
+  const back = readFileSync(arqBack, 'utf8');
+  const bloco = back.split('def cores-agenda')[1]?.split('})')[0] ?? '';
+  const doBackend = new Set([...bloco.matchAll(/"([a-z]+)"/g)].map((m) => m[1]));
+  const front = readFileSync('src/lib/cores-agenda.ts', 'utf8');
+  const doFront = new Set([...front.matchAll(/^ {2}([a-z]+):\s*\{ fundo:/gm)].map((m) => m[1]));
+  const erros = [];
+  for (const c of doBackend) if (!doFront.has(c))
+    erros.push(`o backend aceita a cor "${c}" e o front nao sabe pinta-la — o chip ficaria transparente`);
+  for (const c of doFront) if (!doBackend.has(c))
+    erros.push(`o front pinta "${c}" e o backend nao aceita — cor inalcancavel na tela`);
+  if (doBackend.size !== 11)
+    erros.push(`o backend declara ${doBackend.size} cores, e a D-019 fixou 11`);
+  return erros;
+}
+
 function guarda() {
   const g = glifosDoFonte();
-  const erros = [...glifoNaoSujaOHorario()];
+  const erros = [...glifoNaoSujaOHorario(), ...vocabularioDeCorBate()];
   if (g.length !== 5) erros.push(`esperava 5 estados em ${ARQUIVO}, achei ${g.length}`);
   for (const { estado, glifo } of g) {
     if (!glifo) erros.push(`${estado} está sem glifo — a cor sozinha não separa os cinco estados`);
@@ -150,7 +177,7 @@ autoteste();
 const { g, erros } = guarda();
 for (const e of erros) console.error(`::error::${e}`);
 if (erros.length) process.exit(1);
-console.log('ok: cinco estados, cinco glifos distintos, nenhum de largura dupla (autoteste passou antes)');
+console.log('ok: cinco glifos distintos, fora do span do horario, e as 11 cores casam com o backend');
 
 if (process.argv.includes('--fonte')) {
   console.log('\n=== a Montserrat tem cada um? ===');

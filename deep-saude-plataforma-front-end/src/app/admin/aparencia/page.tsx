@@ -18,7 +18,10 @@ import AparenciaClient from "./AparenciaClient";
  * mentira — e é a A-013 num endereço novo.
  */
 type Resposta = {
+  /** A efetiva (padrão + escolhas). A tela deriva a dela, então não vem daqui. */
   paleta: Record<string, string>;
+  /** 🔴 Só o que a clínica escolheu — é este que a agenda usa para pintar. */
+  escolhidas: Record<string, string>;
   cores: string[];
   padrao: Record<string, string>;
 };
@@ -34,6 +37,6 @@ export default async function AparenciaPage() {
   }
 
   return (
-    <AparenciaClient paleta={r.dados.paleta} cores={r.dados.cores} padrao={r.dados.padrao} />
+    <AparenciaClient escolhidas={r.dados.escolhidas} cores={r.dados.cores} padrao={r.dados.padrao} />
   );
 }

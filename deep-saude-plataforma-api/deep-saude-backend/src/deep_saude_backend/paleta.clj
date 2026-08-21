@@ -97,14 +97,31 @@
 ;; Handlers
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(defn escolhas-da-clinica
+  "Só o que a clínica ESCOLHEU — sem a mescla com o padrão.
+
+   🔴 Isto não é o mesmo que `paleta-da-clinica`, e a diferença importa na tela.
+   A agenda pinta com os tokens da plataforma quando a clínica não escolheu nada,
+   e com a cor do Google quando escolheu. Sem saber **quais** foram escolhidas, o
+   front teria de adivinhar comparando com o padrão — e comparar por valor erra
+   no caso em que a clínica escolhe, de propósito, a mesma cor do padrão."
+  [clinica-id]
+  (into {} (map (juxt :estado :cor))
+        (execute-query!
+         ["SELECT estado, cor FROM paleta_clinica WHERE clinica_id = ?" clinica-id])))
+
 (defn listar-handler
-  "A paleta efetiva da clínica de quem está pedindo, e o catálogo do que dá para
-   escolher — para a tela não precisar duplicar o vocabulário."
+  "A paleta efetiva, o que foi escolhido, o catálogo e o padrão.
+
+   Os quatro de uma vez para a tela não duplicar nenhum — vocabulário duplicado é
+   como `status_repasse` acabou com cinco valores vindos de três lugares."
   [request]
-  {:status 200
-   :body {:paleta   (paleta-da-clinica (get-in request [:identity :clinica_id]))
-          :cores    (vec (sort dominio/cores-agenda))
-          :padrao   dominio/paleta-padrao}})
+  (let [clinica-id (get-in request [:identity :clinica_id])]
+    {:status 200
+     :body {:paleta     (paleta-da-clinica clinica-id)
+            :escolhidas (escolhas-da-clinica clinica-id)
+            :cores      (vec (sort dominio/cores-agenda))
+            :padrao     dominio/paleta-padrao}}))
 
 (defn definir-handler [request]
   (let [clinica-id (get-in request [:identity :clinica_id])
