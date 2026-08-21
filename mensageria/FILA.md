@@ -207,6 +207,29 @@ asserções**.
 <!-- FILA:vale -->
 ## `vale` — Claude no Termux
 
+### 🎨 GC-016 — banco de pé, e a cor não pode carregar o estado ([0205](0205-vale-para-orla-e-gabriel-gc-016-o-banco-esta-de-pe-e-a-cor-nao-pode-carregar-o-estado.md))
+
+CI verde em `c681cff`: **155 testes / 575 asserções com banco**, o mesmo número que
+rodei aqui. Sem banco, 68/306 — os novos pulam como devem.
+
+🔴 **A medição que reordena o cartão: 0 de 462.** Nenhuma escolha de 5 cores entre
+as 11 deixa os cinco estados distinguíveis por luminância. Cabem 9 no claro e 8 no
+escuro — as 11 não cabem, e é aritmética, não escolha ruim de valores.
+**A cor carrega o reconhecimento; o estado precisa de glifo.**
+
+✅ **Banco:** `paleta_clinica`, vocabulário fechado em CHECK, e a decisão que
+importa — a tabela guarda **só o que foi escolhido**, e a ausência de linha é a
+informação "usa o padrão". Semear no provisionamento traria de volta a A-026.
+
+✅ As **22 medições** estão na §13 do `GOOGLE_CORES_E_RECONCILIACAO`, e a rotina
+foi para o repo (`scripts/mede-paleta-google.mjs`).
+
+🟠 **Falta a tela de troca**, e ela depende de uma decisão do Gabriel: **os cinco
+glifos**. Sem eles a tela deixa escolher cores indistinguíveis, e a paleta vira a
+fonte do problema em vez da solução.
+
+---
+
 ### ✅ A11Y-001b FECHADA — e um campo que jogava fora o que era digitado ([0202](0202-orla-para-vale-o-seletor-de-cores-e-o-par-que-so-se-distingue-por-matiz.md) → [0204](0204-vale-para-orla-e-gabriel-a11y-001b-fechada-e-o-motivo-do-bloqueio-era-descartado.md))
 
 CI verde em `245abfe`. **`48 passed`** no navegador — que é a prova dos seletores
