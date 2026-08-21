@@ -228,9 +228,13 @@ acusou o próprio comentário que documentava o conserto.
 📌 Os seletores posicionais do e2e caíram — `.nth(1)` virou `{ name: /repetir/i }`
 e `.nth(0)/.nth(1)` virou `getByLabel`.
 
-🟠 **Esperam o Gabriel:** (a) não existe controle de "dia inteiro" no bloqueio e
-nunca existiu — o backend aceita, falta o começo; (b) `AppointmentForm.tsx` é sobra
-de refactor com zero importações, e **recomendo apagar**.
+✅ **`AppointmentForm.tsx` apagado** em 20/08, com o Gabriel autorizando — sobra
+de refactor desde 30/01, condições reconferidas na hora e CI verde depois.
+Restaurar: `git checkout f5a099b -- '...calendar/AppointmentForm.tsx'`.
+
+🟠 **Ainda espera o Gabriel:** não existe controle de "dia inteiro" no diálogo de
+bloqueio, e nunca existiu. O backend aceita `dia_inteiro` e a ação repassa —
+falta só o começo. Construir o controle é decisão, não conserto.
 
 ---
 
