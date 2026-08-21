@@ -268,7 +268,7 @@ export function WeekView({ date, appointments, bloqueios = [], onAddAppointment,
 
                   {/* Render Appointments */}
                   {hourAppointments.map(app => {
-                      const appearance = appointmentStatusAppearance(app.status, cores);
+                      const appearance = appointmentStatusAppearance(app.status, cores, { inicio: app.data_hora_sessao, duracao: app.duracao });
                       const appDate = paredeDaClinica(app.data_hora_sessao);
                       const duration = app.duracao || 50;
                       const endDate = new Date(appDate.getTime() + duration * 60000);

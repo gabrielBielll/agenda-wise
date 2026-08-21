@@ -179,7 +179,7 @@ export function DayView({ date, appointments, bloqueios = [], onAddAppointment, 
 
                 {/* Render Appointments */}
                 {hourAppointments.map(app => {
-                    const appearance = appointmentStatusAppearance(app.status, cores);
+                    const appearance = appointmentStatusAppearance(app.status, cores, { inicio: app.data_hora_sessao, duracao: app.duracao });
                     const appDate = paredeDaClinica(app.data_hora_sessao);
                     const minutes = appDate.getMinutes();
                     const topPos = (minutes / 60) * 100; // Percentage from top

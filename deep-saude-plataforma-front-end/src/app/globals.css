@@ -149,6 +149,25 @@
   }
 }
 
+/* 🔴 A sessão terminou e ninguém disse se aconteceu.
+   O anel é ESTÁTICO e o chacoalho é ANIMAÇÃO, de propósito: o bloco de
+   `prefers-reduced-motion` abaixo mata toda animação, e quem desliga movimento no
+   sistema continua precisando do aviso. Se o destaque inteiro fosse animação, ele
+   sumiria justamente para quem já tem menos canais.
+   ⚠️ E o chacoalho é PERIÓDICO, não contínuo: 0,5s a cada 6s. Movimento sem
+   pausa numa tela que a psicóloga encara o dia inteiro deixa de avisar e passa a
+   cansar — e aí ela aprende a ignorar, que é o oposto do pedido. */
+.chama-atencao {
+  outline: 2px solid hsl(var(--accent));
+  outline-offset: 1px;
+  animation: chacoalha 6s ease-in-out infinite;
+}
+@keyframes chacoalha {
+  0%, 92%, 100% { transform: translateX(0); }
+  93%, 97%      { transform: translateX(-2px); }
+  95%, 99%      { transform: translateX(2px); }
+}
+
 @keyframes quiet-page-in { from { opacity: 0; transform: translateY(12px); filter: blur(4px); } to { opacity: 1; transform: translateY(0); filter: blur(0); } }
 @keyframes quiet-float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
 @media (prefers-reduced-motion: reduce) { *,*::before,*::after { scroll-behavior:auto!important; animation-duration:.01ms!important; animation-iteration-count:1!important; transition-duration:.01ms!important; } }

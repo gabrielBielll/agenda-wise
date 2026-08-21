@@ -117,6 +117,14 @@ function guarda() {
     else if (/[ᄀ-ᅟ⺀-꓏가-힣豈-﫿︰-﹯＀-｠￠-￦]|[\u{1F300}-\u{1FAFF}]/u.test(glifo))
       erros.push(`${estado} usa "${glifo}", que é de largura dupla — empurra o texto do chip`);
   }
+  // 🔴 O `!` e RESERVADO: ele marca "a sessao passou e ninguem disse se
+  // aconteceu", que nao e um estado guardado, e sim estado + relogio. Se algum
+  // dos cinco o adotasse, as duas coisas ficariam indistinguiveis — e uma delas
+  // pede acao da psicologa enquanto a outra nao.
+  for (const { estado, glifo } of g) {
+    if (glifo === '!') erros.push(`${estado} usa "!", que e reservado para "sessao vencida sem veredito"`);
+  }
+
   const vistos = new Map();
   for (const { estado, glifo } of g) {
     if (glifo && vistos.has(glifo)) erros.push(`${estado} e ${vistos.get(glifo)} usam o MESMO glifo "${glifo}" — dois estados indistinguíveis`);

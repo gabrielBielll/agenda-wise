@@ -422,6 +422,12 @@ jobs:
           # corpo do WeekView voltam a ter larguras diferentes — e os dias do topo
           # deixam de corresponder as colunas de baixo em qualquer tela estreita.
           # O defeito e INVISIVEL no desktop, onde as duas grades cabem.
+          # O destaque da sessao vencida sem veredito. O ANEL tem de sobreviver ao
+          # `prefers-reduced-motion`, que mata a animacao — se so o chacoalho
+          # avisasse, o aviso sumiria justamente para quem desliga movimento.
+          for alvo in '.chama-atencao' 'chacoalha'; do
+            grep -qF -- "$alvo" $css || { echo "::error::faltou no CSS compilado: $alvo"; faltou=1; }
+          done
           grep -qF -- 'grid-template-columns:54px repeat(7,minmax(120px,1fr))' $css \
             || { echo "::error::o trilho da grade semanal nao materializou — cabecalho e corpo vao desalinhar no telefone"; faltou=1; }
           test "$faltou" -eq 0 || exit 1

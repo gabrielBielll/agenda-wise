@@ -1476,7 +1476,7 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                                      </span>
                                      <div className="flex flex-col gap-1 w-full overflow-hidden">
                                          {dayAppointments.slice(0, 4).map(app => {
-                                           const appearance = appointmentStatusAppearance(app.status, cores);
+                                           const appearance = appointmentStatusAppearance(app.status, cores, { inicio: app.data_hora_sessao, duracao: app.duracao });
                                            return (
                                              <div key={app.id} 
                                                 className={cn(

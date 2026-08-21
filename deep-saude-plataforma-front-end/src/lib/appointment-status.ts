@@ -57,6 +57,22 @@ export type AppointmentStatusAppearance = {
    * mudar sem que nada aqui quebre: são cinco strings.
    */
   glyph: string | null;
+  /**
+   * 🔴 A sessão já passou e ninguém disse se aconteceu.
+   *
+   * NÃO é um sexto estado guardado: é `agendado`/`confirmado` mais o relógio.
+   * "Realizada" é confirmação humana deliberada — o diálogo diz que ela alimenta
+   * o financeiro —, então passar da hora não pode marcar sozinho.
+   *
+   * ⚠️ Mas o chip mentia: mostrava `?` ("aguardando confirmação da paciente")
+   * para uma sessão que já aconteceu, quando o que está pendente é outra coisa
+   * inteiramente — *"aconteceu?"*, e a resposta vira dinheiro. As duas situações
+   * pedem ações opostas da psicóloga, e a grade não as distinguia.
+   *
+   * 📌 O diálogo JÁ distinguia (ele troca o botão para "Confirmar que a sessão
+   * aconteceu"). Quem não sabia era a grade.
+   */
+  pedeConfirmacao: boolean;
   eventClassName: string;
   badgeClassName: string;
 };
@@ -65,35 +81,40 @@ const appearances: Record<AppointmentStatus, AppointmentStatusAppearance> = {
   agendado: {
     label: 'Aguardando confirmação',
     shortLabel: 'Agendada',
-    glyph: '?', // aguardando confirmação — a pergunta ainda sem resposta, e é o estado em que a psicóloga precisa AGIR
+    glyph: '?',
+    pedeConfirmacao: false, // aguardando confirmação — a pergunta ainda sem resposta, e é o estado em que a psicóloga precisa AGIR
     eventClassName: 'border-agenda-agendada bg-agenda-agendada-suave text-agenda-agendada-foreground hover:brightness-[.98]',
     badgeClassName: 'border-agenda-agendada/35 bg-agenda-agendada-suave text-agenda-agendada-foreground',
   },
   confirmado: {
     label: 'Sessão confirmada',
     shortLabel: 'Confirmada',
-    glyph: '√', // confirmado. Era `✓` até 20/08; trocado porque a Montserrat não tem o U+2713
+    glyph: '√',
+    pedeConfirmacao: false, // confirmado. Era `✓` até 20/08; trocado porque a Montserrat não tem o U+2713
     eventClassName: 'border-agenda-confirmada bg-agenda-confirmada-suave text-agenda-confirmada-foreground hover:brightness-[.98]',
     badgeClassName: 'border-agenda-confirmada/35 bg-agenda-confirmada-suave text-agenda-confirmada-foreground',
   },
   realizado: {
     label: 'Sessão realizada',
     shortLabel: 'Realizada',
-    glyph: '■', // bloco fechado: aconteceu e acabou
+    glyph: '■',
+    pedeConfirmacao: false, // bloco fechado: aconteceu e acabou
     eventClassName: 'border-success bg-success/15 text-foreground hover:bg-success/20',
     badgeClassName: 'border-success/35 bg-success/10 text-success',
   },
   cancelado: {
     label: 'Sessão cancelada',
     shortLabel: 'Cancelada',
-    glyph: '×', // cancelado. É o U+00D7 da fonte, não o `✕` U+2715, que está fora dela
+    glyph: '×',
+    pedeConfirmacao: false, // cancelado. É o U+00D7 da fonte, não o `✕` U+2715, que está fora dela
     eventClassName: 'border-tomate bg-tomate-suave text-tomate-foreground hover:brightness-95 opacity-80',
     badgeClassName: 'border-tomate/35 bg-tomate-suave text-tomate-foreground',
   },
   falta: {
     label: 'Paciente não compareceu',
     shortLabel: 'Falta',
-    glyph: '∅', // vazio: o horário existiu e ninguém veio
+    glyph: '∅',
+    pedeConfirmacao: false, // vazio: o horário existiu e ninguém veio
     eventClassName: 'border-tomate bg-tomate-suave text-tomate-foreground hover:brightness-95',
     badgeClassName: 'border-tomate/35 bg-tomate-suave text-tomate-foreground',
   },
@@ -121,20 +142,50 @@ export function normalizeAppointmentStatus(status?: string): AppointmentStatus {
  */
 export function appointmentStatusAppearance(
   status?: string,
-  escolhidas?: CoresEscolhidas
+  escolhidas?: CoresEscolhidas,
+  /** Quando vem, o relógio entra na conta: sessão vencida sem veredito pede `!`. */
+  sessao?: { inicio: string; duracao?: number }
 ): AppointmentStatusAppearance {
   const estado = normalizeAppointmentStatus(status);
   const base = appearances[estado];
   const cor = escolhidas?.[estado];
   const c = cor ? CLASSES_DE_COR[cor] : undefined;
-  if (!c) return base;
+  const comCor = c
+    ? {
+        ...base,
+        eventClassName: `${c.borda} ${c.fundo} ${c.texto} hover:brightness-[.98]`,
+        badgeClassName: `${c.borda} ${c.fundo} ${c.texto}`,
+      }
+    : base;
+
+  if (!sessao || !precisaConfirmacao(status, sessao.inicio, sessao.duracao)) return comCor;
+
   return {
-    ...base,
-    eventClassName: `${c.borda} ${c.fundo} ${c.texto} hover:brightness-[.98]`,
-    badgeClassName: `${c.borda} ${c.fundo} ${c.texto}`,
+    ...comCor,
+    glyph: '!',
+    pedeConfirmacao: true,
+    // `chama-atencao` está no globals.css e some sozinha em
+    // `prefers-reduced-motion` — ver o comentário lá.
+    eventClassName: `${comCor.eventClassName} chama-atencao`,
   };
 }
 
 export function appointmentHasEnded(start: string, duration = 50, now = Date.now()) {
   return new Date(start).getTime() + duration * 60_000 <= now;
+}
+
+/**
+ * A sessão terminou e continua sem veredito — precisa da psicóloga.
+ *
+ * Só `agendado` e `confirmado`: `realizado` já tem resposta, e `cancelado` e
+ * `falta` também. Um cancelamento que envelhece não vira pendência.
+ */
+export function precisaConfirmacao(
+  status: string | undefined,
+  inicio: string,
+  duracao = 50,
+  now = Date.now()
+): boolean {
+  const e = normalizeAppointmentStatus(status);
+  return (e === 'agendado' || e === 'confirmado') && appointmentHasEnded(inicio, duracao, now);
 }
