@@ -1079,3 +1079,81 @@ A R-012 saiu da boca do Gabriel e tem raciocínio escrito — a inconveniência 
 exigir código e implantação *era* o que dava sentido à regra. Mudar isso num
 commit de permissão, sem registro, deixaria a regra e o código discordando, e a
 próxima instância acreditaria no arquivo errado.
+
+---
+
+## D-022 — O horário disponível vira estado, e "vazio" deixa de significar "pode marcar"
+
+**Decidido por:** a CEO, relatado pelo Gabriel em 2026-08-21
+**Estende:** a linha 4 da tabela da **R-017**, que já previa 🔵 azul = `[DISPONÍVEL]`
+**Tarefa:** [0210](0210-orla-para-vale-e-duna-o-disponivel-e-o-vazio-que-vira-telefonema.md)
+
+Nas palavras dele: *"nós temos muitas psicólogas que não trabalham o tempo
+inteiro com a nossa empresa, então elas têm outros trabalhos, então somente
+alguns horários específicos dos dias delas são disponíveis […] no Google Agenda
+existe a cor azul pra indicar disponibilidade […] um operador consegue ir lá na
+agenda dela, clicar no azul e marcar uma sessão nesse horário disponível"*.
+
+### 🔴 O defeito que isso expõe, e ele custa um telefonema por vez
+
+Ele descreveu o problema real melhor do que qualquer card:
+
+> *"às vezes acontece de um paciente sair e muitas vezes elas simplesmente
+> esquecem de colocar que o horário está disponível ali. E aí fica uma dúvida […]
+> os horários vazios acabam se tornando dúvidas."*
+
+**O mundo real tem TRÊS estados de horário, e a plataforma só modela dois:**
+
+| | o que significa | existe hoje? |
+|---|---|---|
+| 🔵 **disponível** | *"pode marcar aqui"* — afirmação positiva da psicóloga | ❌ **não existe** |
+| ⚫ **bloqueado** | *"não existe horário aqui"* | ✅ `bloqueios_agenda` |
+| ⬜ **não dito** | ninguém afirmou nada | ❌ hoje some dentro de "vazio" |
+
+🔴 **E é o terceiro que gera o telefonema.** Hoje a plataforma trata *vazio* como
+*disponível* por omissão — e é exatamente a leitura errada. O operador vê espaço
+livre, não sabe se pode marcar, e liga para perguntar. Quando é bloqueio, ele sabe;
+quando é azul, ele sabe. A dúvida mora só no que ninguém disse.
+
+📌 **A plataforma precisa poder dizer "eu não sei".** Um sistema que responde
+"disponível" para o que nunca foi afirmado está inventando informação — é a mesma
+família do `200` que quer dizer "não fiz nada".
+
+### A cor não precisa ser a mesma; a família, sim
+
+Segunda coisa que ele decidiu, e que **afrouxa** a D-019 de um jeito útil:
+
+> *"na plataforma a gente não precisa necessariamente seguir o padrão visual exato
+> do Google […] no fim das contas você entende que é vermelho, é azul, é laranja,
+> é cinza escuro que é grafite […] se for azul, pegue qualquer tom de azul, se for
+> azul é isso"*.
+
+**Efeito nos dois sentidos:**
+
+- **Pintando aqui:** basta a cor ser reconhecivelmente da mesma família. Isso
+  libera a luminância para servir à legibilidade, em vez de perseguir o hex do
+  Google — que era o que apertava a medição das 11.
+- **Lendo o Google:** classificar por **família de matiz**, não por `colorId`
+  exato. 📌 O `lista-psis` já faz assim: `GOOGLE_AVAILABLE_EVENT_COLOR_IDS` aceita
+  Pavão, Blueberry **ou ausência de cor**. A tolerância já é o padrão que funciona
+  em produção há mais tempo que este projeto.
+
+### E os dois canais, confirmados por ele
+
+> *"a pessoa pode muitas vezes não entender a cor, mas ela pode entender os
+> glifos […] a psicóloga pode seguir tanto pelo padrão de cor quanto pelo glifo"*.
+
+Isso ratifica o que a `vale` mediu e implementou ontem: cor **e** glifo, os dois
+canais, cada um bastando sozinho. O `disponível` nasce precisando dos dois desde o
+primeiro dia — não repetir o caminho de descobrir depois.
+
+### ⚠️ O que eu quero deixar dito antes de alguém implementar
+
+**`disponível` não é estado de sessão.** Não entra em `status-sessao`, não vira
+linha em `agendamentos`. É estado de **janela de agenda**, vizinho de
+`bloqueios_agenda` — e provavelmente a mesma tabela com um sinal invertido, não
+uma tabela nova.
+
+Pôr `disponivel` no vocabulário de sessão criaria uma sessão sem paciente, sem
+valor e sem psicóloga responsável, que é como `status_repasse` acabou com cinco
+valores de três vocabulários na mesma coluna.
