@@ -33,12 +33,20 @@ interface DayViewProps {
   bloqueios?: Bloqueio[];
   onAddAppointment: (date: Date, event?: React.MouseEvent, isBlocked?: boolean, bloqueioId?: string) => void;
   onEditAppointment: (appointment: Appointment) => void;
-  onDeleteBloqueio?: (id: string, recorrencia_id?: string, tipo?: string) => void;
+  /**
+   * Clicar numa janela abre a EDIÇÃO dela, não a remoção.
+   *
+   * 🔴 Mudou em 21/08 a pedido do Gabriel: *"tem que permitir editar horário
+   * liberado"*. Antes o clique ia direto para "tem certeza que deseja remover?",
+   * então corrigir uma hora errada obrigava a apagar e refazer — e refazer perde
+   * a recorrência. O "Remover" continua existindo, agora dentro do diálogo.
+   */
+  onEditBloqueio?: (block: Bloqueio) => void;
 }
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i); // 00:00 to 23:00
 
-export function DayView({ date, appointments, bloqueios = [], onAddAppointment, onEditAppointment, onDeleteBloqueio, cores }: DayViewProps & { cores?: CoresEscolhidas }) {
+export function DayView({ date, appointments, bloqueios = [], onAddAppointment, onEditAppointment, onEditBloqueio, cores }: DayViewProps & { cores?: CoresEscolhidas }) {
   const containerRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
@@ -191,8 +199,8 @@ export function DayView({ date, appointments, bloqueios = [], onAddAppointment, 
                       style={{ top: `${topPos}%`, height: `${height}%`, minHeight: '0px' }}
                       onClick={(e) => {
                         e.stopPropagation();
-                        if (onDeleteBloqueio) {
-                          onDeleteBloqueio(block.id, block.recorrencia_id, block.tipo);
+                        if (onEditBloqueio) {
+                          onEditBloqueio(block);
                         }
                       }}
                       title={block.motivo || janela.label}
@@ -202,7 +210,7 @@ export function DayView({ date, appointments, bloqueios = [], onAddAppointment, 
                           motivo — e "reunião de equipe" não diz se o horário está
                           fechado ou oferecido. É o achado que a `orla` deixou
                           aberto sobre a grade de sessões; aqui ele não nasce. */}
-                      <janela.Icone className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                      <janela.Icone className="h-4 w-4 shrink-0" aria-hidden="true" />
                       <span className="sr-only">{janela.label}: </span>
                       <span className={cn("truncate", janela.textoClassName)}>
                         {block.motivo || janela.rotuloPadrao}
@@ -248,7 +256,35 @@ export function DayView({ date, appointments, bloqueios = [], onAddAppointment, 
                                 }
                             </span>
                             <span className={cn("truncate block font-medium", app.status === 'cancelado' && "line-through opacity-70")}>
-                                {appearance.glyph && <span aria-hidden="true" className="mr-0.5 font-bold">{appearance.glyph}</span>}
+                                {appearance.glyph && (
+                                /**
+                                 * 🔴 O glifo é MAIOR que o nome, de propósito.
+                                 *
+                                 * O Gabriel olhou a grade e disse: *"aumenta os
+                                 * glifos de tamanho pq eles estão muito
+                                 * imperceptíveis"*. Estavam mesmo — saíam no
+                                 * mesmo tamanho do texto ao lado, e um `■` de
+                                 * 12px encostado num nome próprio desaparece.
+                                 *
+                                 * ⚠️ E isto não é preferência: medido na §13, das
+                                 * 462 formas de escolher 5 cores entre as 11,
+                                 * NENHUMA deixa os estados distinguíveis por
+                                 * luminância. O glifo é o único canal que separa
+                                 * os estados — se ele não é visto, o estado não
+                                 * é lido, e some justamente para quem já não lia
+                                 * a cor.
+                                 *
+                                 * 📌 `leading-none` e `align-middle` para o
+                                 * tamanho maior não empurrar a linha do chip,
+                                 * que tem altura fixa por hora.
+                                 */
+                                <span
+                                  aria-hidden="true"
+                                  className="mr-1 inline-block align-middle text-[1.15em] font-bold leading-none"
+                                >
+                                  {appearance.glyph}
+                                </span>
+                              )}
                                 {app.nome_paciente}
                             </span>
                         </div>

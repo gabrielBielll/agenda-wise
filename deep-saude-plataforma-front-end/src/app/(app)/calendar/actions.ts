@@ -226,9 +226,23 @@ export async function reactivateAgendamento(id: string): Promise<{ message: stri
   return { message: "Sessão reativada com sucesso!", success: true };
 }
 
+/**
+ * Move a sessão para outro estado do ciclo de vida.
+ *
+ * 🔴 **O tipo era `'confirmado' | 'realizado'`, e isso deixava `falta`
+ * inalcançável pela tela.** O Gabriel esbarrou nisso: *"como mudar de uma sessão
+ * confirmada para o status do paciente não compareceu?"*. Não dava — o único
+ * caminho para `falta` era gravar direto no banco, que foi o que o semeador
+ * precisou fazer.
+ *
+ * ⚠️ Quem decide o que é transição VÁLIDA não é este arquivo: é o
+ * `transicoesDe` no CalendarClient, que olha o estado atual e o relógio. Aqui a
+ * porta está aberta para os cinco de propósito — restringir nos dois lugares
+ * significaria manter duas regras em sincronia, e uma delas envelheceria.
+ */
 export async function updateAppointmentStatus(
   id: string,
-  status: Extract<AppointmentStatus, 'confirmado' | 'realizado'>,
+  status: AppointmentStatus,
 ): Promise<{ message: string; success: boolean }> {
   const session = await getServerSession(authOptions);
   const token = (session as any)?.backendToken;
@@ -259,9 +273,13 @@ export async function updateAppointmentStatus(
   revalidatePath("/calendar");
   revalidatePath("/dashboard");
   return {
-    message: status === 'realizado'
-      ? "Sessão confirmada como realizada."
-      : "Agendamento confirmado com sucesso.",
+    message: {
+      realizado:  "Sessão confirmada como realizada.",
+      confirmado: "Agendamento confirmado com sucesso.",
+      falta:      "Marcada como falta. O paciente não compareceu.",
+      cancelado:  "Sessão cancelada. O valor foi zerado.",
+      agendado:   "Sessão voltou para aguardando confirmação.",
+    }[status] ?? "Estado atualizado.",
     success: true,
   };
 }
@@ -395,6 +413,56 @@ export async function createBloqueio(
     message: tipo === 'disponivel'
       ? "Horário liberado com sucesso!"
       : "Horário bloqueado com sucesso!",
+    success: true,
+  };
+}
+
+/**
+ * Edita uma janela de agenda que já existe — período, motivo e tipo.
+ *
+ * 🔴 **Rota própria no backend, e não apagar-e-recriar aqui.** Um DELETE seguido
+ * de POST perderia a janela se o segundo passo falhasse (rede, 409 de conflito,
+ * qualquer coisa) — e a psicóloga só descobriria quando alguém não conseguisse
+ * marcar. Perda silenciosa por causa de uma edição é pior que não poder editar.
+ *
+ * ⚠️ `tipo` ausente MANTÉM o que já estava gravado. O backend faz o mesmo: trocar
+ * para `bloqueio` no silêncio faria uma edição de horário virar mudança de
+ * significado.
+ */
+export async function atualizarBloqueio(
+  id: string,
+  dataInicio: string,
+  dataFim: string,
+  motivo?: string,
+  tipo?: TipoDeJanela
+): Promise<ResultadoDeBloqueio> {
+  const session = await getServerSession(authOptions);
+  const token = (session as any)?.backendToken;
+  if (!token) return { message: "Erro de autenticação.", success: false };
+
+  try {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/bloqueios/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+      body: JSON.stringify({
+        data_inicio: paraPayloadParede(dataInicio),
+        data_fim: paraPayloadParede(dataFim),
+        motivo,
+        tipo,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return lerRecusaDeBloqueio(response.status, errorData);
+    }
+  } catch {
+    return { message: "Erro de conexão com o servidor.", success: false };
+  }
+
+  revalidatePath("/calendar");
+  return {
+    message: tipo === 'disponivel' ? "Horário liberado atualizado!" : "Bloqueio atualizado!",
     success: true,
   };
 }

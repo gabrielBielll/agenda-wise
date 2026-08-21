@@ -6,7 +6,7 @@ import { paraInputLocal, maisMinutos, paredeDaClinica, agoraNaClinica,
          paredeParaInput, paredeSomada, paredeMaisMinutos, instanteDeParede } from "@/lib/datetime";
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Trash2, FileText, ExternalLink, CalendarCheck2, CheckCircle2 } from "lucide-react";
+import { Plus, Trash2, FileText, ExternalLink, CalendarCheck2, CheckCircle2, DoorClosed, DoorOpen, ChevronDown } from "lucide-react";
 import Link from "next/link";
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
@@ -35,7 +35,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useFormStatus } from "react-dom";
 import { useActionState } from "react";
-import { createAgendamento, updateAgendamento, deleteAgendamento, cancelAgendamento, reactivateAgendamento, updateAppointmentStatus, createBloqueio, deleteBloqueio, FormState, type Bloqueio, type TipoDeJanela } from "./actions";
+import { createAgendamento, updateAgendamento, deleteAgendamento, cancelAgendamento, reactivateAgendamento, updateAppointmentStatus, createBloqueio, atualizarBloqueio, deleteBloqueio, FormState, type Bloqueio, type TipoDeJanela } from "./actions";
 import { useToast } from "@/hooks/use-toast";
 import { useLoading } from "@/components/LoadingOverlay";
 import { CalendarHeader } from "./CalendarHeader";
@@ -44,7 +44,8 @@ import { WeekView } from "./WeekView";
 import { cn } from "@/lib/utils";
 import { appointmentHasEnded, appointmentStatusAppearance, normalizeAppointmentStatus, type AppointmentStatus } from "@/lib/appointment-status";
 import type { CoresEscolhidas } from "@/lib/cores-agenda";
-import { janelaAparencia } from "@/lib/janela-agenda";
+import { janelaAparencia, normalizarTipoJanela } from "@/lib/janela-agenda";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 
 // Define interface for Appointment
 interface Appointment {
@@ -80,10 +81,78 @@ interface SlotAction {
 }
 
 interface StatusTransition {
-  status: Extract<AppointmentStatus, 'confirmado' | 'realizado'>;
+  status: AppointmentStatus;
   title: string;
   description: string;
   action: string;
+}
+
+/**
+ * 🔴 O PADRÃO de mudança de estado — para onde esta sessão pode ir, e por quê.
+ *
+ * O Gabriel esbarrou no buraco: *"como mudar de uma sessão confirmada para o
+ * status do paciente não compareceu?"*. Não havia caminho. O rodapé oferecia um
+ * botão "confirmar" que trocava de significado conforme o relógio, e "cancelar
+ * sessão" — e mais nada. **`falta` era inalcançável pela tela**, tanto que o
+ * semeador teve de gravar direto no banco.
+ *
+ * ## A regra: só aparece o que é VÁLIDO agora
+ *
+ * Oferecer tudo e depois recusar com erro é pior que não oferecer: ensina que a
+ * tela mente. Então o relógio entra na conta:
+ *
+ * - `realizado` e `falta` exigem que a sessão já tenha TERMINADO. A R-022 é
+ *   explícita — o relógio não confirma presença, mas o contrário também vale:
+ *   ninguém faltou a uma sessão que ainda não começou.
+ * - `confirmado` só faz sentido ANTES do fim; depois, o que se pergunta é outra
+ *   coisa ("aconteceu?").
+ * - `cancelado` cabe de qualquer lugar, e zera o valor.
+ * - De `cancelado` sai apenas a volta para `agendado` — reativar.
+ *
+ * 📌 E de `realizado` para `falta` (e vice-versa) é permitido de propósito: são
+ * os dois vereditos possíveis do mesmo momento, e errar o clique não pode virar
+ * um beco sem saída.
+ */
+function transicoesDe(status: AppointmentStatus, terminou: boolean): StatusTransition[] {
+  const cancelar: StatusTransition = {
+    status: 'cancelado',
+    title: 'Cancelar esta sessão?',
+    description: 'A sessão fica marcada como cancelada e o valor é zerado pelo servidor.',
+    action: 'Sim, cancelar',
+  };
+  const realizada: StatusTransition = {
+    status: 'realizado',
+    title: 'Confirmar que a sessão aconteceu?',
+    description: 'Será marcada como realizada. Essa confirmação alimenta o financeiro.',
+    action: 'Sim, aconteceu',
+  };
+  const faltou: StatusTransition = {
+    status: 'falta',
+    title: 'O paciente não compareceu?',
+    description: 'Será marcada como falta. O horário existiu e ninguém veio — o financeiro trata diferente de uma sessão realizada.',
+    action: 'Sim, não compareceu',
+  };
+  const confirmar: StatusTransition = {
+    status: 'confirmado',
+    title: 'Confirmar este agendamento?',
+    description: 'A sessão continua no mesmo horário e passa a aparecer como confirmada.',
+    action: 'Confirmar agendamento',
+  };
+  const reabrir: StatusTransition = {
+    status: 'agendado',
+    title: 'Reabrir esta sessão?',
+    description: 'Volta para "aguardando confirmação". O valor NÃO é restaurado automaticamente — confira antes de fechar o mês.',
+    action: 'Reabrir',
+  };
+
+  switch (status) {
+    case 'agendado':   return terminou ? [realizada, faltou, cancelar] : [confirmar, cancelar];
+    case 'confirmado': return terminou ? [realizada, faltou, cancelar] : [cancelar];
+    case 'realizado':  return [faltou, cancelar];
+    case 'falta':      return [realizada, cancelar];
+    case 'cancelado':  return [reabrir];
+    default:           return [];
+  }
 }
 
 const initialState: FormState = {
@@ -122,6 +191,20 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
    * marcasse sessão no horário que ela fechou.
    */
   const [blockTipo, setBlockTipo] = useState<TipoDeJanela>('bloqueio');
+  /**
+   * 🔴 O motivo virou estado CONTROLADO, e a razão é a edição.
+   *
+   * Ele era lido só do `FormData` no envio — o que basta para criar, mas não
+   * para editar: o campo precisa NASCER preenchido com o que já está gravado.
+   *
+   * ⚠️ O `name="motivo"` continua no input de propósito. A A11Y-001b registra que
+   * a ausência dele fazia `formData.get('motivo')` devolver null e o texto ser
+   * DESCARTADO em silêncio. Tirar agora seria reabrir aquele defeito para quem
+   * voltar a ler pelo formulário.
+   */
+  const [blockMotivo, setBlockMotivo] = useState("");
+  /** A janela sendo editada, ou `null` quando é criação. */
+  const [blockEditando, setBlockEditando] = useState<Bloqueio | null>(null);
   const [isConfirmDeleteBlockOpen, setIsConfirmDeleteBlockOpen] = useState(false);
   const [isConflictDialogOpen, setIsConflictDialogOpen] = useState(false);
   // R-014: a recusa mostra QUAIS sessões impedem o bloqueio, não só quantas.
@@ -414,8 +497,23 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
     }
   };
 
-  const handleOpenBlock = (tipo: TipoDeJanela) => {
+  /**
+   * `origem` existe porque este diálogo agora tem DUAS entradas: o menu do botão
+   * direito (que traz `slotAction`) e o seletor dentro do "Novo na agenda" (que
+   * não traz — ali o horário já está em `newAppointmentDate`). Sem o segundo
+   * caminho, escolher "Bloquear" pelo seletor abria o formulário com o horário
+   * da última vez, e não com o que a pessoa clicou.
+   */
+  const handleOpenBlock = (tipo: TipoDeJanela, origem?: Date) => {
     setBlockTipo(tipo);
+    setBlockEditando(null);
+    setBlockMotivo("");
+    const quando = slotAction?.date ?? origem ?? newAppointmentDate;
+    if (quando) {
+      setNewAppointmentDate(quando);
+      setBlockStart(paredeParaInput(quando));
+      setBlockEnd(paredeParaInput(addMinutes(quando, 60)));
+    }
     if (slotAction) {
       setNewAppointmentDate(slotAction.date);
       // Semeia o período com o slot clicado — o que o `defaultValue` fazia, só
@@ -429,10 +527,34 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
     setIsBlockDialogOpen(true);
   };
 
+  /**
+   * Abre a janela existente para EDITAR, em vez de ir direto ao "remover".
+   *
+   * O Gabriel pediu: *"tem que permitir editar horário liberado"*. Antes, clicar
+   * no bloco só oferecia apagar — então corrigir um horário errado obrigava a
+   * apagar e refazer, perdendo a recorrência junto.
+   */
+  const initEditBlock = (block: Bloqueio) => {
+    const inicio = paredeDaClinica(block.data_inicio);
+    const fim = paredeDaClinica(block.data_fim);
+    setBlockEditando(block);
+    setBlockTipo(normalizarTipoJanela(block.tipo));
+    setBlockStart(paredeParaInput(inicio));
+    setBlockEnd(paredeParaInput(fim));
+    setBlockMotivo(block.motivo ?? "");
+    // Recorrência não se edita aqui: mexer no padrão de repetição de uma série
+    // pela tela de uma ocorrência é outra decisão, e não foi pedida.
+    setBlockRecurrenceType("none");
+    setBlockRecurrenceCount(1);
+    setSlotAction(null);
+    setIsBlockDialogOpen(true);
+  };
+
   const handleCreateBlock = async (formData: FormData) => {
     const dataInicio = formData.get('data_inicio') as string;
     const dataFim = formData.get('data_fim') as string;
-    const motivo = formData.get('motivo') as string;
+    // Do ESTADO, não do formulário — é o mesmo campo nos dois modos.
+    const motivo = blockMotivo;
     /**
      * ⚠️ **Não há controle de "dia inteiro" nesta tela, e nunca houve.**
      *
@@ -454,8 +576,13 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
     // Sem pré-checagem: o backend recusa e devolve as sessões atingidas na
     // própria recusa (R-014). Perguntar antes seria uma ida a mais que responde
     // o que a criação já responde — e que pode discordar dela entre as duas.
-    showLoading("Criando bloqueio...");
-    const result = await createBloqueio(dataInicio, dataFim, motivo, diaInteiro, blockRecurrenceType, blockRecurrenceCount, blockTipo);
+    const editando = blockEditando;
+    showLoading(editando
+      ? "Salvando..."
+      : blockTipo === 'disponivel' ? "Liberando horário..." : "Criando bloqueio...");
+    const result = editando
+      ? await atualizarBloqueio(editando.id, dataInicio, dataFim, motivo, blockTipo)
+      : await createBloqueio(dataInicio, dataFim, motivo, diaInteiro, blockRecurrenceType, blockRecurrenceCount, blockTipo);
     hideLoading();
 
     if (result?.success) {
@@ -590,14 +717,14 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
 
   const handleStatusUpdate = async () => {
     if (!editingAppointment || !statusTransition) return;
-    showLoading(statusTransition.status === 'realizado' ? "Confirmando sessão..." : "Confirmando agendamento...");
+    showLoading("Atualizando o estado da sessão...");
     const result = await updateAppointmentStatus(editingAppointment.id, statusTransition.status);
     hideLoading();
     setStatusTransition(null);
 
     if (result.success) {
       toast({
-        title: statusTransition.status === 'realizado' ? "Sessão realizada" : "Agendamento confirmado",
+        title: "Estado atualizado",
         description: result.message,
         className: "bg-success text-success-foreground",
       });
@@ -606,7 +733,7 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
       return;
     }
 
-    toast({ title: "Não foi possível confirmar", description: result.message, variant: "destructive" });
+    toast({ title: "Não foi possível mudar o estado", description: result.message, variant: "destructive" });
   };
 
   const openPrimaryStatusTransition = (appointment: Appointment) => {
@@ -658,19 +785,132 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
           </DialogTrigger>
           <DialogContent className="max-h-[calc(100dvh-1rem)] overflow-hidden p-0 sm:max-w-[680px]">
             <DialogHeader className="border-b border-border/60 px-5 pb-4 pt-5 sm:px-7 sm:pb-5 sm:pt-6">
-              <DialogTitle>{editingAppointment ? "Editar Agendamento" : "Novo Agendamento"}</DialogTitle>
+              <DialogTitle>{editingAppointment ? "Editar Agendamento" : "Novo na agenda"}</DialogTitle>
               <DialogDescription>
-                {editingAppointment ? "Atualize os dados da sessão." : "Agende uma sessão para um de seus pacientes."}
+                {editingAppointment ? "Atualize os dados da sessão." : "Escolha o que você quer pôr neste horário."}
               </DialogDescription>
-              {editingAppointment && (
-                <span className={cn(
-                  "mt-3 inline-flex w-fit items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold",
-                  appointmentStatusAppearance(editingAppointment.status, cores).badgeClassName,
-                )}>
-                  <span className="h-1.5 w-1.5 rounded-full bg-current" />
-                  {appointmentStatusAppearance(editingAppointment.status, cores).label}
-                </span>
+              {/**
+                * 🔴 As três coisas que cabem num horário, no MESMO lugar.
+                *
+                * Até 21/08 bloquear e liberar só existiam no menu do botão
+                * direito. Duas consequências, e a segunda é séria:
+                *
+                *  1. ninguém descobre — o clique esquerdo abre direto o
+                *     agendamento, e nada na tela conta que há mais;
+                *  2. **no celular não há botão direito.** A função existia e era
+                *     inalcançável justamente para quem mais usa a agenda pelo
+                *     telefone.
+                *
+                * O Gabriel pediu que "ficasse mais intuitivo adicionar coisas".
+                * Pôr a escolha aqui resolve os dois: o gesto natural passa a dar
+                * acesso aos três, e o toque funciona igual ao clique.
+                *
+                * 📌 Só aparece ao CRIAR. Editando uma sessão, trocar o tipo não
+                * quer dizer nada — a sessão já existe e tem paciente.
+                */}
+              {!editingAppointment && (
+                <div className="mt-4 grid grid-cols-3 gap-1 rounded-[12px] border border-border/60 bg-muted/30 p-1" role="group" aria-label="O que pôr neste horário">
+                  <button
+                    type="button"
+                    aria-pressed="true"
+                    className="flex items-center justify-center gap-1.5 rounded-[9px] bg-card px-2 py-2 text-xs font-semibold shadow-sm"
+                  >
+                    <CalendarCheck2 className="h-3.5 w-3.5" /> Sessão
+                  </button>
+                  <button
+                    type="button"
+                    aria-pressed="false"
+                    onClick={() => { setIsDialogOpen(false); handleOpenBlock('bloqueio', newAppointmentDate ?? undefined); }}
+                    className="flex items-center justify-center gap-1.5 rounded-[9px] px-2 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-card/70 hover:text-foreground"
+                  >
+                    <DoorClosed className="h-3.5 w-3.5" /> Bloquear
+                  </button>
+                  <button
+                    type="button"
+                    aria-pressed="false"
+                    onClick={() => { setIsDialogOpen(false); handleOpenBlock('disponivel', newAppointmentDate ?? undefined); }}
+                    className="flex items-center justify-center gap-1.5 rounded-[9px] px-2 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-card/70 hover:text-foreground"
+                  >
+                    <DoorOpen className="h-3.5 w-3.5" /> Liberar
+                  </button>
+                </div>
               )}
+              {editingAppointment && (() => {
+                const terminou = appointmentHasEnded(editingAppointment.data_hora_sessao, editingAppointment.duracao || 50);
+                const opcoes = transicoesDe(normalizeAppointmentStatus(editingAppointment.status), terminou);
+                return (
+                <DropdownMenu>
+                  {/**
+                    * 🔴 O SELO é o controle — e essa é a ideia toda do padrão.
+                    *
+                    * O selo já era para onde o olho ia perguntando "o que é esta
+                    * sessão?". Transformar "o que é" em "no que pode virar" é o
+                    * salto conceitual mais curto que existe aqui: nenhuma região
+                    * nova de interface, nada para procurar.
+                    *
+                    * ⚠️ E só aparece o que é VÁLIDO agora (ver `transicoesDe`).
+                    * Oferecer tudo e recusar depois com erro ensina que a tela
+                    * mente — e este projeto já tem uma coleção disso.
+                    */}
+                  <DropdownMenuTrigger
+                    disabled={opcoes.length === 0}
+                    className={cn(
+                      "mt-3 inline-flex w-fit items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold transition-shadow",
+                      opcoes.length > 0 && "cursor-pointer hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                      appointmentStatusAppearance(editingAppointment.status, cores).badgeClassName,
+                    )}
+                    aria-label={opcoes.length > 0 ? "Mudar o estado da sessão" : undefined}
+                  >
+                  {/**
+                    * 🔴 O GLIFO, e não uma bolinha genérica.
+                    *
+                    * O Gabriel pediu: *"aqui podemos também adicionar os glifos
+                    * para que as pessoas se acostumem com esse padrão"*. É o
+                    * lugar certo para ensinar — a pessoa está olhando para UMA
+                    * sessão, sabe qual é, e vê o símbolo que a representa na
+                    * grade. Legenda ensina em abstrato; isto ensina no caso.
+                    *
+                    * 📌 E não é enfeite: medido na §13, das 462 formas de
+                    * escolher 5 cores entre as 11, NENHUMA deixa os estados
+                    * distinguíveis por luminância. Quem carrega o estado é o
+                    * glifo — a bolinha de cor ensinava a ler pelo canal que não
+                    * separa.
+                    *
+                    * ⚠️ `aria-hidden` porque o rótulo ao lado já diz o estado por
+                    * extenso; anunciar o símbolo junto viraria ruído.
+                    */}
+                  <span aria-hidden="true" className="text-[1.2em] font-bold leading-none">
+                    {appointmentStatusAppearance(editingAppointment.status, cores, { inicio: editingAppointment.data_hora_sessao, duracao: editingAppointment.duracao }).glyph}
+                  </span>
+                  {appointmentStatusAppearance(editingAppointment.status, cores).label}
+                  {opcoes.length > 0 && <ChevronDown className="h-3 w-3 opacity-70" aria-hidden="true" />}
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-64">
+                    <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
+                      Mudar para
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {opcoes.map((t) => {
+                      const ap = appointmentStatusAppearance(t.status, cores);
+                      return (
+                        <DropdownMenuItem
+                          key={t.status}
+                          onSelect={() => setStatusTransition(t)}
+                          className="gap-2"
+                        >
+                          {/* O glifo aqui também ensina a convenção — é o mesmo
+                              símbolo que a pessoa vai ver na grade depois. */}
+                          <span aria-hidden="true" className="w-4 text-center text-[15px] font-bold leading-none">
+                            {ap.glyph}
+                          </span>
+                          <span className="text-sm">{ap.shortLabel}</span>
+                        </DropdownMenuItem>
+                      );
+                    })}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                );
+              })()}
             </DialogHeader>
             <form 
               ref={formRef}
@@ -1081,12 +1321,18 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
           <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
               <DialogTitle>
-                {blockTipo === 'disponivel' ? '🔵 Liberar Horário' : '🔒 Bloquear Horário'}
+                <span className="flex items-center gap-2">
+                  {blockTipo === 'disponivel'
+                    ? <><DoorOpen className="h-5 w-5 text-disponivel" aria-hidden="true" /> {blockEditando ? 'Editar horário liberado' : 'Liberar Horário'}</>
+                    : <><DoorClosed className="h-5 w-5 text-cor-grafite" aria-hidden="true" /> {blockEditando ? 'Editar bloqueio' : 'Bloquear Horário'}</>}
+                </span>
               </DialogTitle>
               <DialogDescription>
-                {blockTipo === 'disponivel'
-                  ? 'Este horário fica marcado como disponível na sua agenda.'
-                  : 'Marque este horário como indisponível.'}
+                {blockEditando
+                  ? 'Altere o período ou a observação. Para tirar da agenda, use Remover.'
+                  : blockTipo === 'disponivel'
+                    ? 'Este horário fica marcado como disponível na sua agenda.'
+                    : 'Marque este horário como indisponível.'}
               </DialogDescription>
             </DialogHeader>
             <form action={handleCreateBlock} className="grid gap-4 py-4">
@@ -1129,6 +1375,8 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                   <Input
                     id="motivo"
                     name="motivo"
+                    value={blockMotivo}
+                    onChange={(e) => setBlockMotivo(e.target.value)}
                     placeholder={blockTipo === 'disponivel'
                       ? 'Ex: Aberto para encaixe (opcional)'
                       : 'Ex: Reunião, Compromisso pessoal...'}
@@ -1227,9 +1475,25 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                  </div>
                </div>
               <DialogFooter>
+                {/* Remover fica DENTRO da edição: é a mesma janela, e sair do
+                    diálogo para achar como apagar era o que empurrava a psicóloga
+                    a "apagar e refazer" quando só queria corrigir a hora. */}
+                {blockEditando && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="mr-auto text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    onClick={() => {
+                      setIsBlockDialogOpen(false);
+                      initDeleteBlock(blockEditando.id, blockEditando.recorrencia_id, blockEditando.tipo);
+                    }}
+                  >
+                    <Trash2 className="mr-1.5 h-4 w-4" /> Remover
+                  </Button>
+                )}
                 <Button type="button" variant="outline" onClick={() => setIsBlockDialogOpen(false)}>Cancelar</Button>
                 <Button type="submit">
-                  {blockTipo === 'disponivel' ? 'Liberar' : 'Bloquear'}
+                  {blockEditando ? 'Salvar' : blockTipo === 'disponivel' ? 'Liberar' : 'Bloquear'}
                 </Button>
               </DialogFooter>
             </form>
@@ -1358,7 +1622,7 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
             {slotAction.isBlocked ? (
               <>
                 <div className="px-3 py-2 text-xs text-muted-foreground border-b mb-1">
-                  🔒 Horário bloqueado
+                  <DoorClosed className="h-4 w-4" aria-hidden="true" /> Horário bloqueado
                 </div>
                 <button
                   className="w-full text-left px-3 py-2 text-sm hover:bg-destructive/10 rounded-sm flex items-center gap-2 text-destructive"
@@ -1386,7 +1650,7 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                   className="w-full text-left px-3 py-2 text-sm hover:bg-accent rounded-sm flex items-center gap-2 text-grafite"
                   onClick={() => handleOpenBlock('bloqueio')}
                 >
-                  🔒 Bloquear Horário
+                  <DoorClosed className="h-4 w-4" aria-hidden="true" /> Bloquear Horário
                 </button>
                 {/* D-024 — o par oposto. O Gabriel escolheu o verbo: "liberar",
                     e não "oferecer". O ESTADO continua se chamando "disponível",
@@ -1398,7 +1662,7 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                   className="w-full text-left px-3 py-2 text-sm hover:bg-accent rounded-sm flex items-center gap-2 text-disponivel"
                   onClick={() => handleOpenBlock('disponivel')}
                 >
-                  🔵 Liberar Horário
+                  <DoorOpen className="h-4 w-4" aria-hidden="true" /> Liberar Horário
                 </button>
               </>
             )}
@@ -1482,7 +1746,7 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
               ].map(([glifo, label, color]) => (
                 <span key={label} className="flex shrink-0 items-center gap-1.5">
                   <i className={`h-2 w-2 rounded-full ${color}`} aria-hidden="true" />
-                  <span aria-hidden="true" className="font-semibold">{glifo}</span>
+                  <span aria-hidden="true" className="text-[13px] font-bold leading-none">{glifo}</span>
                   {label}
                 </span>
               ))}
@@ -1495,7 +1759,7 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                 return (
                   <span key={tipo} className="flex shrink-0 items-center gap-1.5">
                     <i className={`h-2 w-2 rounded-full ${tipo === 'bloqueio' ? 'bg-cor-grafite-suave' : 'bg-disponivel-suave'}`} aria-hidden="true" />
-                    <j.Icone className="h-3 w-3" aria-hidden="true" />
+                    <j.Icone className="h-3.5 w-3.5" aria-hidden="true" />
                     {j.rotuloPadrao}
                   </span>
                 );
@@ -1583,7 +1847,7 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                     bloqueios={bloqueios}
                     onAddAppointment={handleSlotClick} 
                     onEditAppointment={handleOpenEdit}
-                    onDeleteBloqueio={initDeleteBlock}
+                    onEditBloqueio={initEditBlock}
                   />
               </div>
           )}
@@ -1597,7 +1861,7 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                     bloqueios={bloqueios}
                     onAddAppointment={handleSlotClick} 
                     onEditAppointment={handleOpenEdit}
-                    onDeleteBloqueio={initDeleteBlock}
+                    onEditBloqueio={initEditBlock}
                   />
               </div>
           )}
