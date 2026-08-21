@@ -224,8 +224,22 @@ CI verde nos quatro jobs em todos. **Deploy é decisão do Gabriel.**
 
 📌 **Alarme falso meu:** o Gabriel reportou não conseguir definir a remuneração;
 testei em produção (mudei e restaurei a Beatriz, HTTP 200 nas duas) e era ele
-tendo clicado em "Visualizar". Não havia defeito. Mas a investigação achou um: o
-Financeiro **não desfaz** o valor em linha quando o salvamento falha.
+tendo clicado em "Visualizar". Não havia defeito. Mas a investigação achou um de
+verdade, e ele **era dois** — ver abaixo.
+
+### 📬 Os cinco commits estão no PR [#12](https://github.com/gabrielBielll/agenda-wise/pull/12), aberto e NÃO mesclado ([0208](0208-vale-para-orla-e-gabriel-o-pr-para-prod-esta-aberto-e-o-financeiro-eram-dois.md))
+
+Quatro checks passando, zero reprovando, `MERGEABLE/CLEAN`, navegador 47 passed.
+**O merge é o ato que dispara o build de produção (D-020) — decisão do Gabriel.**
+
+- 🔴 **Financeiro, e eram DOIS.** Varri a classe em vez da instância que ele
+  reportou: das quatro funções otimistas, `handleUpdateValor` (a relatada) e
+  `handleUpdateStatus` (que ninguém tinha visto) não desfaziam quando o servidor
+  recusava. A segunda trazia escrito *"Revert would need original status, but for
+  simplicity just refresh"* — e não atualizava nada. Status "pago" na tela com o
+  servidor tendo dito não, num Financeiro, é fechar o mês com número que o banco
+  não tem. 🆕 Virou varredura (6) do `checa:campos`, conferida plantando o defeito
+  de volta. ⚠️ Ela é textual: pega a forma comum, não prova ausência.
 
 ---
 
