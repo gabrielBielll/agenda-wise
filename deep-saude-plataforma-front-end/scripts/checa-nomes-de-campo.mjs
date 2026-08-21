@@ -55,6 +55,44 @@ import { join } from 'node:path';
  * A definição virou UMA constante. Esta varredura impede que alguém a reescreva
  * inline e traga a divergência de volta.
  */
+/**
+ * (6) Atualização otimista sem desfazer.
+ *
+ * 🔴 Uma tela que pinta o resultado ANTES de o servidor concordar precisa voltar
+ * atrás quando ele recusa. Sem isso ela afirma um desfecho que não existe — a
+ * A-013 pelo avesso: em vez de esconder o que existe, mostrar o que não existe.
+ *
+ * Em 21/08 duas das quatro funções do Financeiro não desfaziam. Uma delas trazia
+ * escrito *"Revert would need original status, but for simplicity just refresh"*
+ * — e não atualizava nada.
+ *
+ * ⚠️ A varredura é textual e mira `setAgendamentos(prev` antes de `await fetch`
+ * sem `setAgendamentos` no `catch`. Não é análise de fluxo: serve para pegar a
+ * forma comum, não para provar ausência.
+ */
+function otimistaSemDesfazer() {
+  const arq = 'src/app/admin/financeiro/FinanceiroClient.tsx';
+  if (!existsSync(arq)) return [];
+  const t = readFileSync(arq, 'utf8');
+  const erros = [];
+  for (const m of t.matchAll(/const (handle\w+) = async[^\n]*\n/g)) {
+    const nome = m[1];
+    let corpo = t.slice(m.index + m[0].length, m.index + m[0].length + 2800);
+    const fim = corpo.indexOf('\n  };');
+    if (fim > 0) corpo = corpo.slice(0, fim);
+    const iSet = corpo.indexOf('setAgendamentos(prev');
+    const iFetch = corpo.indexOf('await fetch');
+    if (iSet < 0 || iFetch < 0 || iSet > iFetch) continue;      // nao e otimista
+    const iCatch = corpo.indexOf('catch');
+    const noCatch = iCatch >= 0 ? corpo.slice(iCatch) : '';
+    if (!noCatch.includes('setAgendamentos')) {
+      erros.push({ forma: 6, caminho: arq, linha: t.slice(0, m.index).split('\n').length,
+        porque: `${nome} pinta antes do servidor concordar e NAO desfaz no catch — a tela afirma um desfecho que o servidor recusou` });
+    }
+  }
+  return erros;
+}
+
 function trilhosDaSemanaNaoSaoDuplicados() {
   const arq = 'src/app/(app)/calendar/WeekView.tsx';
   if (!existsSync(arq)) return [];
@@ -157,12 +195,13 @@ const achados = [
   ...arquivos('src').filter((p) => !ISENTOS.has(p)).flatMap((p) => varrer(p, readFileSync(p, 'utf8'))),
   ...rotasProminidasExistem(),
   ...trilhosDaSemanaNaoSaoDuplicados(),
+  ...otimistaSemDesfazer(),
 ];
 
 for (const a of achados) {
   console.error(`::error file=${a.caminho},line=${a.linha}::forma (${a.forma}) — ${a.porque}`);
 }
 console.log(achados.length === 0
-  ? 'ok: nenhum rótulo órfão, nenhum rótulo mudo, nenhum campo lido sem name, nenhum link para rota inexistente'
+  ? 'ok: nenhum rótulo órfão, nenhum rótulo mudo, nenhum campo lido sem name, nenhum link para rota inexistente, nenhum otimista sem desfazer'
   : `${achados.length} achado(s)`);
 process.exit(achados.length === 0 ? 0 : 1);

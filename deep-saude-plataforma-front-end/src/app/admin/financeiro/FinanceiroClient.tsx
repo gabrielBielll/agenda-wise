@@ -232,6 +232,11 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
 
   // Function to update Session Status (Agendada, Realizada, Cancelada)
   const handleUpdateStatus = async (id: string, newStatus: string) => {
+      // 🔴 O valor anterior, ANTES do otimista. Sem ele não há como desfazer, e a
+      // tela fica mostrando um estado que o servidor recusou — a A-013 pelo
+      // avesso: em vez de esconder o que existe, afirmar o que não existe.
+      const anterior = agendamentos.find(a => a.id === id)?.status;
+
       // Optimistic update
       setAgendamentos(prev => prev.map(ag => 
           ag.id === id ? { ...ag, status: newStatus } : ag
@@ -266,7 +271,12 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
               description: "Não foi possível alterar o status da sessão.",
               variant: "destructive"
           });
-          // Revert would need original status, but for simplicity just refresh
+          // Revert. O comentário que morava aqui dizia "precisaria do status
+          // original, mas por simplicidade só atualiza" — e não atualizava nada:
+          // a linha ficava mostrando o status novo com o servidor tendo recusado.
+          setAgendamentos(prev => prev.map(ag =>
+            ag.id === id ? { ...ag, status: anterior as any } : ag
+          ));
       }
   };
 
@@ -356,6 +366,9 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
 
   // Function to update Valor (valor_consulta)
   const handleUpdateValor = async (id: string, newValor: number) => {
+      // Ver a nota em `handleUpdateStatus`: o anterior tem de ser lido antes.
+      const anterior = agendamentos.find(a => a.id === id)?.valor_consulta;
+
       // Optimistic update
       setAgendamentos(prev => prev.map(ag => 
           ag.id === id ? { ...ag, valor_consulta: newValor } : ag
@@ -386,6 +399,10 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
               description: "Não foi possível atualizar o valor.",
               variant: "destructive"
           });
+          // Revert — o número volta a ser o que o servidor tem.
+          setAgendamentos(prev => prev.map(ag =>
+            ag.id === id ? { ...ag, valor_consulta: anterior as any } : ag
+          ));
       }
   };
 
