@@ -1231,3 +1231,73 @@ entenderia *"não existe horário aqui"*. Silencioso, e ao contrário.
 filtro de `origem != plataforma` que ela já prevê. Isso vale mesmo com a D-023,
 porque a Deep Saúde vai continuar usando o azul no Google dela — e o
 `lista-psis` já tem o reconhecimento pronto e configurável.
+
+---
+
+## D-024 — O `disponível` ENTRA. O que não entra é o que eu inventei em volta dele
+
+**Decidido por:** Gabriel, 2026-08-21, corrigindo a minha leitura da D-023
+**Corrige:** a [D-023](#d-023--o-disponível-não-vira-estado-da-plataforma-reverte-a-d-022-um-dia-depois), que reverteu coisa demais
+**Vale sobre:** a D-022 e a D-023 — esta é a leitura boa das três
+
+Nas palavras dele: *"vamos precisar sim de ter o padrão de bloqueio na agenda, de
+especificar claramente o azul pra disponível, tudo isso precisa existir […] todo o
+padrão de cores que a Deep Saúde usa vai precisar estar dentro da plataforma, a
+CEO pediu, isso é regra"*.
+
+E o limite, que é a outra metade da decisão:
+
+> *"o que a gente não pode fazer, que foi algo que você lá estava começando a
+> cogitar, é ir além disso […] 'ah, é o espaço vazio, gera uma ambiguidade,
+> etcétera, etcétera'. Não, cara, para por aqui onde eu falei, e aplica exatamente
+> o que a CEO pediu."*
+
+### ✅ O que ENTRA
+
+| | |
+|---|---|
+| 🔵 **`disponível`** | azul, na plataforma, com glifo próprio. **É o único que falta** |
+| ⚫ **`bloqueio`** | grafite — já está no ar desde 20/08 |
+| 🟠🟢🔴 o resto da R-017 | agendada, confirmada, realizada, cancelada/falta — já estão no ar |
+
+E os **dois canais** para todos, cor e glifo, ratificados por ele.
+
+### ❌ O que NÃO entra — e era invenção minha, não pedido de ninguém
+
+- o terceiro estado *"não dito"*;
+- a tese de que o vazio é ambíguo e a plataforma precisa dizer *"eu não sei"*;
+- a pergunta no sino quando um horário vaga;
+- qualquer máquina em volta da lacuna.
+
+**O vazio segue vazio, sem sinalizar nada.** Se a dor aparecer depois, ele decide
+depois.
+
+### 🔴 O erro que eu cometi, e ele é de forma, não de conteúdo
+
+**Eu extrapolei o pedido, e depois reverti demais ao ser corrigido.** As duas
+falhas são a mesma: não parar onde o pedido para.
+
+O caso de uso da CEO veio com um problema anexo — *"elas esquecem de marcar que
+vagou"*. Eu tratei o problema anexo como parte do pedido e desenhei uma solução
+para ele. Quando o Gabriel disse *"não vá além"*, eu li como *"não faça nada"* e
+matei também o que **era** pedido.
+
+📌 **A regra que fica:** o pedido do oráculo tem uma borda, e observação minha
+sobre o que vi no caminho **não** move essa borda. Insight se registra como
+observação, separado, e espera decisão — não se anexa ao escopo por parecer
+óbvio.
+
+⚠️ **E as duas decisões erradas ficam preservadas acima**, com o motivo. Quem ler
+a D-022 e a D-023 sem esta vai implementar coisa errada em duas direções
+diferentes.
+
+### O que sobrevive das duas, e continua valendo
+
+- ✅ **`disponível` não é estado de sessão.** Não entra em `status-sessao`, não
+  vira linha em `agendamentos` — é estado de **janela de agenda**, vizinho de
+  `bloqueios_agenda`. Isso é modelagem, não extrapolação, e é necessário para
+  implementar certo.
+- ✅ **A tolerância de matiz** — *"se for azul, pegue qualquer tom de azul"*.
+- ✅ **A armadilha da GC-009:** evento externo do Google vira bloqueio, e um
+  `[DISPONÍVEL]` azul importado por essa regra viraria **bloqueio — o oposto do
+  que significa.** A Deep Saúde usa azul no Google, então isso vai acontecer.

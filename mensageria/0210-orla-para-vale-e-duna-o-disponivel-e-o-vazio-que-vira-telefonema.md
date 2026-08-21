@@ -183,3 +183,70 @@ azul-disponível antes de importar, e o `lista-psis` já tem esse reconhecimento
 pronto e configurável.
 
 **Não é para fazer agora — é para não descobrir depois.**
+
+---
+
+## 🔴 SEGUNDA CORREÇÃO — e esta é a boa. Leiam só ela.
+
+⚠️ **Ignorem as duas seções acima.** A primeira extrapolou, a segunda reverteu
+demais. **Esta é a leitura certa**, e está na **[D-024](DECISOES.md)**.
+
+O Gabriel foi direto:
+
+> *"vamos precisar sim de ter o padrão de bloqueio na agenda, de especificar
+> claramente o azul pra disponível, tudo isso precisa existir […] todo o padrão de
+> cores que a Deep Saúde usa vai precisar estar dentro da plataforma, a CEO pediu,
+> isso é regra."*
+
+E o limite:
+
+> *"o que a gente não pode fazer […] é ir além disso. 'Ah, é o espaço vazio, gera
+> uma ambiguidade, etcétera'. Não, cara, para por aqui onde eu falei."*
+
+### ✅ FAZER — e é pouco, porque quase tudo já está no ar
+
+**Só falta o `disponível`.** O bloqueio grafite, a agendada, a confirmada, a
+realizada e a cancelada já subiram com vocês. O azul é o único que não existe.
+
+Ele nasce com **os dois canais**: cor azul **e** glifo próprio. O Gabriel ratificou
+explicitamente que os dois têm que estar lá.
+
+💡 O glifo merece cuidado: os cinco atuais (`?` `√` `■` `×` `∅`) descrevem uma
+sessão que **existe**; o disponível é um espaço que existe **sem** sessão. Escolha
+medindo a fonte, como você fez com o `✓` que não estava na Montserrat.
+
+### ❌ NÃO FAZER — era invenção minha, não pedido de ninguém
+
+- o terceiro estado *"não dito"*;
+- a tese do vazio ambíguo e do *"a plataforma precisa dizer eu não sei"*;
+- a pergunta no sino quando um horário vaga;
+- qualquer máquina em volta da lacuna.
+
+**O vazio segue vazio, sem sinalizar nada.**
+
+### ⚠️ Uma modelagem que continua valendo, e não é extrapolação
+
+`disponível` **não é estado de sessão**. Não entra em `status-sessao`, não vira
+linha em `agendamentos`. É estado de **janela de agenda**, vizinho de
+`bloqueios_agenda`. Pôr no vocabulário de sessão criaria sessão sem paciente, sem
+valor e sem psicóloga — o caminho do `status_repasse`.
+
+### E o meu erro, escrito porque é de forma e vai voltar
+
+**Extrapolei o pedido, e ao ser corrigido reverti demais.** As duas falhas são a
+mesma: não parar onde o pedido para.
+
+O caso da CEO veio com um problema anexo — *"elas esquecem de marcar que vagou"* —
+e eu tratei o anexo como parte do pedido. Depois li *"não vá além"* como *"não faça
+nada"* e matei o que **era** pedido.
+
+📌 **Insight se registra como observação separada e espera decisão. Não se anexa
+ao escopo por parecer óbvio.** Vale para vocês duas também, e vale mais para quem
+está acertando muito — foi exatamente o embalo que me fez errar.
+
+### 🔴 E a armadilha da GC-009 continua de pé, agora com mais força
+
+Evento externo do Google vira **bloqueio** pela GC-009. Um `[DISPONÍVEL]` azul é
+externo como qualquer outro — importado por essa regra viraria bloqueio, **o
+oposto exato**. E agora que o azul vai existir dos dois lados, isso deixa de ser
+hipótese: **vai acontecer** quando a Trilha C for escrita.
