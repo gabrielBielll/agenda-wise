@@ -49,6 +49,65 @@ export default {
           DEFAULT: 'hsl(var(--destructive))',
           foreground: 'hsl(var(--destructive-foreground))',
         },
+        // GC-015 — as 11 do Google. Nome com prefixo `cor-` para nao colidir com
+        // `--grafite` e `--tomate`, que sao os tokens SEMANTICOS do bloqueio e da
+        // sessao cancelada. Cor e semantica sao coisas diferentes: a clinica troca
+        // a cor, o significado fica.
+        'cor-lavanda': {
+          DEFAULT: 'hsl(var(--cor-lavanda))',
+          suave: 'hsl(var(--cor-lavanda-suave))',
+          foreground: 'hsl(var(--cor-lavanda-foreground))',
+        },
+        'cor-salvia': {
+          DEFAULT: 'hsl(var(--cor-salvia))',
+          suave: 'hsl(var(--cor-salvia-suave))',
+          foreground: 'hsl(var(--cor-salvia-foreground))',
+        },
+        'cor-uva': {
+          DEFAULT: 'hsl(var(--cor-uva))',
+          suave: 'hsl(var(--cor-uva-suave))',
+          foreground: 'hsl(var(--cor-uva-foreground))',
+        },
+        'cor-flamingo': {
+          DEFAULT: 'hsl(var(--cor-flamingo))',
+          suave: 'hsl(var(--cor-flamingo-suave))',
+          foreground: 'hsl(var(--cor-flamingo-foreground))',
+        },
+        'cor-banana': {
+          DEFAULT: 'hsl(var(--cor-banana))',
+          suave: 'hsl(var(--cor-banana-suave))',
+          foreground: 'hsl(var(--cor-banana-foreground))',
+        },
+        'cor-tangerina': {
+          DEFAULT: 'hsl(var(--cor-tangerina))',
+          suave: 'hsl(var(--cor-tangerina-suave))',
+          foreground: 'hsl(var(--cor-tangerina-foreground))',
+        },
+        'cor-pavao': {
+          DEFAULT: 'hsl(var(--cor-pavao))',
+          suave: 'hsl(var(--cor-pavao-suave))',
+          foreground: 'hsl(var(--cor-pavao-foreground))',
+        },
+        'cor-grafite': {
+          DEFAULT: 'hsl(var(--cor-grafite))',
+          suave: 'hsl(var(--cor-grafite-suave))',
+          foreground: 'hsl(var(--cor-grafite-foreground))',
+        },
+        'cor-blueberry': {
+          DEFAULT: 'hsl(var(--cor-blueberry))',
+          suave: 'hsl(var(--cor-blueberry-suave))',
+          foreground: 'hsl(var(--cor-blueberry-foreground))',
+        },
+        'cor-manjericao': {
+          DEFAULT: 'hsl(var(--cor-manjericao))',
+          suave: 'hsl(var(--cor-manjericao-suave))',
+          foreground: 'hsl(var(--cor-manjericao-foreground))',
+        },
+        'cor-tomate': {
+          DEFAULT: 'hsl(var(--cor-tomate))',
+          suave: 'hsl(var(--cor-tomate-suave))',
+          foreground: 'hsl(var(--cor-tomate-foreground))',
+        },
         success: {
           DEFAULT: 'hsl(var(--success))',
           foreground: 'hsl(var(--success-foreground))',

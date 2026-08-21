@@ -31,8 +31,32 @@
  * defeito que este projeto persegue. Se o autoteste não pegar os casos plantados,
  * o processo morre em vez de dar verde.
  */
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
+
+/**
+ * (4) `href="/admin/X"` na navegação sem `src/app/admin/X/page.tsx`.
+ *
+ * 🔴 É a **A-020**: havia "Configurações" apontando para `/admin/settings`, rota
+ * que nunca existiu. O Next PRÉ-BUSCA os links visíveis, então o 404 acontecia
+ * antes de alguém clicar — e mesmo assim ninguém via, porque um 404 pré-buscado
+ * não abre tela nenhuma.
+ *
+ * Mesma família das outras três: **o link promete e a rota não cumpre.**
+ */
+function rotasProminidasExistem() {
+  const arq = 'src/components/admin/AdminSidebar.tsx';
+  if (!existsSync(arq)) return [];
+  const t = readFileSync(arq, 'utf8');
+  const erros = [];
+  for (const m of t.matchAll(/href:\s*"\/admin\/([a-z0-9-]+)"/g)) {
+    if (!existsSync(`src/app/admin/${m[1]}/page.tsx`)) {
+      erros.push({ forma: 4, caminho: arq, linha: t.slice(0, m.index).split('\n').length,
+        porque: `a navegação aponta para /admin/${m[1]}, e não existe src/app/admin/${m[1]}/page.tsx` });
+    }
+  }
+  return erros;
+}
 
 /** `form.tsx` e `label.tsx` DEFINEM o componente; ali `htmlFor` sem `id` é normal. */
 const ISENTOS = new Set(['src/components/ui/form.tsx', 'src/components/ui/label.tsx']);
@@ -106,14 +130,15 @@ function arquivos(dir) {
 }
 
 autoteste();
-const achados = arquivos('src')
-  .filter((p) => !ISENTOS.has(p))
-  .flatMap((p) => varrer(p, readFileSync(p, 'utf8')));
+const achados = [
+  ...arquivos('src').filter((p) => !ISENTOS.has(p)).flatMap((p) => varrer(p, readFileSync(p, 'utf8'))),
+  ...rotasProminidasExistem(),
+];
 
 for (const a of achados) {
   console.error(`::error file=${a.caminho},line=${a.linha}::forma (${a.forma}) — ${a.porque}`);
 }
 console.log(achados.length === 0
-  ? 'ok: nenhum rótulo órfão, nenhum rótulo mudo, nenhum campo lido sem name (autoteste passou antes)'
+  ? 'ok: nenhum rótulo órfão, nenhum rótulo mudo, nenhum campo lido sem name, nenhum link para rota inexistente'
   : `${achados.length} achado(s)`);
 process.exit(achados.length === 0 ? 0 : 1);

@@ -6,7 +6,7 @@ import { signOut } from "next-auth/react";
 // União dos dois lados do redesign: `Leaf` é a marca nova (8109afc), `Plug` é a
 // entrada "Integrações" da GC-001a. Os dois estão em uso — escolher um lado aqui
 // apagaria ou o logotipo dele ou a rota do painel do Google.
-import { Home, Users, CalendarDays, DollarSign, BriefcaseMedical, LogOut, Leaf, Plug } from "lucide-react";
+import { Home, Users, CalendarDays, DollarSign, BriefcaseMedical, LogOut, Leaf, Plug, Palette } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"; // Para tooltips nos ícones
@@ -28,6 +28,11 @@ const mainNavLinks: NavLinkItem[] = [
   // GC-001a. Sem entrada aqui a tela existe e ninguém a encontra — e o painel
   // que avisa que a integração caiu não pode depender de alguém digitar a URL.
   { href: "/admin/integracoes", label: "Integrações", icon: Plug },
+  // GC-016. Mesmo motivo da entrada acima, e com a cicatriz da A-020 logo abaixo
+  // como lembrete: a rota existe (`src/app/admin/aparencia/page.tsx`), e foi
+  // conferida antes de o link entrar. Link para rota que não existe é 404 que o
+  // Next pré-busca sozinho — o defeito aparece antes de alguém clicar.
+  { href: "/admin/aparencia", label: "Aparência", icon: Palette },
 ];
 
 /**

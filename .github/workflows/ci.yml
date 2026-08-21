@@ -410,8 +410,16 @@ jobs:
             echo "::error::CalendarClient tem $n laranjas crus; o unico permitido e o 'Sim, agendar' — ver §12"
             faltou=1
           fi
+          # GC-015 — as 11 do Google. Verificadas UMA A UMA, e nao por amostra: um
+          # nome errado no mapa estatico do `AparenciaClient` nao vira erro de
+          # build, vira quadradinho transparente na tela de escolher cor.
+          for cor in lavanda salvia uva flamingo banana tangerina pavao grafite blueberry manjericao tomate; do
+            for alvo in "--cor-$cor:" "--cor-$cor-suave:" ".bg-cor-$cor-suave{" ".border-cor-$cor{"; do
+              grep -qF -- "$alvo" $css || { echo "::error::faltou no CSS compilado: $alvo"; faltou=1; }
+            done
+          done
           test "$faltou" -eq 0 || exit 1
-          echo "ok: tokens semanticos nos dois temas, classes geradas, bloqueio sem laranja"
+          echo "ok: tokens semanticos, as 11 cores do Google nos dois temas, e bloqueio sem laranja"
 
   navegador:
     name: Navegador — Playwright (o que a pico levou embora)

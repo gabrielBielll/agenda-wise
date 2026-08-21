@@ -66,9 +66,14 @@ for (const tema of ['claro','escuro']) {
       if (K(F, txt) < MIN.texto) continue;
       if (Math.min(...sup.map(S => K(F, S))) < MIN.fill) continue;
       for (let lb = 6; lb <= 96; lb += 1) {
-        const B = hsl2rgb(h, Math.min(90, sf + 18), lb);
+        const B = hsl2rgb(h, (sf === 0 ? 0 : ((sf === 0) ? 0 : Math.min(90, sf + 18))), lb);
         if (Math.min(...sup.map(S => K(B, S))) < MIN.borda) continue;
         if (K(B, F) < MIN.bordaFill) continue;
+        // a borda e o lado contrastante, como em `--agenda-agendada`: mais escura
+        // que o preenchimento no tema claro, mais clara no escuro. Sem isto o
+        // conjunto sai com bordas ora mais claras ora mais escuras, e a grade
+        // perde a leitura de 'contorno'.
+        if (tema === 'claro' ? lb >= lf : lb <= lf) continue;
         if (!tokens.every(([, V]) => K(B, V) >= MIN.token)) continue;
         // distancia do original: a cor tem de continuar sendo reconhecivel como a do
         // Google. Maximizar folga empurra tudo para quase-preto e mata o reconhecimento.
@@ -99,9 +104,14 @@ for (const tema of ['claro','escuro']) {
       if (K(F, txt) < MIN.texto) continue;
       if (Math.min(...sup.map(S => K(F, S))) < MIN.fill) continue;
       for (let lb = 6; lb <= 96; lb += 1) {
-        const B = hsl2rgb(h, Math.min(90, sf + 18), lb);
+        const B = hsl2rgb(h, (sf === 0 ? 0 : ((sf === 0) ? 0 : Math.min(90, sf + 18))), lb);
         if (Math.min(...sup.map(S => K(B, S))) < MIN.borda) continue;
         if (K(B, F) < MIN.bordaFill) continue;
+        // a borda e o lado contrastante, como em `--agenda-agendada`: mais escura
+        // que o preenchimento no tema claro, mais clara no escuro. Sem isto o
+        // conjunto sai com bordas ora mais claras ora mais escuras, e a grade
+        // perde a leitura de 'contorno'.
+        if (tema === 'claro' ? lb >= lf : lb <= lf) continue;
         if (!tokens.every(([, V]) => K(B, V) >= MIN.token)) continue;
         const [, sOrig, lOrig] = hex2hsl(hx);
         const dist = Math.abs(sf-sOrig)*0.6 + Math.abs(lf-lOrig) + Math.abs(lb-lOrig)*0.5;
@@ -134,9 +144,10 @@ for (const tema of ['claro','escuro']) {
     for (let lf=6; lf<=96; lf++){ const F=hsl2rgb(h,sf,lf);
       if (K(F,txt)<MIN.texto) continue;
       if (Math.min(...sup.map(S=>K(F,S)))<MIN.fill) continue;
-      for (let lb=6; lb<=96; lb++){ const B=hsl2rgb(h,Math.min(90,sf+18),lb);
+      for (let lb=6; lb<=96; lb++){ const B=hsl2rgb(h,((sf === 0) ? 0 : Math.min(90, sf + 18)),lb);
         if (Math.min(...sup.map(S=>K(B,S)))<MIN.borda) continue;
         if (K(B,F)<MIN.bordaFill) continue;
+        if (tema === 'claro' ? lb >= lf : lb <= lf) continue;
         if (!tokens.every(V=>K(B,V)>=MIN.token)) continue;
         const [,sO,lO]=hex2hsl(hx); const d=Math.abs(sf-sO)*0.6+Math.abs(lf-lO)+Math.abs(lb-lO)*0.5;
         if(!m||d<m.d) m={F,B,d}; } }
@@ -150,3 +161,34 @@ for (const tema of ['claro','escuro']) {
 }
 console.log('\n=== CONTROLE: a contagem sabe devolver 100% se nada colapsar? ===');
 console.log(`  com limiar 1,0 (que toda cor satisfaz): ${combinacoes([0,1,2,3,4,5,6,7,8,9,10],5).length} de 462 — ou seja, 100%. A conta nao esta presa em zero.`);
+
+// ===== --css: emite o bloco de tokens, para nao transcrever a mao =====
+if (process.argv.includes('--css')) {
+  const slug = {Lavanda:'lavanda', Salvia:'salvia', Uva:'uva', Flamingo:'flamingo', Banana:'banana',
+                Tangerina:'tangerina', Pavao:'pavao', Grafite:'grafite', Blueberry:'blueberry',
+                Manjericao:'manjericao', Tomate:'tomate'};
+  console.log('\n########## bloco para o globals.css ##########');
+  for (const tema of ['claro','escuro']) {
+    const c=T[tema], sup=[rgb(c.pagina),rgb(c.card)];
+    const tokens=[rgb(c.primary),rgb(c.destructive),rgb(c.success)];
+    console.log('/* --- ' + tema + ' --- */');
+    for (const [nome,hx] of GOOGLE) {
+      const [h,s]=hex2hsl(hx); let m=null;
+      for (const [rt,txt] of [['e',rgb(c.txtE)],['c',rgb(c.txtC)]])
+      for (let sf=Math.max(0,s-50); sf<=Math.min(92,s+10); sf+=2)
+      for (let lf=6; lf<=96; lf++){ const F=hsl2rgb(h,sf,lf);
+        if (K(F,txt)<MIN.texto) continue;
+        if (Math.min(...sup.map(S=>K(F,S)))<MIN.fill) continue;
+        for (let lb=6; lb<=96; lb++){ const B=hsl2rgb(h,((sf === 0) ? 0 : Math.min(90, sf + 18)),lb);
+          if (Math.min(...sup.map(S=>K(B,S)))<MIN.borda) continue;
+          if (K(B,F)<MIN.bordaFill) continue;
+        if (tema === 'claro' ? lb >= lf : lb <= lf) continue;
+          if (!tokens.every(V=>K(B,V)>=MIN.token)) continue;
+          const [,sO,lO]=hex2hsl(hx); const d=Math.abs(sf-sO)*0.6+Math.abs(lf-lO)+Math.abs(lb-lO)*0.5;
+          if(!m||d<m.d) m={sf,lf,lb,rt,d}; } }
+      if(!m){ console.log('  /* ' + nome + ': NENHUMA combinacao — nao emitir */'); continue; }
+      const fg = m.rt==='e' ? c.txtE : c.txtC;
+      console.log(`    --cor-${slug[nome]}: ${h} ${((m.sf === 0) ? 0 : Math.min(90, m.sf + 18))}% ${m.lb}%; --cor-${slug[nome]}-suave: ${h} ${m.sf}% ${m.lf}%; --cor-${slug[nome]}-foreground: ${fg};`);
+    }
+  }
+}
