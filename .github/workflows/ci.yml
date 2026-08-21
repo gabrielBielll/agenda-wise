@@ -329,6 +329,19 @@ jobs:
         # indistinguivel de "esta tudo certo".
         run: npm run checa:campos
 
+      - name: os cinco estados tem glifo, e sao distintos
+        # 🔴 A cor NAO carrega o estado, e isso foi medido: das 462 formas de
+        # escolher 5 cores entre as 11 do Google, NENHUMA deixa os cinco estados
+        # distinguiveis por luminancia (§13 do GOOGLE_CORES_E_RECONCILIACAO).
+        # Quem carrega o estado e o glifo — entao glifo repetido ou ausente e
+        # estado que some, e some justamente para quem ja nao lia a cor.
+        #
+        # 📌 A guarda e offline. A medicao de cobertura da fonte (`--fonte`)
+        # precisa de rede e fica fora do CI de proposito: foi ela que mostrou que
+        # o `✓` U+2713 nao esta na Montserrat, mas depender do Google Fonts para
+        # o job ficar verde trocaria um defeito por uma flakiness.
+        run: npm run checa:glifos
+
       - name: next build
         # Segredos de mentira: o build precisa das variáveis existirem, não
         # valerem alguma coisa. Nenhuma delas é usada em tempo de build para
