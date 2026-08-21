@@ -18,6 +18,7 @@
             [deep-saude-backend.limites :as limites]
             [deep-saude-backend.logging :as logging]
             [deep-saude-backend.pacientes.portabilidade :as portabilidade-pacientes]
+            [deep-saude-backend.paleta :as paleta]
             [deep-saude-backend.prontuarios :as prontuarios]
             [deep-saude-backend.remuneracao :as remuneracao]
             [deep-saude-backend.google.rrule :as rrule]
@@ -1657,6 +1658,26 @@
     (wrap-checar-permissao marcar-repasses-transferidos-handler "gerenciar_pagamentos")))
 
 ;; ROTAS DE BLOQUEIOS DE AGENDA
+;; GC-016 — a paleta de cores da clínica.
+;;
+;; 📌 **Ler é de todo mundo**: a agenda pinta com ela, então psicóloga e
+;; secretário precisam. **Escrever é do admin**, e a forma de dizer isso aqui é
+;; deliberada: `gerenciar_configuracoes_clinica` **não existe** em
+;; `papel_permissoes`. Como o admin bypassa toda permissão e ninguém mais tem
+;; essa, o efeito é "só admin" — sem migration nova e sem inventar um vocabulário
+;; de permissão antes de alguém precisar dele.
+;;
+;; ⚠️ Se um dia o Gabriel quiser delegar ao secretário, é UM `INSERT` na tabela,
+;; e o nome já está no lugar certo esperando.
+(defroutes paleta-routes
+  (GET    "/" request (wrap-jwt-autenticacao paleta/listar-handler))
+  (PUT    "/" request (wrap-jwt-autenticacao
+                       (wrap-checar-permissao paleta/definir-handler
+                                              "gerenciar_configuracoes_clinica")))
+  (DELETE "/:estado" request (wrap-jwt-autenticacao
+                              (wrap-checar-permissao paleta/voltar-ao-padrao-handler
+                                                     "gerenciar_configuracoes_clinica"))))
+
 (defroutes bloqueios-routes
   (POST "/verificar-conflitos" request (wrap-jwt-autenticacao verificar-conflitos-handler))
   (POST "/" request (wrap-jwt-autenticacao criar-bloqueio-handler))
@@ -1706,6 +1727,7 @@
   (context "/api/repasses" [] repasses-routes)
 
   (context "/api/bloqueios" [] bloqueios-routes)
+  (context "/api/paleta" [] paleta-routes)
 
   (context "/api/google" [] google-routes))
 
