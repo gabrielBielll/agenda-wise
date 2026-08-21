@@ -1157,3 +1157,77 @@ uma tabela nova.
 Pôr `disponivel` no vocabulário de sessão criaria uma sessão sem paciente, sem
 valor e sem psicóloga responsável, que é como `status_repasse` acabou com cinco
 valores de três vocabulários na mesma coluna.
+
+---
+
+## D-023 — O "disponível" NÃO vira estado da plataforma. Reverte a D-022, um dia depois
+
+**Decidido por:** Gabriel, 2026-08-21
+**Reverte:** a [D-022](#d-022--o-horário-disponível-vira-estado-e-vazio-deixa-de-significar-pode-marcar), escrita algumas horas antes
+**Efeito:** o vazio continua ambíguo, e isso passa a ser **de propósito**
+
+Nas palavras dele: *"a plataforma pode se manter da maneira que está, deixar o
+espaço em branco como uma dúvida mesmo ali e não precisar sinalizar nada"*.
+
+### Por que ele reverteu, e o argumento é melhor que o meu
+
+> *"esse é um problema que a Deep Saúde tem, porque a Deep Saúde usa esse modelo
+> de explicitamente deixar um horário azul disponível […] porém outras clínicas,
+> já que a plataforma vai ser replicável, podem simplesmente não seguir esse
+> padrão, simplesmente nem usar o horário azul pra dizer disponível, só ir lá e
+> marcar um horário na agenda."*
+
+📌 **A D-022 confundiu uma prática de UMA clínica com uma regra do produto.** O
+azul de disponibilidade é convenção da Deep Saúde, não do mercado. Modelar os três
+estados obrigaria toda clínica compradora a declarar disponibilidade para o
+sistema funcionar — e a maioria não trabalha assim: marca a sessão direto no
+horário vazio.
+
+**A ambiguidade do vazio é o comportamento correto para um produto multi-clínica**,
+porque é o único que serve aos dois modos sem impor nenhum.
+
+⚠️ **E o Google faz igual.** Lá o vazio também não diz nada; quem dá sentido a ele
+é a convenção de cada equipe. Copiar isso é herdar um desenho já testado, não
+deixar um buraco.
+
+### O contexto de produto, que vale registrar porque explica outras decisões
+
+> *"uma das clínicas desse sistema multi-clínicas vai ser nossa, da própria Deep
+> Saúde […] e vamos criar outras clínicas ali e poder vender pra outros
+> consultórios […] como também vamos estar vendendo esse sistema para psicólogas
+> individuais […] mas isso são versões futuras."*
+
+🎯 **A Deep Saúde é usuária E vendedora do mesmo sistema.** Toda vez que uma
+prática interna parecer candidata a virar funcionalidade, a pergunta é: *isto é do
+produto, ou é do nosso jeito de trabalhar?* A D-022 falhou nessa pergunta, e este
+parágrafo existe para a próxima não falhar.
+
+📌 **Psicóloga individual fica para versão futura** — não modelar para ela agora.
+
+### O que a D-022 deixa de válido, e não é pouco
+
+A reversão é da **funcionalidade**, não das observações:
+
+- ✅ **O diagnóstico continua verdadeiro:** o vazio é ambíguo e gera telefonema na
+  Deep Saúde. Só deixa de ser problema *da plataforma* e volta a ser processo
+  *da clínica*.
+- ✅ **`disponível` não seria estado de sessão** — se um dia voltar, essa parte
+  continua valendo.
+- ✅ **A tolerância de matiz** (*"se for azul, pegue qualquer tom de azul"*) segue
+  decidida e útil, e não dependia da D-022.
+
+### 🔴 E uma armadilha que a reversão NÃO apaga — ela fica marcada aqui
+
+A **GC-009** diz: *"evento externo do Google vira bloqueio"*.
+
+Um evento **`[DISPONÍVEL]` azul** na agenda da Deep Saúde é, para o sincronizador,
+um evento externo como qualquer outro. **Importado por essa regra, ele viraria
+bloqueio — o oposto exato do que significa.**
+
+⚠️ A psicóloga marcaria azul para dizer *"pode marcar aqui"* e a plataforma
+entenderia *"não existe horário aqui"*. Silencioso, e ao contrário.
+
+📌 **A GC-009 precisa excluir o azul-disponível antes de importar**, junto com o
+filtro de `origem != plataforma` que ela já prevê. Isso vale mesmo com a D-023,
+porque a Deep Saúde vai continuar usando o azul no Google dela — e o
+`lista-psis` já tem o reconhecimento pronto e configurável.

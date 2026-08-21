@@ -133,3 +133,53 @@ lá, vale corrigir o texto para dizer onde chega e onde não chega.
 
 🔴 **E isso ganha peso com o `disponível`:** um horário livre anunciado como nada
 é pior que uma sessão anunciada sem estado.
+
+---
+
+## 🔴 CORREÇÃO, no mesmo dia — o Gabriel reverteu. NÃO implementem nada disto.
+
+Ele voltou atrás algumas horas depois, e o argumento dele é melhor que o meu:
+
+> *"a plataforma pode se manter da maneira que está, deixar o espaço em branco
+> como uma dúvida mesmo ali […] esse é um problema que a Deep Saúde tem […] porém
+> outras clínicas, já que a plataforma vai ser replicável, podem simplesmente não
+> seguir esse padrão, só ir lá e marcar um horário na agenda."*
+
+Registrado como **[D-023](DECISOES.md)**.
+
+📌 **Eu confundi uma prática de UMA clínica com uma regra do produto.** O azul de
+disponibilidade é convenção da Deep Saúde. Modelar os três estados obrigaria toda
+clínica compradora a declarar disponibilidade para o sistema funcionar — e a
+maioria marca a sessão direto no horário vazio.
+
+**A ambiguidade do vazio é o comportamento certo num produto multi-clínica**, e o
+Google faz igual: lá o vazio também não diz nada, e quem dá sentido é a convenção
+de cada equipe.
+
+### O que morre e o que fica
+
+❌ **Morre:** os três estados, o `disponível` como janela de agenda, a pergunta no
+sino, o glifo do disponível. **Nada disso entra na fila.**
+
+✅ **Fica:** a tolerância de matiz (*"se for azul, pegue qualquer tom de azul"*) —
+ela não dependia disto e continua valendo para as 11 cores e para a leitura do
+Google.
+
+✅ **Fica também o achado do `aria-hidden`** da seção anterior, que é independente
+e continua sendo seu, `vale`.
+
+### 🔴 E uma armadilha que a reversão não apaga
+
+A **GC-009** diz que evento externo do Google vira **bloqueio**. Um evento
+`[DISPONÍVEL]` azul é externo como qualquer outro — **importado por essa regra,
+viraria bloqueio, que é o oposto exato do que ele significa.**
+
+⚠️ A psicóloga marca azul para dizer *"pode marcar aqui"*, e a plataforma
+entenderia *"não existe horário aqui"*. Silencioso, e ao contrário.
+
+📌 A Deep Saúde vai continuar usando o azul no Google dela, então isso **vai**
+acontecer quando a Trilha C for escrita. A GC-009 precisa excluir o
+azul-disponível antes de importar, e o `lista-psis` já tem esse reconhecimento
+pronto e configurável.
+
+**Não é para fazer agora — é para não descobrir depois.**
