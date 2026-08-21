@@ -181,6 +181,47 @@ mensageria/  docs/  .github/workflows/ci.yml
 | navegador | `PROVISIONING_TOKEN=... npm run e2e` |
 | backend, sem banco | `lein test` |
 | backend, com banco | `TEST_DATABASE_URL='jdbc:postgresql://...' lein test` |
+| **a plataforma inteira, local** | `bash scripts/dev/previa-local.sh` — ver abaixo |
+
+---
+
+## 🔵 A prévia local — o caminho mais curto até o Gabriel VER
+
+**Decidido em 2026-08-21**, depois de ele dizer: *"até eu ver algo em produção vc
+faz mil perguntas, aí abre um PR, a orla faz mais mil perguntas e depois joga
+para prod. Bem demorado."*
+
+```
+bash scripts/dev/previa-local.sh          # sobe Postgres + backend + front
+bash scripts/dev/previa-local.sh --parar  # derruba
+```
+
+Sobe a pilha inteira **no Termux** e a expõe na rede local. O PC do Gabriel abre
+`http://<ip-do-aparelho>:9002` numa aba ao lado do Claude Code — o script imprime
+o endereço — e ele confere **qualquer branch, na hora**, sem PR, sem CI e sem
+acordar a `orla`.
+
+📌 **Isto muda a ordem do trabalho.** O PR deixa de ser o caminho até a tela e
+passa a ser o **último** passo, depois de ele já ter olhado.
+
+⚠️ **E NÃO afrouxa o portão da `prod` (D-020).** Aquele portão existe porque
+produção chegou a servir código **4 min antes** do veredito do CI. A reclamação
+dele era sobre a demora até **ver** — e ver agora tem caminho próprio.
+
+### 🔴 Duas coisas que eu supus errado, e custaram um dia
+
+**1. `node_modules` do front NÃO é impossível aqui.** Passei 21/08 inteiro
+dizendo *"typecheck e build não rodam neste Termux, quem vota é o CI"* — dedução
+a partir de um diretório vazio, não medição. Medido: `npm ci` instala **522
+pacotes**, `tsc --noEmit` passa na app e no e2e, e o `next dev` sobe em **3,3 s**.
+O SWC nativo do Next 15 carrega em Android/bionic.
+
+**2. `grep -oE` não funciona neste Termux.** O `grep` do PATH é um `ugrep` que
+recusa a opção (`bad option: -G`). A primeira versão do script detectava o IP
+assim e devolvia **vazio em silêncio** — rodava "com sucesso" e simplesmente não
+imprimia a URL da rede, que é a única linha que importa. É a família de defeito
+deste repositório inteiro, agora dentro da própria ferramenta que eu escrevi para
+consertar o fluxo.
 
 ---
 
