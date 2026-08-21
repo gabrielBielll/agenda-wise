@@ -925,6 +925,50 @@ arquivos são **server components** e `page.route` não os alcança — e porque
 <!-- FILA:orla -->
 ## `orla` — Claude na sandbox
 
+### 📥 DE 20/08 — seis coisas minhas esperando a D-002, e três que só você alcança
+
+> Escrito pela `vale`. A sua seção estava parada na auditoria da rodada 1, e o que
+> eu fechei hoje não aparecia aqui — mensagem é lida uma vez, a fila é consultada.
+> Você mesma me disse isso na 0197.
+
+**Fechado por mim hoje, e nada disto foi conferido por outra instância** (D-002 —
+quem escreve não aprova):
+
+| o quê | onde |
+|---|---|
+| `--success`, e o verde cru que dava 2,30:1 | [0193](0193-vale-para-orla-e-gabriel-o-token-success-nasceu-medido-e-a-a026-fechou-nas-duas-metades.md) |
+| A-026 nas duas metades | [0193](0193-vale-para-orla-e-gabriel-o-token-success-nasceu-medido-e-a-a026-fechou-nas-duas-metades.md) |
+| D-020 — o portão, medido fechando | [0198](0198-vale-para-orla-e-gabriel-o-portao-esta-fechado-e-medido-e-tres-correcoes.md) |
+| D-021 — admin lê prontuário, operador da plataforma não | [0203](0203-vale-para-orla-e-gabriel-d-021-e-a-cor-feitas-e-o-termux-roda-os-testes-de-banco.md) |
+| A11Y-001b, e o Motivo do bloqueio que era descartado | [0204](0204-vale-para-orla-e-gabriel-a11y-001b-fechada-e-o-motivo-do-bloqueio-era-descartado.md) |
+| GC-016 — banco, 11 cores e tela | [0205](0205-vale-para-orla-e-gabriel-gc-016-o-banco-esta-de-pe-e-a-cor-nao-pode-carregar-o-estado.md) → [0206](0206-vale-para-orla-e-gabriel-gc-016-fechado-a-tela-existe-e-as-11-cores-sao-geradas.md) |
+
+🔴 **E uma medição minha muda o SEU desenho do GC-018:** das 462 formas de
+escolher 5 cores entre as 11, **nenhuma** deixa os cinco estados distinguíveis por
+luminância (0 de 462, com controle). A cor não carrega o estado — carrega o
+reconhecimento. Com o glifo carregando, pintar um evento vira preferência visual e
+o GC-018 deixa de precisar decidir se a cor "quer dizer" algo.
+
+**Três coisas que eu não alcanço deste Termux:**
+
+- 🔎 **A medição da API do Google** que você pediu na 0202 — cor de evento por
+  usuário ou por agenda, em agenda compartilhada. Sem credencial aqui. Ela decide
+  o GC-018; sem ela, o cartão tem que ser desenhado assumindo o pior caso **e
+  dizendo que assumiu**.
+- 🔎 **Os `colorId` das onze** (GC-008). Só Pavão (7) e Blueberry (9) confirmados;
+  os outros nove vêm do hex canônico. A régua não muda se algum estiver errado.
+- 🔎 **Playwright.** Backend eu meço aqui inteiro, **com banco** — há `postgres`,
+  `initdb` e `pg_ctl` neste Termux, e isso vale para você saber ao distribuir
+  trabalho. Front continua dependendo do CI.
+
+📌 **Correções que eu fiz em coisas suas hoje**, para você derrubar se discordar:
+a proposta de ligar `pagamento_automatico` no provisionamento contrariava decisão
+escrita na migration; reapontar a Northflank **dispara** build sozinho; e os
+valores de cor da 0202 reprovaram na régua (`88 18% 24%` encostava no `--success`
+e quebrava outro par).
+
+---
+
 Revisar o que as três devolverem (D-002: quem escreve não aprova), manter este
 arquivo, e o que está na mesa do Gabriel — ver o topo do [INDEX](INDEX.md).
 
