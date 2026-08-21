@@ -113,6 +113,14 @@ export default {
           foreground: 'hsl(var(--success-foreground))',
         },
         // Grafite — bloqueio de agenda. Ver o comentário em globals.css.
+        // D-024 — o par oposto do bloqueio. Semantico, como o `grafite` logo
+        // abaixo: `cor-pavao` e escolha da clinica, `disponivel` e significado.
+        disponivel: {
+          DEFAULT: 'hsl(var(--disponivel))',
+          suave: 'hsl(var(--disponivel-suave))',
+          foreground: 'hsl(var(--disponivel-foreground))',
+          tenue: 'hsl(var(--disponivel-tenue))',
+        },
         grafite: {
           DEFAULT: 'hsl(var(--grafite))',
           suave: 'hsl(var(--grafite-suave))',

@@ -5,6 +5,7 @@ import { paredeDaClinica, agoraNaClinica } from "@/lib/datetime";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { appointmentStatusAppearance } from "@/lib/appointment-status";
+import { janelaAparencia, normalizarTipoJanela } from "@/lib/janela-agenda";
 import type { CoresEscolhidas } from "@/lib/cores-agenda";
 
 interface Appointment {
@@ -24,6 +25,8 @@ interface Bloqueio {
   motivo?: string;
   dia_inteiro?: boolean;
   recorrencia_id?: string;
+  /** `bloqueio` (proíbe) ou `disponivel` (oferece) — D-024. Ausente = bloqueio. */
+  tipo?: string;
 }
 
 interface WeekViewProps {
@@ -125,6 +128,16 @@ export function WeekView({ date, appointments, bloqueios = [], onAddAppointment,
     });
   };
 
+  /**
+   * 🔴 Só as janelas que PROÍBEM — irmã da `getBloqueiosQueProibem` do DayView.
+   *
+   * As duas grades precisam da mesma distinção, e já houve defeito neste projeto
+   * que existia numa e não na outra. Clicar num horário OFERECIDO tem de marcar
+   * sessão, não abrir o menu de apagar a janela.
+   */
+  const getBloqueiosQueProibem = (day: Date, hour: number) =>
+    getBloqueiosForDayAndHour(day, hour).filter(b => normalizarTipoJanela(b.tipo) === 'bloqueio');
+
   const handleSlotClick = (day: Date, hour: number, event: React.MouseEvent) => {
     const newDate = new Date(day);
     const bounds = event.currentTarget.getBoundingClientRect();
@@ -133,7 +146,7 @@ export function WeekView({ date, appointments, bloqueios = [], onAddAppointment,
     newDate.setHours(hour, minute, 0, 0);
     
     // Check if this slot is blocked
-    const hourBloqueios = getBloqueiosForDayAndHour(day, hour);
+    const hourBloqueios = getBloqueiosQueProibem(day, hour);
     const isBlocked = hourBloqueios.length > 0;
     const bloqueioId = isBlocked ? hourBloqueios[0].id : undefined;
     
@@ -149,7 +162,7 @@ export function WeekView({ date, appointments, bloqueios = [], onAddAppointment,
     const relativeY = Math.max(0, Math.min(bounds.height - 1, event.clientY - bounds.top));
     const minute = Math.min(45, Math.floor((relativeY / bounds.height) * 4) * 15);
     newDate.setHours(hour, minute, 0, 0);
-    const hourBloqueios = getBloqueiosForDayAndHour(day, hour);
+    const hourBloqueios = getBloqueiosQueProibem(day, hour);
     onAddAppointment(newDate, event, hourBloqueios.length > 0, hourBloqueios[0]?.id);
   };
 
@@ -207,19 +220,26 @@ export function WeekView({ date, appointments, bloqueios = [], onAddAppointment,
             {HOURS.map(hour => {
               const hourAppointments = getAppointmentsForDayAndHour(day, hour);
               const hourBloqueios = getBloqueiosForDayAndHour(day, hour);
-              const isBlocked = hourBloqueios.length > 0;
-              
+              const isBlocked = getBloqueiosQueProibem(day, hour).length > 0;
+              // Proibição ganha de oferta quando as duas se sobrepõem: é ela que
+              // muda o que a psicóloga PODE fazer com o horário.
+              const janelaDaCelula = isBlocked
+                ? janelaAparencia('bloqueio')
+                : hourBloqueios.length > 0
+                  ? janelaAparencia(hourBloqueios[0].tipo)
+                  : null;
+
               return (
-                <div 
-                  key={hour} 
+                <div
+                  key={hour}
                   className={cn(
                     "calendar-hour-slot group relative h-20 cursor-pointer border-b border-border/20 transition-colors",
-                    isBlocked ? "bg-grafite-tenue" : "hover:bg-accent/5"
+                    janelaDaCelula ? janelaDaCelula.celulaClassName : "hover:bg-accent/5"
                   )}
                   onClick={(e) => handleSlotClick(day, hour, e)}
                   onContextMenu={(e) => handleSlotMenu(day, hour, e)}
-                  title={isBlocked ? "Horário bloqueado" : "Clique para agendar no quarto de hora desejado"}
-                  aria-label={`${isBlocked ? 'Horário bloqueado' : 'Agendar'} em ${format(day, 'dd/MM/yyyy')} às ${String(hour).padStart(2, '0')}:00`}
+                  title={janelaDaCelula ? janelaDaCelula.label : "Clique para agendar no quarto de hora desejado"}
+                  aria-label={`${janelaDaCelula ? janelaDaCelula.label : 'Agendar'} em ${format(day, 'dd/MM/yyyy')} às ${String(hour).padStart(2, '0')}:00`}
                   data-slot-date={format(day, 'yyyy-MM-dd')}
                   data-slot-hour={hour}
                 >
@@ -245,10 +265,15 @@ export function WeekView({ date, appointments, bloqueios = [], onAddAppointment,
                     // Only render if there is actual overlap duration (avoid 0 height or negative)
                     if (durationMinutes <= 0) return null;
                     
+                    const janela = janelaAparencia(block.tipo);
+
                     return (
                       <div
                         key={block.id}
-                        className="absolute left-0 right-0 bg-grafite-suave border-l-4 border-grafite p-1 text-[10px] z-10 overflow-hidden flex items-center gap-1"
+                        className={cn(
+                          "absolute left-0 right-0 p-1 text-[10px] z-10 overflow-hidden flex items-center gap-1",
+                          janela.blocoClassName
+                        )}
                         style={{ top: `${topPos}%`, height: `${height}%`, minHeight: '0px' }}
                         onClick={(e) => {
                           e.stopPropagation();
@@ -256,11 +281,14 @@ export function WeekView({ date, appointments, bloqueios = [], onAddAppointment,
                             onDeleteBloqueio(block.id, block.recorrencia_id);
                           }
                         }}
-                        title={block.motivo || 'Horário bloqueado'}
+                        title={block.motivo || janela.label}
                       >
-                        <span className="font-semibold">🔒</span>
-                        <span className="truncate text-grafite-foreground">
-                          {block.motivo || 'Bloqueado'}
+                        {/* Glifo `aria-hidden` + estado no `sr-only` — ver o
+                            comentário gêmeo no DayView. */}
+                        <span className="font-semibold" aria-hidden="true">{janela.glyph}</span>
+                        <span className="sr-only">{janela.label}: </span>
+                        <span className={cn("truncate", janela.textoClassName)}>
+                          {block.motivo || janela.rotuloPadrao}
                         </span>
                       </div>
                     );
