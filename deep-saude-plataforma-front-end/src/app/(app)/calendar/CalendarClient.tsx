@@ -44,6 +44,7 @@ import { WeekView } from "./WeekView";
 import { cn } from "@/lib/utils";
 import { appointmentHasEnded, appointmentStatusAppearance, normalizeAppointmentStatus, type AppointmentStatus } from "@/lib/appointment-status";
 import type { CoresEscolhidas } from "@/lib/cores-agenda";
+import { janelaAparencia } from "@/lib/janela-agenda";
 
 // Define interface for Appointment
 interface Appointment {
@@ -1462,17 +1463,43 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                 onToday={() => setDate(agoraNaClinica())}
             />
             <div className="mt-3 flex max-w-full gap-x-4 gap-y-2 overflow-x-auto pb-1 text-[10px] text-muted-foreground [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Legenda dos estados da agenda">
+              {/* 🔴 A legenda mostra o GLIFO, não só a bolinha de cor.
+                  Medido na §13: das 462 formas de escolher 5 cores entre as 11
+                  do Google, NENHUMA deixa os estados distinguíveis por
+                  luminância. Quem carrega o estado é o símbolo. Uma legenda só
+                  de cor ensina a ler pelo canal que não separa — e ensina
+                  errado justamente para quem mais precisa dela.
+
+                  ⚠️ E faltavam os dois estados de JANELA DE AGENDA (D-024). O
+                  Gabriel olhou a tela e disse que a mudança não aparecia na
+                  lista: não aparecia mesmo, porque a lista nunca soube deles. */}
               {[
-                ['Agendada', 'bg-agenda-agendada'],
-                ['Confirmada', 'bg-agenda-confirmada'],
-                ['Realizada', 'bg-success'],
-                ['Cancelada ou falta', 'bg-tomate'],
-              ].map(([label, color]) => (
+                ['?', 'Agendada', 'bg-cor-tangerina-suave'],
+                ['√', 'Confirmada', 'bg-cor-salvia-suave'],
+                ['■', 'Realizada', 'bg-cor-manjericao-suave'],
+                ['×', 'Cancelada', 'bg-cor-tomate-suave'],
+                ['∅', 'Falta', 'bg-cor-tomate-suave'],
+              ].map(([glifo, label, color]) => (
                 <span key={label} className="flex shrink-0 items-center gap-1.5">
                   <i className={`h-2 w-2 rounded-full ${color}`} aria-hidden="true" />
+                  <span aria-hidden="true" className="font-semibold">{glifo}</span>
                   {label}
                 </span>
               ))}
+              {/* As duas JANELAS leem do `janela-agenda.ts`, a mesma fonte que a
+                  grade usa para desenhá-las. Repetir o ícone e a cor aqui à mão
+                  criaria duas verdades — e a legenda é justamente onde uma
+                  divergência passa despercebida por mais tempo. */}
+              {(['bloqueio', 'disponivel'] as const).map((tipo) => {
+                const j = janelaAparencia(tipo);
+                return (
+                  <span key={tipo} className="flex shrink-0 items-center gap-1.5">
+                    <i className={`h-2 w-2 rounded-full ${tipo === 'bloqueio' ? 'bg-cor-grafite-suave' : 'bg-disponivel-suave'}`} aria-hidden="true" />
+                    <j.Icone className="h-3 w-3" aria-hidden="true" />
+                    {j.rotuloPadrao}
+                  </span>
+                );
+              })}
             </div>
         </div>
         

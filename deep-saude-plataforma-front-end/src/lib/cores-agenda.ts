@@ -59,3 +59,40 @@ export const NOMES_DE_COR: Record<string, string> = {
  * O backend devolve os dois campos separados justamente para isso.
  */
 export type CoresEscolhidas = Record<string, string>;
+
+/**
+ * O "Padrão Deep Saúde": a cor de cada estado quando a clínica não escolheu.
+ *
+ * 🔴 **Espelha o `paleta-padrao` do `dominio.clj`** — o backend é a autoridade, e
+ * este mapa existe para o front pintar o padrão sem depender de a clínica ter
+ * aberto `/admin/aparencia`.
+ *
+ * ## Por que ele passou a ser usado em 2026-08-21
+ *
+ * Até aqui, quem não escolhia via os tokens `--agenda-*` da plataforma, que são
+ * **lavagens pastel**: preenchimentos em 89–92% de luminosidade. O Gabriel olhou
+ * a agenda e disse: *"as cores dos horários estão bem ruins ainda, no Google
+ * Agenda fica bem mais fácil de perceber, pode replicar as cores de lá?"*
+ *
+ * Ele estava certo, e a medição mostra o tamanho: os chips de sessão vinham em
+ * ~90% de luminosidade e o `disponível` que eu tinha acabado de acrescentar em
+ * **54%** — 36 pontos de diferença. O azul gritava e o resto sumia. A causa foi
+ * minha: copiei a convenção da família de PALETA (onde `-suave` é o
+ * preenchimento forte) para a família SEMÂNTICA (onde `-suave` é uma lavagem
+ * clara), e depois deixei as duas convivendo na mesma grade.
+ *
+ * ⚠️ **As cores destes tokens não são escolha de gosto.** Saem da régua
+ * (`scripts/mede-paleta-google.mjs`), que deriva as 11 do Google sob os cinco
+ * critérios de contraste, nos dois temas. Trocar valores aqui sem passar por ela
+ * desfaz medição.
+ *
+ * 📌 `cancelado` e `falta` compartilham o Tomate de propósito — elas colapsam na
+ * régua, e quem as separa é o glifo, não a cor.
+ */
+export const PALETA_PADRAO: Record<string, string> = {
+  agendado: "tangerina",
+  confirmado: "salvia",
+  realizado: "manjericao",
+  cancelado: "tomate",
+  falta: "tomate",
+};

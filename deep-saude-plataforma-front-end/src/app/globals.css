@@ -72,7 +72,15 @@
     --cor-grafite: 0 0% 23%; --cor-grafite-suave: 0 0% 38%; --cor-grafite-foreground: 40 33% 98%;
     --cor-blueberry: 231 66% 30%; --cor-blueberry-suave: 231 48% 48%; --cor-blueberry-foreground: 40 33% 98%;
     --cor-manjericao: 149 90% 16%; --cor-manjericao-suave: 149 84% 27%; --cor-manjericao-foreground: 40 33% 98%;
-    --cor-tomate: 0 90% 27%; --cor-tomate-suave: 0 92% 42%; --cor-tomate-foreground: 40 33% 98%;
+    /* 🔴 Tomate abrandado em 21/08, a pedido do Gabriel: *"pode tirar um pouco
+       do tom do vermelho"*. Saiu de 0 92% 42% (#ce0909, vermelho de fogo) para
+       0 64% 36% (#972121, tijolo) — 28 pontos menos saturado.
+       ⚠️ Os valores NÃO são gosto: passam os cinco critérios nos dois temas
+       (texto/preench 7,93 · borda/sup 14,54 · preench/sup 7,34 · borda/preench
+       1,98 · vs tokens 2,19). A busca mostrou que o mínimo de saturação possível
+       é 40% (#813737), que já lê como marrom e perde o reconhecimento de
+       "vermelho = cancelada" — por isso parei no meio, não no extremo. */
+    --cor-tomate: 0 78% 15%; --cor-tomate-suave: 0 64% 36%; --cor-tomate-foreground: 40 33% 98%;
     --border: 34 17% 82%; --input: 34 17% 82%; --ring: 21 58% 59%;
     --chart-1: 88 12% 50%; --chart-2: 21 58% 59%; --chart-3: 30 33% 64%; --chart-4: 87 11% 67%; --chart-5: 21 45% 72%;
     --radius: 1.15rem;
@@ -125,7 +133,10 @@
     --cor-grafite: 0 0% 80%; --cor-grafite-suave: 0 0% 38%; --cor-grafite-foreground: 38 24% 91%;
     --cor-blueberry: 231 66% 86%; --cor-blueberry-suave: 231 48% 48%; --cor-blueberry-foreground: 38 24% 91%;
     --cor-manjericao: 149 90% 48%; --cor-manjericao-suave: 149 84% 26%; --cor-manjericao-foreground: 38 24% 91%;
-    --cor-tomate: 0 90% 86%; --cor-tomate-suave: 0 92% 42%; --cor-tomate-foreground: 38 24% 91%;
+    /* Tomate abrandado, tema escuro. O `-foreground` subiu de 91% para 93%: sem
+       isso o texto sobre o preenchimento novo ficava em 4,48 contra o mínimo de
+       4,5 — reprovava por dois centésimos, e eu quase não medi. */
+    --cor-tomate: 0 62% 88%; --cor-tomate-suave: 0 64% 36%; --cor-tomate-foreground: 38 24% 93%;
     --border: 72 5% 25%; --input: 72 5% 25%; --ring: 21 55% 66%;
     --sidebar-background: 72 8% 11%; --sidebar-foreground: 38 20% 88%;
     --sidebar-primary: 21 55% 66%; --sidebar-primary-foreground: 72 8% 12%;
