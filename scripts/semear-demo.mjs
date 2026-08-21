@@ -262,6 +262,14 @@ function dataDaVaga(deslocamentoSemanas, diaDaSemana) {
   return d.toISOString().slice(0, 10);
 }
 
+/** `YYYY-MM-DD` de N dias a partir de hoje, no calendário da clínica. */
+function diaRelativo(n) {
+  const { ano, mes, dia } = hojeNaClinica();
+  const d = new Date(Date.UTC(ano, mes - 1, dia));
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
 /** Já passou? Compara data de parede com data de parede — sem instante, sem fuso. */
 function jaPassou(dataISO) {
   const { ano, mes, dia } = hojeNaClinica();
@@ -549,7 +557,6 @@ async function main() {
           data_hora_sessao: quando,
           valor_consulta: pac.valor,
           duracao: 50,
-          ...(excecao ? { status: excecao } : {}),
         },
       });
 
@@ -566,6 +573,58 @@ async function main() {
     sessoesPorPaciente.set(pac.nome, minhas);
   }
   ok(`${totalSessoes} sessões novas (as repetidas já estavam lá)`);
+
+  /**
+   * 🔴 **O `status` do corpo do POST é IGNORADO pelo backend — medido em 21/08.**
+   *
+   * Até aqui este script mandava `status: 'falta'` junto da criação e seguia
+   * satisfeito. O `criar-agendamento-handler` não desestrutura `status` do corpo
+   * e o `INSERT` não escreve a coluna: o banco grava o `DEFAULT`, que é
+   * `agendado`. Medido com sonda no banco real: pedi `'falta'`, gravou
+   * `'agendado'`.
+   *
+   * ⚠️ **A consequência era pior que "faltou um status".** Estas quatro sessões
+   * estão todas no passado, então o passo 8 (que fecha sessão vencida sem
+   * veredito) as varria e marcava como **realizadas**. A clínica de demonstração
+   * não tinha nenhuma falta e nenhum cancelamento — e o resumo no fim deste
+   * script imprimia `canceladas: 0`, `faltas: 0` sem que isso chamasse atenção
+   * de ninguém.
+   *
+   * 📌 **Por que ninguém pegou:** o `scripts/dev/contrato-de-mentira.mjs` HONRA
+   * o `status` na criação. O comentário da idempotência aqui em cima registra
+   * uma medição feita contra ele — e ela estava certa sobre o simulador e errada
+   * sobre o servidor. É a armadilha que o README de `scripts/dev/` avisa.
+   *
+   * ✅ A correção aplica por `PUT`, que valida contra o `dominio.clj`. E aplica
+   * **por listagem, não pelo id do que acabei de criar**, para consertar também
+   * as clínicas que já foram semeadas errado.
+   */
+  const agendaParaStatus = exigir(
+    await api('/api/agendamentos', { token: tokenAdmin }),
+    'Listagem da agenda antes de aplicar faltas e cancelamentos'
+  );
+  let statusAplicados = 0;
+  for (const [chave, statusDesejado] of EXCECOES) {
+    const [nome, semanaTxt] = chave.split(':');
+    const pac = PACIENTES.find((p) => p.nome === nome);
+    if (!pac) throw new Error(`EXCECOES aponta para "${nome}", que não está em PACIENTES`);
+    const data = dataDaVaga(Number(semanaTxt), pac.dia);
+    const parede = `${data}T${pac.hora}`;
+    const pacienteId = idPorNome.get(pac.nome);
+    const alvo = agendaParaStatus.find(
+      (a) => String(a.paciente_id) === String(pacienteId) && paredeEmSaoPaulo(a.data_hora_sessao) === parede
+    );
+    if (!alvo) throw new Error(`Não achei a sessão de ${nome} em ${parede} para marcar como ${statusDesejado}`);
+    if (alvo.status === statusDesejado) continue;
+    exigir(
+      await api(`/api/agendamentos/${alvo.id}`, {
+        metodo: 'PUT', token: tokenAdmin, corpo: { status: statusDesejado },
+      }),
+      `Marcar a sessão de ${nome} em ${parede} como ${statusDesejado}`
+    );
+    statusAplicados++;
+  }
+  ok(`${statusAplicados} faltas/cancelamentos aplicados por PUT (o POST ignora status)`);
 
   /**
    * 🔴 **De qual sessão é cada evolução — e sem isto o gráfico de humor mente.**
@@ -762,15 +821,221 @@ async function main() {
   }
   ok(`${transferidos} repasses marcados como transferidos (os mais antigos)`);
 
+  /* 8b. A vitrine dos sete estados ---------------------------------------- */
+  /**
+   * 🔵 **A agenda que o Gabriel abre para conferir a convenção de cores (D-024).**
+   *
+   * Nas palavras dele: *"pede pra ela criar ali um popular a agenda de uma
+   * psicóloga pra mim poder dar uma conferida […] pra mim poder ver como fica a
+   * agenda, se fica direitinho, se o padrão de cor fica legal"*.
+   *
+   * ## 🔴 Por que DOIS dias, e não um — é restrição do domínio, não atalho
+   *
+   * A `orla` pediu os sete no mesmo dia. **Não cabe, e forçar seria mentir na
+   * tela que existe para ele conferir a verdade:**
+   *
+   * - `realizada` e `falta` exigem passado. Uma sessão futura marcada como
+   *   realizada é recusada pelo backend, e com razão (R-022: o relógio não
+   *   confirma presença).
+   * - `agendada` e `confirmada` **num dia passado não renderizam `?` e `√`** —
+   *   renderizam `!`, que é "a sessão passou e ninguém disse se aconteceu". É
+   *   estado + relógio, e é justamente a distinção que o `!` existe para fazer.
+   *
+   * Ou seja: pôr os sete num dia só exigiria ou uma sessão futura mentindo que
+   * aconteceu, ou duas sessões passadas exibindo o glifo errado. Os dois dias
+   * são vizinhos e aparecem juntos na visão de semana; as datas saem impressas
+   * no resumo para ele não ter de procurar.
+   *
+   * ## 📌 Horários fora da grade regular
+   *
+   * 17h em diante, e o bloqueio ao meio-dia. As pacientes da Beatriz têm vaga às
+   * 09h, 10h e 14h — usar essas horas colidiria com a agenda semanal dela e o
+   * backend recusaria com 409, corretamente.
+   */
+  passo('Vitrine — os sete estados da agenda, para conferência na tela');
+
+  const VITRINE_PSI = PSICOLOGAS[0];
+  const diaPassado = diaRelativo(-1);
+  const diaFuturo = diaRelativo(1);
+  const psiVitrineId = idPorEmail.get(VITRINE_PSI.email);
+
+  /** Cada linha: [dia, hora, paciente, status desejado, o que ele vai ver]. */
+  const VITRINE_SESSOES = [
+    [diaPassado, '17:00', 'Amanda Ribeiro',  'realizado',  '■ realizada'],
+    [diaPassado, '18:00', 'Bruno Tavares',   'falta',      '∅ falta'],
+    [diaPassado, '19:00', 'Carla Domingues', 'cancelado',  '× cancelada'],
+    [diaFuturo,  '17:00', 'Amanda Ribeiro',  'agendado',   '? aguardando confirmação'],
+    [diaFuturo,  '18:00', 'Bruno Tavares',   'confirmado', '√ confirmada'],
+  ];
+
+  const agendaVitrine = exigir(
+    await api('/api/agendamentos', { token: tokenAdmin }),
+    'Listagem da agenda antes da vitrine'
+  );
+
+  let vitrineCriadas = 0;
+  for (const [dia, hora, nomePac, statusDesejado] of VITRINE_SESSOES) {
+    const pacienteId = idPorNome.get(nomePac);
+    if (!pacienteId) throw new Error(`Vitrine: paciente "${nomePac}" não existe`);
+    const parede = `${dia}T${hora}`;
+
+    let existente = agendaVitrine.find(
+      (a) => String(a.paciente_id) === String(pacienteId) && paredeEmSaoPaulo(a.data_hora_sessao) === parede
+    );
+
+    if (!existente) {
+      const r = await api('/api/agendamentos', {
+        metodo: 'POST',
+        token: tokenAdmin,
+        corpo: {
+          paciente_id: pacienteId,
+          psicologo_id: psiVitrineId,
+          data_hora_sessao: `${parede}:00`,
+          valor_consulta: 200,
+          duracao: 50,
+        },
+      });
+      // `exigir` devolve o corpo já parseado — o POST responde com a sessão criada.
+      existente = exigir(r, `Vitrine: sessão de ${nomePac} em ${parede}`);
+      vitrineCriadas++;
+      criados++;
+    } else {
+      jaExistiam++;
+    }
+
+    // 🔴 Sempre por PUT: o POST ignora `status` (medido — ver o bloco acima).
+    if (existente.status !== statusDesejado) {
+      exigir(
+        await api(`/api/agendamentos/${existente.id}`, {
+          metodo: 'PUT', token: tokenAdmin, corpo: { status: statusDesejado },
+        }),
+        `Vitrine: marcar ${nomePac} em ${parede} como ${statusDesejado}`
+      );
+    }
+  }
+
+  /**
+   * As duas janelas de agenda (D-024). `bloqueio` proíbe, `disponivel` oferece —
+   * mesma tabela, sinal invertido, e é a distinção que o `tipo` carrega.
+   *
+   * ⚠️ `tipo` é campo NOVO (migration `20260821120000`). Contra um backend que
+   * ainda não subiu a migration, o servidor devolve 422 `tipo_invalido` — e é
+   * bom que devolva: melhor recusar do que gravar disponível como bloqueio e
+   * esconder o horário que a psicóloga ofereceu.
+   */
+  const VITRINE_JANELAS = [
+    [diaFuturo, '12:00', '13:00', 'bloqueio',   'Almoço',              '🔒 bloqueado'],
+    [diaFuturo, '19:00', '21:00', 'disponivel', 'Aberto para encaixe', '+ disponível'],
+  ];
+
+  const janelasExistentes = exigir(
+    await api('/api/bloqueios', { token: tokenAdmin }),
+    'Listagem das janelas de agenda'
+  );
+
+  let janelasCriadas = 0;
+  for (const [dia, hIni, hFim, tipo, motivo] of VITRINE_JANELAS) {
+    const parede = `${dia}T${hIni}`;
+    const ja = janelasExistentes.find(
+      (b) => paredeEmSaoPaulo(b.data_inicio) === parede
+        && (b.tipo ?? 'bloqueio') === tipo
+        && String(b.psicologo_id) === String(psiVitrineId)
+    );
+    if (ja) { jaExistiam++; continue; }
+
+    exigir(
+      await api('/api/bloqueios', {
+        metodo: 'POST',
+        token: tokenAdmin,
+        corpo: {
+          psicologo_id: psiVitrineId,
+          data_inicio: `${dia}T${hIni}:00`,
+          data_fim: `${dia}T${hFim}:00`,
+          motivo,
+          tipo,
+        },
+      }),
+      `Vitrine: janela ${tipo} em ${parede}`
+    );
+    janelasCriadas++;
+    criados++;
+  }
+  ok(`vitrine: ${vitrineCriadas} sessões e ${janelasCriadas} janelas novas`);
+
+  /**
+   * 🔴 **Conferência POR EFEITO, e não pelo código de resposta.**
+   *
+   * `201` diz que o servidor aceitou o pedido; não diz que a agenda mostra os
+   * sete. Esta releitura é o que separa "semeei" de "está lá" — e é a mesma
+   * lição do `sincronizar-status`, que respondia "Sincronização concluída" com
+   * `status_atualizados: 0`.
+   */
+  const conferenciaVitrine = exigir(
+    await api('/api/agendamentos', { token: tokenAdmin }),
+    'Releitura da agenda para conferir a vitrine'
+  );
+  const janelasConferencia = exigir(
+    await api('/api/bloqueios', { token: tokenAdmin }),
+    'Releitura das janelas para conferir a vitrine'
+  );
+
+  const faltando = [];
+  for (const [dia, hora, nomePac, statusDesejado, rotulo] of VITRINE_SESSOES) {
+    const pacienteId = idPorNome.get(nomePac);
+    const achou = conferenciaVitrine.find(
+      (a) => String(a.paciente_id) === String(pacienteId)
+        && paredeEmSaoPaulo(a.data_hora_sessao) === `${dia}T${hora}`
+        && a.status === statusDesejado
+    );
+    if (!achou) faltando.push(`${rotulo} (${nomePac}, ${dia} ${hora})`);
+  }
+  for (const [dia, hIni, , tipo, , rotulo] of VITRINE_JANELAS) {
+    const achou = janelasConferencia.find(
+      (b) => paredeEmSaoPaulo(b.data_inicio) === `${dia}T${hIni}` && (b.tipo ?? 'bloqueio') === tipo
+    );
+    if (!achou) faltando.push(`${rotulo} (${dia} ${hIni})`);
+  }
+
+  /**
+   * ⚠️ **O controle que dá valor à conferência acima.**
+   *
+   * Uma busca que devolve "achei tudo" precisa saber devolver "não achei" —
+   * senão `faltando: []` significa tanto "os sete estão lá" quanto "a busca está
+   * quebrada". Procuro de propósito um estado que NÃO semeei.
+   */
+  const controle = conferenciaVitrine.find(
+    (a) => paredeEmSaoPaulo(a.data_hora_sessao) === `${diaPassado}T03:00`
+  );
+  if (controle) {
+    throw new Error('Controle da vitrine falhou: achei sessão às 03:00, que ninguém semeou. A busca não discrimina.');
+  }
+
+  if (faltando.length) {
+    throw new Error(
+      `A vitrine não ficou completa. Faltou na releitura:\n    - ${faltando.join('\n    - ')}`
+    );
+  }
+  ok(`vitrine conferida por efeito: os 7 estados estão na agenda da ${VITRINE_PSI.nome.split(' ')[0]}`);
+
   /* 9. Prestação de contas ------------------------------------------------- */
+  /**
+   * ⚠️ Conta sobre `conferenciaVitrine`, NÃO sobre `agenda`.
+   *
+   * `agenda` foi lida no passo 8, **antes** da vitrine — contar por ela imprimia
+   * 108 sessões e `canceladas: 2` num banco que já tinha 113 e 3. Resumo que
+   * subconta é sinal cego: ele diz "pronto" olhando para um retrato velho.
+   */
   const contagem = {
     psicologas: PSICOLOGAS.length,
     pacientes: PACIENTES.length,
-    sessoes: agenda.length,
-    realizadas: agenda.filter((a) => a.status === 'realizado').length,
-    canceladas: agenda.filter((a) => a.status === 'cancelado').length,
-    faltas: agenda.filter((a) => a.status === 'falta').length,
-    futuras: agenda.filter((a) => a.status === 'agendado').length,
+    sessoes: conferenciaVitrine.length,
+    realizadas: conferenciaVitrine.filter((a) => a.status === 'realizado').length,
+    canceladas: conferenciaVitrine.filter((a) => a.status === 'cancelado').length,
+    faltas: conferenciaVitrine.filter((a) => a.status === 'falta').length,
+    confirmadas: conferenciaVitrine.filter((a) => a.status === 'confirmado').length,
+    futuras: conferenciaVitrine.filter((a) => a.status === 'agendado').length,
+    bloqueios: janelasConferencia.filter((b) => (b.tipo ?? 'bloqueio') === 'bloqueio').length,
+    disponiveis: janelasConferencia.filter((b) => b.tipo === 'disponivel').length,
   };
 
   console.log('\n─────────────────────────────────────────────');
@@ -780,6 +1045,10 @@ async function main() {
   }
   console.log(`\n  criados nesta execução: ${criados}`);
   console.log(`  já existiam:            ${jaExistiam}`);
+  console.log(`\n  🔵 Para conferir a convenção de cores, entre como ${VITRINE_PSI.email}`);
+  console.log(`     e abra a agenda em ${diaPassado} (■ realizada, ∅ falta, × cancelada)`);
+  console.log(`     e em ${diaFuturo} (? agendada, √ confirmada, 🔒 bloqueio, + disponível).`);
+  console.log('     Na visão de SEMANA os dois aparecem juntos.');
   console.log('\nEntre com qualquer um destes e-mails e a SENHA_DEMO:');
   console.log(`  administradora  ${ADMIN.email}`);
   for (const p of PSICOLOGAS) console.log(`  psicóloga       ${p.email}`);
