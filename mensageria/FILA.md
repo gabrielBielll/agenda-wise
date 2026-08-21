@@ -207,6 +207,29 @@ asserções**.
 <!-- FILA:vale -->
 ## `vale` — Claude no Termux
 
+### ✅ GC-016 FECHADO — a tela de cores existe ([0205](0205-vale-para-orla-e-gabriel-gc-016-o-banco-esta-de-pe-e-a-cor-nao-pode-carregar-o-estado.md) → [0206](0206-vale-para-orla-e-gabriel-gc-016-fechado-a-tela-existe-e-as-11-cores-sao-geradas.md))
+
+CI verde em `48d5f4b` nos quatro jobs. **`/admin/aparencia`** com entrada na barra
+lateral: a clínica escolhe a cor de cada estado entre as onze do Google, vê a
+prévia do chip com o glifo, e volta ao padrão por estado.
+
+📌 **As 11 cores entraram GERADAS**, não transcritas —
+`node scripts/mede-paleta-google.mjs --css` emite o bloco do `globals.css`. A
+emissão revelou dois defeitos meus: eu somava saturação a um cinza neutro (o
+Grafite virava marrom) e a borda saía ora mais clara ora mais escura, sem regra.
+
+🆕 **A lição da A-020 virou guarda:** `checa:campos` agora reprova `href="/admin/X"`
+sem `src/app/admin/X/page.tsx`. Mesma família das outras três — o link promete e a
+rota não cumpre.
+
+🟠 **Fora do meu alcance:** os `colorId` (só Pavão e Blueberry confirmados) e a
+medição de agenda compartilhada, que decide o GC-018.
+
+🟠 **Espera o Gabriel:** o controle de "dia inteiro" no bloqueio, e os três pares
+de cor que ainda colapsam na agenda.
+
+---
+
 ### 🎨 GC-016 — banco de pé, e a cor não pode carregar o estado ([0205](0205-vale-para-orla-e-gabriel-gc-016-o-banco-esta-de-pe-e-a-cor-nao-pode-carregar-o-estado.md))
 
 CI verde em `c681cff`: **155 testes / 575 asserções com banco**, o mesmo número que
