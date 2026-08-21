@@ -35,7 +35,7 @@ interface WeekViewProps {
   bloqueios?: Bloqueio[];
   onAddAppointment: (date: Date, event?: React.MouseEvent, isBlocked?: boolean, bloqueioId?: string) => void;
   onEditAppointment: (appointment: Appointment) => void;
-  onDeleteBloqueio?: (id: string, recorrencia_id?: string) => void;
+  onDeleteBloqueio?: (id: string, recorrencia_id?: string, tipo?: string) => void;
 }
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i); // 00:00 to 23:00
@@ -278,7 +278,7 @@ export function WeekView({ date, appointments, bloqueios = [], onAddAppointment,
                         onClick={(e) => {
                           e.stopPropagation();
                           if (onDeleteBloqueio) {
-                            onDeleteBloqueio(block.id, block.recorrencia_id);
+                            onDeleteBloqueio(block.id, block.recorrencia_id, block.tipo);
                           }
                         }}
                         title={block.motivo || janela.label}

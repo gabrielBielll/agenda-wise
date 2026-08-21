@@ -268,6 +268,19 @@ export async function updateAppointmentStatus(
 
 // ============ BLOQUEIOS DE AGENDA ============
 
+/**
+ * As duas janelas de agenda (D-024). A psicóloga **bloqueia** um horário ou
+ * **libera** um horário — os dois verbos são dela, e foi o Gabriel quem escolheu
+ * "liberar" no lugar de "oferecer".
+ *
+ * 📌 O verbo da AÇÃO é "liberar"; o nome do ESTADO continua "disponível". Não é
+ * descuido: `disponivel` é a palavra da convenção, a mesma que vai no título do
+ * evento do Google (`[DISPONÍVEL]`, lido do `lista-psis`) e que o tradutor da
+ * convenção reconhece. Trocar o estado para "liberado" quebraria o casamento com
+ * o que a equipe já escreve do outro lado.
+ */
+export type TipoDeJanela = 'bloqueio' | 'disponivel';
+
 export interface Bloqueio {
   id: string;
   data_inicio: string;
@@ -331,7 +344,16 @@ export async function createBloqueio(
   motivo?: string,
   diaInteiro?: boolean,
   recorrenciaTipo?: string,
-  quantidadeRecorrencia?: number
+  quantidadeRecorrencia?: number,
+  /**
+   * `bloqueio` (proíbe) ou `disponivel` (libera) — D-024.
+   *
+   * 🔴 O default é `bloqueio`, e não é escolha estética: até 21/08 toda linha de
+   * `bloqueios_agenda` significava proibição. Se este default escorregasse para
+   * `disponivel`, cada chamada antiga passaria a liberar em vez de bloquear — e o
+   * sintoma seria uma ausência, não um erro.
+   */
+  tipo: TipoDeJanela = 'bloqueio'
 ): Promise<ResultadoDeBloqueio> {
   const session = await getServerSession(authOptions);
   const token = (session as any)?.backendToken;
@@ -351,6 +373,7 @@ export async function createBloqueio(
         data_inicio: paraPayloadParede(dataInicio),
         data_fim: paraPayloadParede(dataFim),
         motivo,
+        tipo,
         dia_inteiro: diaInteiro || false,
         recorrencia_tipo: recorrenciaTipo,
         quantidade_recorrencia: quantidadeRecorrencia
@@ -368,10 +391,20 @@ export async function createBloqueio(
   }
 
   revalidatePath("/calendar");
-  return { message: "Horário bloqueado com sucesso!", success: true };
+  return {
+    message: tipo === 'disponivel'
+      ? "Horário liberado com sucesso!"
+      : "Horário bloqueado com sucesso!",
+    success: true,
+  };
 }
 
-export async function deleteBloqueio(id: string, mode?: 'single' | 'all_future'): Promise<{ message: string; success: boolean }> {
+export async function deleteBloqueio(
+  id: string,
+  mode?: 'single' | 'all_future',
+  /** Só para a mensagem sair na língua certa — o backend remove pelo id. */
+  tipo: TipoDeJanela = 'bloqueio'
+): Promise<{ message: string; success: boolean }> {
   const session = await getServerSession(authOptions);
   const token = (session as any)?.backendToken;
 
@@ -387,12 +420,22 @@ export async function deleteBloqueio(id: string, mode?: 'single' | 'all_future')
     });
 
     if (!response.ok) {
-      return { message: "Falha ao remover bloqueio.", success: false };
+      return {
+        message: tipo === 'disponivel'
+          ? "Falha ao remover o horário liberado."
+          : "Falha ao remover bloqueio.",
+        success: false,
+      };
     }
   } catch (error) {
     return { message: "Erro de conexão com o servidor.", success: false };
   }
 
   revalidatePath("/calendar");
-  return { message: "Bloqueio removido com sucesso!", success: true };
+  return {
+    message: tipo === 'disponivel'
+      ? "Horário liberado removido com sucesso!"
+      : "Bloqueio removido com sucesso!",
+    success: true,
+  };
 }

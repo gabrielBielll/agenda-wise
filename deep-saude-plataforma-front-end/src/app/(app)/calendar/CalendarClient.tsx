@@ -35,7 +35,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useFormStatus } from "react-dom";
 import { useActionState } from "react";
-import { createAgendamento, updateAgendamento, deleteAgendamento, cancelAgendamento, reactivateAgendamento, updateAppointmentStatus, createBloqueio, deleteBloqueio, FormState, type Bloqueio } from "./actions";
+import { createAgendamento, updateAgendamento, deleteAgendamento, cancelAgendamento, reactivateAgendamento, updateAppointmentStatus, createBloqueio, deleteBloqueio, FormState, type Bloqueio, type TipoDeJanela } from "./actions";
 import { useToast } from "@/hooks/use-toast";
 import { useLoading } from "@/components/LoadingOverlay";
 import { CalendarHeader } from "./CalendarHeader";
@@ -113,6 +113,14 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
   }, [appointments]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isBlockDialogOpen, setIsBlockDialogOpen] = useState(false);
+  /**
+   * Qual das duas janelas este diálogo está criando (D-024).
+   *
+   * 🔴 O default é `bloqueio`. Se escorregasse para `disponivel`, um clique em
+   * "Bloquear" liberaria o horário — e a psicóloga só descobriria quando alguém
+   * marcasse sessão no horário que ela fechou.
+   */
+  const [blockTipo, setBlockTipo] = useState<TipoDeJanela>('bloqueio');
   const [isConfirmDeleteBlockOpen, setIsConfirmDeleteBlockOpen] = useState(false);
   const [isConflictDialogOpen, setIsConflictDialogOpen] = useState(false);
   // R-014: a recusa mostra QUAIS sessões impedem o bloqueio, não só quantas.
@@ -179,7 +187,7 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
 
   const [blockStart, setBlockStart] = useState("");
   const [blockEnd, setBlockEnd] = useState("");
-  const [blockToDelete, setBlockToDelete] = useState<{ id: string, recorrencia_id?: string } | null>(null);
+  const [blockToDelete, setBlockToDelete] = useState<{ id: string, recorrencia_id?: string, tipo?: string } | null>(null);
   const [isConfirmDeleteApptOpen, setIsConfirmDeleteApptOpen] = useState(false);
   const [apptToDelete, setApptToDelete] = useState<{ id: string, recorrencia_id?: string } | null>(null);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false); // For single appt delete (non-recurrent or recurrence choice made)
@@ -405,7 +413,8 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
     }
   };
 
-  const handleOpenBlock = () => {
+  const handleOpenBlock = (tipo: TipoDeJanela) => {
+    setBlockTipo(tipo);
     if (slotAction) {
       setNewAppointmentDate(slotAction.date);
       // Semeia o período com o slot clicado — o que o `defaultValue` fazia, só
@@ -445,7 +454,7 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
     // própria recusa (R-014). Perguntar antes seria uma ida a mais que responde
     // o que a criação já responde — e que pode discordar dela entre as duas.
     showLoading("Criando bloqueio...");
-    const result = await createBloqueio(dataInicio, dataFim, motivo, diaInteiro, blockRecurrenceType, blockRecurrenceCount);
+    const result = await createBloqueio(dataInicio, dataFim, motivo, diaInteiro, blockRecurrenceType, blockRecurrenceCount, blockTipo);
     hideLoading();
 
     if (result?.success) {
@@ -471,8 +480,11 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
   // bloqueio por cima da sessão — que o backend agora recusa de qualquer forma.
 
   const handleDeleteBlock = async (id: string, mode?: 'single' | 'all_future') => {
-    showLoading("Excluindo bloqueio...");
-    const result = await deleteBloqueio(id, mode);
+    // A janela sabe o que é; a mensagem precisa saber também. Dizer "bloqueio"
+    // ao remover um horário liberado é a tela afirmando o oposto do que ela fez.
+    const ehLiberado = blockToDelete?.tipo === 'disponivel';
+    showLoading(ehLiberado ? "Removendo horário liberado..." : "Excluindo bloqueio...");
+    const result = await deleteBloqueio(id, mode, ehLiberado ? 'disponivel' : 'bloqueio');
     hideLoading();
     if (result.success) {
       toast({ title: "Sucesso", description: result.message, className: "bg-success text-success-foreground" });
@@ -482,8 +494,8 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
     }
   };
 
-  const initDeleteBlock = (id: string, recorrencia_id?: string) => {
-      setBlockToDelete({ id, recorrencia_id });
+  const initDeleteBlock = (id: string, recorrencia_id?: string, tipo?: string) => {
+      setBlockToDelete({ id, recorrencia_id, tipo });
       setSlotAction(null);
       setIsConfirmDeleteBlockOpen(true);
   };
@@ -1067,9 +1079,13 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
         <Dialog open={isBlockDialogOpen} onOpenChange={setIsBlockDialogOpen}>
           <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
-              <DialogTitle>🔒 Bloquear Horário</DialogTitle>
+              <DialogTitle>
+                {blockTipo === 'disponivel' ? '🔵 Liberar Horário' : '🔒 Bloquear Horário'}
+              </DialogTitle>
               <DialogDescription>
-                Marque este horário como indisponível.
+                {blockTipo === 'disponivel'
+                  ? 'Este horário fica marcado como disponível na sua agenda.'
+                  : 'Marque este horário como indisponível.'}
               </DialogDescription>
             </DialogHeader>
             <form action={handleCreateBlock} className="grid gap-4 py-4">
@@ -1100,7 +1116,9 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                 </div>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="motivo" className="text-right">Motivo</Label>
+                <Label htmlFor="motivo" className="text-right">
+                  {blockTipo === 'disponivel' ? 'Observação' : 'Motivo'}
+                </Label>
                 <div className="col-span-3">
                   {/* 🔴 `name` não é detalhe aqui: o formulário é lido por
                       `formData.get('motivo')` em `handleCreateBlock`. Sem ele,
@@ -1110,7 +1128,9 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                   <Input
                     id="motivo"
                     name="motivo"
-                    placeholder="Ex: Reunião, Compromisso pessoal..."
+                    placeholder={blockTipo === 'disponivel'
+                      ? 'Ex: Aberto para encaixe (opcional)'
+                      : 'Ex: Reunião, Compromisso pessoal...'}
                   />
                 </div>
               </div>
@@ -1207,7 +1227,9 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                </div>
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setIsBlockDialogOpen(false)}>Cancelar</Button>
-                <Button type="submit">Bloquear</Button>
+                <Button type="submit">
+                  {blockTipo === 'disponivel' ? 'Liberar' : 'Bloquear'}
+                </Button>
               </DialogFooter>
             </form>
           </DialogContent>
@@ -1271,11 +1293,17 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
         <AlertDialog open={isConfirmDeleteBlockOpen} onOpenChange={setIsConfirmDeleteBlockOpen}>
             <AlertDialogContent>
                 <AlertDialogHeader>
-                    <AlertDialogTitle>Remover Bloqueio</AlertDialogTitle>
+                    <AlertDialogTitle>
+                        {blockToDelete?.tipo === 'disponivel' ? 'Remover Horário Liberado' : 'Remover Bloqueio'}
+                    </AlertDialogTitle>
                     <AlertDialogDescription>
-                        {blockToDelete?.recorrencia_id 
-                            ? "Este é um bloqueio recorrente. O que você deseja fazer?" 
-                            : "Tem certeza que deseja remover este bloqueio?"}
+                        {blockToDelete?.tipo === 'disponivel'
+                            ? (blockToDelete?.recorrencia_id
+                                ? "Este horário liberado se repete. O que você deseja fazer?"
+                                : "Tem certeza que deseja remover este horário liberado?")
+                            : (blockToDelete?.recorrencia_id
+                                ? "Este é um bloqueio recorrente. O que você deseja fazer?"
+                                : "Tem certeza que deseja remover este bloqueio?")}
                     </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter className="flex-col sm:justify-start gap-2">
@@ -1337,7 +1365,7 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                     if (slotAction.bloqueioId) {
                        // Find the block to check for recurrence
                        const block = bloqueios.find(b => b.id === slotAction.bloqueioId);
-                       initDeleteBlock(slotAction.bloqueioId, block?.recorrencia_id);
+                       initDeleteBlock(slotAction.bloqueioId, block?.recorrencia_id, block?.tipo);
                     }
                     setSlotAction(null);
                   }}
@@ -1355,9 +1383,21 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                 </button>
                 <button
                   className="w-full text-left px-3 py-2 text-sm hover:bg-accent rounded-sm flex items-center gap-2 text-grafite"
-                  onClick={handleOpenBlock}
+                  onClick={() => handleOpenBlock('bloqueio')}
                 >
                   🔒 Bloquear Horário
+                </button>
+                {/* D-024 — o par oposto. O Gabriel escolheu o verbo: "liberar",
+                    e não "oferecer". O ESTADO continua se chamando "disponível",
+                    que é a palavra da convenção e a que vai no título do evento
+                    do Google (`[DISPONÍVEL]`). Verbo da ação e nome do estado são
+                    coisas diferentes, e trocar o segundo quebraria o casamento
+                    com o que a equipe já escreve do outro lado. */}
+                <button
+                  className="w-full text-left px-3 py-2 text-sm hover:bg-accent rounded-sm flex items-center gap-2 text-disponivel"
+                  onClick={() => handleOpenBlock('disponivel')}
+                >
+                  🔵 Liberar Horário
                 </button>
               </>
             )}
