@@ -44,6 +44,67 @@ import { join } from 'node:path';
  *
  * Mesma família das outras três: **o link promete e a rota não cumpre.**
  */
+/**
+ * (5) O cabeçalho e o corpo do `WeekView` com trilhos escritos duas vezes.
+ *
+ * 🔴 Em 21/08 eles divergiram — `repeat(7,1fr)` no cabeçalho e `min-w-[120px]` no
+ * corpo — e os dias do topo pararam de corresponder às colunas de baixo em toda
+ * tela estreita. O Gabriel viu no telefone: criou uma sessão para hoje, deslizou,
+ * e ela apareceu debaixo do rótulo de outro dia.
+ *
+ * A definição virou UMA constante. Esta varredura impede que alguém a reescreva
+ * inline e traga a divergência de volta.
+ */
+/**
+ * (6) Atualização otimista sem desfazer.
+ *
+ * 🔴 Uma tela que pinta o resultado ANTES de o servidor concordar precisa voltar
+ * atrás quando ele recusa. Sem isso ela afirma um desfecho que não existe — a
+ * A-013 pelo avesso: em vez de esconder o que existe, mostrar o que não existe.
+ *
+ * Em 21/08 duas das quatro funções do Financeiro não desfaziam. Uma delas trazia
+ * escrito *"Revert would need original status, but for simplicity just refresh"*
+ * — e não atualizava nada.
+ *
+ * ⚠️ A varredura é textual e mira `setAgendamentos(prev` antes de `await fetch`
+ * sem `setAgendamentos` no `catch`. Não é análise de fluxo: serve para pegar a
+ * forma comum, não para provar ausência.
+ */
+function otimistaSemDesfazer() {
+  const arq = 'src/app/admin/financeiro/FinanceiroClient.tsx';
+  if (!existsSync(arq)) return [];
+  const t = readFileSync(arq, 'utf8');
+  const erros = [];
+  for (const m of t.matchAll(/const (handle\w+) = async[^\n]*\n/g)) {
+    const nome = m[1];
+    let corpo = t.slice(m.index + m[0].length, m.index + m[0].length + 2800);
+    const fim = corpo.indexOf('\n  };');
+    if (fim > 0) corpo = corpo.slice(0, fim);
+    const iSet = corpo.indexOf('setAgendamentos(prev');
+    const iFetch = corpo.indexOf('await fetch');
+    if (iSet < 0 || iFetch < 0 || iSet > iFetch) continue;      // nao e otimista
+    const iCatch = corpo.indexOf('catch');
+    const noCatch = iCatch >= 0 ? corpo.slice(iCatch) : '';
+    if (!noCatch.includes('setAgendamentos')) {
+      erros.push({ forma: 6, caminho: arq, linha: t.slice(0, m.index).split('\n').length,
+        porque: `${nome} pinta antes do servidor concordar e NAO desfaz no catch — a tela afirma um desfecho que o servidor recusou` });
+    }
+  }
+  return erros;
+}
+
+function trilhosDaSemanaNaoSaoDuplicados() {
+  const arq = 'src/app/(app)/calendar/WeekView.tsx';
+  if (!existsSync(arq)) return [];
+  const t = readFileSync(arq, 'utf8');
+  const literais = [...t.matchAll(/grid-cols-\[/g)].length;
+  if (literais > 1) {
+    return [{ forma: 5, caminho: arq, linha: t.slice(0, t.indexOf('grid-cols-[')).split('\n').length,
+      porque: `o trilho da grade aparece ${literais} vezes escrito a mao — tem de ser UMA constante, senao cabecalho e corpo divergem` }];
+  }
+  return [];
+}
+
 function rotasProminidasExistem() {
   const arq = 'src/components/admin/AdminSidebar.tsx';
   if (!existsSync(arq)) return [];
@@ -98,6 +159,43 @@ function varrer(caminho, texto) {
   return achados;
 }
 
+/**
+ * (7) Campo de texto EDITÁVEL enquanto a verdade dele ainda não chegou.
+ *
+ * 🔴 Um campo vazio afirma "o valor é vazio". Enquanto a resposta do servidor não
+ * chegou, o que é verdade é outra coisa: "ainda não sei". São estados diferentes
+ * e a tela mostra o mesmo para os dois — a família de defeito deste projeto.
+ *
+ * ⚠️ E o dano não é estético. Em 21/08 o e2e do perfil recebeu
+ * `"Admin E2EAurora Nogueira"`: a resposta caiu no meio da digitação, a seleção
+ * se perdeu, e o texto novo grudou no antigo. Quem digitar rápido em
+ * `/settings` vê o mesmo — com o próprio nome.
+ *
+ * 📌 `readOnly` também isenta: campo que não aceita digitação não corre a corrida.
+ * Foi o que a primeira versão desta varredura errou, acusando o e-mail.
+ *
+ * ⚠️ Textual, não análise de fluxo: mira `value={X}` onde `setX` recebe resposta
+ * de servidor. Pega a forma comum; não prova ausência.
+ */
+function campoEditavelAntesDaVerdade(caminho, texto) {
+  const doServidor = new Set(
+    [...texto.matchAll(/set(\w+)\(\s*(?:result|r|data|perfil|profile)[\w?.]*\)/g)].map((m) => m[1]),
+  );
+  if (!doServidor.size) return [];
+  const erros = [];
+  for (const m of texto.matchAll(/<Input\b[^>]*?\/?>/gs)) {
+    const tag = m[0];
+    const val = /value=\{(\w+)\}/.exec(tag);
+    if (!val) continue;
+    const nome = val[1];
+    if (!doServidor.has(nome[0].toUpperCase() + nome.slice(1))) continue;
+    if (/\bdisabled\b/.test(tag) || /\breadOnly\b/.test(tag)) continue;
+    erros.push({ forma: 7, caminho, linha: texto.slice(0, m.index).split('\n').length,
+      porque: `o campo ${nome} e' editavel antes de o servidor responder — vazio ali quer dizer "ainda nao sei", e quem digitar antes ve o texto grudar no valor que chega depois` });
+  }
+  return erros;
+}
+
 /** 🔴 Controle positivo: o verificador precisa pegar as três formas de propósito. */
 function autoteste() {
   const isca = `
@@ -120,6 +218,23 @@ function autoteste() {
     console.error('::error::o verificador acusou código correto — ele reprova tudo, e um vermelho dele não valeria nada');
     process.exit(2);
   }
+
+  // (7) tem controle nos dois sentidos: precisa pegar o editável e deixar passar
+  // o desabilitado e o readOnly. Sem os dois lados ela poderia estar aprovando
+  // (ou reprovando) tudo, e daria o mesmo resultado com a hipótese verdadeira e falsa.
+  const iscaCampo = `setNome(result.profile.nome);
+    <Input id="a" value={nome} onChange={f} />`;
+  if (!campoEditavelAntesDaVerdade('isca', iscaCampo).length) {
+    console.error('::error::o verificador não pegou a forma 7 no próprio autoteste — um zero dele não valeria nada');
+    process.exit(2);
+  }
+  const campoLimpo = `setNome(result.profile.nome);
+    <Input id="a" value={nome} disabled={carregando} onChange={f} />
+    <Input id="b" value={email} readOnly />`;
+  if (campoEditavelAntesDaVerdade('limpo', campoLimpo).length) {
+    console.error('::error::o verificador acusou campo já protegido na forma 7 — um vermelho dele não valeria nada');
+    process.exit(2);
+  }
 }
 
 function arquivos(dir) {
@@ -131,14 +246,19 @@ function arquivos(dir) {
 
 autoteste();
 const achados = [
-  ...arquivos('src').filter((p) => !ISENTOS.has(p)).flatMap((p) => varrer(p, readFileSync(p, 'utf8'))),
+  ...arquivos('src').filter((p) => !ISENTOS.has(p)).flatMap((p) => {
+    const t = readFileSync(p, 'utf8');
+    return [...varrer(p, t), ...campoEditavelAntesDaVerdade(p, t)];
+  }),
   ...rotasProminidasExistem(),
+  ...trilhosDaSemanaNaoSaoDuplicados(),
+  ...otimistaSemDesfazer(),
 ];
 
 for (const a of achados) {
   console.error(`::error file=${a.caminho},line=${a.linha}::forma (${a.forma}) — ${a.porque}`);
 }
 console.log(achados.length === 0
-  ? 'ok: nenhum rótulo órfão, nenhum rótulo mudo, nenhum campo lido sem name, nenhum link para rota inexistente'
+  ? 'ok: nenhum rótulo órfão, nenhum rótulo mudo, nenhum campo lido sem name, nenhum link para rota inexistente, nenhum otimista sem desfazer, nenhum campo editavel antes da verdade'
   : `${achados.length} achado(s)`);
 process.exit(achados.length === 0 ? 0 : 1);

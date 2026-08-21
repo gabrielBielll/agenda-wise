@@ -5,13 +5,14 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { signOut, useSession } from 'next-auth/react';
 import {
-  Bell, CalendarDays, ChevronLeft, HeartHandshake, LayoutDashboard,
+  CalendarDays, ChevronLeft, HeartHandshake, LayoutDashboard,
   Leaf, LogOut, Menu, Plus, Search, Settings, UsersRound,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { SinoDeConfirmacoes } from '@/components/layout/SinoDeConfirmacoes';
 import { useCareMessage } from '@/hooks/use-care-message';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
@@ -105,11 +106,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <Search className="h-[17px] w-[17px]" /><span className="flex-1">Buscar paciente...</span><kbd className="rounded-md bg-primary/10 px-1.5 py-1 text-[9px]">⌘ K</kbd>
             </button>
             <ThemeToggle />
-            {/* TODO(notification-center): substituir o indicador demonstrativo pela contagem
-                retornada pela API e abrir uma lista de lembretes persistidos. */}
-            <button disabled title="Central de lembretes em breve" className="relative hidden h-10 w-10 cursor-not-allowed place-items-center rounded-xl border border-border/60 bg-card/45 text-muted-foreground opacity-70 sm:grid" aria-label="Central de lembretes em breve">
-              <Bell className="h-[18px] w-[18px]" /><span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full border border-background bg-accent" />
-            </button>
+            {/* 🔴 Era um botão `disabled` com uma bolinha FIXA: ele exibia o ponto que
+                significa "há avisos" sem nunca ter perguntado nada. Indicador que
+                acende sem verificar é a família de defeito deste projeto, e estava
+                no canto superior da tela inteira. Agora o ponto vem de contagem
+                real — e quando a consulta falha ele diz isso, em vez de apagar. */}
+            <SinoDeConfirmacoes />
             <Button asChild className="hidden sm:inline-flex"><Link href="/calendar?nova=1"><Plus className="h-4 w-4" />Nova sessão</Link></Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild><button className="md:hidden"><Avatar className="h-10 w-10"><AvatarFallback className="bg-accent/10 text-xs text-accent">{userInitials}</AvatarFallback></Avatar></button></DropdownMenuTrigger>

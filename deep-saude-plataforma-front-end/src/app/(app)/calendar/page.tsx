@@ -24,10 +24,11 @@ export default async function CalendarPage() {
     redirect("/?expired=true");
   }
 
-  const [agendamentos, pacientes, bloqueios] = await Promise.all([
+  const [agendamentos, pacientes, bloqueios, paleta] = await Promise.all([
     carregar<any[]>("/api/agendamentos", token),
     carregar<any[]>("/api/pacientes", token),
     carregar<any[]>("/api/bloqueios", token),
+    carregar<{ escolhidas: Record<string, string> }>("/api/paleta", token),
   ]);
 
   // Uma falha em qualquer das três já torna a tela mentirosa: agenda sem
@@ -41,8 +42,24 @@ export default async function CalendarPage() {
   if (!pacientes.ok) return <FalhaDeCarregamento motivo={pacientes.motivo} oQue="os pacientes" />;
   if (!bloqueios.ok) return <FalhaDeCarregamento motivo={bloqueios.motivo} oQue="os bloqueios" />;
 
+  /**
+   * 🔴 A paleta é a QUARTA, e ela NÃO derruba a tela — de propósito, e a
+   * diferença em relação às três de cima é o ponto.
+   *
+   * Agenda sem bloqueio parece agenda livre; agenda sem paciente parece agenda
+   * sem trabalho. As três mentem quando faltam. A paleta não: sem ela a agenda
+   * pinta com os tokens da plataforma, que é **exatamente o que uma clínica que
+   * nunca escolheu cor nenhuma vê**. Não há meia verdade a mostrar.
+   *
+   * ⚠️ Derrubar a agenda inteira porque a cor não carregou seria trocar um
+   * problema cosmético por um funcional — a psicóloga ficaria sem ver as sessões
+   * do dia porque o servidor de cores tossiu.
+   */
+  const cores = paleta.ok ? paleta.dados.escolhidas : undefined;
+
   return (
     <CalendarClient
+      cores={cores}
       appointments={agendamentos.dados}
       pacientes={pacientes.dados}
       bloqueios={bloqueios.dados}

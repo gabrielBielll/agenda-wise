@@ -173,6 +173,23 @@
     (is (= "banana" (get-in resp [:body :paleta "agendado"]))
         "a resposta devolve a paleta efetiva, para a tela não precisar recarregar")))
 
+(deftest escolhidas-diz-o-que-a-clinica-escolheu-e-nao-o-que-ela-usa
+  ;; 🔴 A diferenca entre `paleta` e `escolhidas` e o que a agenda precisa para
+  ;; nao mudar a aparencia de quem nunca abriu a tela: sem escolha, ela pinta com
+  ;; os tokens da plataforma; com escolha, com a cor do Google.
+  ;;
+  ;; ⚠️ E o caso que obriga o campo a existir e este: a clinica escolher, DE
+  ;; PROPOSITO, a mesma cor do padrao. Comparando por valor, o front concluiria
+  ;; "nao escolheu" — e o efeito seria a escolha dela nao valer.
+  (is (empty? (:escolhidas (:body (paleta/listar-handler (como admin "admin_clinica")))))
+      "sem linha nenhuma, nada foi escolhido")
+  (paleta/definir-cor! clinica "agendado" (get dominio/paleta-padrao "agendado"))
+  (let [body (:body (paleta/listar-handler (como admin "admin_clinica")))]
+    (is (= {"agendado" (get dominio/paleta-padrao "agendado")} (:escolhidas body))
+        "escolher a cor do padrao CONTA como escolha")
+    (is (= dominio/paleta-padrao (:paleta body))
+        "e a paleta efetiva continua igual ao padrao — os dois campos dizem coisas diferentes")))
+
 (deftest o-catalogo-vem-junto-para-a-tela-nao-duplicar-o-vocabulario
   (let [body (:body (paleta/listar-handler (como admin "admin_clinica")))]
     (is (= 11 (count (:cores body))) "as onze do Google, nem mais nem menos")

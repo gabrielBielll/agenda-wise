@@ -43,6 +43,7 @@ import { DayView } from "./DayView";
 import { WeekView } from "./WeekView";
 import { cn } from "@/lib/utils";
 import { appointmentHasEnded, appointmentStatusAppearance, normalizeAppointmentStatus, type AppointmentStatus } from "@/lib/appointment-status";
+import type { CoresEscolhidas } from "@/lib/cores-agenda";
 
 // Define interface for Appointment
 interface Appointment {
@@ -99,7 +100,7 @@ function SubmitButton({ isEditing }: { isEditing: boolean }) {
   );
 }
 
-export default function CalendarClient({ appointments, pacientes, bloqueios = [] }: { appointments: Appointment[], pacientes: Paciente[], bloqueios?: Bloqueio[] }) {
+export default function CalendarClient({ appointments, pacientes, bloqueios = [], cores }: { appointments: Appointment[], pacientes: Paciente[], bloqueios?: Bloqueio[], cores?: CoresEscolhidas }) {
   const [date, setDate] = useState<Date>(agoraNaClinica());
   const [view, setView] = useState<'month' | 'week' | 'day'>('week'); // Default to week view potentially
 
@@ -651,10 +652,10 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
               {editingAppointment && (
                 <span className={cn(
                   "mt-3 inline-flex w-fit items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold",
-                  appointmentStatusAppearance(editingAppointment.status).badgeClassName,
+                  appointmentStatusAppearance(editingAppointment.status, cores).badgeClassName,
                 )}>
                   <span className="h-1.5 w-1.5 rounded-full bg-current" />
-                  {appointmentStatusAppearance(editingAppointment.status).label}
+                  {appointmentStatusAppearance(editingAppointment.status, cores).label}
                 </span>
               )}
             </DialogHeader>
@@ -1475,7 +1476,7 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
                                      </span>
                                      <div className="flex flex-col gap-1 w-full overflow-hidden">
                                          {dayAppointments.slice(0, 4).map(app => {
-                                           const appearance = appointmentStatusAppearance(app.status);
+                                           const appearance = appointmentStatusAppearance(app.status, cores, { inicio: app.data_hora_sessao, duracao: app.duracao });
                                            return (
                                              <div key={app.id} 
                                                 className={cn(
@@ -1509,6 +1510,7 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
           {view === 'week' && (
               <div className="animate-in fade-in slide-in-from-right-4 duration-500 h-full">
                   <WeekView 
+                    cores={cores}
                     date={date} 
                     appointments={appointments}
                     bloqueios={bloqueios}
@@ -1522,6 +1524,7 @@ export default function CalendarClient({ appointments, pacientes, bloqueios = []
           {view === 'day' && (
               <div className="animate-in fade-in slide-in-from-right-4 duration-500 h-full">
                   <DayView 
+                    cores={cores}
                     date={date} 
                     appointments={appointments}
                     bloqueios={bloqueios}

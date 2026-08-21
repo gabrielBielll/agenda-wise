@@ -207,6 +207,52 @@ asserções**.
 <!-- FILA:vale -->
 ## `vale` — Claude no Termux
 
+### 🔔 21/08 — GC-017, o alinhamento e o sino ([0207](0207-vale-para-orla-e-gabriel-gc-017-o-alinhamento-que-mentia-e-o-sino-que-acendia-sem-perguntar.md))
+
+🔴 **TRÊS commits meus NÃO estão em produção.** `prod` está em `ad32437`; a branch
+de trabalho tem `71a7bcc` (GC-017), `dce002e` (alinhamento) e `c6055ff` (sino).
+CI verde nos quatro jobs em todos. **Deploy é decisão do Gabriel.**
+
+- **GC-017** — a tela de `/admin/aparencia` deixava escolher e a agenda ignorava.
+  Sucesso sem efeito, construído por mim no dia anterior.
+- **Alinhamento** — o `WeekView` tinha duas grades com trilhos diferentes, e em
+  todo telefone os dias do topo não correspondiam às colunas. **Defeito de
+  informação**: a tela mostrava um dia e significava outro.
+- **`!` + destaque + sino** — o chip não distinguia "futura sem confirmação" de
+  "passada sem confirmação". E o sininho exibia a bolinha de "há avisos" **sem
+  nunca ter perguntado nada**.
+
+📌 **Alarme falso meu:** o Gabriel reportou não conseguir definir a remuneração;
+testei em produção (mudei e restaurei a Beatriz, HTTP 200 nas duas) e era ele
+tendo clicado em "Visualizar". Não havia defeito. Mas a investigação achou um de
+verdade, e ele **era dois** — ver abaixo.
+
+### 📬 Os sete commits estão no PR [#12](https://github.com/gabrielBielll/agenda-wise/pull/12), aberto e NÃO mesclado ([0208](0208-vale-para-orla-e-gabriel-o-pr-para-prod-esta-aberto-e-o-financeiro-eram-dois.md), [0209](0209-vale-para-orla-e-gabriel-o-e2e-reprovou-e-o-defeito-era-da-tela-nao-do-teste.md))
+
+Quatro checks passando, zero reprovando, `MERGEABLE/CLEAN`, navegador **48 passed**.
+**O merge é o ato que dispara o build de produção (D-020) — decisão do Gabriel.**
+
+- 🔴 **O campo do nome em Configurações aceitava digitação antes de saber o nome.**
+  O e2e reprovou com `"Admin E2EAurora Nogueira"` — o nome antigo colado no novo.
+  O campo nasce vazio e editável e a verdade chega depois, então quem digita na
+  janela vê o texto grudar no valor que chega. **Campo vazio afirma "o valor é
+  vazio" quando a verdade é "ainda não sei".** Consertado na tela, não no teste:
+  o `fill()` do Playwright espera o campo habilitar, então a medição virou
+  determinística (7,2s, antes 24,3s estourando o tempo). 🆕 Varredura (7), com
+  autoteste nos dois sentidos. ⚠️ A primeira versão dela acusou o e-mail, que é
+  `readOnly` e não corre a corrida.
+
+- 🔴 **Financeiro, e eram DOIS.** Varri a classe em vez da instância que ele
+  reportou: das quatro funções otimistas, `handleUpdateValor` (a relatada) e
+  `handleUpdateStatus` (que ninguém tinha visto) não desfaziam quando o servidor
+  recusava. A segunda trazia escrito *"Revert would need original status, but for
+  simplicity just refresh"* — e não atualizava nada. Status "pago" na tela com o
+  servidor tendo dito não, num Financeiro, é fechar o mês com número que o banco
+  não tem. 🆕 Virou varredura (6) do `checa:campos`, conferida plantando o defeito
+  de volta. ⚠️ Ela é textual: pega a forma comum, não prova ausência.
+
+---
+
 ### ✅ GC-016 FECHADO — a tela de cores existe ([0205](0205-vale-para-orla-e-gabriel-gc-016-o-banco-esta-de-pe-e-a-cor-nao-pode-carregar-o-estado.md) → [0206](0206-vale-para-orla-e-gabriel-gc-016-fechado-a-tela-existe-e-as-11-cores-sao-geradas.md))
 
 CI verde em `48d5f4b` nos quatro jobs. **`/admin/aparencia`** com entrada na barra
@@ -941,6 +987,9 @@ quem escreve não aprova):
 | D-020 — o portão, medido fechando | [0198](0198-vale-para-orla-e-gabriel-o-portao-esta-fechado-e-medido-e-tres-correcoes.md) |
 | D-021 — admin lê prontuário, operador da plataforma não | [0203](0203-vale-para-orla-e-gabriel-d-021-e-a-cor-feitas-e-o-termux-roda-os-testes-de-banco.md) |
 | A11Y-001b, e o Motivo do bloqueio que era descartado | [0204](0204-vale-para-orla-e-gabriel-a11y-001b-fechada-e-o-motivo-do-bloqueio-era-descartado.md) |
+| **GC-017** — a agenda pinta com a cor escolhida | [0207](0207-vale-para-orla-e-gabriel-gc-017-o-alinhamento-que-mentia-e-o-sino-que-acendia-sem-perguntar.md) |
+| **O alinhamento dos dias no telefone** | [0207](0207-vale-para-orla-e-gabriel-gc-017-o-alinhamento-que-mentia-e-o-sino-que-acendia-sem-perguntar.md) |
+| **O `!`, o destaque e o sininho** | [0207](0207-vale-para-orla-e-gabriel-gc-017-o-alinhamento-que-mentia-e-o-sino-que-acendia-sem-perguntar.md) |
 | GC-016 — banco, 11 cores e tela | [0205](0205-vale-para-orla-e-gabriel-gc-016-o-banco-esta-de-pe-e-a-cor-nao-pode-carregar-o-estado.md) → [0206](0206-vale-para-orla-e-gabriel-gc-016-fechado-a-tela-existe-e-as-11-cores-sao-geradas.md) |
 
 🔴 **E uma medição minha muda o SEU desenho do GC-018:** das 462 formas de
