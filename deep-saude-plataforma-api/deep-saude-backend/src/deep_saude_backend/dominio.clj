@@ -62,8 +62,38 @@
    "cancelado"  "tomate"
    "falta"      "tomate"})
 
+(def tipo-janela-agenda
+  "O que uma linha de `bloqueios_agenda` significa ([D-024]).
+
+   🔴 **São dois sinais opostos na mesma tabela.** `bloqueio` é proibição —
+   aquele horário não pode receber sessão. `disponivel` é oferta — a psicóloga
+   está anunciando que aquele horário pode. Modelar assim é deliberado: o
+   intervalo (clínica, psicóloga, início, fim) é o mesmo, e tabela nova o
+   duplicaria.
+
+   ⚠️ **E é por isso que toda leitura desta tabela precisa dizer qual dos dois
+   quer.** Até 21/08 toda linha aqui significava proibição, e as duas checagens
+   de conflito do `core.clj` recusavam agendamento diante de qualquer linha.
+   Sem o filtro `tipo = 'bloqueio'`, um horário OFERECIDO passaria a IMPEDIR —
+   a inversão exata, e o sintoma seria uma ausência: sem erro, sem log.
+
+   📌 **Cuidado com o nome.** `disponivel` também é valor de `status-repasse`,
+   e não tem relação nenhuma: lá é dinheiro liberado para o psicólogo, aqui é
+   horário oferecido na agenda. Mesma palavra, duas colunas, dois significados.
+
+   ⚠️ **Não está em `campos-validados` de propósito** — ver o comentário lá."
+  #{"bloqueio" "disponivel"})
+
 (def campos-validados
-  "Campo -> conjunto de valores aceitos."
+  "Campo -> conjunto de valores aceitos, para a validação automática de `validar`.
+
+   ⚠️ **`:tipo` não entra aqui**, embora tenha vocabulário (`tipo-janela-agenda`).
+   O motivo é colisão de nome: `prontuarios.clj` já usa `:tipo` com outro
+   significado (`\"sessao\"`), então uma chave `:tipo` neste mapa passaria a
+   valer para bodies que nada têm a ver com janela de agenda. Hoje `validar` só
+   roda no `atualizar-agendamento`, então o estrago seria zero — mas é zero por
+   acidente, e o dia em que alguém aplicar `validar` num handler de prontuário o
+   defeito aparece longe daqui. O `criar-bloqueio-handler` valida explicitamente."
   {:status           status-sessao
    :status_pagamento status-pagamento
    :status_repasse   status-repasse
