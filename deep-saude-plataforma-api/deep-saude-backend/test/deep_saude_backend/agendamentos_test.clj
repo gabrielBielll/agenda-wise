@@ -112,7 +112,18 @@
   [f]
   (if-let [url (env :test-database-url)]
     (let [ds (jdbc/get-datasource {:jdbcUrl url})]
-      (with-redefs [db/datasource (delay ds)]
+      ;; 🔴 O segredo entra AQUI, e não pela variável de ambiente.
+      ;;
+      ;; O job do backend no CI não define `JWT_SECRET` — só o smoke e o e2e
+      ;; definem. Sem esta linha, `@core/jwt-secret` fica nulo, o
+      ;; `renovar-sessao-handler` cai no próprio `catch` e devolve 500 sem
+      ;; `:token`; o teste então chama `jwt/unsign` com nil e estoura um NPE.
+      ;;
+      ;; ⚠️ E o estrago não é o NPE: é que `lein test` conta isso como **erro**,
+      ;; não como **falha**. Quem ler só "0 failures" lê verde num teste que não
+      ;; rodou. Mesmo padrão do `plataforma_test.clj`, que já resolvia assim.
+      (with-redefs [db/datasource (delay ds)
+                    core/jwt-secret (delay "segredo-apenas-para-agendamentos-test")]
         ;; ⚠️ Antes de qualquer DELETE: confirmar que estamos mesmo no banco de
         ;; teste. Ver exigir-banco-de-teste!.
         (exigir-banco-de-teste! url)
@@ -1055,7 +1066,10 @@
    pelo teste. Usar o `unsign` faz o teste falhar também quando a assinatura
    quebra, que é metade do que ele deveria vigiar."
   [token]
-  (jwt/unsign token (env :jwt-secret)))
+  ;; ⚠️ `@core/jwt-secret`, e não `(env :jwt-secret)`: o handler assina com o
+  ;; primeiro. Ler do ambiente aqui faria o teste conferir com uma chave
+  ;; diferente da que assinou — e passar ou quebrar por motivo errado.
+  (jwt/unsign token @core/jwt-secret))
 
 (deftest renovacao-devolve-token-novo-e-o-teto-recusa-sessao-antiga
   ;; 🔴 Os dois casos no MESMO teste, porque separados nenhum dos dois mede.
