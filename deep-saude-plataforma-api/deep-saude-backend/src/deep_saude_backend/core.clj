@@ -389,6 +389,31 @@
       (log/error e "login_password_hash_unreadable")
       false)))
 
+(def ^:private duracao-do-token-s
+  "Quanto vale um token do backend: 1 hora.
+
+   ⚠️ **Curto de propósito, e agora renovável.** Até 21/08 não havia renovação
+   nenhuma — o front guardava o token no login e nunca o atualizava. Passada a
+   hora, o middleware do Next expulsava para o login **em toda navegação**.
+
+   O Gabriel relatou assim: *\"eu fui logar e quando clico na agenda toda vez a
+   aplicação me faz voltar para a tela de login\"*. Não era ambiente local: uma
+   psicóloga num dia de trabalho era derrubada de hora em hora, no meio do que
+   estivesse fazendo."
+  3600)
+
+(def ^:private teto-da-sessao-s
+  "🔴 O teto que impede a renovação de virar sessão eterna.
+
+   Renovar sem teto transforma um token roubado em acesso permanente: bastaria
+   renovar antes de cada expiração. Com o teto, o carimbo `sessao_iniciada_em`
+   viaja de renovação em renovação e, passadas 12 h, a renovação é recusada e um
+   login de verdade é exigido.
+
+   📌 12 h cobre um dia de trabalho inteiro sem interromper ninguém, e ainda
+   assim obriga a credencial a reaparecer uma vez por dia."
+  (* 12 3600))
+
 (defn login-handler [request]
   (let [{:keys [email senha]} (:body request)
         ;; Contador por IP+e-mail, liberado no sucesso (ver mais abaixo).
@@ -414,7 +439,13 @@
                               ;; `boolean` porque a coluna pode vir nil de linha
                               ;; criada antes da migration.
                               :plataforma_admin (boolean (:plataforma_admin usuario))
-                              :exp        (-> (java.time.Instant/now) (.plusSeconds 3600) .getEpochSecond)}
+                              ;; 🔴 Quando a SESSÃO começou — não quando este token
+                              ;; foi emitido. É o que permite renovar o token sem
+                              ;; deixar a sessão viva para sempre: a renovação
+                              ;; carrega este carimbo adiante e recusa depois do
+                              ;; teto. Ver `renovar-sessao-handler`.
+                              :sessao_iniciada_em (.getEpochSecond (java.time.Instant/now))
+                              :exp        (-> (java.time.Instant/now) (.plusSeconds duracao-do-token-s) .getEpochSecond)}
                       token (jwt/sign claims @jwt-secret)]
                   {:status 200 :body {:message "Usuário autenticado com sucesso."
                                       :token   token
@@ -585,9 +616,27 @@
 (defn criar-paciente-handler [request]
   (let [clinica-id (get-in request [:identity :clinica_id])
         ;; Extrair o novo campo psicologo_id e campos clínicos
-        {:keys [nome email telefone data_nascimento endereco avatar_url psicologo_id historico_familiar uso_medicamentos diagnostico contatos_emergencia status]} (:body request)]
+        {:keys [nome email telefone data_nascimento endereco avatar_url psicologo_id historico_familiar uso_medicamentos diagnostico contatos_emergencia status
+                cpf cep logradouro numero complemento bairro cidade uf]} (:body request)
+        ;; 🔴 Só dígitos, sempre. O banco tem CHECK e UNIQUE sobre a forma
+        ;; limpa — máscara aqui viraria dois cadastros para a mesma pessoa,
+        ;; porque `123.456.789-09` e `12345678909` não colidem no UNIQUE.
+        cpf-limpo (not-empty (dominio/digitos cpf))
+        cep-limpo (not-empty (dominio/digitos cep))]
     (cond
-      ;; ... (validações existentes) ...
+      ;; ⚠️ O CPF é conferido pelos DÍGITOS VERIFICADORES, não pelo formato.
+      ;; Formato certo com dígito errado é o caso comum de digitação trocada, e
+      ;; é justamente o que uma checagem de formato deixa passar.
+      (and cpf-limpo (not (dominio/cpf-valido? cpf-limpo)))
+      {:status 422 :body {:erro "CPF inválido — confira os números."
+                          :code "cpf_invalido"}}
+
+      ;; O ViaCEP diz se o CEP EXISTE; aqui só conferimos se tem forma de CEP.
+      ;; O servidor não pode depender de API de terceiro para aceitar cadastro:
+      ;; com o ViaCEP fora, a psicóloga ainda precisa salvar a paciente.
+      (not (dominio/cep-valido? cep))
+      {:status 422 :body {:erro "CEP deve ter 8 dígitos." :code "cep_invalido"}}
+
       :else
       (let [novo-paciente (sql/insert! @datasource :pacientes
                                        {:clinica_id      clinica-id
@@ -604,6 +653,14 @@
                                         :uso_medicamentos   uso_medicamentos
                                         :diagnostico        diagnostico
                                         :contatos_emergencia contatos_emergencia
+                                        :cpf             cpf-limpo
+                                        :cep             cep-limpo
+                                        :logradouro      (dominio/texto-de-formulario logradouro)
+                                        :numero          (dominio/texto-de-formulario numero)
+                                        :complemento     (dominio/texto-de-formulario complemento)
+                                        :bairro          (dominio/texto-de-formulario bairro)
+                                        :cidade          (dominio/texto-de-formulario cidade)
+                                        :uf              (some-> (dominio/texto-de-formulario uf) str/upper-case)
                                         :status             (or status "ativo")} ; Adicionar novos campos
                                        {:builder-fn rs/as-unqualified-lower-maps :return-keys true})]
         {:status 201, :body novo-paciente}))))
@@ -645,7 +702,12 @@
         usuario-id (:user_id identity)
         papel (:role identity)
         paciente-id (java.util.UUID/fromString (get-in request [:params :id]))
-        {:keys [nome email telefone data_nascimento endereco avatar_url psicologo_id historico_familiar uso_medicamentos diagnostico contatos_emergencia status nota_fiscal origem vencimento_pagamento tipo_pagamento]} (:body request)]
+        {:keys [nome email telefone data_nascimento endereco avatar_url psicologo_id historico_familiar uso_medicamentos diagnostico contatos_emergencia status nota_fiscal origem vencimento_pagamento tipo_pagamento
+                cpf cep logradouro numero complemento bairro cidade uf]} (:body request)
+        ;; Mesma limpeza da criação. Máscara aqui viraria dois cadastros para a
+        ;; mesma pessoa — o UNIQUE do banco é sobre a forma limpa.
+        cpf-limpo (when (some? cpf) (not-empty (dominio/digitos cpf)))
+        cep-limpo (when (some? cep) (not-empty (dominio/digitos cep)))]
     
     ;; Verificação de Propriedade para Psicólogos
     (if (and (= papel "psicologo")
@@ -655,6 +717,24 @@
       (cond
         (and (some? nome) (str/blank? nome))
         {:status 400 :body {:erro "O campo nome não pode estar em branco."}}
+
+        ;; ⚠️ Mesmas guardas da criação, e repetidas de propósito. Este é o
+        ;; SEGUNDO caminho que grava CPF, e a assimetria entre dois caminhos —
+        ;; um validado, outro não — é o defeito que este projeto já pagou mais de
+        ;; uma vez ("dois caminhos, um consertado").
+        (and cpf-limpo (not (dominio/cpf-valido? cpf-limpo)))
+        {:status 422 :body {:erro "CPF inválido — confira os números." :code "cpf_invalido"}}
+
+        (and (some? cep) (not (dominio/cep-valido? cep)))
+        {:status 422 :body {:erro "CEP deve ter 8 dígitos." :code "cep_invalido"}}
+
+        ;; O UNIQUE do banco recusaria de qualquer forma, mas com erro de driver.
+        ;; Aqui a recusa sai legível e diz de quem é o CPF conflitante.
+        (and cpf-limpo
+             (execute-one! ["SELECT id FROM pacientes WHERE cpf = ? AND clinica_id = ? AND id != ?"
+                            cpf-limpo clinica-id paciente-id]))
+        {:status 409 :body {:erro "Este CPF já está cadastrado em outro paciente desta clínica."
+                            :code "cpf_duplicado"}}
 
         (and email (not (str/blank? email)) 
              (execute-one! ["SELECT id FROM pacientes WHERE email = ? AND clinica_id = ? AND id != ?" email clinica-id paciente-id]))
@@ -667,6 +747,14 @@
                            (some? telefone) (assoc :telefone telefone)
                            (some? data_nascimento) (assoc :data_nascimento (dominio/data-de-formulario data_nascimento))
                            (some? endereco) (assoc :endereco endereco)
+                           (some? cpf) (assoc :cpf cpf-limpo)
+                           (some? cep) (assoc :cep cep-limpo)
+                           (some? logradouro) (assoc :logradouro (dominio/texto-de-formulario logradouro))
+                           (some? numero) (assoc :numero (dominio/texto-de-formulario numero))
+                           (some? complemento) (assoc :complemento (dominio/texto-de-formulario complemento))
+                           (some? bairro) (assoc :bairro (dominio/texto-de-formulario bairro))
+                           (some? cidade) (assoc :cidade (dominio/texto-de-formulario cidade))
+                           (some? uf) (assoc :uf (some-> (dominio/texto-de-formulario uf) str/upper-case))
                            (some? avatar_url) (assoc :avatar_url avatar_url)
                            (some? historico_familiar) (assoc :historico_familiar historico_familiar)
                            (some? uso_medicamentos) (assoc :uso_medicamentos uso_medicamentos)
@@ -1599,6 +1687,91 @@
       
       {:status 200 :body bloqueios})))
 
+(defn atualizar-bloqueio-handler
+  "Edita uma janela de agenda que já existe — período, motivo e tipo.
+
+   🔴 **Por que uma rota própria, e não apagar-e-recriar pelo front.**
+
+   Até 21/08 só havia criar, listar e remover. Editar do lado do cliente seria
+   um DELETE seguido de um POST: se o segundo falhasse — rede caindo, 409 de
+   conflito, qualquer coisa —, a janela simplesmente sumiria da agenda da
+   psicóloga, e ela só descobriria quando alguém não conseguisse marcar. Perda
+   silenciosa de dado por causa de uma edição.
+
+   ⚠️ **A recusa por sessão marcada vale só para o BLOQUEIO**, como na criação:
+   fechar por cima de uma sessão é contradição; oferecer um intervalo que contém
+   sessão não é. Repetir a regra aqui não é duplicação — é a mesma decisão da
+   D-024 aplicada ao segundo caminho, e o teste cobre os dois.
+
+   📌 O dono é conferido como no `remover-bloqueio-handler`: admin e secretário
+   alcançam a clínica inteira, psicóloga alcança só a própria agenda."
+  [request]
+  (try
+    (let [clinica-id (get-in request [:identity :clinica_id])
+          usuario-id (get-in request [:identity :user_id])
+          papel (get-in request [:identity :role])
+          bloqueio-id (java.util.UUID/fromString (get-in request [:params :id]))
+          {:keys [data_inicio data_fim motivo tipo]} (:body request)
+          query (if (or (= papel "admin_clinica") (= papel "secretario"))
+                  ["SELECT id, psicologo_id, tipo FROM bloqueios_agenda WHERE id = ? AND clinica_id = ?" bloqueio-id clinica-id]
+                  ["SELECT id, psicologo_id, tipo FROM bloqueios_agenda WHERE id = ? AND clinica_id = ? AND psicologo_id = ?" bloqueio-id clinica-id usuario-id])
+          atual (execute-one! query)]
+      (cond
+        (nil? atual)
+        {:status 404 :body {:erro "Janela não encontrada ou você não tem permissão."}}
+
+        (or (nil? data_inicio) (nil? data_fim))
+        {:status 400 :body {:erro "data_inicio e data_fim são obrigatórios."}}
+
+        :else
+        (let [;; Tipo ausente MANTÉM o que já estava. Trocar por `bloqueio` no
+              ;; silêncio faria uma edição de horário virar mudança de
+              ;; significado — a janela liberada viraria proibição sem ninguém
+              ;; pedir.
+              tipo-novo (or (not-empty (str/trim (or tipo ""))) (:tipo atual) "bloqueio")]
+          (if-not (contains? dominio/tipo-janela-agenda tipo-novo)
+            {:status 422 :body {:erro (str "Valor inválido para tipo: '" tipo-novo
+                                           "'. Aceitos: bloqueio, disponivel.")
+                                :code "tipo_invalido"}}
+            (let [fuso (fuso-da-clinica clinica-id)
+                  ;; A MESMA conversão que a criação usa (`gerar-intervalos-bloqueio`).
+                  ;; Inventar outra aqui seria abrir espaço para as duas rotas
+                  ;; discordarem sobre que instante é "18:00" — que é a família de
+                  ;; defeito que o PR #7 inteiro passou consertando.
+                  inicio (tempo/->sql (tempo/parse-instante data_inicio fuso))
+                  fim    (tempo/->sql (tempo/parse-instante data_fim fuso))
+                  conflitos (when (= tipo-novo "bloqueio")
+                              (execute-query!
+                               ["SELECT id, data_hora_sessao, COALESCE(duracao, 50) AS duracao
+                                   FROM agendamentos
+                                  WHERE clinica_id = ?
+                                    AND psicologo_id = ?
+                                    AND status != 'cancelado'
+                                    AND data_hora_sessao < ?
+                                    AND (data_hora_sessao + (COALESCE(duracao, 50) * interval '1 minute')) > ?"
+                                clinica-id (:psicologo_id atual) fim inicio]))]
+              (if (seq conflitos)
+                {:status 409
+                 :body {:erro "Não é possível bloquear: há sessões marcadas no período."
+                        :code "session_conflict"
+                        :sessoes (mapv (fn [{:keys [id data_hora_sessao duracao]}]
+                                         {:id id
+                                          :data_hora_sessao
+                                          (.format (tempo/->zdt data_hora_sessao fuso)
+                                                   java.time.format.DateTimeFormatter/ISO_OFFSET_DATE_TIME)
+                                          :duracao duracao})
+                                       conflitos)}}
+                (do
+                  (sql/update! @datasource :bloqueios_agenda
+                               {:data_inicio inicio :data_fim fim
+                                :motivo motivo :tipo tipo-novo}
+                               {:id bloqueio-id})
+                  {:status 200 :body {:mensagem "Janela atualizada com sucesso."
+                                      :tipo tipo-novo}})))))))
+    (catch Exception e
+      (log/error e "schedule_block_update_failed")
+      {:status 500 :body {:erro "Erro interno."}})))
+
 (defn remover-bloqueio-handler [request]
   (let [clinica-id (get-in request [:identity :clinica_id])
         usuario-id (get-in request [:identity :user_id])
@@ -1643,6 +1816,43 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Definição das Rotas e Aplicação Principal
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(defn renovar-sessao-handler
+  "Devolve um token novo para quem já tem um VÁLIDO.
+
+   🔴 Esta rota vive dentro de `protected-routes`, então o
+   `wrap-jwt-autenticacao` já recusou token expirado ou com assinatura errada
+   antes de chegar aqui. Ela **não** renova o que já morreu — quem deixou expirar
+   entra de novo. Isso é deliberado: aceitar token expirado faria a expiração não
+   significar nada.
+
+   ⚠️ E os claims saem do `:identity`, não do corpo da requisição. Ler papel ou
+   `clinica_id` do que o cliente manda seria deixar o cliente escolher o próprio
+   privilégio — a mesma família da SEC-005, que já custou um `admin_clinica`
+   decidido por string no front."
+  [request]
+  (try
+    (let [{:keys [user_id clinica_id papel_id role plataforma_admin sessao_iniciada_em]} (:identity request)
+          agora (.getEpochSecond (java.time.Instant/now))
+          inicio (or sessao_iniciada_em agora)
+          idade (- agora inicio)]
+      (if (> idade teto-da-sessao-s)
+        {:status 401 :body {:erro "Sessão muito antiga. Entre novamente."
+                            :code "sessao_expirada_no_teto"}}
+        (let [claims {:user_id    (str user_id)
+                      :clinica_id (str clinica_id)
+                      :papel_id   (str papel_id)
+                      :role       role
+                      :plataforma_admin (boolean plataforma_admin)
+                      ;; 📌 O carimbo ORIGINAL viaja adiante. Renovar reiniciando
+                      ;; a contagem seria o mesmo que não ter teto nenhum.
+                      :sessao_iniciada_em inicio
+                      :exp (+ agora duracao-do-token-s)}]
+          {:status 200 :body {:token (jwt/sign claims @jwt-secret)
+                              :expira_em (+ agora duracao-do-token-s)}})))
+    (catch Exception e
+      (log/error e "token_renewal_failed")
+      {:status 500 :body {:erro "Erro interno."}})))
+
 (defroutes public-routes
   ;; Rotas públicas são as únicas alcançáveis sem token — e por isso as únicas
   ;; onde força bruta é possível. O limite é por IP; no login, também por
@@ -1720,6 +1930,7 @@
   (POST "/verificar-conflitos" request (wrap-jwt-autenticacao verificar-conflitos-handler))
   (POST "/" request (wrap-jwt-autenticacao criar-bloqueio-handler))
   (GET  "/" request (wrap-jwt-autenticacao listar-bloqueios-handler))
+  (PUT    "/:id" request (wrap-jwt-autenticacao atualizar-bloqueio-handler))
   (DELETE "/:id" request (wrap-jwt-autenticacao remover-bloqueio-handler)))
 
 ;; ROTAS DA INTEGRAÇÃO COM GOOGLE AGENDA
@@ -1748,6 +1959,9 @@
   (PUT  "/agendas/:id/pausa"     request (wrap-checar-permissao google/pausar-handler "gerenciar_integracao_google")))
 
 (defroutes protected-routes
+  ;; A renovação vem antes de tudo: é a rota que mantém a sessão viva, e ela não
+  ;; depende de papel nenhum — quem tem token válido pode renovar o próprio.
+  (POST   "/api/auth/renovar" request (wrap-jwt-autenticacao renovar-sessao-handler))
   (GET    "/api/me" request (wrap-jwt-autenticacao obter-perfil-proprio-handler))
   (PUT    "/api/me" request (wrap-jwt-autenticacao atualizar-perfil-proprio-handler))
   (POST   "/api/usuarios" request (wrap-checar-permissao criar-usuario-handler "gerenciar_usuarios"))

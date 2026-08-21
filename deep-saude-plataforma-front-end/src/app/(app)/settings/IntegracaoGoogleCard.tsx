@@ -180,7 +180,9 @@ export default function IntegracaoGoogleCard() {
                 onClick={() =>
                   iniciar(async () => {
                     const r = await conectarMinhaAgenda();
-                    if (r.ok) {
+                    // `r` vem `undefined` se a sessão expirou e o middleware
+                    // redirecionou a action — ver o comentário no SinoDeConfirmacoes.
+                    if (r?.ok) {
                       window.location.href = r.url;
                       return;
                     }
