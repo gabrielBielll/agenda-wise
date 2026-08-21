@@ -6,11 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label"; // Ensure this exists or use standard label
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectSeparator, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { createProntuario, updateProntuario, type FormState } from "./actions";
 import { useToast } from "@/hooks/use-toast";
-import { FileText, X, Save } from "lucide-react";
+import { ChevronDown, FileText, X, Save } from "lucide-react";
 import ProntuarioDataViewer from "./ProntuarioDataViewer";
+import { ordenarDaMaisRecente, janelaInicial, SESSOES_POR_PAGINA } from "@/lib/janela-sessoes";
 
 // Fallback if Label component doesn't exist (it usually does in shadcn)
 // import { Label } from "@/components/ui/label";
@@ -93,6 +94,20 @@ export default function ProntuarioForm({
   const [campos, setCampos] = React.useState(vazio);
   const mudar = (nome: keyof typeof vazio) => (e: React.ChangeEvent<HTMLTextAreaElement>) =>
     setCampos((c) => ({ ...c, [nome]: e.target.value }));
+
+  /**
+   * A lista de sessões, paginada — o ponto que o Gabriel levantou em 21/08.
+   *
+   * A lista vinha inteira: nove linhas hoje, centenas num paciente de anos.
+   * As regras (ordem e tamanho da janela) estão em `@/lib/janela-sessoes`
+   * porque uma delas evita um defeito SILENCIOSO que só aparece ao editar uma
+   * evolução antiga — e regra dentro do JSX só se exercita clicando.
+   */
+  const sessoes = React.useMemo(() => ordenarDaMaisRecente(appointments), [appointments]);
+  const [sessoesVisiveis, setSessoesVisiveis] = React.useState(
+    () => janelaInicial(sessoes, initialData?.agendamento_id)
+  );
+  const sessoesRestantes = Math.max(0, sessoes.length - sessoesVisiveis);
 
   // Decide which action to use properly
   const isEditing = !!initialData?.id;
@@ -203,11 +218,40 @@ export default function ProntuarioForm({
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="none">Nenhuma</SelectItem>
-                                {appointments.map((apt) => (
+                                {sessoes.slice(0, sessoesVisiveis).map((apt) => (
                                     <SelectItem key={apt.id} value={apt.id}>
                                         {new Date(apt.data_hora_sessao).toLocaleString('pt-BR')} - {apt.tipo || 'Sessão'}
                                     </SelectItem>
                                 ))}
+                                {sessoesRestantes > 0 && (
+                                    <>
+                                        <SelectSeparator />
+                                        {/*
+                                          Botão, e não `SelectItem`: o Radix FECHA a lista quando um
+                                          item é escolhido, então "carregar mais" como item obrigaria a
+                                          reabrir e reencontrar o ponto a cada dez sessões.
+
+                                          ⚠️ O preço, medido no fonte do Radix e NÃO em navegador: o
+                                          `onKeyDown` do `Select.Content` cancela o Tab e as setas só
+                                          percorrem itens da coleção — então este botão é alcançável por
+                                          MOUSE, não por teclado. Quem navega por teclado ainda chega às
+                                          dez primeiras e à sessão já vinculada; às mais antigas, não.
+
+                                          `type="button"` é cinto e suspensório: o portal do Radix hoje
+                                          tira este nó de dentro do `<form>` no DOM, mas isso é detalhe
+                                          de implementação do portal, não garantia nossa — e `<button>`
+                                          sem tipo é `submit`.
+                                        */}
+                                        <button
+                                            type="button"
+                                            onClick={() => setSessoesVisiveis((n) => n + SESSOES_POR_PAGINA)}
+                                            className="flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-sm font-medium text-primary outline-none transition-colors hover:bg-primary/10 focus:bg-primary/10"
+                                        >
+                                            <ChevronDown className="h-4 w-4" />
+                                            Carregar mais antigas ({sessoesRestantes})
+                                        </button>
+                                    </>
+                                )}
                             </SelectContent>
                         </Select>
                     </div>
