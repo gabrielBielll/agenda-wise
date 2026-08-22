@@ -55,7 +55,7 @@ quantidade de código adianta isso.
 
 | | O quê | Observação |
 |---|---|---|
-| 1 | Projeto no Google Cloud + **tela de consentimento em Produção** | não em *Testing* |
+| 1 | Projeto no Google Cloud + **tela de consentimento em Produção** | não em *Testing*. 🔴 O **nome do app** ali é **"Agenda Wise"** — é o que a psicóloga lê ao autorizar ([D-025](../mensageria/DECISOES.md)) |
 | 2 | **Os três escopos, na primeira submissão** | ver abaixo |
 | 3 | 🔴 **Domínio próprio, verificado** | *.code.run do Northflank **não** serve |
 | 4 | 🔴 **Página inicial e política de privacidade** publicadas nesse domínio | requisito da verificação para escopo sensível |
@@ -74,6 +74,29 @@ https://www.googleapis.com/auth/calendar.app.created             ← Modelo B
 📌 **Peça os três já na primeira submissão** (D14), inclusive o do Modelo B que
 não vamos implementar agora: **pedir escopo novo depois reabre a verificação
 inteira**.
+
+### 🔴 2026-08-22 — são **QUATRO**, não três: falta o `calendar.acls` ([D-026](../mensageria/DECISOES.md))
+
+```
+https://www.googleapis.com/auth/calendar.acls                    ← compartilhar com a clínica
+```
+
+**Medido em 22/08 no *discovery document* oficial** (`revision: 20260812`): o
+`calendar.app.created` **NÃO** autoriza `acl.insert` — esse método só aceita
+`calendar` (amplo) ou `calendar.acls`.
+
+📌 **Caso de controle, que é o que dá valor à medição:** `calendars.insert` e
+`events.insert` **aceitam** o `app.created`. Se a leitura estivesse errada, eles
+teriam vindo sem — e vieram com. O `não` do `acl.insert` é medição, não
+impressão. A tabela completa está na §8.1 da [spec](GOOGLE_CALENDAR_SPEC.md).
+
+🔴 **Sem esse escopo o GC-013 não consegue compartilhar a agenda com a conta da
+clínica**, e sem o compartilhamento a D-026 inteira não acontece. **Na primeira
+submissão** — pedir depois reabre a verificação, que leva semanas.
+
+⚠️ **Não medido, e é do console:** como o Google **classifica** esse escopo na
+verificação. O discovery diz quais métodos o escopo abre; **não** diz o que a
+revisão exige por causa dele. Quem tem a tela confirma.
 
 🔎 **Os itens 3 e 4 são os que costumam surpreender**, e não estavam escritos em
 lugar nenhum deste repositório até hoje: escopo de calendário é **sensível**, e
@@ -101,11 +124,35 @@ descartado como destino.
 `gerenciar_integracao_google` é do admin e assim continua.
 
 ### GC-013 · provisionar a agenda no ato da conexão — `duna`
-Conectou → o app **cria** a agenda "Deep Saúde" na conta dela e grava o
+Conectou → o app **cria** a agenda **"Agenda Wise"** na conta dela e grava o
 `vinculo_agenda` com `topologia = modelo_c`.
+🔴 **O nome é do produto, não da empresa** ([D-025](../mensageria/DECISOES.md)): quem lê esse nome é a
+psicóloga, na lista de agendas dela. "Deep Saúde" é a dona do Agenda Wise e uma
+clínica que o usa — nada disso significa alguma coisa para ela.
+⚠️ **E este nome tem prazo.** A agenda nasce **dentro da conta Google de uma pessoa
+real**; depois de criada, mudar o nome é passar em cada conta, uma por uma. Errar
+aqui não sai caro hoje — sai caro por psicóloga, depois.
 ⚠️ **Chamada de rede não cabe em transação de banco:** gravar a intenção primeiro,
 chamar a API, confirmar. Se morrer no meio, sobra agenda sem vínculo — e isso é
 reconciliável por `calendarList.list`.
+
+🔴 **2026-08-22 — o cartão ganhou um segundo passo, pela [D-026](../mensageria/DECISOES.md):** criar a
+agenda **não basta**. Logo depois do `calendars.insert`, o app faz `acl.insert`
+concedendo **`writer` à conta da clínica** — e **a mais ninguém**.
+📌 **É esse passo que entrega o isolamento que o Gabriel pediu.** A agenda de cada
+psi tem na ACL só ela e a clínica, então **psi A nunca alcança a agenda de psi
+B** — e isso continua verdadeiro com a plataforma desligada, que é o ponto.
+📌 **E é ele que substitui o compartilhamento manual de hoje**, onde a psi pode
+escolher `reader` em vez de `writer`, compartilhar a agenda pessoal por engano,
+ou descompartilhar depois e matar a integração em silêncio (A-013).
+🔴 **Depende do escopo `calendar.acls`** — ver GC-000 acima. Sem ele, este passo
+não roda.
+⚠️ **Duas chamadas de rede, não uma, e sem transação que as una:** se a segunda
+falhar, sobra agenda criada **sem** a clínica dentro. Isso **não** pode ficar
+silencioso — é o estado que faz a clínica não ver nada e ninguém saber por quê.
+Reconciliável por `acl.list` (escopo `calendar.acls.readonly`), que de quebra é o
+sinal de saúde **por efeito** do `sem_acesso`: *"a clínica ainda está na ACL"*, em
+vez de *"a última chamada devolveu 200"*.
 
 ### GC-001 muda de plateia
 Deixa de ser **tela do admin mapeando agendas** e passa a ser **botão da psicóloga
@@ -214,6 +261,41 @@ Conflito de escrita concorrente. ⚠️ Pela **R-019**, a plataforma ganha do Go
 ---
 
 ## Trilha C — leitura, Google → plataforma · **a Fase 3, e a mais perigosa**
+
+### 🔴 2026-08-22 — deixou de ser opcional: é **requisito funcional** pela [D-026](../mensageria/DECISOES.md)
+
+**Esta trilha estava descrita como fase posterior. Não é mais.** O Gabriel ditou
+um requisito que não estava escrito em lugar nenhum do repositório: com a
+plataforma fora do ar, a clínica continua vendo e editando as agendas pelo Google
+comum, e **quando a plataforma volta ela ressincroniza** — nas palavras dele,
+*"vamos ter que criar essa parte de ressincronizar a agenda **de forma funcional
+sim**"*.
+
+📌 **A consequência é de definição de pronto, não de prioridade.** A leitura
+inbound e a reconciliação (**GC-006, GC-007, GC-009** aqui, e o **bloco 2 —
+GC-019…GC-023** em [GOOGLE_CORES_E_RECONCILIACAO](GOOGLE_CORES_E_RECONCILIACAO.md)) passam a ser parte do que faz a
+integração **estar pronta**. **A funcionalidade não está pronta sem elas** — dizer
+"pronto" com a Trilha B no ar e a C por fazer seria mais um sinal verde que não
+verificou nada.
+
+⚠️ **Por que a queda sem a volta é pior que não ter integração:** enquanto a
+plataforma esteve fora, gente editou o Google. Sem a leitura de volta, esse
+trabalho **some** quando a plataforma retorna — e a "não dependência" que o
+requisito compra vira uma promessa que o produto não cumpre.
+
+✅ **A ordem recomendada no fim deste arquivo continua certa e não muda:** a
+Trilha C vem depois da B, porque ela lê o que a B escreve e **testar leitura sem
+escrita é inventar dado**. O que mudou é o **status** — de "se der tempo" para
+obrigatória —, não a **sequência**.
+
+🔴 **A D-026 também abre um buraco no desenho da §7 de [GOOGLE_CORES_E_RECONCILIACAO](GOOGLE_CORES_E_RECONCILIACAO.md)**,
+e quem pegar GC-021/GC-022 precisa ler antes: aquele desenho limita a janela de
+reconciliação **perguntando à psi qual agenda fica no comando** no instante da
+queda — e pressupõe a plataforma de pé para perguntar. No cenário da D-026 **a
+plataforma é o que caiu**, então a janela `[queda, volta]` tem de ser **deduzida
+na volta** (espelho do GC-019 + `updated_at` do GC-020), não declarada na hora.
+
+---
 
 🔴 **A regra que governa a trilha inteira: [D-011](../mensageria/DECISOES.md) + R-018 — o Google
 propõe, a plataforma registra.** Toda leitura vira **proposta**, nunca escrita
@@ -328,7 +410,10 @@ A ordem que eu proponho, quando as filas abrirem:
    independente do backend e fecha a Fase 1;
 3. **Trilha B inteira** com a `duna`, depois da A-014/A-015/ROB-008;
 4. **Trilha C** só depois da B estar de pé — ela lê o que a B escreve, e testar
-   leitura sem escrita é inventar dado;
+   leitura sem escrita é inventar dado.
+   🔴 **A ordem continua esta; o que mudou é que ela não é mais opcional** —
+   pela [D-026](../mensageria/DECISOES.md) a leitura e a ressincronização são **requisito funcional**, e a
+   integração não está pronta sem elas. *Depois* não virou *talvez*;
 5. **Trilha D** por último, com a renovação do canal **junto**, nunca depois.
 
 🔎 **Tamanho honesto:** as trilhas B, C e D somadas são maiores que tudo o que

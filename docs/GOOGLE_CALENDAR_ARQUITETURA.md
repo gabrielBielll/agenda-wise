@@ -5,7 +5,7 @@
 
 ## Como ler este documento
 
-A spec original foi escrita sem acesso ao repositório. Ela propõe um modelo de dados greenfield (`serie_sessao`, `sessao`, `vinculo_agenda`). O Deep Saúde já tem `agendamentos`, `recorrencia_id`, `bloqueios_agenda` — e um módulo financeiro em cima disso.
+A spec original foi escrita sem acesso ao repositório. Ela propõe um modelo de dados greenfield (`serie_sessao`, `sessao`, `vinculo_agenda`). O Agenda Wise já tem `agendamentos`, `recorrencia_id`, `bloqueios_agenda` — e um módulo financeiro em cima disso.
 
 Este documento faz três coisas:
 
@@ -547,7 +547,9 @@ Além do que a spec 7 já cobre:
 
 - **Permissão nova, não bypass de admin.** Criar `gerenciar_integracao_google` em `permissoes` e proteger as rotas de vínculo com `wrap-checar-permissao`. Não depender do bypass global de admin, que [SEC-006](cards/sprint-1-security/SEC-006-rbac-granular-admin.md) vai remover.
 - **Chave de criptografia do refresh token** em Secrets Manager ([AWS-006](cards/aws-migration/AWS-006-secrets-manager.md)), nunca em env var no repo — ver [SEC-002](cards/sprint-1-security/SEC-002-rotacionar-credenciais.md).
-- **`summary` sem nome de paciente.** `pacientes.nome` nunca vai para o Google. Padrão: `"Sessão — A.P."`. O evento aparece em notificação de tela bloqueada e para quem tem acesso de leitura à agenda, incluindo secretaria. Em contexto clínico é quebra de sigilo, não detalhe de UX.
+- 🔴 **`summary`: SUPERADO quanto à regra pela [D-026](../mensageria/DECISOES.md) (22/08).** O título **leva** o nome do paciente — vale a **R-017**, que é regra do Gabriel, e esta linha era recomendação da `orla` que a contradizia sem citá-la. Motivo: a D-026 exige a agenda do Google **operável sem a plataforma**, e `"Sessão — A.P."` é ilegível para quem não tem a plataforma para decodificar. **Ver §7 da spec, que tem o veredito linha a linha e a pergunta aberta sobre a secretária.**
+  ⚠️ **O texto original fica aqui, porque o alerta continua verdadeiro — ele deixou de decidir, não de valer:** *"`pacientes.nome` nunca vai para o Google. Padrão: `\"Sessão — A.P.\"`. O evento aparece em notificação de tela bloqueada e para quem tem acesso de leitura à agenda, incluindo secretaria. Em contexto clínico é quebra de sigilo, não detalhe de UX."*
+  📌 **O que NÃO mudou:** prontuário e valor continuam **só na plataforma**. O título passou; o prontuário não passa.
 - **Logs.** [SEC-009](cards/sprint-1-security/SEC-009-remover-logs-sensíveis.md) já pede remoção de PII dos logs. O caminho do Google não pode reintroduzir: nada de `println` de payload de evento, e nunca de token.
 - **Isolamento multi-tenant.** Toda query do caminho de sync precisa de `clinica_id`. Um bug aqui vaza agenda entre clínicas — ver [LGPD RLS](cards/sprint-6-lgpd/).
 

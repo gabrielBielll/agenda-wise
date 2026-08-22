@@ -1,11 +1,11 @@
-# Deep Saúde Platform - Project Status & Context
+# Agenda Wise — Project Status & Context
 
 > Last Updated: 2026-01-26
 > Status: MVP Completed (Medical Records & Financeiro Ready)
 
 ## 1. Project Overview
 
-**Deep Saúde** is a management platform for Psychology Clinics.
+**Agenda Wise** is a management platform for Psychology Clinics. (Deep Saúde is the company that owns it — and one of the clinics that use it.)
 
 - **Frontend**: Next.js 15 (App Router), TailwindCSS, Shadcn/ui.
 - **Backend**: Clojure (Ring/Compojure), PostgreSQL (JDBC), JWT Authentication.

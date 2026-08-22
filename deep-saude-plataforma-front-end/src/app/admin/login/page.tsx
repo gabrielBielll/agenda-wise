@@ -117,7 +117,7 @@ export default function AdminLoginPage() {
         <div className="mb-4 flex justify-center">
             <span className="grid h-14 w-14 place-items-center rounded-[18px_18px_18px_6px] bg-accent text-accent-foreground shadow-[var(--quiet-shadow-soft)]"><Leaf className="h-6 w-6" /></span>
         </div>
-        <p className="page-eyebrow">Deep Saúde</p>
+        <p className="page-eyebrow">Agenda Wise</p>
         <CardTitle className="text-3xl">Acesso administrativo</CardTitle>
         <CardDescription>
           Entre para cuidar da operação da clínica.

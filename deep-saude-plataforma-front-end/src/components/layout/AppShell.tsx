@@ -44,7 +44,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const isCalendar = pathname.startsWith('/calendar');
   const activeItem = navItems.find(item => pathname.startsWith(item.href))
     ?? (pathname.startsWith('/settings') ? { label: 'Preferências' } : undefined);
-  const userName = session?.user?.name || 'Profissional AgendaWise';
+  const userName = session?.user?.name || 'Profissional Agenda Wise';
   const userEmail = session?.user?.email || 'Psicóloga clínica';
   const userInitials = userName.split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]).join('').toUpperCase() || 'AW';
 
@@ -97,7 +97,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <header className="sticky top-0 z-30 flex h-[86px] items-center justify-between border-b border-border/30 bg-background/75 px-4 backdrop-blur-xl sm:px-7 lg:px-10">
           <div>
             <span className="page-eyebrow">ESPAÇO DE CUIDADO</span>
-            <h1 className="mt-1 font-headline text-2xl font-normal tracking-[-.02em]">{activeItem?.label || 'AgendaWise'}</h1>
+            <h1 className="mt-1 font-headline text-2xl font-normal tracking-[-.02em]">{activeItem?.label || 'Agenda Wise'}</h1>
           </div>
           <div className="flex items-center gap-2.5">
             {/* TODO(global-search): ligar ao endpoint de pacientes e abrir uma command palette

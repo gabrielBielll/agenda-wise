@@ -14,7 +14,7 @@ test('nome salvo nas preferências aparece na saudação', async ({ page }) => {
   await expect(name).toBeVisible();
   await name.fill('Aurora Nogueira');
   await page.getByRole('button', { name: 'Salvar preferências' }).click();
-  await expect(page.getByText('Seu nome foi atualizado em toda a AgendaWise.', { exact: true })).toBeVisible();
+  await expect(page.getByText('Seu nome foi atualizado em toda a Agenda Wise.', { exact: true })).toBeVisible();
   await page.reload();
   await expect(page.getByLabel('Nome de Exibição')).toHaveValue('Aurora Nogueira');
 

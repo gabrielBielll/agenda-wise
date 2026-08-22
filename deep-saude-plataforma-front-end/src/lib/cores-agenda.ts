@@ -61,7 +61,7 @@ export const NOMES_DE_COR: Record<string, string> = {
 export type CoresEscolhidas = Record<string, string>;
 
 /**
- * O "Padrão Deep Saúde": a cor de cada estado quando a clínica não escolheu.
+ * O "Padrão Agenda Wise": a cor de cada estado quando a clínica não escolheu.
  *
  * 🔴 **Espelha o `paleta-padrao` do `dominio.clj`** — o backend é a autoridade, e
  * este mapa existe para o front pintar o padrão sem depender de a clínica ter

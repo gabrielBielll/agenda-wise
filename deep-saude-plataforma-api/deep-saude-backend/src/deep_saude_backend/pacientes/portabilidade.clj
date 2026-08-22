@@ -87,7 +87,7 @@
   ;; CSV costuma ser aberto no Excel/Sheets. Uma célula iniciada por =, +, - ou
   ;; @ pode virar fórmula e executar uma URL/comando ao abrir. JSON e SQL
   ;; preservam o valor exato; o CSV ganha apóstrofo de segurança, removido pelo
-  ;; importador da própria AgendaWise.
+  ;; importador da própria Agenda Wise.
   (let [texto (valor-textual valor)]
     (if (re-find #"^[=+\-@]" texto) (str "'" texto) texto)))
 
@@ -123,7 +123,7 @@
                          "VALUES (" (str/join ", " valores) ")\n"
                          "ON CONFLICT (id) DO NOTHING;")))
                 pacientes)]
-    (str "-- AgendaWise — backup de pacientes\n"
+    (str "-- Agenda Wise — backup de pacientes\n"
          "-- Contém dados pessoais e clínicos. Guarde em local protegido.\n"
          "-- AGENDAWISE_PORTABLE_JSON_BASE64 " marcador "\n"
          "BEGIN;\n\n"
@@ -220,7 +220,7 @@
                 (= nota-fiscal ::invalido)
                 (conj {:linha linha :campo "nota_fiscal" :erro "Use sim/não ou true/false."})
                 (and (some? id-texto) (nil? id-origem))
-                (conj {:linha linha :campo "agenda_wise_id" :erro "Identificador AgendaWise inválido."}))
+                (conj {:linha linha :campo "agenda_wise_id" :erro "Identificador Agenda Wise inválido."}))
         dados-base {:nome nome
                     :email email
                     :telefone (texto-normalizado (:telefone registro) 50)
