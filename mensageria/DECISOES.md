@@ -111,6 +111,31 @@ ser o lugar onde as coisas são descobertas.
 
 ✅ **Proteção de branch configurada** em 2026-08-13 nas três branches — ver D-005.
 
+### ⚠️ ANOTAÇÃO DE 2026-08-22 — o desenho acima não é o que acontece
+
+**A decisão continua sendo do Gabriel e não foi revogada.** O que mudou foi o
+mundo em volta dela, e quem ler só este verbete sai com o modelo errado:
+
+| a D-003 diz | o que existe em 22/08 |
+|---|---|
+| três branches, uma por ambiente | **um ambiente só** — a Northflank constrói de `prod` |
+| `staging` é homologação | `staging` é branch de trabalho, com push direto |
+| nada entra em `prod` sem passar por `staging` | vale, mas por PR — e sem ambiente no meio |
+| proteção nas três branches | 🔴 **só `prod` recusa de fato**; `main` e `staging` avisam e deixam passar (medido) |
+
+**Três coisas desmancharam o desenho:** o ambiente de staging nunca foi criado (o
+plano da Northflank tem dois serviços, não quatro); o volume de ~86 commits/dia
+entre quatro instâncias inviabilizou "PR por feature", o que a [D-020](#d-020--a-northflank-constrói-de-prod-e-prod-ganha-os-quatro-checks)
+assumiu explicitamente; e a **prévia local** (21/08) passou a resolver, mais
+rápido, o problema que o staging existia para resolver.
+
+⚠️ **O que se perdeu é real e não tem solução escrita:** não há mais onde uma
+migration estreie antes de tocar dados de verdade. Dívida conhecida, não descuido.
+
+📌 O detalhamento, com as medições, está em
+[docs/AMBIENTES.md](../docs/AMBIENTES.md) — reescrito na mesma data, com o modelo
+original preservado na §7.
+
 ---
 
 ## D-004 — `main` é produção: o Render aponta para ela
