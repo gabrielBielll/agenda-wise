@@ -64,19 +64,45 @@ test('clique no quarto de hora cria a sessão e permite confirmar presença manu
   // a atualização falhar, porque aí ele fica aberto com o erro.
   await expect(page.getByRole('heading', { name: 'Editar Agendamento' })).toBeHidden();
 
-  // A suíte compartilha banco. Remover o cenário criado evita que esta sessão
-  // de ontem apareça na visão semanal de testes posteriores, mas não na diária.
+  // 🔴 R-021 mudou o mundo, e este trecho com ele. Antes ele APAGAVA a sessão de
+  // ontem por higiene: o banco é compartilhado e, sem limpar, ela aparecia na
+  // visão de SEMANA de specs posteriores. A R-021 agora protege toda sessão que
+  // já aconteceu ou tem pagamento — o backend recusa o DELETE com 409
+  // `past_or_paid_protected` em TODOS os modos —, e este harness não tem caminho
+  // de limpeza por banco (só a API pública, que passou a recusar). Ou seja: o
+  // DELETE de higiene ficou IMPOSSÍVEL, e a sessão PERSISTE de propósito. É por
+  // isso que `calendario-fuso.spec.ts` foi feito resiliente a ela — não dá para
+  // remover o dado, então o vizinho é que deixa de ler a semana inteira.
+  //
+  // 📌 O que era higiene virou PROVA. Temos em mãos exatamente o dado difícil de
+  // semear que o lado do front da R-021 pede — uma sessão realizada e passada —,
+  // então em vez de tentar apagá-la (e falhar), exercitamos a recusa: a tela não
+  // pode fingir sucesso. É a A-013 aplicada à exclusão.
   await page.reload();
-  const cleanupSlot = page.locator(`[data-slot-date="${day}"][data-slot-hour="10"]`);
-  await cleanupSlot.getByText('Paciente E2E').click();
+  const protegida = page.locator(`[data-slot-date="${day}"][data-slot-hour="10"]`);
+  await protegida.getByText('Paciente E2E').click();
   // O efeito, lido do banco: o selo do diálogo mostra o estado por extenso.
-  // `toContainText` e não texto exato — o selo carrega o glifo `■` ao lado, e foi
-  // exatamente isso que quebrou a asserção anterior.
+  // `toContainText` e não texto exato — o selo carrega o glifo `■` ao lado.
   await expect(page.getByRole('dialog')).toContainText('Sessão realizada');
   await page.getByRole('button', { name: 'Excluir agendamento' }).click();
   await expect(page.getByRole('heading', { name: 'Excluir Agendamento?' })).toBeVisible();
   await page.getByRole('button', { name: 'Excluir', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Editar Agendamento' })).toBeHidden();
+
+  // 1. A recusa aparece NA TELA e nomeia a regra — não um "Falha" mudo. Antes da
+  // correção em `calendar/actions.ts`, o handler descartava o corpo do 409 e a
+  // psicóloga via um vermelho sem motivo (A-013).
+  await expect(
+    page.getByText(/não é possível excluir uma sessão que já aconteceu ou tem pagamento/i),
+    'a R-021 recusou o DELETE (409) e a tela não disse por quê — é a A-013 na exclusão'
+  ).toBeVisible();
+
+  // 2. E o que mais importa: a sessão NÃO some. O diálogo de edição continua
+  // aberto porque `executeDelete` só fecha no sucesso; fechá-lo aqui seria a tela
+  // fingindo uma exclusão que o servidor recusou — a tela mentindo sobre a falha.
+  await expect(
+    page.getByRole('heading', { name: 'Editar Agendamento' }),
+    'o diálogo fechou como se a exclusão tivesse dado certo — a tela mentiu sobre a falha'
+  ).toBeVisible();
 });
 
 test('modal da agenda permanece alinhado no celular e no tema escuro', async ({ page }) => {

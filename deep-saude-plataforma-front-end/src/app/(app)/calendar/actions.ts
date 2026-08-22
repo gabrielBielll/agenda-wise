@@ -156,7 +156,23 @@ export async function deleteAgendamento(id: string, mode?: 'single' | 'all_futur
     });
 
     if (!response.ok) {
-        return { message: "Falha ao excluir agendamento.", success: false };
+        // 🔴 R-021 (A-013) — este handler era o ÚNICO das mutações de agenda que
+        // DESCARTAVA o corpo da resposta: qualquer recusa virava um "Falha ao
+        // excluir" mudo. Com a R-021, apagar uma sessão que já aconteceu ou tem
+        // pagamento é recusado com 409 `past_or_paid_protected` (`core.clj`,
+        // ~1446). A tela não chegava a MENTIR — `executeDelete` só remove no
+        // sucesso, então a sessão continuava lá —, mas a psicóloga via um vermelho
+        // sem motivo, e é a A-013: erro que não fala é indistinguível de "não sei
+        // por quê". Agora o motivo chega à tela, no vocabulário do botão ("excluir",
+        // não o "apagar" do backend) e citando a regra.
+        const errorData = await response.json().catch(() => ({}));
+        if (response.status === 409 && errorData.code === 'past_or_paid_protected') {
+            return {
+                message: "Não é possível excluir uma sessão que já aconteceu ou tem pagamento — R-021.",
+                success: false,
+            };
+        }
+        return { message: errorData.erro || "Falha ao excluir agendamento.", success: false };
     }
   } catch (error) {
     return { message: "Erro de conexão com o servidor.", success: false };
