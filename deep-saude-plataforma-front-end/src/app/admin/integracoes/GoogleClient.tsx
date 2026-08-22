@@ -247,7 +247,8 @@ export default function GoogleClient({
               onClick={() =>
                 iniciar(async () => {
                   const r = await iniciarConexao();
-                  if (r.ok && r.url) window.location.href = r.url;
+                  // Mesma guarda do sino: sessão expirada devolve `undefined`.
+                  if (r?.ok && r.url) window.location.href = r.url;
                   else avisar(r);
                 })
               }

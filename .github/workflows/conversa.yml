@@ -1,0 +1,55 @@
+# Conversa — o checador de numeração, para os commits que o `ci.yml` ignora
+#
+# Este workflow existe por causa de um buraco medido em 2026-08-22: o
+# `paths-ignore` do `ci.yml` ignora `'**/*.md'`, e **222 dos 226 arquivos de
+# `mensageria/` são `.md`**. Então o job "Mensageria — numeração e links" do
+# `ci.yml` nunca rodava para um commit que só mexe em mensagem — que é
+# exatamente o commit que pode colidir numeração.
+#
+# Ele só não tinha aparecido porque `pull_request` avalia o filtro contra o diff
+# INTEIRO do PR, e havia sempre um PR grande e aberto cobrindo por acidente. Com
+# o trabalho migrando para push direto em `staging`, o acidente acaba.
+#
+# 📌 Três colisões de numeração já aconteceram neste projeto. O custo aqui é
+# ~20 s e nenhuma dependência além do `python3` do runner.
+#
+# 🔴 O NOME DO JOB É DIFERENTE DO DO `ci.yml`, E ISSO É DELIBERADO.
+#
+# A D-020 diz que `prod` exige "os quatro checks", e um deles se chama
+# "Mensageria — numeração e links". Proteção de branch casa por NOME do check.
+# Se este job usasse o mesmo nome, um PR só de código não dispararia este
+# workflow, o check obrigatório nunca reportaria, e o PR ficaria **pendente para
+# sempre** — bloqueado esperando um check que não vem. Nome distinto torna isso
+# impossível de acontecer.
+#
+# ⚠️ Não foi possível confirmar da sandbox QUAIS checks `prod` exige de fato: o
+# token não é admin (`/branches/prod/protection` devolve 404, que é
+# indistinguível de "não tem proteção"). Este desenho é seguro **nas duas
+# hipóteses**, e foi escolhido por isso.
+
+name: Conversa
+
+on:
+  push:
+    branches: [main, staging, prod]
+    paths:
+      - 'mensageria/**'
+  pull_request:
+    paths:
+      - 'mensageria/**'
+
+# Diferente do `ci.yml`, aqui cancelar é correto: o check é barato e sem estado,
+# e o que importa é o veredito da cabeça. A medição que proibiu o cancelamento
+# lá (navegador cancelado seis vezes seguidas) era sobre um job de 15–20 min.
+concurrency:
+  group: conversa-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  numeracao:
+    name: Conversa — numeração e links (fora do portão)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Numeração única e links que resolvem
+        run: python3 mensageria/checa_links.py

@@ -29,14 +29,21 @@ test('clique no quarto de hora cria a sessão e permite confirmar presença manu
   await expect(slot).toBeVisible();
   await slot.click({ position: { x: 40, y: 30 } });
 
-  await expect(page.getByRole('heading', { name: 'Novo Agendamento' })).toBeVisible();
+  // ⚠️ O título do diálogo é "Novo na agenda" desde que sessão/bloquear/liberar
+  // passaram a morar no mesmo lugar (`CalendarClient.tsx`). Enquanto isto dizia
+  // "Novo Agendamento", o `getByRole('heading')` não achava NADA e o teste
+  // esperava 20 s por um elemento que não existia mais — a captura do relatório
+  // mostra o diálogo aberto, com o título NOVO, ao lado do localizador velho.
+  // "Novo Agendamento" continua na tela, mas como BOTÃO, não como heading.
+
+  await expect(page.getByRole('heading', { name: 'Novo na agenda' })).toBeVisible();
   await expect(page.getByLabel('Início')).toHaveValue(`${day}T10:15`);
   await expect(page.getByLabel('Fim')).toHaveValue(`${day}T11:05`);
   await page.getByLabel('Paciente').click();
   await page.getByRole('option', { name: 'Paciente E2E' }).click();
   await page.getByLabel('Valor (R$)').fill('180');
   await page.getByRole('button', { name: 'Agendar', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Novo Agendamento' })).toBeHidden();
+  await expect(page.getByRole('heading', { name: 'Novo na agenda' })).toBeHidden();
 
   await page.reload();
   const createdSlot = page.locator(`[data-slot-date="${day}"][data-slot-hour="10"]`);
@@ -45,13 +52,27 @@ test('clique no quarto de hora cria a sessão e permite confirmar presença manu
   await page.getByRole('button', { name: 'Confirmar que a sessão aconteceu' }).click();
   await expect(page.getByRole('heading', { name: 'Confirmar que a sessão aconteceu?' })).toBeVisible();
   await page.getByRole('button', { name: 'Sim, a sessão aconteceu' }).click();
-  await expect(page.getByText('Sessão realizada', { exact: true })).toBeVisible();
+
+  // ⚠️ Aqui havia `getByText('Sessão realizada', { exact: true })`, que casava com
+  // o TÍTULO DO AVISO — e o aviso passou a se chamar "Estado atualizado" quando o
+  // selo virou controle (`handleStatusUpdate`, `CalendarClient.tsx`). Não repus o
+  // texto novo de propósito: aviso é alegação, não efeito, e este repositório já
+  // pagou caro por confiar em mensagem de sucesso. O que provamos agora é o
+  // estado GRAVADO, relido depois de um reload.
+  //
+  // 📌 O diálogo fecha sozinho no sucesso — então `toBeHidden` também reprova se
+  // a atualização falhar, porque aí ele fica aberto com o erro.
+  await expect(page.getByRole('heading', { name: 'Editar Agendamento' })).toBeHidden();
 
   // A suíte compartilha banco. Remover o cenário criado evita que esta sessão
   // de ontem apareça na visão semanal de testes posteriores, mas não na diária.
   await page.reload();
   const cleanupSlot = page.locator(`[data-slot-date="${day}"][data-slot-hour="10"]`);
   await cleanupSlot.getByText('Paciente E2E').click();
+  // O efeito, lido do banco: o selo do diálogo mostra o estado por extenso.
+  // `toContainText` e não texto exato — o selo carrega o glifo `■` ao lado, e foi
+  // exatamente isso que quebrou a asserção anterior.
+  await expect(page.getByRole('dialog')).toContainText('Sessão realizada');
   await page.getByRole('button', { name: 'Excluir agendamento' }).click();
   await expect(page.getByRole('heading', { name: 'Excluir Agendamento?' })).toBeVisible();
   await page.getByRole('button', { name: 'Excluir', exact: true }).click();
@@ -64,7 +85,7 @@ test('modal da agenda permanece alinhado no celular e no tema escuro', async ({ 
   await page.goto('/calendar?nova=1');
 
   const dialog = page.getByRole('dialog');
-  await expect(page.getByRole('heading', { name: 'Novo Agendamento' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Novo na agenda' })).toBeVisible();
   await expect(dialog).toBeVisible();
   await page.waitForTimeout(400); // aguarda a animação de zoom antes de medir
   const bounds = await dialog.boundingBox();

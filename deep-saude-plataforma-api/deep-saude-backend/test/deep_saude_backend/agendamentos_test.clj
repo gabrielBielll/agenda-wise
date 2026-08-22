@@ -29,6 +29,7 @@
             [environ.core :refer [env]]
             [migratus.core :as migratus]
             [next.jdbc :as jdbc]
+            [buddy.sign.jwt :as jwt]
             [deep-saude-backend.core :as core]
             [deep-saude-backend.db :as db]
             [deep-saude-backend.pacientes.portabilidade :as portabilidade-pacientes]))
@@ -111,7 +112,18 @@
   [f]
   (if-let [url (env :test-database-url)]
     (let [ds (jdbc/get-datasource {:jdbcUrl url})]
-      (with-redefs [db/datasource (delay ds)]
+      ;; 🔴 O segredo entra AQUI, e não pela variável de ambiente.
+      ;;
+      ;; O job do backend no CI não define `JWT_SECRET` — só o smoke e o e2e
+      ;; definem. Sem esta linha, `@core/jwt-secret` fica nulo, o
+      ;; `renovar-sessao-handler` cai no próprio `catch` e devolve 500 sem
+      ;; `:token`; o teste então chama `jwt/unsign` com nil e estoura um NPE.
+      ;;
+      ;; ⚠️ E o estrago não é o NPE: é que `lein test` conta isso como **erro**,
+      ;; não como **falha**. Quem ler só "0 failures" lê verde num teste que não
+      ;; rodou. Mesmo padrão do `plataforma_test.clj`, que já resolvia assim.
+      (with-redefs [db/datasource (delay ds)
+                    core/jwt-secret (delay "segredo-apenas-para-agendamentos-test")]
         ;; ⚠️ Antes de qualquer DELETE: confirmar que estamos mesmo no banco de
         ;; teste. Ver exigir-banco-de-teste!.
         (exigir-banco-de-teste! url)
@@ -1038,3 +1050,58 @@
         (is (= 409 (:status resp)))
         (is (= "session_conflict" (:code (:body resp))))))))
 
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; A renovação de sessão — e o teto que impede virar sessão eterna
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn- renovar [identity]
+  (core/renovar-sessao-handler {:identity identity}))
+
+(defn- claims-de
+  "Abre o token com a MESMA biblioteca que o backend usa para assinar.
+
+   📌 A primeira versão decodificava o base64 à mão. Além de mais código, isso
+   lia o payload sem CONFERIR a assinatura — então um token mal assinado passaria
+   pelo teste. Usar o `unsign` faz o teste falhar também quando a assinatura
+   quebra, que é metade do que ele deveria vigiar."
+  [token]
+  ;; ⚠️ `@core/jwt-secret`, e não `(env :jwt-secret)`: o handler assina com o
+  ;; primeiro. Ler do ambiente aqui faria o teste conferir com uma chave
+  ;; diferente da que assinou — e passar ou quebrar por motivo errado.
+  (jwt/unsign token @core/jwt-secret))
+
+(deftest renovacao-devolve-token-novo-e-o-teto-recusa-sessao-antiga
+  ;; 🔴 Os dois casos no MESMO teste, porque separados nenhum dos dois mede.
+  ;;
+  ;; "renova" sozinho passaria igual se o teto não existisse — e sem teto um
+  ;; token roubado vira acesso permanente, bastando renovar antes de cada
+  ;; expiração. O controle é a sessão velha que CONTINUA sendo recusada.
+  (let [agora (.getEpochSecond (java.time.Instant/now))
+        base {:user_id (str psicologo-a) :clinica_id (str clinica-a)
+              :papel_id (str (java.util.UUID/randomUUID)) :role "psicologo"
+              :plataforma_admin false}]
+
+    (testing "sessão recente renova, e o token novo vale mais uma hora"
+      (let [r (renovar (assoc base :sessao_iniciada_em (- agora 600)))
+            c (claims-de (get-in r [:body :token]))]
+        (is (= 200 (:status r)))
+        (is (> (:exp c) agora) "o token novo tem de expirar no futuro")
+        (is (<= 3500 (- (:exp c) agora) 3700) "cerca de uma hora")
+        (is (= "psicologo" (:role c)) "o papel vem do :identity, não do corpo")))
+
+    (testing "🔴 CONTROLE — o carimbo ORIGINAL viaja adiante, senão o teto não existe"
+      ;; Se a renovação reiniciasse a contagem, uma sessão de 11h59 renovaria
+      ;; para sempre, uma hora de cada vez.
+      (let [inicio (- agora 600)
+            c (claims-de (get-in (renovar (assoc base :sessao_iniciada_em inicio)) [:body :token]))]
+        (is (= inicio (:sessao_iniciada_em c))
+            "a renovação reiniciou a contagem — o teto virou enfeite")))
+
+    (testing "CONTROLE — sessão além do teto é recusada"
+      (let [r (renovar (assoc base :sessao_iniciada_em (- agora (* 13 3600))))]
+        (is (= 401 (:status r)))
+        (is (= "sessao_expirada_no_teto" (:code (:body r))))))
+
+    (testing "e a fronteira: logo antes do teto ainda renova"
+      (is (= 200 (:status (renovar (assoc base :sessao_iniciada_em (- agora (* 11 3600))))))))))

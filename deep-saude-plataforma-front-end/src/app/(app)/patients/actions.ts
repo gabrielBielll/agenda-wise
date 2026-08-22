@@ -5,6 +5,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import type { PatientFileFormat, PatientImportStrategy, PortablePatient } from "@/lib/patient-portability";
+import { cpfValido, digitosDoCpf } from "@/lib/cpf";
+import { digitosDoCep } from "@/lib/viacep";
 
 const pacienteSchema = z.object({
   nome: z.string().min(3, { message: "O nome deve ter pelo menos 3 caracteres." }),
@@ -12,6 +14,28 @@ const pacienteSchema = z.object({
   telefone: z.string().optional(),
   data_nascimento: z.string().optional(),
   endereco: z.string().optional(),
+  /**
+   * 🔴 A validação de CPF aqui é ESPELHO, não a autoridade.
+   *
+   * Quem decide é o `dominio.clj` — o servidor recusa com 422 mesmo que esta
+   * checagem seja burlada. Isto existe para a mensagem aparecer no campo certo
+   * em vez de virar um toast genérico depois de salvar.
+   *
+   * ⚠️ E confere os DÍGITOS VERIFICADORES, não o formato: formato certo com
+   * dígito trocado é o erro de digitação mais comum, e é exatamente o que uma
+   * regex de máscara deixa passar.
+   */
+  cpf: z.string().optional().refine(
+    (v) => !v || v.trim() === "" || cpfValido(v),
+    { message: "CPF inválido — confira os números." }
+  ),
+  cep: z.string().optional(),
+  logradouro: z.string().optional(),
+  numero: z.string().optional(),
+  complemento: z.string().optional(),
+  bairro: z.string().optional(),
+  cidade: z.string().optional(),
+  uf: z.string().optional(),
   status: z.string().optional(),
 });
 
@@ -20,6 +44,7 @@ export type FormState = {
   errors?: {
     nome?: string[];
     email?: string[];
+    cpf?: string[];
   };
   success: boolean;
 };
@@ -65,6 +90,12 @@ export async function createPaciente(
   // Tentar injetar o psicologo_id manualmente caso o backend precise
   const payload = {
     ...validatedFields.data,
+    // 🔴 Sem máscara na rede. O backend também limpa (`dominio/digitos`), e a
+    // redundância é deliberada: o UNIQUE do banco é sobre a forma limpa, e
+    // `123.456.789-09` e `12345678909` NÃO colidem entre si — bastaria um
+    // caminho esquecer para a mesma pessoa entrar duas vezes.
+    cpf: digitosDoCpf(validatedFields.data.cpf ?? "") || undefined,
+    cep: digitosDoCep(validatedFields.data.cep ?? "") || undefined,
     psicologo_id: userId
   };
 
@@ -275,7 +306,11 @@ export async function updatePaciente(
     return { message: "Erro de autenticação.", success: false };
   }
 
-  const payload = validatedFields.data;
+  const payload = {
+    ...validatedFields.data,
+    cpf: digitosDoCpf(validatedFields.data.cpf ?? "") || undefined,
+    cep: digitosDoCep(validatedFields.data.cep ?? "") || undefined,
+  };
   const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/pacientes/${id}`;
   
   try {

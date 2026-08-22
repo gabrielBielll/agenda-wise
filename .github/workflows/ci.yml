@@ -94,19 +94,95 @@ on:
   # ser head de PR aberto e a duplicação acaba — sobrando exatamente a cobertura
   # que esta linha existe para garantir.
   # ────────────────────────────────────────────────────────────────────────────
+  #
+  # 🔴 2026-08-22 — A BRANCH DE TRABALHO SAI DESTA LISTA, e o bloco inteiro
+  # acima fica preservado porque ele previu certo e mesmo assim não aconteceu.
+  #
+  # Ele diz: *"o custo se extingue sozinho: quando o #7 for mesclado, a branch
+  # deixa de ser head de PR aberto e a duplicação acaba"*. O #7 mesclou em
+  # 20/08. **A duplicação não acabou** — porque a previsão dependia de a branch
+  # deixar de ser head de PR aberto, e ela virou head do #9, do #10, … até o
+  # #16. O nome ficou nesta lista quatro dias depois de deixar de fazer sentido.
+  #
+  # Medido em 22/08, nos últimos 100 runs: **20 commits geraram 2 execuções e 1
+  # gerou 3**. O PR #15 mostra os quatro checks DUAS VEZES cada; o #14, uma.
+  #
+  # 📌 Tirar o nome daqui não abre buraco de cobertura: enquanto houver PR
+  # aberto, `pull_request` (com o tipo `synchronize`) cobre cada push no head —
+  # que é o caso de controle do run 32359465523, medido no bloco acima. E o
+  # trabalho passa a acontecer em `staging`, que continua nesta lista.
+  #
+  # ⚠️ O que isto NÃO conserta: `push` em `prod` continua rodando DEPOIS do
+  # merge, e continua chegando ~4 min depois de a Northflank já estar servindo
+  # (D-020). Esse run é registro de deploy, não portão. Quem vota é o do PR.
   push:
-    branches: [main, staging, prod, claude/google-calendar-integration-arch-7tvhae]
+    branches: [main, staging, prod]
     paths-ignore: &so-conversa
       # Commit que só mexe em conversa não precisa de CI. Vale para `push`,
       # onde o filtro olha o diff DO COMMIT.
       #
-      # ⚠️ E NÃO vale para `pull_request`, que é o nosso caso — ver o bloco do
-      # `concurrency` abaixo, onde está a medição.
-      - 'mensageria/**'
+      # ⚠️ E NÃO vale para `pull_request` enquanto houver um PR grande aberto —
+      # ali o filtro é avaliado contra o diff INTEIRO do PR contra a base, que
+      # está cheio de código, e nunca casa. Ver o bloco do `concurrency` abaixo,
+      # onde está a medição.
+      #
+      # ────────────────────────────────────────────────────────────────────────
+      # 🔴 2026-08-22 — `mensageria/**` SAIU desta lista, e o motivo é que ela
+      # nunca fez o que o nome dela sugere.
+      #
+      # Medido: `mensageria/` tem **222 arquivos `.md`, 3 `.sh` e 1 `.py`**. Os
+      # 222 já eram engolidos pela regra `'**/*.md'` logo abaixo — a entrada
+      # `mensageria/**` era redundante para eles. O que ela ignorava SOZINHA
+      # eram os outros quatro: `checa_links.py` e `vigia.sh`.
+      #
+      # 🔴 Ou seja: as duas ferramentas que existem para pegar colisão de
+      # numeração eram exatamente o que o CI não olhava. Mexer no
+      # `checa_links.py` e quebrá-lo não ficava vermelho em lugar nenhum — e um
+      # checador quebrado devolve zero achados, que é indistinguível de "está
+      # tudo certo". É a família de defeito deste repositório inteiro, morando
+      # dentro da guarda contra ela.
+      #
+      # 📌 Os 222 `.md` continuam ignorados aqui de propósito — não vale acordar
+      # o Playwright (5–20 min) para uma mensagem. Quem os cobre agora é o
+      # workflow `conversa.yml`, que roda só `checa_links.py` em ~20 s.
+      # ────────────────────────────────────────────────────────────────────────
       - 'docs/**'
       - '**/*.md'
+  # 🔴 2026-08-22 — `pull_request` NÃO tem mais filtro de caminho, e isto é uma
+  # correção de defeito, não economia abandonada por preguiça.
+  #
+  # Medido hoje, na recusa de um push direto para `prod`:
+  #
+  #     remote: - Changes must be made through a pull request.
+  #     remote: - 4 of 4 required status checks are expected.
+  #     ! [remote rejected] prod -> prod (protected branch hook declined)
+  #
+  # Ou seja: os quatro checks são **exigidos de verdade** (o que a D-020 tinha
+  # deixado como `⛔ não verificado`, e que a medição de 20/08 sugeriu ser
+  # decorativo — era, e deixou de ser).
+  #
+  # 🔴 Check obrigatório + `paths-ignore` no `pull_request` é uma armadilha:
+  # um PR que só toca `docs/**` ou `**/*.md` não dispara workflow nenhum, os
+  # quatro contextos **nunca reportam**, e o PR fica em "Expected — waiting for
+  # status to be reported" **para sempre**. Não é vermelho, não é verde: é um
+  # PR que não pode ser mesclado e não diz por quê.
+  #
+  # 📌 Isso não tinha aparecido porque o filtro é inerte enquanto há um PR
+  # grande aberto — ele é avaliado contra o diff INTEIRO do PR contra a base,
+  # que está cheio de código. A cobertura era acidente, e o acidente acaba
+  # agora, que é justamente quando os PRs para `prod` viram o caminho normal.
+  #
+  # ⚠️ E o remédio óbvio — um segundo workflow com os MESMOS nomes de job,
+  # reportando verde no caminho ignorado — é pior que a doença: `paths` casa
+  # quando UM arquivo bate, não quando TODOS batem, então num PR misto os dois
+  # workflows rodariam e dois checks de mesmo nome disputariam o portão. Um
+  # atalho verde podendo satisfazer o portão enquanto o job real ainda roda é
+  # exatamente o sinal-que-mente que este repositório passou a semana caçando.
+  #
+  # 📌 O custo real é perto de zero: PR para `prod` é deploy, e deploy sempre
+  # tem código. Quem economiza minuto é o `push` acima, que MANTÉM o filtro —
+  # e é lá, no push direto em `staging`, que os commits de conversa acontecem.
   pull_request:
-    paths-ignore: *so-conversa
 
 # 🔴 AS EXECUÇÕES ENFILEIRAM, NÃO SE CANCELAM. E a razão é uma medição, não uma
 # preferência.
@@ -759,6 +835,26 @@ jobs:
   # Custo: ~20 segundos, sem dependência nenhuma além do Python do runner. Barato
   # o bastante para rodar em todo push, que é a única frequência que impede a
   # colisão de ser descoberta depois de virar referência cruzada.
+  #
+  # 🔴 2026-08-22 — A FRASE ACIMA ESTAVA ERRADA, e fica preservada porque a
+  # crença nela é que precisa morrer. Este job **nunca rodou em todo push**.
+  #
+  # O `paths-ignore` lá em cima ignora `'**/*.md'`, e **222 dos 226 arquivos de
+  # `mensageria/` são `.md`**. Um commit que só acrescenta uma mensagem casa com
+  # o filtro e não dispara workflow nenhum — logo este job não roda **exatamente
+  # no commit que pode colidir numeração**, que é o único motivo de ele existir.
+  #
+  # 📌 Ele parecia funcionar porque `pull_request` avalia o filtro contra o diff
+  # INTEIRO do PR, e havia sempre um PR grande aberto. Cobertura por acidente,
+  # e o acidente acaba quando o trabalho virar push direto em `staging`.
+  #
+  # ✅ Quem cobre os `.md` agora é o workflow `conversa.yml`, com um job de nome
+  # DIFERENTE — se ele reusasse este nome e a D-020 exigir este check, um PR só
+  # de código ficaria pendente para sempre esperando um check que não vem.
+  #
+  # ⚠️ Este job continua aqui, e não foi movido: ele é um dos quatro checks que a
+  # D-020 põe no portão de `prod`. Tirá-lo daqui mexeria no portão, e portão é
+  # decisão do Gabriel, não faxina de CI.
   mensageria:
     name: Mensageria — numeração e links
     runs-on: ubuntu-24.04

@@ -15,6 +15,60 @@ import CredentialsProvider from "next-auth/providers/credentials";
  * Estamos exportando esta constante para que possamos usá-la em Server Components
  * com a função `getServerSession(authOptions)`.
  */
+/**
+ * 🔴 Renova o token do backend ANTES de ele expirar.
+ *
+ * ## O defeito que isto conserta
+ *
+ * O token do Clojure vive **1 hora** e, até 21/08, nunca era renovado: o
+ * `authorize` guardava no login e pronto. Passada a hora, o `middleware.ts`
+ * detectava a expiração e mandava para o login **em toda navegação**.
+ *
+ * O Gabriel relatou assim: *"eu fui logar e quando clico na agenda toda vez a
+ * aplicação me faz voltar para a tela de login e aí volto e tento de novo e
+ * consigo acessar a agenda"*. Não era do ambiente local — uma psicóloga num dia
+ * de trabalho era derrubada de hora em hora, no meio do que estivesse fazendo.
+ *
+ * ⚠️ E derrubava com estrago: uma *server action* redirecionada para o login
+ * devolve `undefined` ao cliente, e quem fazia `r.campo` explodia a tela. Foi o
+ * `SinoDeConfirmacoes` que apareceu primeiro, por rodar em todo carregamento.
+ *
+ * ## Por que aqui e não no middleware
+ *
+ * O middleware roda no edge e não pode reescrever o cookie de sessão do
+ * NextAuth. Este callback pode: ele **é** quem monta o token da sessão.
+ *
+ * 📌 Só renova quando falta pouco (menos de 10 min). Este callback roda a cada
+ * leitura de sessão; renovar sempre viraria uma chamada ao backend por
+ * requisição.
+ *
+ * 📌 E se a renovação falhar, devolve o token ANTIGO em vez de apagar a sessão.
+ * Uma falha de rede momentânea não deve deslogar ninguém — o middleware ainda
+ * barra quando o token de fato expirar.
+ */
+async function renovarSeNecessario(backendToken?: string): Promise<string | undefined> {
+  if (!backendToken) return backendToken;
+  try {
+    const payload = JSON.parse(
+      Buffer.from(backendToken.split(".")[1], "base64").toString("utf8")
+    );
+    const faltam = (payload?.exp ?? 0) * 1000 - Date.now();
+    // Mais de 10 minutos de vida: não mexe.
+    if (faltam > 10 * 60 * 1000) return backendToken;
+
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/renovar`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${backendToken}` },
+      cache: "no-store",
+    });
+    if (!res.ok) return backendToken;
+    const data = await res.json();
+    return data?.token ?? backendToken;
+  } catch {
+    return backendToken;
+  }
+}
+
 export const authOptions: AuthOptions = {
   providers: [
     GoogleProvider({
@@ -127,6 +181,12 @@ export const authOptions: AuthOptions = {
         }
 
       }
+
+      // 🔴 Fora do `if (user)` de propósito: aquele bloco só roda no LOGIN, e é
+      // exatamente por isso que a sessão morria em uma hora. Aqui roda em toda
+      // leitura de sessão, que é quando dá para renovar a tempo.
+      token.backendToken = await renovarSeNecessario(token.backendToken as string | undefined);
+
       return token;
     },
     async session({ session, token }) {

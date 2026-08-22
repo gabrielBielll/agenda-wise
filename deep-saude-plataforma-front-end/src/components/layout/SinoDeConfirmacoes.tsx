@@ -36,8 +36,21 @@ export function SinoDeConfirmacoes() {
 
   const buscar = () => {
     sessoesAConfirmar().then((r) => {
-      setSessoes(r.sessoes);
-      setErro(r.ok ? null : r.erro ?? "Não consegui consultar.");
+      /**
+       * 🔴 `r` pode chegar `undefined`, e não é paranoia — foi medido em 21/08.
+       *
+       * Quando a sessão do backend expira, o `middleware.ts` REDIRECIONA a
+       * chamada da server action para o login. O cliente recebe um redirect no
+       * lugar da resposta, o `r` vem indefinido, e `r.sessoes` derrubava a tela
+       * inteira com "Cannot read properties of undefined".
+       *
+       * O Gabriel viu isso em toda navegação depois de uma hora logado. A causa
+       * de raiz foi consertada (`renovarSeNecessario` no `auth.ts`), mas a
+       * guarda fica: a tela não pode explodir porque o servidor respondeu outra
+       * coisa. Redirect é resposta legítima, não defeito.
+       */
+      setSessoes(r?.sessoes ?? []);
+      setErro(r?.ok ? null : r?.erro ?? "Sua sessão expirou. Entre novamente.");
       setCarregando(false);
     });
   };
@@ -47,7 +60,8 @@ export function SinoDeConfirmacoes() {
   const confirmar = (s: SessaoAConfirmar) => {
     iniciar(async () => {
       const r = await confirmarQueAconteceu(s.id);
-      if (r.ok) {
+      // Mesma guarda: sessão expirada redireciona e devolve `undefined`.
+      if (r?.ok) {
         // Some da lista só depois do servidor concordar. Tirar antes seria a
         // tela afirmando um desfecho que ela ainda não tem.
         setSessoes((atuais) => atuais.filter((x) => x.id !== s.id));

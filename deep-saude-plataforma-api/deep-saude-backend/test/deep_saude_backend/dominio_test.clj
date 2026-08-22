@@ -139,3 +139,58 @@
   (testing "texto preenchido passa intacto"
     (is (= "ana@clinica.com" (dominio/texto-de-formulario "ana@clinica.com")))
     (is (= " com espaço dentro " (dominio/texto-de-formulario " com espaço dentro ")))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; CPF e CEP
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn- cpf-com-verificadores
+  "Monta um CPF válido a partir de 9 dígitos, calculando os verificadores.
+
+   🔴 Existe para o teste NÃO carregar CPF de pessoa real. Este repositório já
+   teve incidente de dado sensível dentro (docs/INCIDENTE_2026-08-15.md), e um
+   número de documento real num arquivo versionado é exatamente isso."
+  [base]
+  (let [ns (mapv #(Character/digit ^char % 10) base)
+        dv (fn [ns' ate]
+             (let [soma (reduce + (map-indexed (fn [i n] (* n (- (inc ate) i))) (take ate ns')))
+                   r (mod (* soma 10) 11)]
+               (if (= r 10) 0 r)))
+        d1 (dv ns 9)
+        d2 (dv (conj ns d1) 10)]
+    (str base d1 d2)))
+
+(deftest cpf-valido-aceita-o-certo-e-recusa-o-errado
+  (testing "CPFs montados pela regra passam — com e sem máscara"
+    (doseq [base ["123456789" "529982247" "111444777" "987654321"]]
+      (let [cpf (cpf-com-verificadores base)
+            mascarado (str (subs cpf 0 3) "." (subs cpf 3 6) "." (subs cpf 6 9) "-" (subs cpf 9))]
+        (is (true? (dominio/cpf-valido? cpf)) (str cpf " deveria passar"))
+        (is (true? (dominio/cpf-valido? mascarado)) (str mascarado " deveria passar")))))
+
+  (testing "🔴 CONTROLE — um dígito trocado REPROVA"
+    ;; Sem isto, "aceita os válidos" passaria igual num validador que devolve
+    ;; `true` para tudo. É o par que separa as duas hipóteses.
+    (doseq [base ["123456789" "529982247"]]
+      (let [cpf (cpf-com-verificadores base)
+            ;; troca o último verificador por outro dígito
+            quebrado (str (subs cpf 0 10) (mod (inc (Character/digit ^char (last cpf) 10)) 10))]
+        (is (false? (dominio/cpf-valido? quebrado)) (str quebrado " deveria reprovar")))))
+
+  (testing "⚠️ os onze dígitos repetidos FECHAM na conta e ainda assim são recusados"
+    (doseq [d "0123456789"]
+      (is (false? (dominio/cpf-valido? (apply str (repeat 11 d))))
+          (str (apply str (repeat 11 d)) " passou, e não devia"))))
+
+  (testing "tamanho errado, vazio e nil reprovam"
+    (doseq [v [nil "" "123" "1234567890" "123456789012" "abcdefghijk"]]
+      (is (false? (dominio/cpf-valido? v)) (str (pr-str v) " passou, e não devia")))))
+
+(deftest cep-valido-confere-a-forma-e-aceita-vazio
+  (is (true? (dominio/cep-valido? "01001000")))
+  (is (true? (dominio/cep-valido? "01001-000")) "com máscara")
+  (is (true? (dominio/cep-valido? nil)) "ausente é aceito — CEP não é obrigatório")
+  (is (true? (dominio/cep-valido? "")) "branco é aceito")
+  (testing "CONTROLE — forma errada reprova"
+    (doseq [v ["0100100" "010010000" "abcdefgh"]]
+      (is (false? (dominio/cep-valido? v)) (str v " passou, e não devia")))))

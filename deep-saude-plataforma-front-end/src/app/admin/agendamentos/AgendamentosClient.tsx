@@ -754,7 +754,13 @@ export default function AgendamentosClient({
                  onEditAppointment={(app) => {
                     window.location.href = `/admin/agendamentos/${app.id}/edit`;
                  }}
-                 onDeleteBloqueio={(id, recorrencia_id) => handleDeleteBloqueio(id, recorrencia_id)} 
+                 // ⚠️ Esta tela segue só REMOVENDO, e a assimetria fica registrada.
+                 // A agenda da psicóloga ganhou edição de janela em 21/08; aqui o
+                 // admin continua apenas apagando. Não estendi por conta própria: o
+                 // pedido do Gabriel foi sobre o fluxo dela, e este é outro ator.
+                 // Mas é a mesma família de "dois caminhos, um consertado" que este
+                 // projeto já pagou antes, então fica escrito em vez de escondido.
+                 onEditBloqueio={(block) => handleDeleteBloqueio(block.id, block.recorrencia_id)}
                />
              )}
           </div>

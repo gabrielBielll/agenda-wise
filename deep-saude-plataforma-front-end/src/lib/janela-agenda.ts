@@ -36,7 +36,7 @@
  * aqui" é decisão, e muda sem quebrar nada: são duas strings.
  */
 
-import { Lock, LockOpen, type LucideIcon } from "lucide-react";
+import { DoorClosed, DoorOpen, type LucideIcon } from "lucide-react";
 
 export type TipoJanela = 'bloqueio' | 'disponivel';
 
@@ -50,14 +50,21 @@ export type JanelaAparencia = {
    */
   label: string;
   /**
-   * 🔴 Ícone, não emoji — trocado em 21/08 a pedido do Gabriel: *"o cadeado do
-   * bloqueio pode ser mais sofisticado do que um emoji de whatsapp"*.
+   * 🔴 Ícone, não emoji — e **porta, não cadeado**.
    *
-   * O `🔒` vinha da fonte de emoji do sistema: colorido, com desenho diferente
-   * em cada plataforma, e destoando de uma interface que é toda traço fino. O
-   * par `Lock`/`LockOpen` do lucide herda a cor do texto, tem a mesma espessura
-   * de traço do resto, e **é o par exato dos dois verbos** que ele escolheu:
-   * bloquear e liberar.
+   * Duas correções do Gabriel, em sequência. Primeiro: *"o cadeado do bloqueio
+   * pode ser mais sofisticado do que um emoji de whatsapp"* — o `🔒` vinha da
+   * fonte de emoji do sistema, colorido e com desenho diferente em cada
+   * plataforma, destoando de uma interface toda de traço fino. Depois, vendo o
+   * substituto: *"eu detesto esse ícone de cadeado"*.
+   *
+   * O par `DoorClosed`/`DoorOpen` diz a mesma coisa sem a carga de segurança que
+   * o cadeado carrega: **horário fechado** e **horário aberto** é como se fala de
+   * agenda em português, e é o que a psicóloga está fazendo — fechando e abrindo
+   * um pedaço do próprio dia, não trancando um cofre.
+   *
+   * 📌 E não colide com nenhum dos cinco glifos de sessão (`?` `√` `■` `×` `∅`),
+   * que é a checagem que importa: os sete aparecem na mesma tela.
    *
    * 📌 Aqui não vale a régua de cobertura de fonte que os cinco estados de
    * SESSÃO usam: aqueles são caracteres e precisam existir na Montserrat; este é
@@ -77,10 +84,7 @@ export type JanelaAparencia = {
 const aparencias: Record<TipoJanela, JanelaAparencia> = {
   bloqueio: {
     label: 'Horário bloqueado',
-    // 🔒 é emoji, e continua sendo o que já estava no ar desde antes da D-024.
-    // Não medi contra a Montserrat porque emoji nunca vem dela — vem da fonte de
-    // emoji do sistema, por desenho. Trocar isto é outro cartão.
-    Icone: Lock,
+    Icone: DoorClosed,
     // 🔴 Passou a usar a família de PALETA (`cor-grafite`) em 21/08, e não mais
     // o `--grafite` semântico. Motivo: quando o padrão dos estados de sessão
     // virou a convenção do Google (saturada), o bloqueio ficou sendo o único
@@ -104,7 +108,7 @@ const aparencias: Record<TipoJanela, JanelaAparencia> = {
     // do controle ausente). O `□` também está na fonte, mas foi descartado por
     // ser confundível com o `■` da sessão realizada — e os dois aparecem lado a
     // lado na mesma tela.
-    Icone: LockOpen,
+    Icone: DoorOpen,
     blocoClassName: 'bg-disponivel-suave border-l-4 border-disponivel shadow-sm',
     textoClassName: 'text-disponivel-foreground',
     celulaClassName: 'bg-disponivel-tenue',
