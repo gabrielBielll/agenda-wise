@@ -12,6 +12,9 @@ import {
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TrendingUp } from "lucide-react";
+// A-025: rótulos do gráfico no fuso da clínica (eram `toLocaleDateString`/
+// `toLocaleString`, fuso do navegador). A ORDENAÇÃO abaixo segue por instante.
+import { diaMesNaClinica, dataHoraNaClinica } from "@/lib/datetime";
 
 interface MoodChartProps {
   data: any[];
@@ -59,10 +62,10 @@ export default function MoodChart({ data }: MoodChartProps) {
       })
       .map((item) => {
         // Usar data_sessao se disponível, senão data_registro
-        const displayDate = item.data_sessao ? new Date(item.data_sessao) : new Date(item.data_registro);
+        const instante = item.data_sessao || item.data_registro;
         return {
-          date: displayDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
-          fullDate: displayDate.toLocaleString('pt-BR'),
+          date: diaMesNaClinica(instante),
+          fullDate: dataHoraNaClinica(instante),
           humor: item.humor,
           note: item.conteudo || "Sem anotação"
         };

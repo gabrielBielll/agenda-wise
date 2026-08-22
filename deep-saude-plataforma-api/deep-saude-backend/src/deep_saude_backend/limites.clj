@@ -86,24 +86,64 @@
 
 (def ^:const tamanho-maximo-padrao (* 256 1024)) ;; 256 KB
 
-(defn wrap-limite-payload
-  "Recusa corpos acima do limite antes de tentar interpretá-los.
+(defn- input-stream-limitado
+  "Envolve `in` para abortar a leitura assim que ela passar de `maximo` bytes.
 
-   Vem antes do parser de JSON de propósito: o ponto é não gastar memória
-   desserializando um corpo que já se sabe grande demais."
+   🔴 O corte tem que ser na LEITURA, não só no header. `Content-Length` é o
+   atalho quando existe — mas com `Transfer-Encoding: chunked` ele não existe, e
+   aí a única defesa é contar o que já foi lido. Sem isto, um corpo em chunks
+   passava inteiro para o parser de JSON e era desserializado na memória — na
+   rota de login, pública e sem auth, um POST derruba a instância."
+  ^java.io.InputStream [^java.io.InputStream in ^long maximo]
+  (let [lidos (java.util.concurrent.atomic.AtomicLong. 0)
+        estourou! (fn []
+                    (throw (ex-info "Corpo da requisição excede o limite permitido."
+                                    {::payload-excedido true})))]
+    (proxy [java.io.FilterInputStream] [in]
+      (read
+        ([]
+         (let [b (proxy-super read)]
+           (when (and (not= b -1) (> (.incrementAndGet lidos) maximo)) (estourou!))
+           b))
+        ([buf off len]
+         (let [n (proxy-super read buf off len)]
+           (when (and (pos? n) (> (.addAndGet lidos (long n)) maximo)) (estourou!))
+           n))))))
+
+(defn wrap-limite-payload
+  "Recusa corpos acima do limite antes de gastar memória interpretando-os.
+
+   Duas linhas de defesa, porque uma só não fecha:
+   1. `Content-Length`, quando declarado e já grande, é recusado de imediato —
+      é o atalho barato.
+   2. o `:body` é envolvido num InputStream que aborta ao passar do limite na
+      LEITURA. É o que pega `Transfer-Encoding: chunked`, onde não há header
+      para inspecionar. O estouro vira 413 aqui mesmo, não um 500 do parser.
+
+   Vem antes do `wrap-json-body` de propósito: é ele que lê o corpo, e é a leitura
+   dele que o InputStream acima interrompe."
   ([handler] (wrap-limite-payload handler tamanho-maximo-padrao))
   ([handler maximo]
    (fn [request]
      ;; Header malformado não pode derrubar a requisição: quem controla o
      ;; header é o cliente, então `Long/parseLong` cru vira um jeito trivial de
-     ;; provocar 500. Ilegível é tratado como ausente.
+     ;; provocar 500. Ilegível é tratado como ausente — e aí a linha 2 protege.
      (let [declarado (try
                        (some-> (get-in request [:headers "content-length"])
                                (Long/parseLong))
-                       (catch NumberFormatException _ nil))]
+                       (catch NumberFormatException _ nil))
+           resposta-413 {:status 413
+                         :body {:erro "Corpo da requisição excede o limite permitido."
+                                :code "payload_muito_grande"
+                                :limite_bytes maximo}}]
        (if (and declarado (> declarado maximo))
-         {:status 413
-          :body {:erro "Corpo da requisição excede o limite permitido."
-                 :code "payload_muito_grande"
-                 :limite_bytes maximo}}
-         (handler request))))))
+         resposta-413
+         (let [request' (if-let [body (:body request)]
+                          (assoc request :body (input-stream-limitado body maximo))
+                          request)]
+           (try
+             (handler request')
+             (catch clojure.lang.ExceptionInfo e
+               (if (::payload-excedido (ex-data e))
+                 resposta-413
+                 (throw e))))))))))

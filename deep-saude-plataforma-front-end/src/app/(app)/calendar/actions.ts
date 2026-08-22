@@ -156,7 +156,23 @@ export async function deleteAgendamento(id: string, mode?: 'single' | 'all_futur
     });
 
     if (!response.ok) {
-        return { message: "Falha ao excluir agendamento.", success: false };
+        // 🔴 R-021 (A-013) — este handler era o ÚNICO das mutações de agenda que
+        // DESCARTAVA o corpo da resposta: qualquer recusa virava um "Falha ao
+        // excluir" mudo. Com a R-021, apagar uma sessão que já aconteceu ou tem
+        // pagamento é recusado com 409 `past_or_paid_protected` (`core.clj`,
+        // ~1446). A tela não chegava a MENTIR — `executeDelete` só remove no
+        // sucesso, então a sessão continuava lá —, mas a psicóloga via um vermelho
+        // sem motivo, e é a A-013: erro que não fala é indistinguível de "não sei
+        // por quê". Agora o motivo chega à tela, no vocabulário do botão ("excluir",
+        // não o "apagar" do backend) e citando a regra.
+        const errorData = await response.json().catch(() => ({}));
+        if (response.status === 409 && errorData.code === 'past_or_paid_protected') {
+            return {
+                message: "Não é possível excluir uma sessão que já aconteceu ou tem pagamento — R-021.",
+                success: false,
+            };
+        }
+        return { message: errorData.erro || "Falha ao excluir agendamento.", success: false };
     }
   } catch (error) {
     return { message: "Erro de conexão com o servidor.", success: false };
@@ -316,31 +332,19 @@ export interface Bloqueio {
   tipo?: string;
 }
 
-export async function fetchBloqueios(dataInicio?: string, dataFim?: string): Promise<Bloqueio[]> {
-  const session = await getServerSession(authOptions);
-  const token = (session as any)?.backendToken;
-
-  if (!token) return [];
-
-  let apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/bloqueios`;
-  const params = new URLSearchParams();
-  if (dataInicio) params.append("data_inicio", dataInicio);
-  if (dataFim) params.append("data_fim", dataFim);
-  if (params.toString()) apiUrl += `?${params.toString()}`;
-
-  try {
-    const response = await fetch(apiUrl, {
-      headers: { "Authorization": `Bearer ${token}` },
-      cache: "no-store",
-    });
-    if (response.ok) {
-      return await response.json();
-    }
-  } catch (error) {
-    console.error("Erro ao buscar bloqueios:", error);
-  }
-  return [];
-}
+/*
+ * `fetchBloqueios` foi removida em 2026-08-22.
+ *
+ * Ela não tinha NENHUM chamador (varrido em `src/` e `e2e/`) e carregava o
+ * anti-padrão A-013: `!response.ok`/`catch` viravam `[]` — o "falha vira vazio"
+ * que o `carregar()` existe para eliminar. 403, 500, rede caída e banco fora
+ * davam todos a mesma agenda "sem nenhum bloqueio". Os bloqueios chegam ao
+ * calendário pelo carregamento da página (server component), não por esta action.
+ *
+ * Removida, e não só desativada, porque código morto que mostra a forma errada
+ * é semente: alguém o copiaria como modelo. Se voltar a ser preciso buscar
+ * bloqueios do lado cliente, use `carregar()` e trate os quatro estados.
+ */
 
 /*
  * `checkBlockConflicts` foi removida em 2026-08-16.

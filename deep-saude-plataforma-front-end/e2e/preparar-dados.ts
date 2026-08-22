@@ -129,6 +129,20 @@ async function criarPsicologo(token: string): Promise<string> {
       email: CONTA.psicologoEmail,
       senha: CONTA.psicologoSenha,
       papel: 'psicologo',
+      // 🔴 A psicóloga precisa NASCER com modalidade de repasse. Desde a T2.8(b)
+      // o `criar-usuario-handler` recusa `papel: 'psicologo'` sem regra de
+      // repasse com 422 `modalidade_repasse_obrigatoria` (`core.clj`, ~523) —
+      // antes ela caía no default silencioso do schema (percentual 50 sem
+      // ninguém ter escolhido), e a trava `valor_repasse IS NULL` só deixava
+      // corrigir por fora da API. Sem estes campos, o globalSetup aborta aqui e
+      // a suíte inteira nem começa.
+      //
+      // 📌 O vocabulário é o de `remuneracao.clj`/`validar-regra`: a modalidade é
+      // "percentual" ou "fixo" (NÃO "valor_fixo"); em "percentual" o
+      // `percentual_repasse` é obrigatório e `valor_fixo_repasse` tem de ficar
+      // vazio. 50% é só um valor sensato — nenhum teste depende do número.
+      modalidade_repasse: 'percentual',
+      percentual_repasse: 50,
     }),
   });
   if (res.ok) return (await res.json()).id ?? (await buscarPsicologo(token));

@@ -46,10 +46,26 @@ test.describe('calendário — fuso horário entre visões', () => {
     expect(naSemana.length, 'a sessão semeada precisa aparecer na visão de semana').toBeGreaterThan(0);
     expect(noDia.length, 'a sessão semeada precisa aparecer na visão de dia').toBeGreaterThan(0);
 
+    // ⚠️ Isto era `expect(noDia).toEqual(naSemana)` — igualdade EXATA das duas
+    // listas. Ficou frágil quando a R-021 mudou o mundo: `agenda-e-perfil` cria
+    // uma sessão realizada de ONTEM e não consegue mais apagá-la (o backend
+    // recusa exclusão de sessão passada/paga, e este harness não tem limpeza por
+    // banco). Ela persiste, cai na mesma SEMANA e some da lista de HOJE — então a
+    // visão de semana passou a ter um horário a mais que a de dia, e a igualdade
+    // exata quebrava aqui, longe do defeito que a criou. É a lição que este
+    // projeto já tirou: cada teste afirma sobre o SEU dado, não sobre a semana
+    // inteira do banco compartilhado.
+    //
+    // 📌 A visão de DIA mostra só hoje — ou seja, só a sessão semeada (14:00),
+    // sem a intrusa de ontem. A invariante que importa, e que a regressão de fuso
+    // violava, é que TODO horário do dia apareça IGUAL na semana (dia ⊆ semana):
+    // se a semana lê a mesma sessão num fuso diferente, o 14:00 do dia some da
+    // lista da semana e isto reprova — que é exatamente o bug dos Hotfix-ui-calendar.
+    // Sessões de outros dias (a intrusa) só engordam a semana e são ignoradas.
     expect(
-      noDia,
-      'semana e dia divergiram — é a regressão de fuso que gerou os commits Hotfix-ui-calendar'
-    ).toEqual(naSemana);
+      naSemana,
+      'semana e dia divergiram no horário da sessão de hoje — é a regressão de fuso que gerou os commits Hotfix-ui-calendar'
+    ).toEqual(expect.arrayContaining(noDia));
   });
 
   test('o horário exibido é o horário de parede que foi agendado', async ({ page }) => {

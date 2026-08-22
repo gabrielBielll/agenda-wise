@@ -9,6 +9,9 @@ import { deleteProntuario } from './actions';
 import { useTransition } from 'react';
 import { Trash2, Pencil } from 'lucide-react';
 import ProntuarioForm, { ProntuarioData } from './ProntuarioForm';
+// A-025: data/hora do prontuário no fuso da CLÍNICA, como o calendário — antes
+// era `new Date(x).toLocaleString('pt-BR')`, que usa o fuso do navegador.
+import { dataHoraNaClinica } from '@/lib/datetime';
 
 export interface Prontuario {
   id: string;
@@ -62,9 +65,7 @@ export default function ProntuarioItem({ data, patientId, appointments }: Prontu
   };
 
   // Use session date if available, otherwise registration date
-  const displayDate = data.data_sessao 
-    ? new Date(data.data_sessao).toLocaleString('pt-BR') 
-    : new Date(data.data_registro).toLocaleString('pt-BR');
+  const displayDate = dataHoraNaClinica(data.data_sessao || data.data_registro);
 
   if (isPending) {
     return (
@@ -128,7 +129,7 @@ export default function ProntuarioItem({ data, patientId, appointments }: Prontu
         <CardContent className="space-y-4 pt-0 animate-in slide-in-from-top-2 duration-200">
            {/* Show creation date only when expanded */}
            <div className="text-xs text-muted-foreground italic mb-2">
-             Criado em: {new Date(data.data_registro).toLocaleString('pt-BR')}
+             Criado em: {dataHoraNaClinica(data.data_registro)}
            </div>
 
            <div className="border-t pt-4 mt-2">

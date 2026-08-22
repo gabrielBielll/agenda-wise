@@ -2,7 +2,12 @@
 
 import React, { useState, useMemo } from "react";
 import { format, parseISO, isSameMonth, subMonths, addMonths, startOfMonth, endOfMonth } from "date-fns";
-import { ptBR } from "date-fns/locale";
+// A-025: a EXIBIÇÃO de data/hora de sessão vem do fuso da CLÍNICA, como no
+// calendário — não do `date-fns`/`toLocaleString`, que usam o fuso do navegador
+// e divergiam para admin/psicóloga em outro fuso. O `date-fns` fica só para o
+// que NÃO é instante de sessão: nome do arquivo CSV e os limites do filtro/
+// payload de transferência, que saem do seletor de período (parede local).
+import { dataNaClinica, diaMesNaClinica, diaDaSemanaNaClinica, horaNaClinica } from "@/lib/datetime";
 import { DateRange } from "react-day-picker";
 import { DatePickerWithRange } from "@/components/ui/date-range-picker";
 import { Input } from "@/components/ui/input";
@@ -88,11 +93,34 @@ interface FinanceiroClientProps {
 }
 
 import { CheckCircle2, Circle, AlertCircle } from "lucide-react";
+import { useSession } from "next-auth/react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
 export default function FinanceiroClient({ initialAgendamentos, token }: FinanceiroClientProps) {
   const { toast } = useToast();
+  const { data: sessao, update: atualizarSessao } = useSession();
+
+  /**
+   * 🔴 F5 — o token das MUTAÇÕES vem fresco, não do snapshot do render.
+   *
+   * `token` chega como prop, capturado pelo `getServerSession` no instante em
+   * que a página renderizou no servidor. O token do backend vive 1 hora; uma
+   * aba aberta além disso mandaria em toda mutação um token já expirado, e o
+   * backend responderia 401. `update()` do NextAuth reexecuta o callback `jwt`
+   * — que renova quando falta pouco (ver `renovarSeNecessario`) — e devolve a
+   * sessão nova. O snapshot de render vira apenas o último recurso.
+   */
+  const obterTokenFresco = async (): Promise<string> => {
+    try {
+      const nova = await atualizarSessao();
+      const fresco = (nova as any)?.backendToken;
+      if (fresco) return fresco;
+    } catch {
+      // Se a atualização falhar, cai no melhor token que já temos em memória.
+    }
+    return (sessao as any)?.backendToken ?? token;
+  };
   // Configuração inicial: dataRage cobrindo o mês atual
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
       from: startOfMonth(new Date()),
@@ -243,15 +271,16 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
       ));
 
       try {
+          const tokenFresco = await obterTokenFresco();
           const res = await fetch(`/api/agendamentos/${id}`, {
               method: 'PUT',
               headers: {
                   'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${token}`
+                  'Authorization': `Bearer ${tokenFresco}`
               },
               body: JSON.stringify({ status: newStatus })
           });
-          
+
           if (!res.ok) {
             const errText = await res.text();
             console.error("Failed to update status:", res.status, errText);
@@ -290,17 +319,18 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
       ));
 
       try {
+          const tokenFresco = await obterTokenFresco();
           const res = await fetch(`/api/agendamentos/${id}`, {
               method: 'PUT',
               headers: {
                   'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${token}`
+                  'Authorization': `Bearer ${tokenFresco}`
               },
               body: JSON.stringify({ status_pagamento: newStatus })
           });
-          
+
           if (!res.ok) throw new Error('Failed to update');
-          
+
           toast({
               title: "Pagamento atualizado",
               description: newStatus === 'pago' ? 'Marcado como Pago.' : 'Marcado como Pendente.',
@@ -331,13 +361,14 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
       ));
 
       try {
+          const tokenFresco = await obterTokenFresco();
           const res = await fetch(`/api/agendamentos/${id}`, {
               method: 'PUT',
               headers: {
                   'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${token}`
+                  'Authorization': `Bearer ${tokenFresco}`
               },
-              body: JSON.stringify({ 
+              body: JSON.stringify({
                   status_repasse: newStatus
               })
           });
@@ -375,11 +406,12 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
       ));
 
       try {
+          const tokenFresco = await obterTokenFresco();
           const res = await fetch(`/api/agendamentos/${id}`, {
               method: 'PUT',
               headers: {
                   'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${token}`
+                  'Authorization': `Bearer ${tokenFresco}`
               },
               body: JSON.stringify({ valor_consulta: newValor })
           });
@@ -423,7 +455,9 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
     const dailyData: Record<string, number> = {};
     
     filteredData.forEach(ag => {
-      const day = format(parseISO(ag.data_hora_sessao), "dd/MM");
+      // Agrupa pelo DIA da clínica, para o rótulo do gráfico bater com o que a
+      // tabela e o calendário mostram em qualquer fuso.
+      const day = diaMesNaClinica(ag.data_hora_sessao);
       dailyData[day] = (dailyData[day] || 0) + (Number(ag.valor_consulta) || 0);
     });
 
@@ -449,11 +483,11 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
     const rows = filteredData.map(ag => {
       const effectiveStatus = getEffectiveStatus(ag);
       const effectivePagamento = getEffectivePagamento(ag);
-      const sessionDate = parseISO(ag.data_hora_sessao);
       const row = [
-        format(sessionDate, 'dd/MM/yyyy'),
-        format(sessionDate, 'EEEE', { locale: ptBR }),
-        format(sessionDate, 'HH:mm'),
+        // A-025: data, dia da semana e hora no fuso da clínica.
+        dataNaClinica(ag.data_hora_sessao),
+        diaDaSemanaNaClinica(ag.data_hora_sessao),
+        horaNaClinica(ag.data_hora_sessao),
         ag.nome_paciente || 'Não informado',
         ag.nome_psicologo || 'Não informado',
         effectiveStatus === 'realizado' ? 'Realizada' : effectiveStatus === 'cancelado' ? 'Cancelada' : 'Agendada',
@@ -536,13 +570,15 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
     let successCount = 0;
     let errorCount = 0;
     const transferidos = new Set<string>();
+    // F5: um token fresco serve o lote inteiro (vale por ~1h após a renovação).
+    const tokenFresco = await obterTokenFresco();
     for (const [psicologoId, ids] of idsPorPsicologa) {
       try {
         const res = await fetch('/api/repasses/transferir', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
+            'Authorization': `Bearer ${tokenFresco}`
           },
           body: JSON.stringify({
             psicologo_id: psicologoId,
@@ -600,13 +636,15 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
     let successCount = 0;
     let errorCount = 0;
 
+    // F5: um token fresco serve o lote inteiro (vale por ~1h após a renovação).
+    const tokenFresco = await obterTokenFresco();
     for (const ag of eligibleItems) {
       try {
         const res = await fetch(`/api/agendamentos/${ag.id}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
+            'Authorization': `Bearer ${tokenFresco}`
           },
           body: JSON.stringify({ [field]: value })
         });
@@ -675,11 +713,12 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
   // Update patient financial fields
   const handleUpdatePatientField = async (pacienteId: string, field: string, value: any) => {
     try {
+      const tokenFresco = await obterTokenFresco();
       const res = await fetch(`/api/pacientes/${pacienteId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${tokenFresco}`
         },
         body: JSON.stringify({ [field]: value })
       });
@@ -1063,9 +1102,10 @@ export default function FinanceiroClient({ initialAgendamentos, token }: Finance
                   <TableRow key={ag.id}>
                     <TableCell className="font-medium">
                         <div className="flex flex-col">
-                            <span>{format(parseISO(ag.data_hora_sessao), "dd/MM/yyyy")}</span>
+                            {/* A-025: data e hora da sessão no fuso da clínica. */}
+                            <span>{dataNaClinica(ag.data_hora_sessao)}</span>
                             <span className="text-xs text-muted-foreground">
-                              {format(parseISO(ag.data_hora_sessao), "EEEE", { locale: ptBR })} • {format(parseISO(ag.data_hora_sessao), "HH:mm")}
+                              {diaDaSemanaNaClinica(ag.data_hora_sessao)} • {horaNaClinica(ag.data_hora_sessao)}
                             </span>
                         </div>
                     </TableCell>

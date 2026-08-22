@@ -4,6 +4,9 @@ import { authOptions } from '@/lib/auth'; // Importar authOptions
 import { notFound, redirect } from 'next/navigation';
 import { carregar } from '@/lib/carregar';
 import { FalhaDeCarregamento } from '@/components/FalhaDeCarregamento';
+// F3: `data_nascimento` é DATE (data pura). Formatar via `new Date()` a jogaria
+// no fuso do runtime e deslocaria o aniversário um dia (UTC 20/05, SP 19/05).
+import { dataPuraISO, dataPuraParaBR } from '@/lib/datetime';
 import Link from 'next/link';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -65,8 +68,10 @@ async function getPatientDetails(patientId: string, token: string): Promise<Pati
     });
     if (!response.ok) return null;
     const data = await response.json();
+    // F3: fatia "YYYY-MM-DD" sem construir Date — o `new Date().toISOString()`
+    // anterior podia trocar o dia conforme o fuso do runtime.
     if (data.data_nascimento) {
-      data.data_nascimento = new Date(data.data_nascimento).toISOString().split('T')[0];
+      data.data_nascimento = dataPuraISO(data.data_nascimento);
     }
     return data;
   } catch (error) {
@@ -216,7 +221,7 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
             <CardContent className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div><Label htmlFor="name">Nome Completo</Label><Input id="name" value={patient.nome} readOnly /></div>
-                <div><Label htmlFor="dob">Data de Nascimento</Label><Input id="dob" value={patient.data_nascimento ? new Date(patient.data_nascimento).toLocaleDateString('pt-BR') : 'N/A'} readOnly /></div>
+                <div><Label htmlFor="dob">Data de Nascimento</Label><Input id="dob" value={dataPuraParaBR(patient.data_nascimento) || 'N/A'} readOnly /></div>
                 <div><Label htmlFor="email">Endereço de E-mail</Label><Input id="email" type="email" value={patient.email || 'N/A'} readOnly /></div>
                 <div><Label htmlFor="phone">Número de Telefone</Label><Input id="phone" type="tel" value={patient.telefone || 'N/A'} readOnly /></div>
                 <div className="md:col-span-2"><Label htmlFor="address">Endereço</Label><Textarea id="address" value={patient.endereco || 'N/A'} readOnly className="h-24" /></div>

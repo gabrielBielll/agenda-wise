@@ -251,6 +251,90 @@ export function diaNaClinica(valor: string | Date): string {
 }
 
 /**
+ * "20/08/2026" — data da clínica com ano, direto do instante e sem espelho.
+ *
+ * Mesma família de `diaNaClinica`/`horaNaClinica`: financeiro e prontuário
+ * formatavam com `date-fns`/`toLocaleString`, que usam o fuso do NAVEGADOR — e
+ * divergiam do calendário para a psicóloga (ou admin) em outro fuso (A-025). O
+ * que vale é a parede da CLÍNICA, o mesmo que o resto do app mostra.
+ */
+export function dataNaClinica(valor: string | Date): string {
+  const d = parseInstante(valor);
+  if (Number.isNaN(d.getTime())) return "";
+  return new Intl.DateTimeFormat("pt-BR", {
+    timeZone: FUSO_CLINICA,
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(d);
+}
+
+/** "20/08" — dia e mês da clínica (rótulo de gráfico). Ver `dataNaClinica`. */
+export function diaMesNaClinica(valor: string | Date): string {
+  const d = parseInstante(valor);
+  if (Number.isNaN(d.getTime())) return "";
+  return new Intl.DateTimeFormat("pt-BR", {
+    timeZone: FUSO_CLINICA,
+    day: "2-digit",
+    month: "2-digit",
+  }).format(d);
+}
+
+/** "quarta-feira" — dia da semana por extenso no fuso da clínica. */
+export function diaDaSemanaNaClinica(valor: string | Date): string {
+  const d = parseInstante(valor);
+  if (Number.isNaN(d.getTime())) return "";
+  return new Intl.DateTimeFormat("pt-BR", {
+    timeZone: FUSO_CLINICA,
+    weekday: "long",
+  }).format(d);
+}
+
+/**
+ * "20/08/2026 14:00" — data + hora da clínica, para onde antes se usava
+ * `new Date(x).toLocaleString('pt-BR')` (fuso do navegador). Reaproveita
+ * `dataNaClinica` e `horaNaClinica`, então segue sem espelho.
+ */
+export function dataHoraNaClinica(valor: string | Date): string {
+  const d = parseInstante(valor);
+  if (Number.isNaN(d.getTime())) return "";
+  return `${dataNaClinica(d)} ${horaNaClinica(d)}`;
+}
+
+/**
+ * ## Data PURA — nascimento/aniversário, sem fuso nenhum (A-025 / F3)
+ *
+ * `data_nascimento` é um DATE no banco ("1990-05-20"): identifica um DIA de
+ * calendário, não um instante. Passá-lo por `new Date("1990-05-20")` o lê como
+ * meia-noite UTC, e aí `toLocaleDateString`/`toISOString` o reprojetam no fuso
+ * do runtime — contêiner UTC mostra 20/05, São Paulo mostra 19/05. O dia do
+ * aniversário não pode depender de ONDE o servidor roda.
+ *
+ * ⚠️ Estas duas funções NÃO usam o fuso da clínica e NÃO constroem `Date`: uma
+ * data pura não tem fuso a que pertencer. Elas fatiam a string, então o dia é o
+ * mesmo em qualquer runtime. Não confundir com as funções de INSTANTE acima.
+ */
+
+/**
+ * "1990-05-20" (ou ISO com hora) -> "1990-05-20", só fatiando o começo.
+ * `null` quando não há data reconhecível. É o que alimenta `<input type="date">`
+ * sem passar por `new Date().toISOString()`.
+ */
+export function dataPuraISO(valor: string | null | undefined): string | null {
+  if (!valor) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(valor);
+  return m ? `${m[1]}-${m[2]}-${m[3]}` : null;
+}
+
+/** Data pura -> "DD/MM/AAAA" para exibição. "" quando não há data. */
+export function dataPuraParaBR(valor: string | null | undefined): string {
+  const iso = dataPuraISO(valor);
+  if (!iso) return "";
+  const [ano, mes, dia] = iso.split("-");
+  return `${dia}/${mes}/${ano}`;
+}
+
+/**
  * Espelho de parede -> valor de `<input type="datetime-local">`.
  *
  * Não converte fuso nenhum: lê os componentes locais do espelho, que já são o

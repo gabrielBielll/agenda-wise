@@ -6,6 +6,8 @@ import { carregar } from "@/lib/carregar";
 import { FalhaDeCarregamento } from "@/components/FalhaDeCarregamento";
 import { notFound } from 'next/navigation';
 import EditPacienteForm from './EditPacienteForm'; // O formulário que vamos criar a seguir
+// F3: data pura — fatia "YYYY-MM-DD" sem passar por Date/fuso.
+import { dataPuraISO } from '@/lib/datetime';
 
 interface Paciente {
   id: string;
@@ -31,9 +33,10 @@ async function getPaciente(token: string, pacienteId: string): Promise<Paciente 
       throw new Error(errorData.erro || 'Falha ao buscar dados do paciente.');
     }
     const data = await response.json();
-    // A API retorna a data com timestamp, precisamos formatar para 'YYYY-MM-DD' para o input type="date"
+    // A API retorna a data como DATE; fatiamos "YYYY-MM-DD" para o input
+    // type="date" SEM construir Date, que deslocaria o dia conforme o fuso.
     if (data.data_nascimento) {
-      data.data_nascimento = new Date(data.data_nascimento).toISOString().split('T')[0];
+      data.data_nascimento = dataPuraISO(data.data_nascimento);
     }
     return data;
   } catch (error: any) {
