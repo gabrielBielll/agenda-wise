@@ -29,14 +29,21 @@ test('clique no quarto de hora cria a sessão e permite confirmar presença manu
   await expect(slot).toBeVisible();
   await slot.click({ position: { x: 40, y: 30 } });
 
-  await expect(page.getByRole('heading', { name: 'Novo Agendamento' })).toBeVisible();
+  // ⚠️ O título do diálogo é "Novo na agenda" desde que sessão/bloquear/liberar
+  // passaram a morar no mesmo lugar (`CalendarClient.tsx`). Enquanto isto dizia
+  // "Novo Agendamento", o `getByRole('heading')` não achava NADA e o teste
+  // esperava 20 s por um elemento que não existia mais — a captura do relatório
+  // mostra o diálogo aberto, com o título NOVO, ao lado do localizador velho.
+  // "Novo Agendamento" continua na tela, mas como BOTÃO, não como heading.
+
+  await expect(page.getByRole('heading', { name: 'Novo na agenda' })).toBeVisible();
   await expect(page.getByLabel('Início')).toHaveValue(`${day}T10:15`);
   await expect(page.getByLabel('Fim')).toHaveValue(`${day}T11:05`);
   await page.getByLabel('Paciente').click();
   await page.getByRole('option', { name: 'Paciente E2E' }).click();
   await page.getByLabel('Valor (R$)').fill('180');
   await page.getByRole('button', { name: 'Agendar', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Novo Agendamento' })).toBeHidden();
+  await expect(page.getByRole('heading', { name: 'Novo na agenda' })).toBeHidden();
 
   await page.reload();
   const createdSlot = page.locator(`[data-slot-date="${day}"][data-slot-hour="10"]`);
@@ -64,7 +71,7 @@ test('modal da agenda permanece alinhado no celular e no tema escuro', async ({ 
   await page.goto('/calendar?nova=1');
 
   const dialog = page.getByRole('dialog');
-  await expect(page.getByRole('heading', { name: 'Novo Agendamento' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Novo na agenda' })).toBeVisible();
   await expect(dialog).toBeVisible();
   await page.waitForTimeout(400); // aguarda a animação de zoom antes de medir
   const bounds = await dialog.boundingBox();
