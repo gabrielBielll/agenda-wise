@@ -23,6 +23,14 @@
             [deep-saude-backend.remuneracao :as remuneracao]
             [deep-saude-backend.google.rrule :as rrule]
             [deep-saude-backend.google.handlers :as google]
+            ;; Autenticação (login com Google) e recuperação de senha. São
+            ;; namespaces-folha: core os requer para registrar as rotas, e eles
+            ;; NÃO requerem core de volta. A emissão de sessão que os dois
+            ;; compartilham com o login clássico mora em `sessao`, justamente
+            ;; para não fechar um ciclo core <-> auth-google.
+            [deep-saude-backend.sessao :as sessao]
+            [deep-saude-backend.auth-recuperacao :as auth-recuperacao]
+            [deep-saude-backend.auth-google :as auth-google]
             [ring.middleware.cors :refer [wrap-cors]]
             [ring.middleware.params :refer [wrap-params]]
             [ring.middleware.keyword-params :refer [wrap-keyword-params]])
@@ -39,17 +47,13 @@
 ;; db-spec, datasource e os helpers de query moram em deep-saude-backend.db.
 ;; Ver a docstring de lá para o motivo da extração.
 
-(def jwt-secret
-  ;; Carregar o namespace também acontece durante AOT e nos testes. Configuração
-  ;; de runtime não pode tornar esses dois caminhos dependentes do ambiente de
-  ;; produção; o -main força este delay antes de abrir banco ou porta.
-  (delay
-    (if-let [secret (env :jwt-secret)]
-      ;; ⚠️ Não logar nem pedaço do segredo.
-      (do (log/info "jwt_secret_loaded") secret)
-      (do
-        (log/error "jwt_secret_missing")
-        (throw (Exception. "FATAL: A variável de ambiente :jwt-secret não está configurada! A aplicação será encerrada."))))))
+;; O delay de fato mora em `deep-saude-backend.sessao` desde a extração da
+;; emissão de sessão (login com Google precisava emitir a MESMA sessão sem
+;; fechar ciclo com core). Este alias mantém `core/jwt-secret` funcionando
+;; para tudo que já lia daqui — wrap-jwt-autenticacao, renovar, -main — e para
+;; os testes que redefinem `core/jwt-secret`. É o MESMO delay: forçar um força
+;; o outro.
+(def jwt-secret sessao/jwt-secret)
 
 (defn fuso-da-clinica
   "Fuso horário da clínica. Todo horário que chega do frontend é horário de
@@ -412,18 +416,10 @@
       (log/error e "login_password_hash_unreadable")
       false)))
 
-(def ^:private duracao-do-token-s
-  "Quanto vale um token do backend: 1 hora.
-
-   ⚠️ **Curto de propósito, e agora renovável.** Até 21/08 não havia renovação
-   nenhuma — o front guardava o token no login e nunca o atualizava. Passada a
-   hora, o middleware do Next expulsava para o login **em toda navegação**.
-
-   O Gabriel relatou assim: *\"eu fui logar e quando clico na agenda toda vez a
-   aplicação me faz voltar para a tela de login\"*. Não era ambiente local: uma
-   psicóloga num dia de trabalho era derrubada de hora em hora, no meio do que
-   estivesse fazendo."
-  3600)
+;; A duração do token (e seu comentário longo) mudou-se para `sessao` junto com
+;; a emissão de sessão; renovar-sessao-handler e login continuam lendo daqui por
+;; este alias.
+(def ^:private duracao-do-token-s sessao/duracao-do-token-s)
 
 (def ^:private teto-da-sessao-s
   "🔴 O teto que impede a renovação de virar sessão eterna.
@@ -452,32 +448,12 @@
                 ;; tentativas anteriores até a janela vencer.
                 (limites/liberar! chave-limite))
               (if senha-valida
-                (let [claims {:user_id    (:id usuario)
-                              :clinica_id (:clinica_id usuario)
-                              :papel_id   (:papel_id usuario)
-                              :role       (:nome_papel papel)
-                              ;; Operador da plataforma. Eixo separado do papel:
-                              ;; o superadmin continua sendo usuário de uma
-                              ;; clínica, e esta flag só abre /api/plataforma/*.
-                              ;; `boolean` porque a coluna pode vir nil de linha
-                              ;; criada antes da migration.
-                              :plataforma_admin (boolean (:plataforma_admin usuario))
-                              ;; 🔴 Quando a SESSÃO começou — não quando este token
-                              ;; foi emitido. É o que permite renovar o token sem
-                              ;; deixar a sessão viva para sempre: a renovação
-                              ;; carrega este carimbo adiante e recusa depois do
-                              ;; teto. Ver `renovar-sessao-handler`.
-                              :sessao_iniciada_em (.getEpochSecond (java.time.Instant/now))
-                              :exp        (-> (java.time.Instant/now) (.plusSeconds duracao-do-token-s) .getEpochSecond)}
-                      token (jwt/sign claims @jwt-secret)]
-                  {:status 200 :body {:message "Usuário autenticado com sucesso."
-                                      :token   token
-                                      :user    {:id         (:id usuario)
-                                                :nome       (:nome usuario)
-                                                :email      email
-                                                :clinica_id (:clinica_id usuario)
-                                                :papel_id   (:papel_id usuario)
-                                                :role       (:nome_papel papel)}}})
+                ;; 🔴 A emissão da sessão (claims + JWT + corpo) mudou-se para
+                ;; `sessao/emitir-sessao`, uma verdade só, porque o login com
+                ;; conta Google (auth-google) tem que devolver EXATAMENTE isto.
+                ;; O `:email` do corpo passa a sair de `(:email usuario)` — valor
+                ;; idêntico ao `email` digitado aqui, já que o SELECT casou por ele.
+                (sessao/emitir-sessao usuario papel)
                 {:status 401 :body {:erro "Credenciais inválidas."}})))
           (do
             (log/error "login_role_missing")
@@ -2152,6 +2128,21 @@
                               {:nome "login" :max-tentativas 10 :janela-ms 300000
                                :chave-extra #(get-in % [:body :email])})
      {:nome "login-ip" :max-tentativas 60 :janela-ms 300000}))
+  ;; Login com conta Google: mesma superfície pública de força bruta que o
+  ;; login. Limite por IP — não há e-mail no corpo para empilhar a segunda
+  ;; chave, o e-mail vem dentro do id_token assinado.
+  (POST "/api/auth/google" []
+    (limites/wrap-rate-limit auth-google/login-google-handler
+                             {:nome "login-google" :max-tentativas 20 :janela-ms 300000}))
+  ;; Recuperação de senha. `recuperar` é ~5/15min por IP: gerar link é barato,
+  ;; mas em rajada vira sonda de contas e enxurrada de e-mail. `redefinir` é um
+  ;; pouco mais folgado — a pessoa legítima pode errar a senha nova algumas vezes.
+  (POST "/api/auth/recuperar" []
+    (limites/wrap-rate-limit auth-recuperacao/recuperar-handler
+                             {:nome "recuperar-senha" :max-tentativas 5 :janela-ms 900000}))
+  (POST "/api/auth/redefinir" []
+    (limites/wrap-rate-limit auth-recuperacao/redefinir-handler
+                             {:nome "redefinir-senha" :max-tentativas 10 :janela-ms 900000}))
   (GET  "/api/health" [] health-check-handler))
 
 ;; ROTAS DE PRONTUÁRIOS

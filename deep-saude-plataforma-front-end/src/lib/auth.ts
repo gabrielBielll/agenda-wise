@@ -120,28 +120,54 @@ async function renovarSeNecessario(backendToken?: string): Promise<string | unde
   return backendToken;
 }
 
+/**
+ * 🔵 MÓDULO B — o login com Google só entra na lista de providers quando as DUAS
+ * credenciais PRÓPRIAS dele existem no ambiente.
+ *
+ * ⚠️ São env vars SEPARADAS das do Google Agenda, de propósito. `GOOGLE_CLIENT_ID`
+ * / `GOOGLE_CLIENT_SECRET` pertencem ao OAuth do CALENDÁRIO (docs/GOOGLE_CARDS.md,
+ * cartão 7: a *redirect URI* tem de bater com a URL do front) e são lidas no
+ * BACKEND. Este login de AUTENTICAÇÃO tem um cliente OAuth próprio —
+ * `GOOGLE_LOGIN_CLIENT_ID` / `GOOGLE_LOGIN_CLIENT_SECRET` — para não amarrar um
+ * consentimento ao outro. Confundir os dois é o erro que o CLAUDE.md avisa.
+ *
+ * 🔴 O guard existe para a BUILD e para o login por SENHA: um `GoogleProvider`
+ * com `clientId` indefinido quebraria a rota `/api/auth/[...nextauth]` e
+ * derrubaria junto o `CredentialsProvider`, que não depende do Google. Sem as
+ * credenciais o provider fica DORMENTE — ausente, não quebrado.
+ */
+const googleLoginConfigurado =
+  !!process.env.GOOGLE_LOGIN_CLIENT_ID && !!process.env.GOOGLE_LOGIN_CLIENT_SECRET;
+
+const googleLoginProvider: AuthOptions["providers"] = googleLoginConfigurado
+  ? [
+      GoogleProvider({
+        clientId: process.env.GOOGLE_LOGIN_CLIENT_ID as string,
+        clientSecret: process.env.GOOGLE_LOGIN_CLIENT_SECRET as string,
+        // Escopos BÁSICOS apenas — este login serve para identificar o
+        // profissional, não para acessar agenda.
+        //
+        // O acesso ao Google Calendar vem do token OAuth da clínica, guardado no
+        // backend (ver docs/GOOGLE_CALENDAR_ARQUITETURA.md, D7). Pedir escopo de
+        // calendar aqui multiplicaria por N o teto de 100 usuários do app não
+        // verificado e exporia token de agenda ao ambiente do frontend.
+        //
+        // Além de autenticar, este login rende o `email_verified`: e-mail
+        // confirmado pelo Google, não digitado por alguém — é o insumo do
+        // mapeamento agenda<->psicólogo, capturado no callback `jwt`.
+        authorization: {
+          params: {
+            scope: "openid email profile",
+            prompt: "select_account",
+          },
+        },
+      }),
+    ]
+  : [];
+
 export const authOptions: AuthOptions = {
   providers: [
-    GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID as string,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
-      // Escopos BÁSICOS apenas — este login serve para identificar o
-      // profissional, não para acessar agenda.
-      //
-      // O acesso ao Google Calendar vem do token OAuth da clínica, guardado no
-      // backend (ver docs/GOOGLE_CALENDAR_ARQUITETURA.md, D7). Pedir escopo de
-      // calendar aqui multiplicaria por N o teto de 100 usuários do app não
-      // verificado e exporia token de agenda ao ambiente do frontend.
-      //
-      // O valor deste login é o `email_verified`: e-mail confirmado pelo Google,
-      // não digitado por alguém — é o insumo do mapeamento agenda<->psicólogo.
-      authorization: {
-        params: {
-          scope: "openid email profile",
-          prompt: "select_account",
-        },
-      },
-    }),
+    ...googleLoginProvider,
     CredentialsProvider({
       name: 'Credentials',
       credentials: {
@@ -188,9 +214,74 @@ export const authOptions: AuthOptions = {
     })
   ],
   callbacks: {
-    async signIn({ user, account, profile }) {
-      // ... existing google logic ...
-      return true; 
+    async signIn({ user, account }) {
+      // Login por SENHA (e qualquer coisa que não seja Google): o `authorize` já
+      // decidiu tudo; aqui é só deixar passar.
+      if (account?.provider !== 'google') return true;
+
+      // 🔵 MÓDULO B — login com conta Google.
+      //
+      // O Google apenas ATESTA quem é a pessoa (id_token assinado). Quem diz se
+      // ela tem acesso a ESTA plataforma é o backend, nunca o front:
+      // `/api/auth/google` procura o e-mail entre os profissionais cadastrados e
+      // devolve o MESMO par (token + user) que o `/api/auth/login` das
+      // credenciais. 🔴 Não criamos conta aqui.
+      //
+      // 📌 A troca acontece no signIn, e não no jwt, porque só o signIn pode
+      // NEGAR a entrada (retornar `false`/string de redirect). O resultado é
+      // carimbado no `user`, que — nesta configuração (estratégia JWT, sem
+      // adapter) — é o MESMO objeto que o callback `jwt` recebe em seguida. Assim
+      // o Google reaproveita, sem duplicar, o caminho que o `authorize` já usa.
+      //
+      // ⚠️ Base absoluta idêntica à do `authorize`/`renovar` (`NEXT_PUBLIC_API_URL`):
+      // chamar `/api/auth/google` como caminho RELATIVO cairia na rota local do
+      // NextAuth (`app/api/auth/[...nextauth]`), não no backend.
+      const idToken = account.id_token;
+      if (!idToken) return false;
+
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/google`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id_token: idToken }),
+          cache: 'no-store',
+        });
+
+        if (!res.ok) {
+          // 403 conta_nao_encontrada · 401 id_token_invalido · 503
+          // google_login_nao_configurado. Em todos a pessoa NÃO entra — mas cada
+          // um pede uma frase diferente, então mandamos ao login com um código
+          // legível em vez da tela genérica "AccessDenied" do NextAuth.
+          let code: string | undefined;
+          try {
+            code = (await res.json())?.code;
+          } catch {
+            // corpo ausente/ilegível: cai no aviso padrão de "sem conta".
+          }
+          const erro =
+            code === 'google_login_nao_configurado' ? 'google_indisponivel'
+            : code === 'id_token_invalido' ? 'google_invalido'
+            : 'google_sem_conta'; // 403 conta_nao_encontrada e qualquer outro
+          return `/?erro=${erro}`;
+        }
+
+        const data = await res.json();
+        if (!data?.token || !data?.user) return false;
+
+        // MESMO shape que o `authorize` das credenciais entrega no `user` (ver o
+        // callback `jwt`, que promove estes campos ao token). Espelhar o shape é
+        // o que faz a sessão do Google ser indistinguível da de senha daqui pra
+        // frente — inclusive na renovação e no token fresco do Financeiro.
+        (user as any).backendToken = data.token;
+        (user as any).id = data.user.id;
+        (user as any).clinica_id = data.user.clinica_id;
+        (user as any).papel_id = data.user.papel_id;
+        (user as any).role = data.user.role;
+        return true;
+      } catch (error) {
+        console.error("Erro ao trocar id_token do Google por sessão do backend:", error);
+        return false;
+      }
     },
     async jwt({ token, user, account, profile, trigger, session }) {
       const updatedName = typeof session?.name === 'string'
@@ -223,7 +314,13 @@ export const authOptions: AuthOptions = {
         //
         // Os dois blocos tinham que sair juntos: apagar só um deixava o override
         // vivo pelo outro caminho. O papel é o que o backend respondeu, e nada mais.
-        if (account?.provider === 'credentials') {
+        //
+        // 🔵 MÓDULO B — o Google entra nesta MESMA promoção. O `signIn` acima já
+        // carimbou no `user` o `backendToken` e os dados do usuário no shape das
+        // credenciais, e só chega aqui quando `/api/auth/google` respondeu 200 (os
+        // 401/403/503 são negados antes). Então o papel também vem do backend, não
+        // do provider — a lição da SEC-005 vale igual para os dois caminhos.
+        if (account?.provider === 'credentials' || account?.provider === 'google') {
           token.backendToken = (user as any).backendToken;
           token.id = (user as any).id;
           token.clinica_id = (user as any).clinica_id;
