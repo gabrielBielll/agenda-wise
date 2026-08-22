@@ -316,31 +316,19 @@ export interface Bloqueio {
   tipo?: string;
 }
 
-export async function fetchBloqueios(dataInicio?: string, dataFim?: string): Promise<Bloqueio[]> {
-  const session = await getServerSession(authOptions);
-  const token = (session as any)?.backendToken;
-
-  if (!token) return [];
-
-  let apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/bloqueios`;
-  const params = new URLSearchParams();
-  if (dataInicio) params.append("data_inicio", dataInicio);
-  if (dataFim) params.append("data_fim", dataFim);
-  if (params.toString()) apiUrl += `?${params.toString()}`;
-
-  try {
-    const response = await fetch(apiUrl, {
-      headers: { "Authorization": `Bearer ${token}` },
-      cache: "no-store",
-    });
-    if (response.ok) {
-      return await response.json();
-    }
-  } catch (error) {
-    console.error("Erro ao buscar bloqueios:", error);
-  }
-  return [];
-}
+/*
+ * `fetchBloqueios` foi removida em 2026-08-22.
+ *
+ * Ela não tinha NENHUM chamador (varrido em `src/` e `e2e/`) e carregava o
+ * anti-padrão A-013: `!response.ok`/`catch` viravam `[]` — o "falha vira vazio"
+ * que o `carregar()` existe para eliminar. 403, 500, rede caída e banco fora
+ * davam todos a mesma agenda "sem nenhum bloqueio". Os bloqueios chegam ao
+ * calendário pelo carregamento da página (server component), não por esta action.
+ *
+ * Removida, e não só desativada, porque código morto que mostra a forma errada
+ * é semente: alguém o copiaria como modelo. Se voltar a ser preciso buscar
+ * bloqueios do lado cliente, use `carregar()` e trate os quatro estados.
+ */
 
 /*
  * `checkBlockConflicts` foi removida em 2026-08-16.

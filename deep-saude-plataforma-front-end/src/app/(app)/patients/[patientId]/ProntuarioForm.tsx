@@ -12,6 +12,8 @@ import { useToast } from "@/hooks/use-toast";
 import { ChevronDown, FileText, X, Save } from "lucide-react";
 import ProntuarioDataViewer from "./ProntuarioDataViewer";
 import { ordenarDaMaisRecente, janelaInicial, SESSOES_POR_PAGINA } from "@/lib/janela-sessoes";
+// A-025: rótulo da sessão no fuso da clínica (era `toLocaleString`, fuso do navegador).
+import { dataHoraNaClinica } from "@/lib/datetime";
 
 // Fallback if Label component doesn't exist (it usually does in shadcn)
 // import { Label } from "@/components/ui/label";
@@ -220,7 +222,7 @@ export default function ProntuarioForm({
                                 <SelectItem value="none">Nenhuma</SelectItem>
                                 {sessoes.slice(0, sessoesVisiveis).map((apt) => (
                                     <SelectItem key={apt.id} value={apt.id}>
-                                        {new Date(apt.data_hora_sessao).toLocaleString('pt-BR')} - {apt.tipo || 'Sessão'}
+                                        {dataHoraNaClinica(apt.data_hora_sessao)} - {apt.tipo || 'Sessão'}
                                     </SelectItem>
                                 ))}
                                 {sessoesRestantes > 0 && (

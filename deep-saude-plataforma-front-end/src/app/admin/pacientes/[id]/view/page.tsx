@@ -6,6 +6,8 @@ import { carregar } from "@/lib/carregar";
 import { FalhaDeCarregamento } from "@/components/FalhaDeCarregamento";
 import { notFound } from 'next/navigation';
 import EditPacienteForm from '../edit/EditPacienteForm'; // Reusing the form
+// F3: data pura — fatia "YYYY-MM-DD" sem passar por Date/fuso.
+import { dataPuraISO } from '@/lib/datetime';
 
 interface Paciente {
   id: string;
@@ -34,7 +36,7 @@ async function getPaciente(token: string, pacienteId: string): Promise<Paciente 
     }
     const data = await response.json();
     if (data.data_nascimento) {
-      data.data_nascimento = new Date(data.data_nascimento).toISOString().split('T')[0];
+      data.data_nascimento = dataPuraISO(data.data_nascimento);
     }
     return data;
   } catch (error: any) {

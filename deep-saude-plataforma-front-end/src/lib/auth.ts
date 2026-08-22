@@ -42,31 +42,82 @@ import CredentialsProvider from "next-auth/providers/credentials";
  * leitura de sessão; renovar sempre viraria uma chamada ao backend por
  * requisição.
  *
- * 📌 E se a renovação falhar, devolve o token ANTIGO em vez de apagar a sessão.
- * Uma falha de rede momentânea não deve deslogar ninguém — o middleware ainda
- * barra quando o token de fato expirar.
+ * 📌 Falha TRANSITÓRIA (rede, DNS, backend reiniciando, 5xx) devolve o token
+ * ANTIGO em vez de apagar a sessão, e agora com UM retry antes de desistir: um
+ * soluço de rede não deve deslogar ninguém, e o middleware ainda barra quando o
+ * token de fato expirar.
+ *
+ * 🔴 Mas 401 do `/api/auth/renovar` é outra coisa — é o backend dizendo que a
+ * sessão MORREU (o refresh não vale mais). O texto que morava aqui dizia
+ * "devolve o token ANTIGO em vez de apagar a sessão" para TODA falha, e foi essa
+ * generalização a causa provável do `jwt_validation_failed`: devolver o token
+ * expirado num 401 apenas empurra a mesma recusa para a requisição seguinte, em
+ * laço. Agora 401 devolve `undefined` — o callback `session` zera o
+ * `backendToken` e o middleware (`isBackendTokenExpired`) manda para o login do
+ * papel certo.
+ *
+ * 📌 A base de URL é a MESMA do `authorize`/login (`NEXT_PUBLIC_API_URL`):
+ * renovar contra endereço diferente do que autenticou renovaria contra outro
+ * backend.
  */
 async function renovarSeNecessario(backendToken?: string): Promise<string | undefined> {
   if (!backendToken) return backendToken;
+
+  let payload: { exp?: number } | undefined;
   try {
-    const payload = JSON.parse(
+    payload = JSON.parse(
       Buffer.from(backendToken.split(".")[1], "base64").toString("utf8")
     );
-    const faltam = (payload?.exp ?? 0) * 1000 - Date.now();
-    // Mais de 10 minutos de vida: não mexe.
-    if (faltam > 10 * 60 * 1000) return backendToken;
-
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/renovar`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${backendToken}` },
-      cache: "no-store",
-    });
-    if (!res.ok) return backendToken;
-    const data = await res.json();
-    return data?.token ?? backendToken;
   } catch {
+    // Token ilegível: não dá para calcular a validade daqui. Não é um 401
+    // conhecido, então NÃO apaga a sessão — deixa o middleware barrar quando ele
+    // de fato expirar.
     return backendToken;
   }
+
+  const faltam = (payload?.exp ?? 0) * 1000 - Date.now();
+  // Caminho feliz: mais de 10 minutos de vida, não mexe em nada.
+  if (faltam > 10 * 60 * 1000) return backendToken;
+
+  // Mesma base do login/`authorize` (ver o comentário acima).
+  const url = `${process.env.NEXT_PUBLIC_API_URL}/api/auth/renovar`;
+
+  // Duas tentativas no total: UM retry para a falha transitória (rede/5xx). O
+  // 401 corta o laço na hora — sessão morta não melhora insistindo.
+  for (let tentativa = 0; tentativa < 2; tentativa++) {
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${backendToken}` },
+        cache: "no-store",
+      });
+    } catch {
+      // Rede/DNS/backend reiniciando: pode ser soluço. Tenta de novo; se
+      // esgotar, sai do laço e devolve o token atual.
+      continue;
+    }
+
+    // 🔴 Sessão morta no backend: NÃO devolve o token velho (era o que
+    // realimentava o jwt_validation_failed). `undefined` faz a sessão falhar.
+    if (res.status === 401) return undefined;
+
+    if (res.ok) {
+      try {
+        const data = await res.json();
+        return data?.token ?? backendToken;
+      } catch {
+        // 200 sem JSON válido: não renovou, mas o token atual ainda serve.
+        return backendToken;
+      }
+    }
+
+    // Outro não-ok (5xx, 502 do proxy): transitório — deixa o laço retentar.
+  }
+
+  // Esgotou as tentativas por causa transitória: mantém o token atual; o
+  // middleware ainda barra quando ele expirar de verdade.
+  return backendToken;
 }
 
 export const authOptions: AuthOptions = {
