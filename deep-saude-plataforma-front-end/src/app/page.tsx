@@ -7,10 +7,28 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ArrowRight, Leaf, Lock, ShieldCheck, Sparkles } from "lucide-react";
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useSession, signIn, signOut } from 'next-auth/react';
 import { useLoading } from '@/components/LoadingOverlay';
 import { ThemeToggle } from '@/components/ThemeToggle';
+
+/**
+ * Traduz o código de erro do login com Google (Módulo B) na frase que a pessoa lê.
+ * Os códigos são os que o `signIn` de `src/lib/auth.ts` devolve ao negar a entrada.
+ */
+function mensagemDeErroDeAcesso(codigo: string): string {
+  switch (codigo) {
+    case 'google_sem_conta':
+      return 'Conta não encontrada. Peça ao administrador da clínica para liberar seu acesso.';
+    case 'google_invalido':
+      return 'Não foi possível validar sua conta Google. Tente entrar novamente.';
+    case 'google_indisponivel':
+      return 'O login com Google está indisponível no momento. Use e-mail e senha.';
+    default:
+      return 'Não foi possível concluir o acesso. Tente novamente.';
+  }
+}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -57,8 +75,28 @@ export default function LoginPage() {
    */
   const [sessaoExpirou, setSessaoExpirou] = useState<boolean | null>(null);
 
+  /**
+   * Avisos que chegam por query string quando a pessoa volta para o login:
+   *   - `?redefinida=1`  → acabou de trocar a senha (Módulo A);
+   *   - `?erro=google_*` → o login com Google foi negado pelo backend (Módulo B).
+   *
+   * Lido de `window.location` pelo mesmo motivo do `?expired` acima: `useSearchParams()`
+   * quebraria o `next build` desta tela prerenderizada.
+   */
+  const [avisoAcesso, setAvisoAcesso] = useState<{ tipo: 'ok' | 'erro'; texto: string } | null>(null);
+
   useEffect(() => {
     setSessaoExpirou(new URLSearchParams(window.location.search).get('expired') === 'true');
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('redefinida') === '1') {
+      setAvisoAcesso({ tipo: 'ok', texto: 'Senha redefinida com sucesso. Entre com a nova senha.' });
+      return;
+    }
+    const erro = params.get('erro');
+    if (erro) setAvisoAcesso({ tipo: 'erro', texto: mensagemDeErroDeAcesso(erro) });
   }, []);
 
   useEffect(() => {
@@ -135,6 +173,17 @@ export default function LoginPage() {
               Sua sessão expirou. Entre novamente para continuar.
             </p>
           )}
+          {avisoAcesso && (
+            <p
+              className={`mt-3 rounded-md px-3 py-2 text-sm ${
+                avisoAcesso.tipo === 'ok'
+                  ? 'bg-primary/10 text-primary'
+                  : 'bg-destructive/10 text-destructive'
+              }`}
+            >
+              {avisoAcesso.texto}
+            </p>
+          )}
         </CardHeader>
         <CardContent className="px-7 pb-7 sm:px-9 sm:pb-9">
           <form onSubmit={handleLogin} className="space-y-4">
@@ -145,6 +194,11 @@ export default function LoginPage() {
             <div className="space-y-2">
               <Label htmlFor="password">Senha</Label>
               <Input id="password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+            </div>
+            <div className="flex justify-end">
+              <Button asChild variant="link" size="sm" className="h-auto px-0 text-xs">
+                <Link href="/recuperar-senha">Esqueci minha senha</Link>
+              </Button>
             </div>
             {error && <p className="text-sm font-medium text-destructive">{error}</p>}
             <Button type="submit" className="w-full">Entrar com segurança <ArrowRight /></Button>

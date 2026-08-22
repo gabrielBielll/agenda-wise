@@ -78,7 +78,9 @@
         (semear!)
         (f)))
     (println (str "\n  [prontuarios-test] TEST_DATABASE_URL não definida — "
-                  (count (filter (comp :test meta val) (ns-publics *ns*)))
+                  ;; 🔴 T3.1 — símbolo literal; `*ns*` na fixture é `user`, não este ns.
+                  (count (filter (comp :test meta val)
+                                 (ns-publics 'deep-saude-backend.prontuarios-test)))
                   " testes de banco PULADOS.\n"))))
 
 (defn entre-testes [f]
@@ -155,6 +157,21 @@
   (semear-prontuario!)
   (is (= 403 (:status (listar-como colega "psicologo")))
       "R-012 exclui explicitamente outro psicólogo da mesma clínica"))
+
+(deftest so-a-psicologa-responsavel-escreve-prontuario
+  ;; 🔴 T2.7 — a D-021 abriu a LEITURA ao admin; ESCREVER continua do autor. Antes
+  ;; a guarda só disparava para papel "psicologo", então o admin gravava para
+  ;; paciente de outra psicóloga — e a responsável, dona da autoria, não podia
+  ;; corrigir nem remover (editar/excluir são do autor). Reversível: nada é gravado.
+  (testing "o admin não escreve para paciente de outra psicóloga"
+    (is (= 403 (:status (criar-como admin "admin_clinica" "Tentativa do admin"))))
+    (is (zero? (quantos))))
+  (testing "outro psicólogo também não"
+    (is (= 403 (:status (criar-como colega "psicologo" "Tentativa da colega"))))
+    (is (zero? (quantos))))
+  (testing "CONTROLE — a psicóloga responsável escreve"
+    (is (= 201 (:status (criar-como psicologo "psicologo" "Sessão real"))))
+    (is (= 1 (quantos)))))
 
 (deftest a-saida-de-emergencia-existe-e-funciona
   ;; A R-012 prevê uma flag de super-admin ligada em código. Guarda sem teste é

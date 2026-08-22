@@ -72,18 +72,71 @@
       (is (some? (get-in r [:headers "Retry-After"]))))
     (is (= 2 @chamadas) "o handler não roda quando bloqueado")))
 
+(defn- corpo
+  "Um corpo de `n` bytes, como InputStream — é o que o Jetty entrega antes do
+   parser de JSON, e é onde o limite tem que morder."
+  [n]
+  (java.io.ByteArrayInputStream. (byte-array n)))
+
+;; O handler protegido LÊ o corpo, exatamente como o `wrap-json-body` faz na
+;; pilha real. É a leitura que dispara o corte — um handler que ignora o corpo
+;; nunca chegaria a estourar, e um teste com esse handler mediria o nada.
+(defn- le-o-corpo [req] (slurp (:body req)) {:status 200})
+
+(deftest teto-por-ip-alem-do-teto-por-conta
+  ;; 🔴 T2.5 — credential stuffing: um IP tentando N contas diferentes nunca via
+  ;; 429 com só a chave (IP, e-mail), porque cada conta tinha o próprio contador.
+  ;; O teto por IP puro, empilhado por fora, fecha isso. É o mesmo empilhamento
+  ;; que a rota de login usa.
+  (let [ip (str "ip-" (java.util.UUID/randomUUID))
+        nome (str "login-" (java.util.UUID/randomUUID))
+        handler (limites/wrap-rate-limit
+                 (limites/wrap-rate-limit (fn [_] {:status 200})
+                                          {:nome (str nome "-conta") :max-tentativas 3 :janela-ms 60000
+                                           :chave-extra #(get-in % [:body :email])})
+                 {:nome (str nome "-ip") :max-tentativas 5 :janela-ms 60000})
+        tentativa (fn [email] (handler {:remote-addr ip :headers {} :body {:email email}}))]
+    (testing "cinco contas distintas, uma tentativa cada, passam (bem abaixo do teto de conta)"
+      (doseq [i (range 5)]
+        (is (= 200 (:status (tentativa (str "c" i "@x")))))))
+    (testing "a sexta conta no MESMO IP bate no teto de IP, mesmo nunca tendo tentado antes"
+      (is (= 429 (:status (tentativa "c6@x"))))
+      (is (= "rate_limited" (get-in (tentativa "c7@x") [:body :code]))))))
+
 (deftest middleware-de-payload
-  (let [handler (limites/wrap-limite-payload (fn [_] {:status 200}) 1000)]
+  (let [handler (limites/wrap-limite-payload le-o-corpo 1000)]
     (testing "corpo dentro do limite passa"
-      (is (= 200 (:status (handler {:headers {"content-length" "999"}})))))
-    (testing "corpo acima do limite é recusado antes do handler"
-      (let [r (handler {:headers {"content-length" "1001"}})]
+      (is (= 200 (:status (handler {:headers {"content-length" "999"} :body (corpo 999)})))))
+    (testing "corpo acima do limite, declarado no header, é recusado"
+      (let [r (handler {:headers {"content-length" "1001"} :body (corpo 1001)})]
         (is (= 413 (:status r)))
         (is (= "payload_muito_grande" (get-in r [:body :code])))))
-    (testing "sem content-length, deixa passar (o servidor tem o próprio limite)"
-      (is (= 200 (:status (handler {:headers {}})))))
-    (testing "content-length malformado é tratado como ausente, não vira 500"
-      ;; O header vem do cliente: se `Long/parseLong` cru estourasse aqui,
-      ;; derrubar a requisição seria questão de mandar lixo no header.
-      (is (= 200 (:status (handler {:headers {"content-length" "abc"}}))))
-      (is (= 200 (:status (handler {:headers {"content-length" ""}})))))))
+
+    ;; 🔴 T1.3 — o buraco: `Transfer-Encoding: chunked` não manda `Content-Length`,
+    ;; então o atalho do header não vê nada e o corpo inteiro era desserializado.
+    ;; Na rota de login, pública e sem auth, isso é OOM a um POST de distância.
+    (testing "corpo grande SEM content-length também é recusado (chunked)"
+      (let [r (handler {:headers {} :body (corpo 5000)})]
+        (is (= 413 (:status r)))
+        (is (= "payload_muito_grande" (get-in r [:body :code])))))
+
+    (testing "CONTROLE — o MESMO corpo grande dá 413 com e sem o header"
+      (is (= 413 (:status (handler {:headers {"content-length" "5000"} :body (corpo 5000)})))
+          "com header: atalho do content-length")
+      (is (= 413 (:status (handler {:headers {} :body (corpo 5000)})))
+          "sem header: o limite morde na leitura"))
+
+    (testing "content-length malformado é tratado como ausente, e o limite ainda vale na leitura"
+      ;; O header vem do cliente: `Long/parseLong` cru estourando aqui seria um
+      ;; 500 a um header de lixo de distância. Ilegível = ausente, e aí quem
+      ;; protege é o corte na leitura.
+      (is (= 200 (:status (handler {:headers {"content-length" "abc"} :body (corpo 10)}))))
+      (is (= 413 (:status (handler {:headers {"content-length" "abc"} :body (corpo 5000)}))))
+      (is (= 200 (:status (handler {:headers {"content-length" ""} :body (corpo 10)})))))
+
+    (testing "corpo pequeno sem header passa"
+      (is (= 200 (:status (handler {:headers {} :body (corpo 10)})))))
+
+    (testing "requisição sem corpo nenhum não quebra"
+      (let [sem-corpo (limites/wrap-limite-payload (fn [_] {:status 200}) 1000)]
+        (is (= 200 (:status (sem-corpo {:headers {}}))))))))

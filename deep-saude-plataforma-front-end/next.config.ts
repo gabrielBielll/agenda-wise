@@ -79,6 +79,12 @@ const nextConfig: NextConfig = {
       'prontuarios',
       'bloqueios',
       'usuarios',
+      // 🔴 Faltava, e por isso a "Transferência em lote" do Financeiro dava 404
+      // em produção. O backend serve `POST /api/repasses/transferir`
+      // (core.clj, permissão `gerenciar_pagamentos`) e o FinanceiroClient chama
+      // esse caminho RELATIVO — sem este proxy a chamada morria no Next, não no
+      // backend. Em dev passava só porque backend e front dividiam a porta.
+      'repasses',
       'admin',
       'google',
     ];

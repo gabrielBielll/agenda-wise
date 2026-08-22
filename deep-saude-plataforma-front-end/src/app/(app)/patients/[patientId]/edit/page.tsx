@@ -8,6 +8,8 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from '@/lib/auth';
 import { notFound } from 'next/navigation';
 import EditForm from './EditForm';
+// F3: data pura — fatia "YYYY-MM-DD" sem passar por Date/fuso.
+import { dataPuraISO } from '@/lib/datetime';
 
 async function getPatientDetails(patientId: string, token: string) {
   const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/pacientes/${patientId}`;
@@ -20,7 +22,7 @@ async function getPatientDetails(patientId: string, token: string) {
     if (!response.ok) return null;
     const data = await response.json();
     if (data.data_nascimento) {
-      data.data_nascimento = new Date(data.data_nascimento).toISOString().split('T')[0];
+      data.data_nascimento = dataPuraISO(data.data_nascimento);
     }
     return data;
   } catch (error) {

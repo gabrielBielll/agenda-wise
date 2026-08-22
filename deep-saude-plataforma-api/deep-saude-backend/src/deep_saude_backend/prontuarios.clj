@@ -59,35 +59,71 @@
 
       (try
         (let [paciente-uuid (java.util.UUID/fromString paciente_id)
-              paciente (execute-one! ["SELECT id, psicologo_id FROM pacientes WHERE id = ? AND clinica_id = ?" paciente-uuid clinica-id])]
-          (if-not paciente
+              paciente (execute-one! ["SELECT id, psicologo_id FROM pacientes WHERE id = ? AND clinica_id = ?" paciente-uuid clinica-id])
+              agendamento-uuid (when-not (str/blank? agendamento_id)
+                                 (java.util.UUID/fromString agendamento_id))]
+          (cond
+            (not paciente)
             {:status 404 :body {:erro "Paciente não encontrado."}}
 
-            ;; Verificação de permissão: Psicólogo só cria para seus pacientes
-            (if (and (= papel "psicologo") (not= (:psicologo_id paciente) usuario-id))
-              {:status 403 :body {:erro "Você só pode registrar prontuários para seus pacientes."}}
+            ;; 🔴 T2.7 — o prontuário nasce com a autoria de quem grava, e só a
+            ;; psicóloga RESPONSÁVEL pode gravar. Antes a guarda só disparava para
+            ;; `papel = "psicologo"`, então o admin escrevia prontuário para
+            ;; paciente de outra psicóloga — e a responsável não conseguia
+            ;; corrigir nem remover (editar/excluir são do autor). A D-021 abriu a
+            ;; LEITURA ao admin; escrever continua do autor. Reversível: nada é
+            ;; gravado. Vale para admin, secretário e qualquer outra psicóloga.
+            (not= (:psicologo_id paciente) usuario-id)
+            {:status 403 :body {:erro "Só a psicóloga responsável pelo paciente pode registrar prontuários."}}
 
-              (let [novo-prontuario (sql/insert! @datasource :prontuarios
-                                                 {:clinica_id clinica-id
-                                                  :paciente_id paciente-uuid
-                                                  :psicologo_id usuario-id
-                                                  :conteudo conteudo
-                                                  :tipo (or tipo "sessao")
-                                                  :humor humor
-                                                  :queixa_principal queixa_principal
-                                                  :resumo_tecnico resumo_tecnico
-                                                  :observacoes_estado_mental observacoes_estado_mental
-                                                  :encaminhamentos_tarefas encaminhamentos_tarefas
-                                                  :agendamento_id (when (not (str/blank? agendamento_id))
-                                                                    (java.util.UUID/fromString agendamento_id))}
-                                                 {:builder-fn rs/as-unqualified-lower-maps :return-keys true})]
-                {:status 201 :body novo-prontuario}))))
+            ;; 🔴 T2.1 — o agendamento vinculado tem que ser DESTA clínica. FK do
+            ;; corpo sem esta conferência deixaria costurar a evolução a uma sessão
+            ;; de outro tenant.
+            (and agendamento-uuid
+                 (not (execute-one! ["SELECT 1 FROM agendamentos WHERE id = ? AND clinica_id = ?"
+                                     agendamento-uuid clinica-id])))
+            {:status 422 :body {:erro "Agendamento não pertence à clínica." :code "fk_fora_da_clinica"}}
+
+            :else
+            (let [novo-prontuario (sql/insert! @datasource :prontuarios
+                                               {:clinica_id clinica-id
+                                                :paciente_id paciente-uuid
+                                                :psicologo_id usuario-id
+                                                :conteudo conteudo
+                                                :tipo (or tipo "sessao")
+                                                :humor humor
+                                                :queixa_principal queixa_principal
+                                                :resumo_tecnico resumo_tecnico
+                                                :observacoes_estado_mental observacoes_estado_mental
+                                                :encaminhamentos_tarefas encaminhamentos_tarefas
+                                                :agendamento_id agendamento-uuid}
+                                               {:builder-fn rs/as-unqualified-lower-maps :return-keys true})]
+              {:status 201 :body novo-prontuario})))
         (catch Exception e
           (log/error e "prontuario_create_failed")
           {:status 500 :body {:erro "Erro interno."}})))))
 
-(defn- autor? [usuario-id paciente]
+(defn- designado-do-paciente?
+  "Quem ATENDE o paciente hoje — o `pacientes.psicologo_id`.
+
+   🔴 Antes esta função se chamava `autor?` e era usada como se designação fosse
+   autoria. Não é (T1.5): o autor de uma linha é o `prontuarios.psicologo_id`
+   dela, e a designação muda numas férias com um `UPDATE` no cadastro do
+   paciente. Confundir os dois fazia a psicóloga NOVA herdar o histórico da
+   anterior pelo ramo silencioso da R-012 — leitura sem registro —, e ainda
+   trancava a autora original para fora do que ela mesma escreveu. O nome ficou
+   preservado no texto acima justamente porque foi ele que escondeu o defeito."
+  [usuario-id paciente]
   (= (:psicologo_id paciente) usuario-id))
+
+(defn- autor-de-tudo?
+  "Quem lê é o autor real de TODA linha que a leitura devolveu?
+
+   Vazio conta como sim — não há conteúdo alheio exposto, então não há o que
+   auditar. É a separação que a T1.5 pediu: a leitura silenciosa da R-012 é
+   privilégio do AUTOR de cada registro, não de quem apenas herdou o paciente."
+  [usuario-id prontuarios]
+  (every? #(= (:psicologo_id %) usuario-id) prontuarios))
 
 (defn- admin-da-clinica?
   "Administra ESTA clínica — e não é quem opera a plataforma.
@@ -103,7 +139,7 @@
 
 (defn- pode-ler-normalmente? [identity paciente]
   (or (and (= (:role identity) "psicologo")
-           (autor? (:user_id identity) paciente))
+           (designado-do-paciente? (:user_id identity) paciente))
       (admin-da-clinica? identity)))
 
 (defn- pode-ler? [super-admin-le? identity paciente]
@@ -111,21 +147,30 @@
       (pode-ler-normalmente? identity paciente)))
 
 (defn- motivo-do-acesso
-  "Por que ESTA leitura foi permitida, quando quem lê não é o autor.
-   `nil` quer dizer \"é o autor\" — e leitura do autor não vira registro, senão a
-   tabela enche de ruído e esconde o acesso que importa.
+  "Por que ESTA leitura foi permitida, quando quem lê não é o autor do conteúdo.
+   `nil` quer dizer \"leu só o que ele mesmo escreveu\" — e essa leitura não vira
+   registro, senão a tabela enche de ruído e esconde o acesso que importa.
 
-   ⚠️ Os motivos são distintos de propósito. Enquanto só a flag abria a porta,
-   registrar era exceção; com o admin lendo de rotina, o registro passou a ser o
-   que **sustenta** a regra — a R-012 deixou de proibir e passou a rastrear.
-   Jogar rotina e emergência no mesmo balde faria a auditoria perder exatamente
-   o que ela existe para separar."
-  [super-admin-le? identity paciente]
+   🔴 O corte é por AUTORIA da linha (`autor-de-tudo?`), não por designação. Foi
+   a T1.5: tratar o psicólogo designado como \"autor\" fazia a leitura do
+   histórico alheio passar em silêncio. Quatro desfechos, distintos de propósito:
+
+   - `nil`                  — autor lendo o próprio registro (R-012, sem ruído);
+   - `\"admin_clinica\"`      — admin da clínica lendo (D-021, rotina, sempre auditada);
+   - `\"psicologo_designado\"`— quem atende agora lendo o que OUTRA psicóloga
+                              escreveu (transferência/R-011) — legítimo, mas rastreado;
+   - `\"flag_super_admin\"`   — saída de emergência em código (R-012).
+
+   ⚠️ Jogar rotina, transferência e emergência no mesmo balde faria a auditoria
+   perder exatamente o que ela existe para separar."
+  [super-admin-le? identity paciente autor-de-tudo?]
   (cond
-    (autor? (:user_id identity) paciente) nil
-    (admin-da-clinica? identity)          "admin_clinica"
-    super-admin-le?                       "flag_super_admin"
-    :else                                 nil))
+    autor-de-tudo?               nil
+    (admin-da-clinica? identity) "admin_clinica"
+    (and (= (:role identity) "psicologo")
+         (designado-do-paciente? (:user_id identity) paciente)) "psicologo_designado"
+    super-admin-le?              "flag_super_admin"
+    :else                        nil))
 
 (defn- registrar-acesso! [clinica-id paciente-id usuario-id papel motivo]
   (try
@@ -164,14 +209,22 @@
          {:status 403 :body {:erro "Você não tem permissão para visualizar este prontuário."}}
 
          (let [prontuarios (execute-query!
+                            ;; 🔴 T2.1: o JOIN repete `u.clinica_id = p.clinica_id`.
+                            ;; Sem isso, um `psicologo_id` que apontasse para fora
+                            ;; da clínica traria o nome de quem não é dela — o
+                            ;; mesmo escape de tenant que os handlers de listagem
+                            ;; fecham repetindo o filtro dentro do JOIN.
                             ["SELECT p.*, u.nome as nome_psicologo, a.data_hora_sessao as data_sessao
                               FROM prontuarios p
-                              JOIN usuarios u ON p.psicologo_id = u.id
-                              LEFT JOIN agendamentos a ON p.agendamento_id = a.id
+                              JOIN usuarios u ON p.psicologo_id = u.id AND u.clinica_id = p.clinica_id
+                              LEFT JOIN agendamentos a ON p.agendamento_id = a.id AND a.clinica_id = p.clinica_id
                               WHERE p.paciente_id = ? AND p.clinica_id = ?
                               ORDER BY p.data_registro DESC"
-                             paciente-id clinica-id])]
-           (when-let [motivo (motivo-do-acesso super-admin-le? identity paciente)]
+                             paciente-id clinica-id])
+               ;; Autoria é por LINHA (`prontuarios.psicologo_id`), não por
+               ;; designação do paciente. Ver `motivo-do-acesso` e a T1.5.
+               autor-de-tudo? (autor-de-tudo? usuario-id prontuarios)]
+           (when-let [motivo (motivo-do-acesso super-admin-le? identity paciente autor-de-tudo?)]
              (registrar-acesso! clinica-id paciente-id usuario-id papel motivo))
            {:status 200 :body prontuarios}))))))
 

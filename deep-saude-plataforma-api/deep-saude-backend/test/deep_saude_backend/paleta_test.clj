@@ -56,7 +56,9 @@
         (semear!)
         (f)))
     (println (str "\n  [paleta-test] TEST_DATABASE_URL não definida — "
-                  (count (filter (comp :test meta val) (ns-publics *ns*)))
+                  ;; 🔴 T3.1 — símbolo literal; `*ns*` na fixture é `user`, não este ns.
+                  (count (filter (comp :test meta val)
+                                 (ns-publics 'deep-saude-backend.paleta-test)))
                   " testes de banco PULADOS.\n"))))
 
 (defn entre-testes [f] (if (env :test-database-url) (do (limpar!) (f)) (f)))

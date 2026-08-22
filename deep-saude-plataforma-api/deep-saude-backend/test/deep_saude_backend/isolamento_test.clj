@@ -72,6 +72,13 @@
   (db/execute-one! ["DELETE FROM google_sync_outbox"])
   (db/execute-one! ["DELETE FROM vinculo_agenda"])
   (db/execute-one! ["DELETE FROM google_conexao"])
+  ;; ⚠️ Estas três também têm FK para `clinicas`/`pacientes`, e nasceram DEPOIS
+  ;; da primeira versão desta limpeza — por isso ficaram de fora. Sem elas, uma
+  ;; linha de `paleta_clinica` deixada por outro namespace (a ordem entre eles não
+  ;; é garantida) faz o `DELETE FROM clinicas` estourar por FK. Filho antes de pai.
+  (db/execute-one! ["DELETE FROM acesso_prontuario"])
+  (db/execute-one! ["DELETE FROM paleta_clinica"])
+  (db/execute-one! ["DELETE FROM google_oauth_state"])
   ;; Só a clínica B e seus usuários: a A é fixa e vem do semear.
   ;;
   ;; ⚠️ A ordem aqui é a das chaves estrangeiras, não a alfabética nem a que
@@ -97,7 +104,9 @@
         (semear-clinica-a!)
         (f)))
     (println (str "\n  [isolamento-test] TEST_DATABASE_URL não definida — "
-                  (count (filter (comp :test meta val) (ns-publics *ns*)))
+                  ;; 🔴 T3.1 — símbolo literal; `*ns*` na fixture é `user`, não este ns.
+                  (count (filter (comp :test meta val)
+                                 (ns-publics 'deep-saude-backend.isolamento-test)))
                   " testes de banco PULADOS.\n"))))
 
 (use-fixtures :once com-banco-de-teste)
