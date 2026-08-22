@@ -94,3 +94,84 @@
                       VALUES (?, ?, 'duplicada@google.local', 'cifrado', 'calendar')"
                      clinica psicologo]))
           "a mesma pessoa não pode ganhar duas conexões"))))
+
+(deftest paleta-tem-permissao-propria-concedida-so-ao-admin
+  ;; SEC-006 (metade segura): `gerenciar_configuracoes_clinica` guarda a paleta e
+  ;; nunca existia em migration — o "só admin" vinha do bypass de admin no código.
+  ;; A migration nova a registra e concede ao admin, para a remoção futura do
+  ;; bypass não quebrar a paleta em silêncio.
+  (let [perms-de (fn [papel-nome]
+                   (set (map :nome_permissao
+                             (db/execute-query!
+                              ["SELECT per.nome_permissao FROM papel_permissoes pp
+                                  JOIN papeis p ON p.id = pp.papel_id
+                                  JOIN permissoes per ON per.id = pp.permissao_id
+                                 WHERE p.nome_papel = ?" papel-nome]))))]
+    (is (contains? (perms-de "admin_clinica") "gerenciar_configuracoes_clinica"))
+    (is (not (contains? (perms-de "psicologo") "gerenciar_configuracoes_clinica")))
+    (is (not (contains? (perms-de "secretario") "gerenciar_configuracoes_clinica")))))
+
+(deftest ler-por-id-respeita-o-dono
+  ;; 🔴 T2.2 — obter por id só filtrava clínica, não o dono. Uma psicóloga que não
+  ;; é a responsável lia o `SELECT *` (diagnóstico, medicação, histórico) por id,
+  ;; enquanto listar/editar/excluir já checavam o dono.
+  (testing "paciente — outra psicóloga não lê (403)"
+    (is (= 403 (:status (core/obter-paciente-handler
+                         {:identity {:clinica_id clinica :user_id secretario :role "psicologo"}
+                          :params {:id (str paciente)}})))))
+  (testing "agendamento — outra psicóloga não lê (404, não confirma existência)"
+    (is (= 404 (:status (core/obter-agendamento-handler
+                         {:identity {:clinica_id clinica :user_id secretario :role "psicologo"}
+                          :params {:id (str agendamento)}})))))
+  (testing "CONTROLE — a psicóloga dona lê os dois"
+    (is (= 200 (:status (core/obter-paciente-handler
+                         {:identity {:clinica_id clinica :user_id psicologo :role "psicologo"}
+                          :params {:id (str paciente)}}))))
+    (is (= 200 (:status (core/obter-agendamento-handler
+                         {:identity {:clinica_id clinica :user_id psicologo :role "psicologo"}
+                          :params {:id (str agendamento)}})))))
+  (testing "admin/secretário alcançam a clínica inteira"
+    (is (= 200 (:status (core/obter-paciente-handler
+                         {:identity {:clinica_id clinica :user_id secretario :role "secretario"}
+                          :params {:id (str paciente)}}))))
+    (is (= 200 (:status (core/obter-agendamento-handler
+                         {:identity {:clinica_id clinica :user_id secretario :role "admin_clinica"}
+                          :params {:id (str agendamento)}}))))))
+
+(deftest sincronizar-agendamentos-exige-gerenciar-pagamentos
+  ;; 🔴 T2.4 — a rota dispara `UPDATE ... status_pagamento = 'pago'` em lote. Só
+  ;; tinha autenticação; passa a exigir `gerenciar_pagamentos` como as outras
+  ;; rotas de dinheiro. Testado pela guarda, como os demais deste arquivo.
+  (let [wrapped (core/wrap-checar-permissao core/sincronizar-status-agendamentos-handler
+                                            "gerenciar_pagamentos")]
+    (testing "secretário não sincroniza (não move dinheiro)"
+      (is (= 403 (:status (wrapped {:identity {:clinica_id clinica
+                                               :papel_id (papel "secretario") :role "secretario"}})))))
+    (testing "CONTROLE — o admin (bypass de permissão) passa"
+      (is (not= 403 (:status (wrapped {:identity {:clinica_id clinica
+                                                  :papel_id (papel "admin_clinica")
+                                                  :role "admin_clinica"}})))))))
+
+(deftest criar-usuario-exige-senha-de-oito-e-modalidade
+  ;; 🔴 T1.4 + T2.8(b). Antes, `criar-usuario-handler` só checava `str/blank?` na
+  ;; senha (então "x" criava a conta) e não exigia `modalidade_repasse` da
+  ;; psicóloga (então ela herdava o default de 50% do schema em silêncio).
+  (let [criar (fn [extra]
+                (core/criar-usuario-handler
+                 {:identity {:clinica_id clinica}
+                  :body (merge {:nome "Nova"
+                                :email (str "u-" (java.util.UUID/randomUUID) "@teste.local")
+                                :papel "psicologo"}
+                               extra)}))]
+    (testing "T1.4 — senha de 1 caractere é recusada"
+      (is (= 400 (:status (criar {:senha "x"
+                                  :modalidade_repasse "percentual" :percentual_repasse 50})))))
+    (testing "T2.8b — psicóloga sem modalidade de repasse é recusada, sem cair no default"
+      (let [resp (criar {:senha "senha-de-teste-123"})]
+        (is (= 422 (:status resp)))
+        (is (= "modalidade_repasse_obrigatoria" (:code (:body resp))))))
+    (testing "CONTROLE — com senha de 8+ e modalidade declarada, cria"
+      (let [resp (criar {:senha "senha-de-teste-123"
+                         :modalidade_repasse "percentual" :percentual_repasse 50})]
+        (is (= 201 (:status resp)))
+        (db/execute-one! ["DELETE FROM usuarios WHERE id = ?" (:id (:body resp))])))))

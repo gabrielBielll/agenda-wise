@@ -71,9 +71,12 @@
   (let [clinica-id (:clinica_id identity)
         usuario-id (:user_id identity)
         papel (:role identity)
+        ;; 🔴 T2.1 — o JOIN repete `u.clinica_id = p.clinica_id`. Sem isso, um
+        ;; `psicologo_id` apontando para fora traria o e-mail de quem não é desta
+        ;; clínica para dentro do arquivo exportado.
         base "SELECT p.*, u.email AS psicologo_email
                 FROM pacientes p
-                LEFT JOIN usuarios u ON u.id = p.psicologo_id
+                LEFT JOIN usuarios u ON u.id = p.psicologo_id AND u.clinica_id = p.clinica_id
                WHERE p.clinica_id = ?"]
     (if (or (= papel "admin_clinica") (= papel "secretario"))
       (db/execute-query! [(str base " ORDER BY lower(p.nome), p.id") clinica-id])

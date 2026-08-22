@@ -78,7 +78,9 @@
         (semear!)
         (f)))
     (println (str "\n  [plataforma-test] TEST_DATABASE_URL não definida — "
-                  (count (filter (comp :test meta val) (ns-publics *ns*)))
+                  ;; 🔴 T3.1 — símbolo literal; `*ns*` na fixture é `user`, não este ns.
+                  (count (filter (comp :test meta val)
+                                 (ns-publics 'deep-saude-backend.plataforma-test)))
                   " testes de banco PULADOS.\n"))))
 
 (use-fixtures :once com-banco-de-teste)
@@ -205,8 +207,12 @@
   (let [email (str "escalada-" (java.util.UUID/randomUUID) "@teste.local")
         resp (core/criar-usuario-handler
               {:identity {:clinica_id clinica :user_id admin :role "admin_clinica"}
+               ;; A modalidade de repasse passou a ser obrigatória para psicóloga
+               ;; (T2.8b): sem ela, a criação para em 422 antes de exercitar o que
+               ;; este teste vigia — que a flag da plataforma no corpo é ignorada.
                :body {:nome "Tentativa" :email email :senha "senha-de-teste-123"
-                      :papel "psicologo" :plataforma_admin true}})]
+                      :papel "psicologo" :plataforma_admin true
+                      :modalidade_repasse "percentual" :percentual_repasse 50}})]
     (is (contains? #{200 201} (:status resp)) "o usuário é criado normalmente")
     (is (false? (:plataforma_admin
                  (db/execute-one! ["SELECT plataforma_admin FROM usuarios WHERE email = ?" email])))

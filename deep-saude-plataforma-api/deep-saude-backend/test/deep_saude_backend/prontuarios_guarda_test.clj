@@ -36,6 +36,7 @@
 (def ^:private autor    (java.util.UUID/randomUUID))
 (def ^:private admin    (java.util.UUID/randomUUID))
 (def ^:private outro    (java.util.UUID/randomUUID))
+(def ^:private novo     (java.util.UUID/randomUUID))
 (def ^:private paciente (java.util.UUID/randomUUID))
 
 ;; ⚠️ `admin` e `autor` PRECISAM ser pessoas diferentes. Na primeira versão deste
@@ -53,13 +54,24 @@
   "Roda `listar-handler` contra um banco de mentira e devolve
    `[resposta acessos-gravados]`. `acessos` são os parâmetros de cada INSERT em
    `acesso_prontuario` — é assim que a auditoria é medida por efeito, e não pela
-   leitura ter dado 200."
+   leitura ter dado 200.
+
+   ⚠️ `designado` é o `pacientes.psicologo_id` — quem ATENDE o paciente hoje — e
+   `escrito-por` é o `prontuarios.psicologo_id` de cada linha — quem ESCREVEU. A
+   T1.5 existe porque os dois eram tratados como um só; por padrão coincidem em
+   `autor`, e os testes de transferência separam-nos de propósito."
   ([req] (ler req false))
-  ([req super-admin-le?]
+  ([req super-admin-le?] (ler req super-admin-le? autor autor))
+  ([req super-admin-le? designado escrito-por]
    (let [acessos (atom [])]
      (with-redefs
        [db/datasource     (delay :sem-banco)
-        db/execute-query! (fn [_] [{:id (java.util.UUID/randomUUID) :conteudo "conteúdo clínico"}])
+        ;; 🔴 A linha carrega `:psicologo_id` (a autoria real). Sem ele não dá
+        ;; para distinguir "o autor lendo o que escreveu" de "o designado lendo
+        ;; o histórico de outra pessoa" — que é o buraco inteiro da T1.5.
+        db/execute-query! (fn [_] [{:id (java.util.UUID/randomUUID)
+                                    :psicologo_id escrito-por
+                                    :conteudo "conteúdo clínico"}])
         db/execute-one!
         (fn [sql-params]
           (let [sql (str (first sql-params))]
@@ -68,7 +80,7 @@
               (do (swap! acessos conj (vec (rest sql-params))) nil)
 
               (re-find #"FROM pacientes" sql)
-              {:id paciente :psicologo_id autor}
+              {:id paciente :psicologo_id designado}
 
               :else nil)))]
        [(prontuarios/listar-handler req super-admin-le?) @acessos]))))
@@ -142,3 +154,33 @@
     ;; ficaria verde sem provar nada.
     (let [[_ acessos] (ler (pedido autor "psicologo") true)]
       (is (empty? acessos)))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; T1.5 — transferência: designação NÃO é autoria
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(deftest transferencia-de-paciente-nao-drena-historico-em-silencio
+  ;; 🔴 O defeito confirmado: durante férias/substituição o admin troca o
+  ;; `pacientes.psicologo_id` para a psicóloga NOVA. Ela passa a ler todo o
+  ;; histórico escrito pela ANTERIOR — e, porque a guarda antiga tratava
+  ;; designação como autoria (`autor?` olhava `pacientes.psicologo_id`), a
+  ;; leitura caía no ramo "é o autor" e NÃO gravava acesso. Vazamento de
+  ;; prontuário sem rastro, exatamente o que a R-012/D-021 existem para impedir.
+  ;;
+  ;; Aqui o paciente é designado a `novo`, mas o conteúdo foi escrito por `autor`.
+  (testing "a psicóloga que herdou o paciente lê, mas o acesso fica REGISTRADO"
+    (let [[resp acessos] (ler (pedido novo "psicologo") false novo autor)]
+      (is (= 200 (:status resp))
+          "R-011: a psicóloga que atende agora precisa do histórico para atender")
+      (is (= 1 (count acessos))
+          "ler o que OUTRA pessoa escreveu tem que deixar rastro — o silêncio era o defeito")
+      (is (= "psicologo_designado" (motivo-gravado acessos))
+          "motivo próprio: não é autoria (a linha é de outra psicóloga) nem emergência de flag")))
+
+  (testing "CONTROLE — a mesma psicóloga lendo o que ELA MESMA escreveu não grava"
+    ;; Prova que a distinção é por AUTORIA da linha, não por identidade de quem
+    ;; lê: se `novo` fosse a autora, seria leitura silenciosa legítima da R-012.
+    (let [[resp acessos] (ler (pedido novo "psicologo") false novo novo)]
+      (is (= 200 (:status resp)))
+      (is (empty? acessos)
+          "auditar o autor lendo o próprio registro é o ruído que esconde o acesso que importa"))))

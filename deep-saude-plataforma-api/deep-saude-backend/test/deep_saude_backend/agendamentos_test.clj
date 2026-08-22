@@ -50,14 +50,23 @@
   (let [papel (:id (db/execute-one! ["SELECT id FROM papeis WHERE nome_papel = 'psicologo'"]))]
     (doseq [[cli psi pac nome] [[clinica-a psicologo-a paciente-a "A"]
                                 [clinica-b psicologo-b paciente-b "B"]]]
+      ;; 🔴 T3.2 — `DO UPDATE SET` nas colunas semeadas, não `DO NOTHING`. Em banco
+      ;; REUSADO, `DO NOTHING` deixa de pé qualquer mutação que um teste anterior
+      ;; fez na linha (a `pagamento-automatico` mexe em `clinicas`, um teste pode
+      ;; reatribuir `pacientes.psicologo_id`), e a fixture `:once` não repõe o
+      ;; estado — é a origem das falsas falhas em segunda rodada.
       (db/execute-one! ["INSERT INTO clinicas (id, nome_da_clinica) VALUES (?, ?)
-                         ON CONFLICT (id) DO NOTHING" cli (str "Clinica " nome)])
+                         ON CONFLICT (id) DO UPDATE SET nome_da_clinica = EXCLUDED.nome_da_clinica"
+                        cli (str "Clinica " nome)])
       (db/execute-one! ["INSERT INTO usuarios (id, clinica_id, papel_id, nome, email, senha_hash)
                          VALUES (?, ?, ?, ?, ?, 'x')
                          ON CONFLICT (id) DO UPDATE SET papel_id = EXCLUDED.papel_id"
                         psi cli papel (str "Psi " nome) (str "psi-" (str/lower-case nome) "@teste.local")])
       (db/execute-one! ["INSERT INTO pacientes (id, clinica_id, nome, psicologo_id)
-                         VALUES (?, ?, ?, ?) ON CONFLICT (id) DO NOTHING"
+                         VALUES (?, ?, ?, ?)
+                         ON CONFLICT (id) DO UPDATE SET clinica_id = EXCLUDED.clinica_id,
+                                                        nome = EXCLUDED.nome,
+                                                        psicologo_id = EXCLUDED.psicologo_id"
                         pac cli (str "Paciente " nome) psi])))
   ;; A regra pode mudar dentro de um teste; fixture precisa devolver o legado
   ;; de 50% para o próximo, assim como devolve as tabelas transacionais.
@@ -132,24 +141,34 @@
         (semear-cadastro!)
         (f)))
     (println (str "\n  [agendamentos-test] TEST_DATABASE_URL não definida — "
-                  (count (filter (comp :test meta val) (ns-publics *ns*)))
+                  ;; 🔴 T3.1 — símbolo LITERAL, não `*ns*`. Dentro da fixture, em
+                  ;; tempo de execução, `*ns*` já é `user` (o namespace do runner),
+                  ;; então `(ns-publics *ns*)` contava os públicos de `user` — quase
+                  ;; sempre zero — e o "0 PULADOS" mentia sobre uma suíte inteira.
+                  (count (filter (comp :test meta val)
+                                 (ns-publics 'deep-saude-backend.agendamentos-test)))
                   " testes de banco PULADOS.\n"))))
 
-(defn- limpar-pacientes-da-portabilidade! []
-  ;; O teste de importação cria cadastros além da fixture. Removê-los antes e
-  ;; depois mantém a suíte repetível mesmo quando uma execução anterior falha.
+(defn- limpar-pacientes-extras! []
+  ;; 🔴 T3.2 — antes isto era uma lista fixa de e-mails ('importada@...',
+  ;; 'outra-carteira@...'). Lista fixa envelhece: um teste novo que crie paciente
+  ;; com outro e-mail vaza para a próxima rodada sem ninguém ver. Agora limpa por
+  ;; ESCOPO — tudo nas clínicas de teste MENOS os cadastros semeados —, então
+  ;; qualquer extra some, tenha o e-mail que tiver, e a fixture volta ao estado base.
   (db/execute-one! ["DELETE FROM pacientes
-                      WHERE email IN ('importada@teste.local', 'outra-carteira@teste.local')"]))
+                      WHERE clinica_id IN (?, ?)
+                        AND id NOT IN (?, ?)"
+                    clinica-a clinica-b paciente-a paciente-b]))
 
 (defn entre-testes [f]
   (if (env :test-database-url)
     (do
       (limpar-agendamentos!)
-      (limpar-pacientes-da-portabilidade!)
+      (limpar-pacientes-extras!)
       (try
         (f)
         (finally
-          (limpar-pacientes-da-portabilidade!))))
+          (limpar-pacientes-extras!))))
     (f)))
 
 (use-fixtures :once com-banco-de-teste)
@@ -586,6 +605,66 @@
       (is (= 200 (:status (atualizar (:id avulsa) {:status_repasse "transferido"})))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; T1.2 — editar série também checa conflito e bloqueio
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;; As guardas `bloqueio-existente` e `agendamento-conflitante` só existiam no ramo
+;; individual. Mover a SÉRIE (all/all_future) para cima de outra sessão ou de um
+;; bloqueio passava calado — a mesma classe da A-007, só que multiplicada por
+;; todas as ocorrências de uma vez.
+
+(deftest atualizar-serie-recusa-mover-para-cima-de-outra-sessao
+  ;; 🔴 T1.2 — série às 14:00 em 04/11/18/25. Uma avulsa ocupa 05-11 16:00. Mover
+  ;; a série inteira para 16:00 põe a ocorrência de 05-11 em cima da avulsa.
+  (let [[primeiro _ _ _] (serie-de-quatro!)]
+    (criar (assoc sessao-base :data_hora_sessao "2027-05-11T16:00:00" :duracao 50))
+    (let [resp (atualizar-como "psicologo" primeiro
+                               {:data_hora_sessao "2027-05-11T16:00:00" :mode "all"})]
+      (is (= 409 (:status resp)))
+      (is (= "appointment_conflict" (:code (:body resp))))
+      (testing "e a série não se moveu — recusa é antes da transação"
+        (is (= ["2027-05-04 14:00" "2027-05-11 14:00" "2027-05-11 16:00"
+                "2027-05-18 14:00" "2027-05-25 14:00"]
+               (horarios-de-parede)))))))
+
+(deftest atualizar-serie-all-future-recusa-mover-para-dentro-de-bloqueio
+  ;; O bloqueio recusa a série igual recusa o individual — e não tem `force`.
+  (let [[_ _ terceiro _] (serie-de-quatro!)]
+    (criar-bloqueio {:data_inicio "2027-05-18T09:00:00" :data_fim "2027-05-18T10:00:00"
+                     :tipo "bloqueio"})
+    (let [resp (atualizar-como "psicologo" terceiro
+                               {:data_hora_sessao "2027-05-18T09:00:00" :mode "all_future"})]
+      (is (= 409 (:status resp)))
+      (is (= "block_conflict" (:code (:body resp))))
+      (testing "nenhuma ocorrência entrou no bloqueio"
+        (is (= ["2027-05-04 14:00" "2027-05-11 14:00" "2027-05-18 14:00" "2027-05-25 14:00"]
+               (horarios-de-parede)))))))
+
+(deftest atualizar-serie-com-force-do-admin-vence-conflito-de-sessao
+  ;; R-020(1): o admin força conflito de sessão também na série.
+  (let [[primeiro _ _ _] (serie-de-quatro!)]
+    (criar (assoc sessao-base :data_hora_sessao "2027-05-11T16:00:00" :duracao 50))
+    (testing "sem force, o psicólogo é recusado"
+      (is (= 409 (:status (atualizar-como "psicologo" primeiro
+                                          {:data_hora_sessao "2027-05-11T16:00:00" :mode "all"})))))
+    (testing "o admin força a série sobre o conflito de sessão"
+      (is (= 200 (:status (atualizar-como "admin_clinica" primeiro
+                                          {:data_hora_sessao "2027-05-11T16:00:00"
+                                           :mode "all" :force true})))))))
+
+(deftest atualizar-serie-nem-o-admin-forca-para-dentro-de-bloqueio
+  ;; CONTROLE que a correção não pode afrouxar: `force` vence conflito de sessão,
+  ;; mas NUNCA bloqueio — a R-020 deu ao admin força sobre a agenda, não sobre a
+  ;; agenda fechada de alguém. Igual ao individual, o bloqueio vem antes do force.
+  (let [[primeiro _ _ _] (serie-de-quatro!)]
+    (criar-bloqueio {:data_inicio "2027-05-04T07:00:00" :data_fim "2027-05-04T08:00:00"
+                     :tipo "bloqueio"})
+    (let [resp (atualizar-como "admin_clinica" primeiro
+                               {:data_hora_sessao "2027-05-04T07:00:00" :mode "all" :force true})]
+      (is (= 409 (:status resp)))
+      (is (= "block_conflict" (:code (:body resp)))))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; R-004 — passado é imutável (A-001 e A-002)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -692,6 +771,21 @@
 
 (deftest atualizar-agendamento-inexistente-da-404
   (is (= 404 (:status (atualizar (java.util.UUID/randomUUID) {:status "cancelado"})))))
+
+(deftest atualizar-agendamento-recusa-fk-de-outra-clinica
+  ;; 🔴 T2.1 — o update aceitava paciente_id/psicologo_id do corpo sem conferir a
+  ;; clínica. A criação já devolve 422 ("não pertence à clínica"); o update não.
+  (let [avulsa (:body (criar (assoc sessao-base :data_hora_sessao "2027-03-10T14:00:00")))]
+    (testing "psicólogo de OUTRA clínica é recusado"
+      (let [resp (atualizar (:id avulsa) {:psicologo_id (str psicologo-b)})]
+        (is (= 422 (:status resp)))
+        (is (= "fk_fora_da_clinica" (:code (:body resp))))))
+    (testing "paciente de OUTRA clínica é recusado"
+      (is (= 422 (:status (atualizar (:id avulsa) {:paciente_id (str paciente-b)})))))
+    (testing "e a sessão continua com o dono original"
+      (is (= psicologo-a (:psicologo_id (db/execute-one!
+                                         ["SELECT psicologo_id FROM agendamentos WHERE id = ?"
+                                          (:id avulsa)])))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; R-006 — conflito ao mudar ocupação da agenda (A-007)
@@ -887,10 +981,61 @@
     (testing "some desta em diante; as anteriores ficam"
       (is (= ["2027-05-04 14:00" "2027-05-11 14:00"] (horarios-de-parede))))))
 
-(deftest remover-modo-all
+(deftest remover-modo-all-serie-futura-apaga-tudo
+  ;; R-021: série inteiramente no futuro e sem dinheiro propaga a exclusão — some.
+  ;; É o controle positivo do teste abaixo: "all" continua apagando o que PODE.
   (let [[_ _ terceiro _] (serie-de-quatro!)]
     (is (= 204 (:status (remover terceiro "all"))))
     (is (= [] (horarios-de-parede)))))
+
+(deftest remover-modo-all-recusa-quando-ha-sessao-realizada-ou-paga
+  ;; 🔴 T1.1 / R-021 — o corte é "já aconteceu OU tem dinheiro", NUNCA `data<now()`.
+  ;;
+  ;; O `remover-modo-all` antigo afirmava que "a série toda some", e como a série
+  ;; dele era toda futura, CONGELAVA o comportamento errado: passava idêntico ao
+  ;; código que apaga sessão realizada e paga em silêncio, porque não havia
+  ;; nenhuma para apagar. Aqui a série atravessa hoje — quatro realizadas e pagas,
+  ;; duas por vir — e é o que separa o certo do errado.
+  (let [ids (serie-atravessando-hoje!)
+        resp (remover (last ids) "all")]
+    (is (= 409 (:status resp))
+        "apagar a série toda alcançaria sessão realizada e paga — R-021 recusa")
+    (is (= "past_or_paid_protected" (:code (:body resp))))
+    (is (= 4 (count (:sessoes (:body resp))))
+        "as quatro protegidas são NOMEADAS, não apagadas em silêncio")
+    (testing "nada foi apagado — a recusa é atômica, não apaga metade"
+      (is (= 6 (conta "agendamentos"))))))
+
+(deftest remover-modo-all-future-recusa-quando-alcanca-sessao-protegida
+  ;; O mesmo corte no `all_future`: ancorar na ocorrência aberta (a mais antiga)
+  ;; alcançava as realizadas. Era a A-002 renascendo no DELETE.
+  (let [ids (serie-atravessando-hoje!)
+        resp (remover (first ids) "all_future")]
+    (is (= 409 (:status resp)))
+    (is (= "past_or_paid_protected" (:code (:body resp))))
+    (is (= 6 (conta "agendamentos")))))
+
+(deftest remover-individual-recusa-sessao-realizada-e-paga
+  ;; R-021 vale também no caminho de um id só: antes, o DELETE individual apagava
+  ;; sem olhar status, pagamento nem data. Sessão realizada é registro, não rascunho.
+  (let [sessao (:body (criar (assoc sessao-base :data_hora_sessao (parede -3 14))))]
+    (db/execute-one! ["UPDATE agendamentos SET status = 'realizado', status_pagamento = 'pago'
+                        WHERE id = ?" (:id sessao)])
+    (let [resp (remover (:id sessao) nil)]
+      (is (= 409 (:status resp)))
+      (is (= "past_or_paid_protected" (:code (:body resp))))
+      (is (= 1 (conta "agendamentos")) "a sessão realizada continua no livro"))))
+
+(deftest remover-individual-sessao-futura-adiantada-e-protegida-pelo-dinheiro
+  ;; 🔴 O caso que `data<now()` deixaria escapar: sessão FUTURA já paga. Ela tem
+  ;; `data_hora_sessao >= now()`, então um filtro de passado a apagaria — mas o
+  ;; dinheiro já andou, e a R-021 diz explicitamente que ela NÃO propaga.
+  (let [sessao (:body (criar (assoc sessao-base :data_hora_sessao (parede 5 14))))]
+    (db/execute-one! ["UPDATE agendamentos SET status_pagamento = 'pago' WHERE id = ?" (:id sessao)])
+    (let [resp (remover (:id sessao) nil)]
+      (is (= 409 (:status resp)))
+      (is (= "past_or_paid_protected" (:code (:body resp))))
+      (is (= 1 (conta "agendamentos"))))))
 
 (deftest remover-com-modo-de-serie-em-sessao-avulsa-remove-so-ela
   (let [avulsa (:body (criar (assoc sessao-base :data_hora_sessao "2027-03-10T14:00:00")))]
@@ -1005,6 +1150,66 @@
         (is (= 409 (:status resp)))
         (is (= "block_conflict" (:code (:body resp))))))))
 
+(deftest editar-e-excluir-bloqueio-e-so-da-clinica
+  ;; 🔴 T2.6 / R-020(2) — criar bloqueio é dos dois (R-014); editar e excluir é só
+  ;; da clínica. Antes, as rotas só tinham autenticação e a psicóloga mexia no
+  ;; próprio bloqueio.
+  (let [criado (:body (criar-bloqueio {:data_inicio "2027-07-01T09:00:00"
+                                       :data_fim "2027-07-01T10:00:00" :tipo "bloqueio"}))
+        bid (:id criado)
+        editar (fn [papel] (core/atualizar-bloqueio-handler
+                            {:identity {:clinica_id clinica-a :user_id psicologo-a :role papel}
+                             :params {:id (str bid)}
+                             :body {:data_inicio "2027-07-01T11:00:00"
+                                    :data_fim "2027-07-01T12:00:00"}}))
+        excluir (fn [papel] (core/remover-bloqueio-handler
+                             {:identity {:clinica_id clinica-a :user_id psicologo-a :role papel}
+                              :params {:id (str bid)}}))]
+    (testing "a psicóloga não edita nem exclui o bloqueio"
+      (is (= 403 (:status (editar "psicologo"))))
+      (is (= "bloqueio_admin_only" (:code (:body (editar "psicologo")))))
+      (is (= 403 (:status (excluir "psicologo")))))
+    (testing "a clínica edita"
+      (is (= 200 (:status (editar "admin_clinica")))))
+    (testing "a clínica exclui"
+      (is (= 200 (:status (excluir "admin_clinica"))))
+      (is (zero? (conta "bloqueios_agenda"))))))
+
+(deftest recalcular-repasse-corrige-modalidade-sem-tocar-no-transferido
+  ;; 🔴 T2.8(a) — a psicóloga foi cadastrada no default silencioso de 50% e depois
+  ;; corrigida para fixo R$40. As sessões já calculadas guardam o valor errado, e a
+  ;; trava `valor_repasse IS NULL` impedia a API de consertar. O endpoint zera as
+  ;; NÃO transferidas e recalcula; as transferidas não se mexem (R-004).
+  (let [nao-transf #uuid "aaaaaaaa-0000-0000-0000-0000000000a1"
+        transf     #uuid "aaaaaaaa-0000-0000-0000-0000000000a2"]
+    (try
+      (doseq [[id st] [[nao-transf "disponivel"] [transf "transferido"]]]
+        (db/execute-one! ["INSERT INTO agendamentos
+                           (id, clinica_id, paciente_id, psicologo_id, data_hora_sessao, valor_consulta,
+                            status, status_pagamento, status_repasse, valor_repasse,
+                            modalidade_repasse_aplicada, percentual_repasse_aplicado, repasse_calculado_em)
+                           VALUES (?, ?, ?, ?, now() - interval '2 day', 200, 'realizado', 'pago', ?, 100,
+                                   'percentual', 50, now())"
+                          id clinica-a paciente-a psicologo-a st]))
+      ;; A régua correta chega DEPOIS: fixo R$40.
+      (db/execute-one! ["UPDATE usuarios SET modalidade_repasse = 'fixo', percentual_repasse = NULL,
+                            valor_fixo_repasse = 40 WHERE id = ?" psicologo-a])
+      (let [resp (core/recalcular-repasse-handler
+                  {:identity {:clinica_id clinica-a}
+                   :body {:psicologo_id (str psicologo-a)}})]
+        (is (= 200 (:status resp)))
+        (is (= 1 (get-in resp [:body :zerados])) "só a sessão não-transferida foi zerada")
+        (is (== 40M (bigdec (:valor_repasse (db/execute-one!
+                              ["SELECT valor_repasse FROM agendamentos WHERE id = ?" nao-transf]))))
+            "recalculada pela régua nova (fixo 40)")
+        (is (== 100M (bigdec (:valor_repasse (db/execute-one!
+                               ["SELECT valor_repasse FROM agendamentos WHERE id = ?" transf]))))
+            "a já transferida não se mexe — dinheiro que andou é imutável (R-004)"))
+      (finally
+        ;; devolve a régua legada, senão vaza para o próximo teste (fixture :once)
+        (db/execute-one! ["UPDATE usuarios SET modalidade_repasse = 'percentual', percentual_repasse = 50,
+                              valor_fixo_repasse = NULL WHERE id = ?" psicologo-a])))))
+
 (deftest janela-sem-tipo-continua-sendo-bloqueio
   ;; Compatibilidade, e ela não é detalhe: a tela de bloquear horário não manda
   ;; `tipo` e não deve precisar mandar. Se o default escorregasse para
@@ -1078,8 +1283,18 @@
   ;; token roubado vira acesso permanente, bastando renovar antes de cada
   ;; expiração. O controle é a sessão velha que CONTINUA sendo recusada.
   (let [agora (.getEpochSecond (java.time.Instant/now))
-        base {:user_id (str psicologo-a) :clinica_id (str clinica-a)
-              :papel_id (str (java.util.UUID/randomUUID)) :role "psicologo"
+        ;; ⚠️ O papel_id agora tem que ser o REAL de psicologo-a: a T2.3 fez a
+        ;; renovação reler o usuário no banco e recusar quando o papel do token não
+        ;; bate com o gravado. Um UUID aleatório (como estava aqui) passaria a ser
+        ;; lido — corretamente — como "papel mudou" e devolveria 401.
+        ;; ⚠️ UUIDs, não strings: em produção o `wrap-jwt-autenticacao` já
+        ;; converte os claims (`user_id`, `clinica_id`, `papel_id`) para UUID antes
+        ;; de chegar ao handler. A versão anterior passava strings, que só
+        ;; funcionavam porque o código antigo apenas fazia `(str ...)`; a T2.3 lê
+        ;; do banco por esses ids e precisa do tipo real.
+        papel-psi (:id (db/execute-one! ["SELECT id FROM papeis WHERE nome_papel = 'psicologo'"]))
+        base {:user_id psicologo-a :clinica_id clinica-a
+              :papel_id papel-psi :role "psicologo"
               :plataforma_admin false}]
 
     (testing "sessão recente renova, e o token novo vale mais uma hora"
@@ -1104,4 +1319,22 @@
         (is (= "sessao_expirada_no_teto" (:code (:body r))))))
 
     (testing "e a fronteira: logo antes do teto ainda renova"
-      (is (= 200 (:status (renovar (assoc base :sessao_iniciada_em (- agora (* 11 3600))))))))))
+      (is (= 200 (:status (renovar (assoc base :sessao_iniciada_em (- agora (* 11 3600))))))))
+
+    (testing "🔴 T2.3 — papel mudou no banco: a renovação recusa (não reassina o antigo)"
+      (let [papel-sec (:id (db/execute-one! ["SELECT id FROM papeis WHERE nome_papel = 'secretario'"]))]
+        (db/execute-one! ["UPDATE usuarios SET papel_id = ? WHERE id = ?" papel-sec psicologo-a])
+        (try
+          (let [r (renovar (assoc base :sessao_iniciada_em (- agora 600)))]
+            (is (= 401 (:status r)))
+            (is (= "papel_alterado" (:code (:body r)))
+                "quem foi rebaixado não renova com o papel antigo — entra de novo"))
+          (finally
+            (db/execute-one! ["UPDATE usuarios SET papel_id = ? WHERE id = ?" papel-psi psicologo-a])))))
+
+    (testing "🔴 T2.3 — usuário sumiu: a renovação recusa"
+      (let [fantasma (assoc base :user_id (java.util.UUID/randomUUID)
+                            :sessao_iniciada_em (- agora 600))
+            r (renovar fantasma)]
+        (is (= 401 (:status r)))
+        (is (= "usuario_inexistente" (:code (:body r))))))))
