@@ -5,7 +5,8 @@
    nós é o de 600 req/min POR USUÁRIO, e como tudo passa pela mesma conta da
    clínica, sem `quotaUser` a clínica inteira compartilha um só balde. Custa
    nada agora e evita refatoração depois (spec seção 9)."
-  (:require [deep-saude-backend.google.http :as http]))
+  (:require [cheshire.core :as json]
+            [deep-saude-backend.google.http :as http]))
 
 ;; Endpoints com override por ambiente.
 ;;
@@ -93,3 +94,114 @@
   "403/404 numa agenda que antes funcionava = descompartilhada ou apagada."
   [resposta]
   (contains? #{403 404} (:status resposta)))
+
+;; ---------------------------------------------------------------------------
+;; Escrita
+;;
+;; 🔴 Até 2026-08-22 este namespace só lia — as três chamadas acima são GET. As
+;; duas abaixo são as primeiras que ESCREVEM na conta Google de uma pessoa de
+;; verdade, e é isso que muda o custo de errar: um GET errado devolve dado
+;; errado, um POST errado deixa lixo na agenda de quem trabalha com ela.
+;;
+;; Escopo usado: `calendar.app.created`, que é **não confidencial** e alcança
+;; `calendars.insert` mais `events.*` **apenas nas agendas que o próprio app
+;; criou**. É o que faz a GC-013 (criar a agenda no ato da conexão) ser
+;; pré-requisito de tudo o mais: sem a agenda criada por nós, este escopo não
+;; escreve em lugar nenhum.
+;; ---------------------------------------------------------------------------
+
+(def nome-da-agenda
+  "O nome que a psicóloga vai ver na lista de agendas dela, para sempre.
+
+   ⚠️ **Agenda Wise**, não \"Deep Saúde\" — o nome do produto mudou e a GC-013
+   (`docs/GOOGLE_CARDS.md`) ainda carrega o texto antigo. Renomear depois é
+   possível pela API, mas quem já tiver visto a agenda com o nome errado terá o
+   nome errado na memória e nos e-mails de convite."
+  "Agenda Wise")
+
+(defn criar-agenda!
+  "calendars.insert — cria a agenda dedicada dentro da conta da psicóloga (GC-013).
+
+   Devolve `{:agenda {:id … :summary … :timeZone …}}` ou o mesmo
+   `{:erro true :status … :detalhe …}` de `listar-calendarios`, para que o
+   chamador não precise aprender dois formatos.
+
+   `timezone` é opcional e vai como o fuso da clínica: sem ele a agenda nasce no
+   fuso da **conta Google**, que é o relógio de quem clicou em conectar e não o
+   da clínica — a mesma classe de erro que o `tempo.clj` existe para evitar.
+
+   ⚠️ Chamada de rede não cabe em transação de banco (GC-013): grave a intenção,
+   chame isto, confirme depois. Morrer no meio deixa agenda sem vínculo, e isso é
+   reconciliável por `listar-calendarios`; o contrário — vínculo apontando para
+   agenda que não existe — não é."
+  [access-token & {:keys [quota-user timezone nome]}]
+  (let [corpo (cond-> {:summary (or nome nome-da-agenda)}
+                timezone (assoc :timeZone timezone))
+        resp (http/requisitar
+              :post
+              (http/url-com-query (str base "/calendars") {:quotaUser quota-user})
+              {:headers (auth-headers access-token)
+               :body (json/generate-string corpo)})]
+    (if-not (http/ok? resp)
+      {:erro true :status (:status resp) :detalhe (get-in resp [:json :error])}
+      {:agenda (select-keys (:json resp) [:id :summary :timeZone])})))
+
+(defn duplicado?
+  "O 409 do Google para id de evento que já existe.
+
+   Separado da função de escrita porque é **regra**, não detalhe de transporte:
+   quem ler o outbox precisa poder fazer a mesma pergunta sobre uma resposta
+   guardada."
+  [{:keys [status json]}]
+  (boolean
+   (and (= 409 status)
+        ;; O `reason` é o que distingue "esse id já existe" de outros 409. Se o
+        ;; Google não mandar corpo, o 409 sozinho já basta: neste endpoint, com
+        ;; id nosso, não há outro motivo plausível.
+        (let [motivos (->> (get-in json [:error :errors] [])
+                           (map :reason)
+                           set)]
+          (or (empty? motivos) (contains? motivos "duplicate"))))))
+
+(defn criar-evento!
+  "events.insert — escreve a sessão na agenda.
+
+   `corpo` é o `:corpo` de `google.evento/agendamento->evento`, que já traz o
+   `id` determinístico (D9) e a marca `origem = plataforma` (D12).
+
+   🔴 **409 Duplicate é SUCESSO, não erro.** Com id determinístico, um worker de
+   outbox que escreveu no Google e morreu antes de commitar o etag reprocessa e
+   recebe 409 — que é exatamente a idempotência funcionando: o evento está lá,
+   uma vez só. Tratar isso como falha faz o worker repetir para sempre, a linha
+   nunca sair de `pendente`, e o alerta de fila parada acusar um sistema que está
+   certo.
+
+   Devolve:
+     `{:evento {…} :duplicado? false}`  criado agora (2xx)
+     `{:evento nil :duplicado? true :google-event-id \"ds…\"}`  já existia (409)
+     `{:erro true :status … :detalhe …}`  qualquer outra coisa
+
+   ⚠️ No caminho do 409 o Google **não** devolve o evento, logo não devolve
+   `etag`. Quem precisar do etag (spec §6.5, `If-Match` no update) tem de ler o
+   evento depois — não dá para deduzir. Por isso `:evento` é `nil` aqui em vez de
+   um mapa remendado: mapa remendado sem etag seria indistinguível de um evento
+   recém-criado, e o update seguinte iria sem `If-Match`."
+  [access-token calendar-id corpo & {:keys [quota-user]}]
+  (let [resp (http/requisitar
+              :post
+              (http/url-com-query
+               (str base "/calendars/"
+                    (java.net.URLEncoder/encode (str calendar-id) "UTF-8")
+                    "/events")
+               {:quotaUser quota-user})
+              {:headers (auth-headers access-token)
+               :body (json/generate-string corpo)})]
+    (cond
+      (http/ok? resp)
+      {:evento (:json resp) :duplicado? false}
+
+      (duplicado? resp)
+      {:evento nil :duplicado? true :google-event-id (:id corpo)}
+
+      :else
+      {:erro true :status (:status resp) :detalhe (get-in resp [:json :error])})))

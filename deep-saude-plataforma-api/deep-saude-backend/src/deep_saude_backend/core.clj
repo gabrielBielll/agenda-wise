@@ -21,6 +21,7 @@
             [deep-saude-backend.paleta :as paleta]
             [deep-saude-backend.prontuarios :as prontuarios]
             [deep-saude-backend.remuneracao :as remuneracao]
+            [deep-saude-backend.google.outbox :as outbox]
             [deep-saude-backend.google.rrule :as rrule]
             [deep-saude-backend.google.handlers :as google]
             ;; Autenticação (login com Google) e recuperação de senha. São
@@ -959,6 +960,10 @@
                                                  (when recorrencia-uuid {:recorrencia_id recorrencia-uuid}))
                                                {:builder-fn rs/as-unqualified-lower-maps :return-keys true}))
                                 sessoes-para-criar))]
+                ;; Outbox (D8): a intenção de sincronizar commita com a sessão ou
+                ;; não commita nada. Só enfileira quem tem conexão Google ativa —
+                ;; a regra mora no `outbox`, para esta chamada ser uma linha.
+                (outbox/enfileirar-agendamentos-criados! tx clinica-id psicologo-uuid novos-agendamentos)
                 {:status 201, :body (first novos-agendamentos)}))))))
     (catch Exception e
       (log/error e "appointment_create_failed")
@@ -2431,6 +2436,7 @@
     (log/warn "database_url_missing")))
 
 (defn destroy-db []
+  (outbox/parar-worker!)
   (log/info "application_stopping"))
 
 (defn reset-senha!
@@ -2471,6 +2477,12 @@
       ;; preguiçosa para o AOT, não opcional para o processo servidor.
       (force jwt-secret)
       (init-db)
+      ;; Worker do outbox do Google. Fica FORA de `init-db` de propósito: a
+      ;; suíte de testes chama migrations e handlers, nunca `-main`, e um
+      ;; processo de fundo que dispara rede no meio dos testes falharia em outro
+      ;; lugar que não o dele. Desligado por padrão — `GOOGLE_SYNC_WORKER=1`
+      ;; liga; `outbox/parar-worker!` desliga.
+      (outbox/iniciar-se-configurado!)
       ;; `HOST` restringe a interface de escuta. Sem ele o Jetty ouve em todas,
       ;; que é o que se quer atrás de um balanceador — e é exatamente o que NÃO
       ;; se quer numa máquina com IP público, onde "todas" inclui a internet.

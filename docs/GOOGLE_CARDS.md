@@ -230,9 +230,22 @@ confirmação explícita, e vê `sem_acesso` gritar quando o acesso cai.
 
 ## Trilha B — escrita, plataforma → Google · **a Fase 2**
 
-⛔ **Decisão pendente antes do GC-002:** *scheduler in-process (`chime`) agora ou
-externo?* Recomendo **`chime` in-process** — um serviço a menos no Northflank, e
-trocar depois é isolado no worker.
+✅ **DECIDIDO em 22/08 (tech lead): in-process, com
+`java.util.concurrent.ScheduledExecutorService` — sem dependência nova.**
+
+📌 O texto original fica abaixo porque a recomendação estava certa na direção e
+errada no meio: *"⛔ Decisão pendente antes do GC-002: scheduler in-process
+(`chime`) agora ou externo? Recomendo **`chime` in-process** — um serviço a menos
+no Northflank, e trocar depois é isolado no worker."*
+
+O que mudou: este backend inteiro tem **um único cliente HTTP**, e ele é
+`java.net.http` puro (`google/http.clj`), escolhido justamente para não carregar
+dependência. `chime` traria uma biblioteca para fazer o que o JDK já faz. O
+gatilho está isolado em `google.outbox/iniciar-se-configurado!` — trocar por cron
+externo custa um arquivo, não uma refatoração.
+
+⚠️ **Desligado por padrão:** `GOOGLE_SYNC_WORKER=1` liga,
+`GOOGLE_SYNC_INTERVALO_S` ajusta o intervalo (padrão 30s).
 
 ### GC-002 · worker de outbox — `duna`
 `FOR UPDATE SKIP LOCKED`, com retentativa e backoff.
@@ -368,7 +381,7 @@ apareceu três vezes hoje.
 
 | # | Pergunta | Trava | Recomendação |
 |---|---|---|---|
-| 8 | Scheduler in-process ou externo? | GC-002 | `chime` in-process |
+| 8 | ~~Scheduler in-process ou externo?~~ | GC-002 | ✅ **decidido 22/08: in-process com `ScheduledExecutorService`** (não `chime` — ver Trilha B) |
 | 9 | `this_and_future`: split ou exceções? | GC-004 | — precisa de conversa, amarra na R-021 |
 | 10 | Retroatividade: empurrar o histórico? | GC-003 | **backfill sim, push não** — só sob ação explícita do admin, agenda por agenda. Empurrar um ano de todos os psicólogos num deploy é como se descobre o limite de quota |
 | — | agendada × confirmada: prefixo no título? | GC-008 | **não** acrescentar prefixo |
