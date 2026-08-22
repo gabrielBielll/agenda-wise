@@ -52,13 +52,27 @@ test('clique no quarto de hora cria a sessão e permite confirmar presença manu
   await page.getByRole('button', { name: 'Confirmar que a sessão aconteceu' }).click();
   await expect(page.getByRole('heading', { name: 'Confirmar que a sessão aconteceu?' })).toBeVisible();
   await page.getByRole('button', { name: 'Sim, a sessão aconteceu' }).click();
-  await expect(page.getByText('Sessão realizada', { exact: true })).toBeVisible();
+
+  // ⚠️ Aqui havia `getByText('Sessão realizada', { exact: true })`, que casava com
+  // o TÍTULO DO AVISO — e o aviso passou a se chamar "Estado atualizado" quando o
+  // selo virou controle (`handleStatusUpdate`, `CalendarClient.tsx`). Não repus o
+  // texto novo de propósito: aviso é alegação, não efeito, e este repositório já
+  // pagou caro por confiar em mensagem de sucesso. O que provamos agora é o
+  // estado GRAVADO, relido depois de um reload.
+  //
+  // 📌 O diálogo fecha sozinho no sucesso — então `toBeHidden` também reprova se
+  // a atualização falhar, porque aí ele fica aberto com o erro.
+  await expect(page.getByRole('heading', { name: 'Editar Agendamento' })).toBeHidden();
 
   // A suíte compartilha banco. Remover o cenário criado evita que esta sessão
   // de ontem apareça na visão semanal de testes posteriores, mas não na diária.
   await page.reload();
   const cleanupSlot = page.locator(`[data-slot-date="${day}"][data-slot-hour="10"]`);
   await cleanupSlot.getByText('Paciente E2E').click();
+  // O efeito, lido do banco: o selo do diálogo mostra o estado por extenso.
+  // `toContainText` e não texto exato — o selo carrega o glifo `■` ao lado, e foi
+  // exatamente isso que quebrou a asserção anterior.
+  await expect(page.getByRole('dialog')).toContainText('Sessão realizada');
   await page.getByRole('button', { name: 'Excluir agendamento' }).click();
   await expect(page.getByRole('heading', { name: 'Excluir Agendamento?' })).toBeVisible();
   await page.getByRole('button', { name: 'Excluir', exact: true }).click();
