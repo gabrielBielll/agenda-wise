@@ -3,7 +3,7 @@ import { Providers } from "@/components/Providers";
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: "AgendaWise · Deep Saúde",
+  title: "Agenda Wise · Deep Saúde",
   description: "Um espaço de cuidado para sua prática clínica.",
 };
 

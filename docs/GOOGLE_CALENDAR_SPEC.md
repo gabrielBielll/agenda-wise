@@ -469,16 +469,59 @@ Tratamento:
 
 ## 7. Privacidade e conformidade
 
-⚠️ **Não colocar nome completo de paciente no `summary` do evento.**
+### 🔴 A regra do título está SUPERADA — [D-026](../mensageria/DECISOES.md), 2026-08-22
 
-O título aparece em notificação de tela bloqueada, em tela compartilhada, e para qualquer pessoa com acesso de leitura à agenda (incluindo a secretaria). Em contexto clínico isso é quebra de sigilo profissional e incidente de LGPD.
+**O título do evento LEVA o nome do paciente.** Vale a **R-017**
+([REGRAS_DE_NEGOCIO](REGRAS_DE_NEGOCIO.md)), que é regra ditada pelo Gabriel em 15/08.
 
-**Padrão recomendado:**
-- `summary`: iniciais + código curto — `"Sessão — A.P. #137"`
-- `description`: sem dado clínico; apenas referência ao registro na plataforma
-- Nome completo, prontuário, valor: **só na plataforma**
+📌 **Havia aqui uma contradição que ninguém tinha anotado.** A R-017 dizia
+*"título = nome do paciente"*; esta seção dizia *"não coloque o nome no `summary`"*.
+**Nenhuma das duas citava a outra**, e quem pegasse o GC-003 escolheria uma e
+quebraria a outra sem saber que havia uma escolha. A [D-026](../mensageria/DECISOES.md) fechou isso:
+a R-017 é do **oráculo**; o texto abaixo era **recomendação da `orla`**, e
+recomendação não vence regra.
 
-Outros pontos:
+**O que fez a regra ganhar:** a D-026 exige que a agenda do Google seja
+**operável sem a plataforma** — com o Agenda Wise fora do ar, a clínica ainda
+precisa ler e editar ali. `"Sessão — A.P. #137"` é ilegível **exatamente para
+quem não tem a plataforma para decodificar o código**, que é o cenário que o
+requisito existe para cobrir.
+
+⚠️ **Atenção à leitura do que foi superado: só a REGRA.** O alerta abaixo continua
+factualmente verdadeiro e **não** foi revogado — ele deixou de **decidir**, não de
+**valer**. Quem escrever o GC-003 precisa saber o que o título expõe.
+
+✅ **A secretária lendo o nome do paciente é decisão tomada** (Gabriel, 22/08 —
+D-026): *"a secretaria vai precisar sim ler o nome dos pacientes […] pq vai
+atrapalhar muito"*. O argumento é operacional: sem o nome na agenda, a recepção
+para. **Um título só, igual para os três papéis.**
+
+⚠️ Isso **não** afrouxa a D-021: **nome na agenda não é prontuário.** `description`
+sem dado clínico, prontuário e valor **só na plataforma**.
+
+### O texto original (2026-08-17) — preservado, porque o alerta continua de pé
+
+> ⚠️ **Não colocar nome completo de paciente no `summary` do evento.**
+>
+> O título aparece em notificação de tela bloqueada, em tela compartilhada, e para qualquer pessoa com acesso de leitura à agenda (incluindo a secretaria). Em contexto clínico isso é quebra de sigilo profissional e incidente de LGPD.
+>
+> **Padrão recomendado:**
+> - `summary`: iniciais + código curto — `"Sessão — A.P. #137"`
+> - `description`: sem dado clínico; apenas referência ao registro na plataforma
+> - Nome completo, prontuário, valor: **só na plataforma**
+
+**O veredito, linha por linha:**
+
+| linha do texto original | estado |
+|---|---|
+| *"não colocar nome completo no `summary`"* | 🔴 **superada** pela R-017 + D-026 |
+| *"padrão `Sessão — A.P. #137`"* | 🔴 **superado** — não implementar |
+| *"o título aparece em notificação de tela bloqueada, em tela compartilhada, e para qualquer pessoa com acesso de leitura à agenda (incluindo a secretaria)"* | ✅ **continua verdadeiro** — é fato sobre o Google, não opinião, e a agenda da clínica é compartilhada por desenho (D-026) |
+| *"`description`: sem dado clínico"* | ✅ **continua valendo, sem exceção** |
+| *"nome completo, prontuário, valor: só na plataforma"* | ⚠️ **o nome saiu da lista; prontuário e valor NÃO.** O título passou; o prontuário não passa |
+
+### Os pontos que não foram tocados por nada disso
+
 - `visibility: "private"` em todos os eventos.
 - Criptografia do refresh token em repouso.
 - Log de auditoria de toda alteração de vínculo (quem vinculou qual agenda a qual profissional, quando).
@@ -495,8 +538,29 @@ Outros pontos:
 | `openid`, `email`, `profile` | Login do profissional | Básico — sem verificação |
 | `.../auth/calendar.events` | Suficiente se só Modelo A | Sensível |
 | `.../auth/calendar` | Necessário para Modelo B (`calendars.insert`, `acl.insert`) | Sensível |
+| `.../auth/calendar.app.created` | **Modelo C** ([D-015](../mensageria/DECISOES.md)) — cria a agenda e escreve nela | Sensível |
+| 🔴 `.../auth/calendar.acls` | **Modelo C, o compartilhamento com a conta da clínica** ([D-026](../mensageria/DECISOES.md)) | ⚠️ **a confirmar no console** |
 
 Preferir o escopo mais restrito que atenda ao caso — revisão de verificação mais simples.
+
+#### 🔴 `calendar.app.created` **não** autoriza `acl.insert` — medido em 2026-08-22
+
+Medido no *discovery document* oficial (`https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest`, `revision: 20260812`), lendo o campo `scopes` de cada método:
+
+| método | escopos aceitos | `app.created` serve? |
+|---|---|---|
+| `calendars.insert` | `calendar`, **`calendar.app.created`**, `calendar.calendars` | ✅ sim |
+| `events.insert` | `calendar`, **`calendar.app.created`**, `calendar.events`, `calendar.events.owned` | ✅ sim |
+| **`acl.insert`** | `calendar`, **`calendar.acls`** | 🔴 **não** |
+| `acl.list` / `acl.get` | `calendar`, `calendar.acls`, `calendar.acls.readonly` | 🔴 **não** |
+
+📌 **As duas primeiras linhas são o caso de controle** — se a leitura estivesse errada, `calendars.insert` também teria vindo sem `app.created`, e ele veio **com**. O `não` do `acl.insert` é medição, não impressão.
+
+🔴 **Peça `calendar.acls` na PRIMEIRA submissão**, junto com os outros — **escopo novo depois reabre a verificação inteira** (semanas). Ver GC-000 em [GOOGLE_CARDS](GOOGLE_CARDS.md): passam a ser **quatro** escopos, não três.
+
+💡 **`calendar.acls.readonly` de brinde:** permite **conferir se o compartilhamento ainda está de pé** sem poder alterá-lo — o sinal de saúde **por efeito** que o `sem_acesso` sempre quis. Se o de escrita for pedido, este não custa mais nada.
+
+⚠️ **O que NÃO foi medido:** como o Google **classifica** o `calendar.acls` na verificação (o discovery diz quais métodos o escopo abre, não o que a revisão exige), e se a agenda criada por `calendars.insert` conta como *"calendar you own"* para esse escopo. Confirmar na tela e contra uma agenda real (GC-000b) antes de o desenho depender disso.
 
 ### 8.2 Verificação — começar cedo
 
@@ -598,7 +662,8 @@ Fases 1–3 já entregam valor real. Fase 4 é o que transforma em produto.
 - [ ] Estado `sem_acesso` com alerta visível
 - [ ] Confirmação humana obrigatória no vínculo agenda↔profissional
 - [ ] Só admin pode criar/alterar vínculo
-- [ ] Nome de paciente fora do `summary`
+- [x] ~~Nome de paciente fora do `summary`~~ — 🔴 **superado pela [D-026](../mensageria/DECISOES.md)**: o título **leva** o nome do paciente (R-017). Ver §7
+- [ ] `description` sem dado clínico, e prontuário/valor **só na plataforma** — este continua
 - [ ] Refresh token criptografado em repouso
 - [ ] `quotaUser` em todas as chamadas
 - [ ] Backoff exponencial em 403/429
@@ -606,6 +671,18 @@ Fases 1–3 já entregam valor real. Fase 4 é o que transforma em produto.
 ---
 
 ## 12. Pontos a confirmar antes de codar
+
+📌 **A [D-026](../mensageria/DECISOES.md) (22/08) mexeu nesta lista, e não a apaga** — as perguntas
+continuam válidas **para as agendas do legado (Modelo A)**, onde o compartilhamento
+foi feito à mão e nós não sabemos o que foi concedido. O que muda é o **destino**:
+
+- **os itens 2 e 3 deixam de ser pergunta no Modelo C** — o app faz o `acl.insert`
+  com `writer` no ato da conexão, então ele **sabe** o que concedeu porque foi ele
+  que concedeu (GC-013). ⚠️ Isso depende do escopo `calendar.acls` da §8.1;
+- **o item 5 está respondido:** nem Modelo B nem posse pura do profissional — é o
+  **Modelo C** ([D-015](../mensageria/DECISOES.md)) com a agenda **compartilhada com a conta da clínica**,
+  e com mais ninguém. É o que entrega o isolamento pedido: psi A nunca esteve na
+  ACL da agenda de psi B.
 
 1. **Tipo de compartilhamento atual** — ACL ("compartilhar com pessoas específicas") ou endereço secreto iCal? Só o primeiro funciona pela API para escrita.
 2. **Permissão concedida** — é "Fazer alterações nos eventos" (writer) ou apenas "Ver todos os detalhes" (reader)? Escrita exige writer.

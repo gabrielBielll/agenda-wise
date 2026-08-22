@@ -61,7 +61,7 @@ export default function SettingsPage() {
 
   return (
     <div className="quiet-page max-w-4xl">
-      <section><p className="page-eyebrow mb-2">Seu espaço</p><h2 className="page-title">Preferências com intenção.</h2><p className="page-subtitle">Personalize a AgendaWise para acompanhar o ritmo da sua prática.</p></section>
+      <section><p className="page-eyebrow mb-2">Seu espaço</p><h2 className="page-title">Preferências com intenção.</h2><p className="page-subtitle">Personalize a Agenda Wise para acompanhar o ritmo da sua prática.</p></section>
 
       <IntegracaoGoogleCard />
 
@@ -108,7 +108,7 @@ export default function SettingsPage() {
         </CardHeader>
         <CardContent className="space-y-4">
             <div className="flex flex-col justify-between gap-4 rounded-2xl border border-border/60 bg-muted/30 p-4 sm:flex-row sm:items-center">
-              <div><p className="text-sm font-semibold">Tema da interface</p><p className="mt-1 text-xs text-muted-foreground">A escolha é aplicada em toda a AgendaWise e lembrada neste dispositivo.</p></div>
+              <div><p className="text-sm font-semibold">Tema da interface</p><p className="mt-1 text-xs text-muted-foreground">A escolha é aplicada em toda a Agenda Wise e lembrada neste dispositivo.</p></div>
               <ThemeToggle showLabel className="w-full sm:w-auto" />
             </div>
         </CardContent>

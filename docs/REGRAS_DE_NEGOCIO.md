@@ -488,6 +488,31 @@ O oráculo só carrega o que veio dele.
 
 ### R-017 — A cor confirma o estado; o título carrega a intenção
 
+> 🔴 **O título leva o nome do paciente, e isso esteve em contradição com a spec
+> por uma semana — sem que nenhum dos dois lados citasse o outro.**
+>
+> A §7 de [GOOGLE_CALENDAR_SPEC](GOOGLE_CALENDAR_SPEC.md) recomendava o contrário (*"não colocar nome de
+> paciente no `summary`"*, padrão `Sessão — A.P. #137`). Quem pegasse o GC-003
+> escolheria uma das duas e quebraria a outra **sem saber que havia uma escolha**.
+>
+> ✅ **Resolvido pela [D-026](../mensageria/DECISOES.md) (22/08): vale esta regra.** Ela é do Gabriel; a
+> outra era recomendação da `orla`, e recomendação não vence regra. O motivo de
+> fundo é a própria D-026 — a agenda do Google tem de ser **operável sem a
+> plataforma**, e um código como `A.P. #137` é ilegível justamente para quem não
+> tem a plataforma para decodificá-lo.
+>
+> ⚠️ **Mas o alerta da spec continua verdadeiro, e ele não foi revogado:** o
+> título aparece em notificação de tela bloqueada, em tela compartilhada e para
+> **qualquer pessoa com acesso de leitura à agenda da clínica — inclusive a
+> secretária**. E `description`, prontuário e valor continuam **só na
+> plataforma**: o título passou, o prontuário não passa.
+>
+> ✅ **Respondido pelo Gabriel em 22/08 (D-026):** *"a secretaria vai precisar sim
+> ler o nome dos pacientes, nao tem como impedir ela de faxer isso pq vai
+> atrapalhar muito"*. Um título só, igual para psicóloga, admin e secretária —
+> sem o nome na agenda, a recepção para. ⚠️ E a **D-021 continua inteira**: nome
+> na agenda **não é** prontuário.
+
 Os cinco estados da tabela acima são a convenção em uso hoje pelas psicólogas.
 Duas propriedades dela governam qualquer código que leia ou escreva no Google:
 

@@ -86,7 +86,7 @@ export function LoadingProvider({ children }: { children: React.ReactNode }) {
             <div className="flex items-center gap-2">
               <Leaf className="h-10 w-10 text-primary" />
               <span className="font-headline text-3xl font-bold text-primary">
-                Deep Saúde
+                Agenda Wise
               </span>
             </div>
             <Loader2 className="h-10 w-10 animate-spin text-primary" />

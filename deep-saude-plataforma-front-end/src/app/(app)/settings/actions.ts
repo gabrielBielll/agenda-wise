@@ -58,7 +58,7 @@ export async function updateOwnProfile(name: string): Promise<OwnProfileResult> 
     revalidatePath("/settings");
     return {
       success: true,
-      message: "Seu nome foi atualizado em toda a AgendaWise.",
+      message: "Seu nome foi atualizado em toda a Agenda Wise.",
       profile: { nome: body.nome || parsed.data, email: body.email || "" },
     };
   } catch {

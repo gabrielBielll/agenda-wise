@@ -1301,3 +1301,502 @@ diferentes.
 - ✅ **A armadilha da GC-009:** evento externo do Google vira bloqueio, e um
   `[DISPONÍVEL]` azul importado por essa regra viraria **bloqueio — o oposto do
   que significa.** A Deep Saúde usa azul no Google, então isso vai acontecer.
+
+---
+
+## D-025 — O produto chama **Agenda Wise**; **Deep Saúde** é a empresa dona — e também uma clínica cliente
+
+**Decidido por:** Gabriel, 2026-08-22
+**Discutido em:** conversa direta com o Gabriel — **não há mensagem numerada**, e é
+por isso que as palavras dele vão literais aqui
+**Efeito imediato:** o nome da agenda que o app cria dentro da conta Google da
+psicóloga (**GC-013**)
+
+Nas palavras dele: *"não é deep saude. o nome certo é agenda wise"*.
+
+E, na mesma conversa, a frase que explica de onde vinha a confusão — e por que ela
+não se resolve trocando um nome pelo outro em todo lugar:
+
+> *"deep saude é uma clinica que vai usar o agenda wise e por acaso a deepsaude é
+> proprietaria da agenda wise tbm"*
+
+### Os dois nomes, e o que cada um é
+
+| nome | o que é | quem vê |
+|---|---|---|
+| **Agenda Wise** | o **produto** — a plataforma multi-clínica | **todo usuário final**, e o Google |
+| **Deep Saúde** | a **empresa dona** do produto **e** uma **clínica que o usa**, como qualquer outro cliente | quem trata de posse, contrato, conta — ou da clínica em si |
+
+📌 **Isto não é renomeação, é desambiguação.** Os dois nomes continuam existindo e
+continuam certos; o que estava errado era usar um no lugar do outro. A pergunta
+que decide cada caso é a mesma que a **D-023** já tinha formulado: *isto é do
+produto, ou é da Deep Saúde?*
+
+### 🔴 Onde é Agenda Wise — e um destes é urgente
+
+- 🔴 **A agenda que o app cria na conta Google da psicóloga** (**GC-013**): dizia
+  `"Deep Saúde"`, passa a ser `"Agenda Wise"`. **É a única parte desta decisão que
+  fica cara se atrasar** — essa agenda nasce dentro da conta de gente real, e
+  depois de criada trocar o nome significa passar em cada conta, uma por uma.
+  Corrigido em 22/08, antes de a primeira ser criada.
+- 🔴 **O nome do app na tela de consentimento do Google**: é o que a psicóloga lê
+  no momento de autorizar. O projeto no console ainda não existe (GC-000 está
+  adiado), então ele nasce já com o nome certo — escrito em
+  [`docs/GOOGLE_MODO_TESTE.md`](../docs/GOOGLE_MODO_TESTE.md) para não depender de alguém lembrar.
+- **A prosa dos documentos vivos** que descrevem o produto.
+- 🔵 **O rótulo `"Padrão Agenda Wise"`** — a paleta que a clínica recebe quando
+  não escolheu. Proposto na mesma conversa e aprovado pelo Gabriel com um
+  *"concordo"*.
+
+  📌 **A origem continua sendo da Deep Saúde, e ela não se apaga:** a convenção de
+  cores nasceu na clínica (**R-017**) e virou padrão do produto porque a CEO pediu
+  (**D-024**). O que muda é só o **rótulo na tela** — e ele muda porque quem lê
+  aquela frase é a psicóloga de **outra** clínica, para quem "Deep Saúde" não quer
+  dizer nada. O nome de quem inventou pertence ao histórico, não ao botão.
+
+### Onde continua Deep Saúde — e isto não é exceção, é o significado
+
+- a **empresa dona**: conta do GitHub, posse do produto, contrato;
+- a **clínica** Deep Saúde, quando o texto fala dela como clínica;
+- todo **registro histórico datado**: a auditoria de maio, o incidente de 15/08,
+  os relatos de manhã. Documento datado descreve o que se sabia naquele dia.
+
+### ⚠️ Os nomes internos ficam como estão, por ora
+
+Namespace `deep_saude_backend`, diretórios `deep-saude-plataforma-front-end` e
+`deep-saude-plataforma-api`, `deep-saude-pool`, `deep_saude_db`,
+`admin@deepsaude.com`.
+
+**Medido em 22/08:** `grep -rIniE 'deep[_-]saude|deepsaude'` (sem `.git`,
+`node_modules`, `.next`, `target` e `.ai-instructions`) devolve **868 linhas**,
+**210 delas fora de `.md`** — código, CI, `Dockerfile`, `Procfile`, scripts.
+
+**Por quê ficam:** **nenhuma dessas 210 é vista pelo usuário.** Trocar o namespace
+arrasta diretório de fonte, caminho de teste, `:main` do `project.clj` e contexto
+de build do Dockerfile ao mesmo tempo — e a troca certa e a troca pela metade
+produzem o mesmo commit verde até o deploy, que é a família de defeito que este
+repositório mais pagou. O Gabriel corrigiu o nome que se **vê**; identificador não
+é isso.
+
+**Contrapartida aceita:** o repositório passa a ter dois vocabulários — `Agenda
+Wise` na prosa, `deep_saude` nos identificadores. Quem chegar novo vai estranhar,
+e é para isso que esta decisão existe: *o de dentro é nome de código, o de fora é o
+produto*. Se um dia o estranhamento custar mais que a renomeação, ela vira tarefa
+própria, medida, com o CI vermelho de propósito antes de ficar verde.
+
+### 🔴 A `mensageria/` NÃO é reescrita
+
+As **220 mensagens numeradas** ficam exatamente como estão, com "Deep Saúde" onde
+está escrito "Deep Saúde". Esta decisão é a única linha nova neste diretório.
+
+**Por quê:** o canal é registro histórico e numerado. **Reescrever um log apaga a
+prova de quando as coisas eram outras** — some a informação de que houve confusão,
+e com ela some o motivo de a decisão existir. É a mesma regra da **D-006**, que
+deixou as mensagens 0001–0016 com os nomes velhos: vale **de agora em diante**, e
+a tradução mora aqui.
+
+📌 Daqui para frente, escreve-se **Agenda Wise**.
+
+⚠️ **A forma escrita são duas palavras: `Agenda Wise`.** O repositório é
+`agenda-wise` e alguns documentos já traziam `AgendaWise` colado. Essa variante
+**não** foi varrida nesta rodada, de propósito: ela já diz *produto*, e o que esta
+decisão conserta é produto confundido com empresa — não espaçamento. Normalizar a
+grafia é outra tarefa, e menor.
+
+---
+
+## D-026 — O Google Agenda é a cópia que sobrevive à plataforma, e a ressincronização vira entrega obrigatória
+
+**Decidido por:** Gabriel, 2026-08-22
+**Discutido em:** conversa direta com o Gabriel, ditada por voz — **não há mensagem
+numerada**. As palavras dele vão literais aqui, **com as marcas de oralidade da
+transcrição**, sem correção: é o único registro que existe deste requisito
+**Efeito imediato:** a **Trilha C** e o **bloco 2** de
+[GOOGLE_CORES_E_RECONCILIACAO](../docs/GOOGLE_CORES_E_RECONCILIACAO.md) (GC-019…GC-023) deixam de ser
+"fase posterior" e passam a ser parte do que faz a integração estar **pronta**;
+e o **GC-013** ganha um passo novo, o compartilhamento com a conta da clínica
+**Vale sobre:** a [D-015](#d-015--o-modelo-c-é-o-destino-a-psicóloga-conecta-a-própria-conta) (Modelo C), que ela não substitui — completa
+
+🔴 **Este requisito não estava escrito em lugar nenhum do repositório até hoje.**
+Não é reinterpretação de algo que já existia: é ditado novo, e ele muda o
+**tamanho** da integração com o Google.
+
+---
+
+### O modelo que ele descreveu, na ordem em que descreveu
+
+**1. O arranjo, como ele o imagina montado:**
+
+> *"a clínica contratou a agenda Wise, e aí conectou a agenda e adicionou, criou
+> psicólogas. As psicólogas entraram nas suas contas, conectaram as suas agendas
+> no Google Agenda pelo perfil delas de psicóloga. E aí a agenda da [conta]
+> principal conseguiu criar eventos das psicólogas, como acontece hoje."*
+
+**2. O teste que o arranjo tem de passar — e é ele que manda:**
+
+> *"de repente a plataforma deu um problema, o que eu queria é que eles fossem lá
+> pro Google Agenda mesmo sem a plataforma, o Google Agenda comum como é hoje, e
+> que a clínica conseguisse ainda ver a agenda das psicólogas e conseguisse
+> editar a agenda das psicólogas. E as psicólogas conseguissem ver os
+> agendamentos que a clínica fez."*
+
+**3. O isolamento, no mesmo fôlego:**
+
+> *"com isolamento de dados, que cada psicóloga não viesse a enxergar os dados dos
+> outros pacientes, só os pacientes dela, e a clínica poder ver os dados de todos
+> os agendamentos."*
+
+**4. E a volta:**
+
+> *"depois de a plataforma voltar a funcionar, ela simplesmente iria
+> ressincronizar as agendas e tudo ficaria funcionando normalmente."*
+
+---
+
+### 1. 🔴 O Google Agenda é a cópia que sobrevive — e isso é requisito, não bônus
+
+A frase que fixa o motivo, e o fim dela é a parte que muda o projeto:
+
+> *"hoje a gente funciona basicamente nesse modelo do Google Agenda […] elas
+> compartilharam a agenda delas com a gente e a gente consegue editar a agenda
+> delas. Eu não tô dizendo necessariamente que precisa ser que elas compartilhem
+> a agenda, mas eu queria esse nível de sincronismo, porque iria praticamente
+> garantir que o nosso modelo funcione também quanto funciona hoje, com garantias
+> e gerando uma **não dependência total do funcionamento da plataforma**."*
+
+📌 **A plataforma pode cair e a clínica continua operando.** Com o Agenda Wise
+fora do ar, pelo Google Agenda comum:
+
+| quem | consegue |
+|---|---|
+| a **clínica** | **ver** a agenda de cada psicóloga e **editar** a agenda de cada psicóloga |
+| a **psicóloga** | **ver** os agendamentos que a clínica marcou para ela |
+
+⚠️ **Isto não é plano de contingência escrito num documento de operação — é
+propriedade do desenho.** Um plano de contingência é o que se faz quando o
+sistema cai; aqui o que se pede é que **não haja o que fazer**: as pessoas abrem
+o Google Agenda, que já está certo, e seguem trabalhando. Se a continuidade
+depender de alguém rodar um passo, exportar alguma coisa ou pedir socorro para
+nós, o requisito **não** foi entregue.
+
+🔎 **E o argumento dele é de risco de negócio, não de funcionalidade.** Hoje a
+clínica opera no Google e funciona. Adotar o Agenda Wise, do jeito errado,
+**trocaria** um sistema que funciona por um sistema que funciona *e* por uma nova
+forma de parar de funcionar. O que ele está comprando com este requisito é que a
+adoção seja **acréscimo**, nunca troca — nas palavras dele, *"funcione também
+quanto funciona hoje, com garantias"*.
+
+---
+
+### 2. 🔴 A ressincronização é entrega obrigatória — *"de forma funcional sim"*
+
+Quando eu avisei que a volta descrita no ponto 4 **ainda não existe em código**, e
+que ela é a parte maior e mais perigosa, ele respondeu:
+
+> *"beleza, e adiciona que vamos ter que criar essa parte de ressincronizar a
+> agenda **de forma funcional sim**"*
+
+📌 **Isto tira a Trilha C e o bloco 2 da fila do "depois".** Enquanto a plataforma
+esteve fora, gente editou o Google. Sem reconciliação de volta, essas edições
+**somem** quando a plataforma volta — e a "não dependência" do ponto 1 vira uma
+promessa que o produto não cumpre. **Não há metade disto:** a queda sem a volta é
+pior que não ter integração, porque cria trabalho invisível que se perde.
+
+#### ⚠️ E o risco, sem suavizar
+
+**Reconciliar leitura do Google é o pedaço mais perigoso do projeto inteiro.** É
+onde se passa por cima de **sessão já realizada ou já paga** — estado financeiro
+e clínico, em lote, num caminho que roda sozinho. Já estava escrito, e agora vale
+com mais peso:
+
+- **GC-022 é o cartão mais perigoso do projeto** (§8 de
+  [GOOGLE_CORES_E_RECONCILIACAO](../docs/GOOGLE_CORES_E_RECONCILIACAO.md)): escreve em cima de sessão com dinheiro
+  atrelado, em lote, sozinho.
+- **A armadilha maior mora aqui** (Trilha C em [GOOGLE_CARDS](../docs/GOOGLE_CARDS.md)): o
+  `lista-psis` sincroniza **apagando o cache e reinserindo**. Lá está certo — o
+  dado é disponibilidade. Aqui seria a **A-001 em escala maior**, e o efeito de
+  um sync é indistinguível do efeito de outro sync.
+
+🔑 **As regras que governam a ressincronização já existem, e nenhuma delas se
+afrouxa por este requisito ser urgente:**
+
+| regra | o que manda |
+|---|---|
+| [D-011](#d-011--o-google-propõe-a-plataforma-registra) + **R-018** | **o Google propõe, a plataforma registra.** Nenhuma leitura inbound escreve direto em estado financeiro |
+| **R-021** | **nada apaga sessão que já aconteceu ou que tem dinheiro** — de nenhum dos dois lados. Ausência no Google **nunca** apaga: vira pergunta, e o evento é recriado |
+| **R-018** | casou com mais de um, ou o fato já aconteceu: **aceita, registra e pergunta** — não decide sozinho |
+
+⚠️ **"Ressincronizar de forma funcional" NÃO quer dizer "o Google vira fonte da
+verdade quando volta".** Quer dizer que a volta é **completa e sem intervenção**:
+toda divergência é classificada, o que é seguro se aplica, e o que toca dinheiro
+ou passado **para e pergunta**. Um merge que resolve tudo sozinho seria mais
+rápido de escrever e é exatamente o defeito que a D-011 existe para impedir.
+
+📌 **E a `orla` recomenda, pela D-002 e pelo método das A-005/A-006:** teste antes
+da correção, com a saída da falha colada, **e um caso de controle por balde** — o
+comparador precisa acertar os cinco, não passar em quatro e devolver o quinto
+errado em silêncio.
+
+#### 🔴 Um buraco que este requisito abre no desenho de §7, e que ninguém tinha visto
+
+A §7 de [GOOGLE_CORES_E_RECONCILIACAO](../docs/GOOGLE_CORES_E_RECONCILIACAO.md) limita a janela de reconciliação
+perguntando à psicóloga **qual agenda fica no comando** no instante da queda.
+Aquele desenho pressupõe a **plataforma de pé** para fazer a pergunta — ele
+cobria a queda da *conexão com o Google*, não a queda *da plataforma*.
+
+**No cenário do Gabriel a plataforma é justamente o que caiu**, então não há quem
+pergunte, e a janela `[queda, volta]` não tem quem a registre por dentro. Ela vai
+ter que ser **deduzida na volta** — pelo espelho do GC-019 e pelo `updated_at` do
+GC-020 — em vez de declarada na hora.
+
+⚠️ **Isto é observação minha, não pedido dele.** Fica registrado como o que é:
+uma consequência que muda o GC-021 e o GC-022, e que quem pegar esses cartões
+precisa ler antes de escrever a primeira linha.
+
+---
+
+### 3. O isolamento pedido, e como o arranjo o entrega
+
+> *"cada psicóloga não viesse a enxergar os dados dos outros pacientes, só os
+> pacientes dela, e a clínica poder ver os dados de todos os agendamentos"*
+
+**No Google, isolamento é ACL — quem está na lista de uma agenda.** O arranjo que
+entrega o pedido é este, e a chave está na segunda coluna:
+
+| agenda | quem tem acesso | quem **não** tem |
+|---|---|---|
+| Agenda Wise da **psi A** (na conta da psi A) | a **psi A** (dona) + a **conta da clínica** (escrita) | psi B, psi C… |
+| Agenda Wise da **psi B** (na conta da psi B) | a **psi B** (dona) + a **conta da clínica** (escrita) | psi A, psi C… |
+| agenda **pessoal** de cada psi | só ela | a clínica, e as outras psis |
+
+🔑 **A agenda de cada psicóloga é compartilhada com a conta da clínica e com mais
+ninguém.** Não existe agenda comum, e não existe compartilhamento entre psis —
+então **psi A nunca alcança a agenda de psi B**, porque nunca esteve na ACL dela.
+O isolamento não depende de filtro, de tela nem de código nosso: ele é a forma da
+ACL, e continua valendo com a plataforma desligada. Que é o ponto — o isolamento
+tinha de sobreviver à queda junto com o resto.
+
+**A conta da clínica** tem as N agendas na `calendarList` dela, com escrita em
+todas: é o *"ver os dados de todos os agendamentos"* do pedido.
+
+✅ **E o que a D-015 protegia continua protegido:** a agenda **pessoal** da
+psicóloga não entra nisso. O app cria e alcança **a agenda que ele criou**; a
+vida pessoal dela fica fora por construção, não por combinado. Num consultório de
+psicologia isso pesa, e não é para ser negociado depois por conveniência de
+implementação.
+
+---
+
+### 4. O mecanismo é livre; o efeito, não
+
+Ele foi explícito, e esta frase precisa sobreviver a quem for implementar:
+
+> *"Eu não tô dizendo necessariamente que precisa ser que elas compartilhem a
+> agenda, mas eu queria esse nível de sincronismo"*
+
+📌 **O que está decidido é o efeito; o caminho é nosso.** O compartilhamento
+manual que a clínica usa hoje é **um** jeito de chegar lá — é a prova de que o
+nível pedido existe e funciona, não a especificação dele. Qualquer arranjo que
+entregue as três propriedades abaixo satisfaz a decisão:
+
+1. a clínica **vê e edita** a agenda de cada psi, direto no Google, sem a plataforma;
+2. a psi **vê** o que a clínica marcou, direto no Google, sem a plataforma;
+3. psi A **não alcança** nada de psi B.
+
+⚠️ **O corolário, que é onde isto costuma se perder:** se um dia a implementação
+propuser trocar o mecanismo — outra topologia, delegação de domínio, uma agenda
+por clínica —, a pergunta de aceitação **não** é *"continua compartilhando?"*. É
+*"as três propriedades acima continuam de pé com a plataforma desligada?"*.
+Mecanismo se troca; efeito, não.
+
+---
+
+### 5. O que muda em relação a hoje: o app compartilha, em vez da psicóloga
+
+**Hoje** a psicóloga compartilha na mão, e há três formas de isso quebrar — todas
+silenciosas:
+
+| o que ela faz | o que acontece |
+|---|---|
+| escolhe *"Ver todos os detalhes"* em vez de *"Fazer alterações nos eventos"* | a clínica **não** consegue editar. É a pendência 2 da §12 da spec, aberta desde sempre |
+| compartilha a **agenda pessoal** em vez da de trabalho | a clínica passa a ver a vida dela |
+| **descompartilha** depois, ou some da conta | a integração **morre em silêncio** — é a A-013 outra vez, e é o que o `sem_acesso` do GC-001 existe para gritar |
+
+**A proposta**, e ela cai dentro do GC-013: **o app faz o compartilhamento no ato
+da conexão, com a permissão certa (`writer`), na agenda certa.** A psicóloga
+clica em conectar e o arranjo nasce correto — ninguém escolhe permissão numa tela
+do Google, ninguém erra de agenda, e a plataforma sabe o que concedeu porque foi
+ela que concedeu.
+
+#### 🔴 O bloqueio medido hoje, e ele custa uma decisão de console, não uma linha de código
+
+**O escopo `calendar.app.created` NÃO autoriza `acl.insert`.**
+
+Medido em **2026-08-22, nesta sandbox**, no *discovery document* oficial da API
+(`https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest`, `revision:
+20260812`, HTTP 200), lendo o campo `scopes` de cada método:
+
+| método | escopos que ele aceita | `app.created` serve? |
+|---|---|---|
+| `calendars.insert` | `calendar`, **`calendar.app.created`**, `calendar.calendars` | ✅ **sim** |
+| `events.insert` | `calendar`, **`calendar.app.created`**, `calendar.events`, `calendar.events.owned` | ✅ **sim** |
+| **`acl.insert`** | `calendar`, **`calendar.acls`** | 🔴 **não** |
+| `acl.delete` | `calendar`, `calendar.acls` | 🔴 **não** |
+| `acl.list` / `acl.get` | `calendar`, `calendar.acls`, `calendar.acls.readonly` | 🔴 **não** |
+
+📌 **Os dois primeiros são o caso de controle**, e é o que dá valor ao resto: se a
+minha leitura estivesse errada, `calendars.insert` também teria vindo sem o
+`app.created` — e ele veio **com**. O instrumento separa o caso verdadeiro do
+falso, então o `não` do `acl.insert` é medição, não impressão.
+
+🔴 **Consequência: é preciso pedir também o escopo `calendar.acls`** — e **na
+primeira submissão**, junto com os três que já estão em `google/oauth.clj:49`.
+**Pedir escopo novo depois reabre a verificação inteira**, que leva **semanas** e
+não depende de nós (é a mesma razão do item 2 do GC-000, e agora são **quatro**
+escopos, não três).
+
+💡 **E o `calendar.acls.readonly` resolve um problema antigo de graça:** ele
+permite **conferir se o compartilhamento ainda está de pé** sem poder alterá-lo.
+É o sinal de saúde por **efeito** que o `sem_acesso` sempre quis e nunca teve —
+*"a ACL ainda tem a clínica como `writer`"*, em vez de *"a última chamada
+devolveu 200"*. Se o escopo de escrita for pedido, este não custa nada a mais.
+
+⚠️ **Duas coisas que eu NÃO medi, e que quem tem o console na frente confirma
+antes de submeter:**
+
+1. **Como o Google classifica o `calendar.acls`** na verificação (sensível?
+   restrito?). O *discovery document* diz quais métodos o escopo abre — **não**
+   diz o que a revisão do Google exige por causa dele.
+2. **Se a agenda criada por `calendars.insert` conta como *"calendar you own"***
+   para o `calendar.acls`. A descrição oficial do escopo é *"See and change the
+   sharing permissions of Google calendars **you own**"*, e o app age com a
+   autorização da psicóloga, na conta dela — a leitura natural é que sim, mas
+   **leitura natural não é medição**. Testar contra uma agenda de verdade
+   (GC-000b) **antes** de o desenho depender disso.
+
+---
+
+### 6. O título do evento passa a poder levar o nome do paciente — e como se chegou nisso
+
+**Havia uma contradição no repositório que ninguém tinha anotado**, e este
+requisito a resolve:
+
+| fonte | manda |
+|---|---|
+| **R-017** (`docs/REGRAS_DE_NEGOCIO.md`) — regra do Gabriel, 15/08 | título do evento = **nome do paciente** |
+| **§7 de `docs/GOOGLE_CALENDAR_SPEC.md`** — recomendação da `orla` | *"não colocar nome de paciente no `summary`"*; usar `Sessão — A.P. #137` |
+
+🔴 **Nenhuma das duas citava a outra.** Quem pegasse o GC-003 escolheria uma e
+quebraria a outra **sem saber que havia uma escolha**.
+
+#### ⚠️ Quem disse o quê — e a separação importa
+
+- **O Gabriel disse** que a clínica precisa *"ver os dados de todos os
+  agendamentos"* e que a psi vê *"só os pacientes dela"*.
+- **Eu (`orla`) inferi daí** que o nome do paciente no título está autorizado: o
+  arranjo que ele pediu já coloca o dado do paciente diante da clínica **por
+  desenho**, e o título é o canal que faz a agenda ser legível sem a plataforma —
+  que é o requisito do ponto 1. `Sessão — A.P. #137` é ilegível para quem está
+  operando **sem** a plataforma para decodificar o código.
+- **Eu disse a ele que ia registrar isso**, e **ele ratificou** com um
+  *"beleza"*.
+
+📌 **Ele não ditou a frase sobre o título.** A regra que vale é a **R-017**, que é
+dele e é de 15/08; o que esta decisão faz é **remover a recomendação da `orla` que
+a contradizia em silêncio**, com a ratificação dele por cima. Se um dia isso for
+reaberto, é este parágrafo que diz de quem foi cada metade.
+
+#### O que fica valendo
+
+✅ **A R-017 vale: o título carrega o nome do paciente.** A §7 da spec fica
+**superada quanto à regra** — e o texto dela **não foi apagado**, ficou no lugar
+com o motivo, como manda a convenção deste repositório.
+
+⚠️ **E a advertência da spec continua verdadeira — ela só deixou de decidir.** O
+que ela descreve é fato, e não some por a regra ter mudado:
+
+> o título aparece em **notificação de tela bloqueada**, em **tela
+> compartilhada**, e para **qualquer pessoa com acesso de leitura à agenda da
+> clínica — inclusive a secretária**.
+
+📌 **Isso muda o que o alerta é.** Ele deixa de ser *"não faça"* e passa a ser
+*"saiba o que isto expõe"* — e continua governando o resto da §7, que **não** foi
+tocado: `description` sem dado clínico, `visibility: "private"`, prontuário e
+valor **só na plataforma**. **O título passou; o prontuário não passa.**
+
+---
+
+### ✅ A secretária lê o nome do paciente — respondido pelo Gabriel em 22/08
+
+Pela **D-021**, a secretária **não lê prontuário** — mas **lê a agenda**. Com o
+nome do paciente no título e a agenda da clínica compartilhada, ela passa a ver o
+nome de todos os pacientes de todas as psicólogas pelo Google.
+
+Perguntei se isso estava certo. A resposta dele foi imediata:
+
+> *"a secretaria vai precisar sim ler o nome dos pacientes, nao tem como impedir
+> ela de faxer isso pq vai atrapalhar muito"*
+
+📌 **O argumento é operacional, e é ele que decide.** A secretária marca, remarca e
+atende paciente ao telefone. Sem o nome na agenda, o trabalho dela para. Esconder
+o nome não seria proteger ninguém — seria empurrar para a psicóloga uma tarefa que
+hoje é da recepção, e o custo cairia sobre quem a regra queria ajudar.
+
+✅ **Fica valendo: um título só, igual para psicóloga, admin e secretária.** Não
+existe título por papel no Google — e agora isso é **escolha**, não omissão.
+
+⚠️ **E a D-021 continua inteira — esta resposta não a afrouxa:** **nome na agenda
+não é prontuário.** A secretária vê que existe uma sessão com fulano; continua
+**sem** ler o que foi dito nela. `description` sem dado clínico, e prontuário e
+valor **só na plataforma**.
+
+---
+
+### Por quê
+
+**Porque a não-dependência é o que torna a adoção segura.** A clínica já opera no
+Google e já funciona. Um produto que substitui esse arranjo por si mesmo pede que
+ela troque um risco conhecido e pequeno por um risco novo e concentrado — e a
+primeira indisponibilidade nossa viraria a prova de que a troca foi ruim. O
+desenho que ele pediu evita isso pela raiz: **o Agenda Wise deixa de ser o lugar
+onde a agenda vive e passa a ser o lugar de onde a agenda é governada**, com a
+cópia operável sempre presente do outro lado.
+
+E **porque a ressincronização é o que fecha o círculo.** A queda sem a volta não
+é meia entrega — é uma entrega que **cria trabalho invisível e depois o perde**. O
+que dá valor à cópia sobrevivente é ela poder ser usada de verdade, e ela só pode
+ser usada de verdade se o que for feito nela voltar.
+
+---
+
+**Contrapartida aceita — e são quatro, todas com preço:**
+
+1. 🔴 **A integração fica maior, e é a parte cara que cresce.** A Trilha C e o
+   bloco 2 saem do "se der tempo". Já estava escrito em [GOOGLE_CARDS](../docs/GOOGLE_CARDS.md) que as
+   trilhas B, C e D somadas são **maiores que tudo o que foi feito neste
+   repositório desde 11/08**; esta decisão diz que a maior parte disso é
+   **obrigatória**, não desejável. O cronograma tem que tratá-la assim, e dizer
+   "pronto" antes disso seria o sinal verde que não verificou nada.
+
+2. ⚠️ **Um escopo sensível a mais na verificação do Google.** `calendar.acls` sobe
+   para quatro os escopos da primeira submissão. Custa superfície de revisão e
+   pode custar tempo de calendário — mas pedir depois custa a **verificação
+   inteira de novo**, e essa conta é pior.
+
+3. 🔴 **O `calendar.acls` alcança mais do que o `calendar.app.created`, e isso
+   morde um argumento da D-015.** A D-015 escolheu o Modelo C dizendo que *"a
+   agenda pessoal fica fora do alcance **por construção**, não por combinado"*.
+   O `calendar.acls` é descrito pelo Google como *"the sharing permissions of
+   Google calendars you own"* — **todas** as que ela possui, inclusive a pessoal,
+   e não só as que o app criou. **O alcance sobre os eventos continua estreito**
+   (ler e escrever evento segue preso ao `app.created`); o que se alarga é o
+   alcance sobre **permissões de compartilhamento**. É menos do que parece e mais
+   do que era: a garantia "por construção" vira, nessa fatia, "por disciplina de
+   código" — o app só toca a ACL da agenda que ele criou, e isso passa a ser algo
+   que **a revisão de código tem de segurar**, porque o escopo não segura mais.
+
+4. ⚠️ **O nome do paciente no título expõe mais gente ao dado.** É consequência
+   direta e conhecida do que a §7 já descrevia, aceita porque a legibilidade da
+   agenda sem a plataforma é o requisito — e é ela que gera a pergunta aberta
+   sobre a secretária, logo acima. **Aceitar a contrapartida não é responder a
+   pergunta.**

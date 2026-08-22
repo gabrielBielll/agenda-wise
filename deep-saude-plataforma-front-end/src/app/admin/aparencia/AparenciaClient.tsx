@@ -100,7 +100,7 @@ export default function AparenciaClient({ escolhidas: inicial, cores, padrao }: 
                 <div>
                   <h2 className="section-title">{ap.label}</h2>
                   <p className="text-xs text-muted-foreground">
-                    {noPadrao ? "Usando o Padrão Deep Saúde" : `Escolhida: ${NOMES_DE_COR[atual] ?? atual}`}
+                    {noPadrao ? "Usando o Padrão Agenda Wise" : `Escolhida: ${NOMES_DE_COR[atual] ?? atual}`}
                   </p>
                 </div>
 

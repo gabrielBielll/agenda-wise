@@ -1,4 +1,4 @@
-# Deep Saúde — Documentação de Hardening e Roadmap
+# Agenda Wise — Documentação de Hardening e Roadmap
 
 > Documentação criada em 2026-05-15.
 > Status: 45 cards abertos, distribuídos em 8 sprints.
@@ -7,7 +7,7 @@
 
 ## O que é esta pasta
 
-Esta pasta organiza tudo o que precisa ser feito antes do Deep Saúde ir para produção, em formato de cards (estilo Jira) escritos em Markdown. Cada card é um arquivo independente, dimensionado para ser executado como uma unidade de trabalho.
+Esta pasta organiza tudo o que precisa ser feito antes de o Agenda Wise ir para produção, em formato de cards (estilo Jira) escritos em Markdown. Cada card é um arquivo independente, dimensionado para ser executado como uma unidade de trabalho.
 
 ## Como navegar
 

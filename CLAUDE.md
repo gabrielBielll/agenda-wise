@@ -10,6 +10,30 @@
 
 ---
 
+## Como o produto se chama
+
+**O produto é o Agenda Wise.** **Deep Saúde** é a empresa **dona** dele — e também
+uma **clínica que o usa**, como qualquer outro cliente. Decidido pelo Gabriel em
+22/08 (**[D-025](mensageria/DECISOES.md)**), nas palavras dele: *"deep saude é uma clinica que vai
+usar o agenda wise e por acaso a deepsaude é proprietaria da agenda wise tbm"*.
+
+📌 **Tudo que o usuário lê é Agenda Wise** — inclusive a agenda que o app cria
+dentro da conta Google da psicóloga (**GC-013**) e o nome do app na tela de
+consentimento. Esse é o lado caro de errar: nome de agenda já criada só se troca
+conta por conta.
+
+⚠️ **Mas os identificadores internos continuam dizendo `deep_saude`**, de
+propósito: namespace `deep_saude_backend`, diretórios `deep-saude-plataforma-*`,
+`deep-saude-pool`, `deep_saude_db`, `admin@deepsaude.com`. São 210 linhas fora de
+`.md`, **nenhuma delas vista pelo usuário**, e trocá-las arrasta CI, Dockerfile e
+scripts de uma vez. **O de dentro é nome de código; o de fora é o produto.** Não
+"conserte" identificador achando que é sobra da confusão.
+
+🔴 **E a `mensageria/` não é reescrita.** Lá "Deep Saúde" fica onde está: log
+reescrito deixa de ser prova de quando as coisas eram outras.
+
+---
+
 ## Quem é quem
 
 | papel | quem | o que é |
@@ -179,9 +203,10 @@ mensageria/  docs/  .github/workflows/ci.yml
 | typecheck da app | `npm run typecheck` (em `deep-saude-plataforma-front-end`) |
 | typecheck dos testes de navegador | `npm run typecheck:e2e` |
 | navegador | `PROVISIONING_TOKEN=... npm run e2e` |
-| backend, sem banco | `lein test` |
-| backend, com banco | `TEST_DATABASE_URL='jdbc:postgresql://...' lein test` |
-| **a plataforma inteira, local** | `bash scripts/dev/previa-local.sh` — ver abaixo |
+| backend, sem banco | `lein test` (em `deep-saude-plataforma-api/deep-saude-backend`) — 81 testes; os de banco se anunciam pulados |
+| backend, com banco | `TEST_DATABASE_URL='jdbc:postgresql://...' lein test` — 204 testes; ⚠️ o prefixo `jdbc:` aqui é obrigatório e na `DATABASE_URL` é proibido |
+| banco para os testes, na sandbox da nuvem | `docker run ... postgres:16` — receita copiável na seção da sandbox |
+| **a plataforma inteira, local** | `bash scripts/dev/previa-local.sh` — ⚠️ só no Termux; ver abaixo |
 
 ---
 
@@ -225,37 +250,191 @@ consertar o fluxo.
 
 ---
 
-## ⚠️ O que a sandbox da nuvem **não** consegue, medido
+## ⚠️ O que a sandbox da nuvem consegue — remedido em 22/08/2026
 
-Não deduza estes limites de novo — eles custaram horas:
+A versão anterior desta seção dizia que **o backend real não sobe aqui**. Sobe.
+Ela está preservada no fim da seção, porque o erro dela vale mais que o acerto.
 
-- 🔴 **`repo.clojars.org` é negado** pela política de rede. As dependências
-  Clojure não resolvem, então **o backend real não sobe aqui**. Maven Central
-  funciona e resolve só Postgres e Clojure.
-- 🔴 **`*.code.run` é negado** — não dá para abrir o site nem o painel do
-  Northflank. **Um teste feito daqui contra aquele host recebe recusa do próprio
-  proxy, que é indistinguível de "porta fechada".** Nunca use isso como
-  confirmação; peça à `vale`.
-- 🔴 **`networkidle` do Playwright nunca assenta** (fontes bloqueadas + prefetch
-  do Next). Use `domcontentloaded` + espera por elemento.
-- ⚠️ **O Chromium do Playwright é o build 1194**, e o projeto pede outro. Lance
-  com `executablePath: '/opt/pw-browsers/chromium'`. Não rode `playwright install`.
-- ✅ **Postgres nativo existe** em `/usr/lib/postgresql/16/bin`, mas `initdb`
-  recusa rodar como root — crie um usuário e um diretório fora de `/tmp`.
-- ✅ **Chromium, Node 22 e Java 21** funcionam. `lein` baixa e roda; só as
-  dependências é que não.
+⚠️ **Escopo: esta sandbox, nesta data.** A `vale` e a `duna` rodam em máquinas
+diferentes, com limites próprios — para elas continua valendo o que **elas**
+mediram, e nada aqui as dispensa de remedir. Limite de ambiente não é propriedade
+do projeto; é propriedade da máquina, e a máquina troca sem avisar.
 
-📌 O jeito de contornar o backend indisponível está em
-[`scripts/dev/`](scripts/dev/README.md): um servidor que imita o contrato lido do
-fonte Clojure, com a linha de origem de cada regra, e um passeio de navegador que
-tira foto de cada tela.
+### ✅ O que funciona, com o comando que mostrou
 
-Ele **não** prova que o backend real concorda — prova que o script faz o que se
-quis que ele fizesse. Diga sempre qual dos dois você mediu.
+- **As dependências Clojure resolvem.** `repo.clojars.org` → **200**, e o
+  controle positivo foi baixar o POM de `ring-core 1.12.1` — versão que o
+  `project.clj` **não** usa e que portanto não podia estar no cache. `lein -o
+  deps` → exit 0. `~/.m2/repository` tem 75 jars (34 MB), cobrindo o
+  `project.clj` inteiro; a suíte compila.
+- **O backend real sobe.** `lein run`: **16 migrations aplicadas, 19 tabelas**,
+  `GET /api/health` → `200 {"status":"ok","banco":"ok"}`.
+- **A suíte inteira passa com banco:** `Ran 204 tests containing 855 assertions.
+  0 failures, 0 errors.`, exit 0. Sem banco são 81 testes / 439 asserções — e os
+  de banco **anunciam no stdout que foram pulados**, então o número menor não é
+  um daqueles sinais verdes que não verificaram nada.
+- **Há Docker** (Server 29.5.3), com `postgres:16`, `postgres:14-alpine`,
+  `redis:7-alpine`, `minio/minio` e `cockroachdb/cockroach` **já em cache local**
+  — sobe sem rede.
+- **O Chromium do Playwright é o que o projeto pede.** O instalado é o
+  `chromium-1234` em `~/.cache/ms-playwright`, e `npx playwright install
+  --dry-run chromium` confirma que é exatamente o build do `@playwright/test`
+  1.62.1. 📌 **Não há divergência a contornar — não aponte `executablePath`.**
+- **O front se verifica:** `npm run typecheck`, `typecheck:e2e`, `checa:campos` e
+  `checa:glifos` → todos exit 0. ⚠️ `npm run build` **não foi rodado** nesta
+  rodada; não afirme nada sobre ele.
+- **Os hosts do Google respondem:** `www.googleapis.com/discovery/v1/apis` →
+  200, `developers.google.com` → 200, `repo1.maven.org` → 200.
+  `oauth2.googleapis.com` → 404, que é a raiz de um host que só serve `/token` e
+  `/revoke`: o host **respondeu**, e aqui 404 é sinal de vivo, não de bloqueio.
+
+### 🔴 O que continua negado
+
+- **`*.code.run` é negado** — `curl` devolve `000`. Confirmado com controle
+  negativo: um host inexistente (`.invalid`) devolve **o mesmo `000`**, enquanto
+  todos os hosts da lista acima devolvem código de verdade. Ou seja, o
+  instrumento separa "respondeu" de "não respondeu", mas **não** separa recusa do
+  proxy de serviço fora do ar. 🔴 **Um `000` daqui nunca é prova de que a
+  produção caiu — peça à `vale`.**
+
+### ⚠️ O que não foi remedido, e por isso segue em aberto
+
+- **`networkidle` do Playwright nunca assenta** — afirmação da sandbox anterior.
+  Ninguém rodou e2e nesta rodada, então ela não foi confirmada **nem** derrubada.
+  Siga com `domcontentloaded` + espera por elemento, que é o certo de qualquer
+  forma.
+- **Java aqui é 17** (`Leiningen 2.12.0 on Java 17.0.19`); o CI usa temurin 21.
+  Não quebrou nada nesta suíte, mas é diferença com o que roda de verdade:
+  "passou aqui" não é "passou no CI".
+
+### 🔵 A receita: Postgres em Docker e a suíte com banco
+
+```bash
+docker run -d --name pg-deep -p 5433:5432 \
+  -e POSTGRES_USER=deep -e POSTGRES_PASSWORD=deep -e POSTGRES_DB=deep_teste \
+  postgres:16
+
+cd deep-saude-plataforma-api/deep-saude-backend
+TEST_DATABASE_URL='jdbc:postgresql://localhost:5433/deep_teste?user=deep&password=deep&sslmode=disable' \
+  lein test
+```
+
+Contêiner descartável, sem nada de produção dentro — a senha ali é do próprio
+comando, não é credencial (a regra 1 continua inteira).
+
+🔴 **As duas variáveis de banco têm nomes irmãos e formatos opostos.** Está na
+docstring de
+[`db.clj:16-26`](deep-saude-plataforma-api/deep-saude-backend/src/deep_saude_backend/db.clj):
+`TEST_DATABASE_URL` leva o prefixo `jdbc:`, `DATABASE_URL` **não** leva, porque é
+lida por `java.net.URI`. Com o prefixo errado, o `URI` lê o esquema como `jdbc`,
+`.getHost` devolve **nil** e nada sobe — a docstring não nomeia a mensagem que
+sai, e eu também não vou nomear.
+
+E há uma armadilha irmã, essa com mensagem conhecida: **sem a porta explícita**,
+`.getPort` devolve `-1`, e o driver responde `JDBC URL port: -1 not valid
+(1:65535)` seguido de `No suitable driver` — que não menciona porta nenhuma.
+Custou um boot à `vale` em 15/08.
+
+📌 As duas são a mesma família de defeito do resto deste arquivo: **o erro aponta
+para o lugar errado.** Para subir o backend contra o mesmo contêiner, a URL muda
+de forma:
+
+```bash
+DATABASE_URL='postgresql://deep:deep@localhost:5433/deep_teste?sslmode=disable' lein run
+# /api/health em http://localhost:3000
+```
+
+⚠️ **Não use o `docker-compose.yml` da raiz.** Ele é resíduo do ERP jurídico
+(`POSTGRES_USER: erp_user`, banco `erp_advocacia`) — mesma herança do
+`.ai-instructions/` e a mesma família de defeito: parece deste projeto e não é.
+
+⚠️ **`scripts/dev/previa-local.sh` não roda nesta sandbox.** O shebang é do
+Termux e ele depende de `initdb`, `pg_ctl`, `pg_isready` e `createdb` nativos,
+que não existem nesta imagem. É ferramenta da `duna` e da `vale`, não desta
+máquina.
+
+### 📌 O simulador de contrato continua existindo — mas virou a segunda opção
+
+[`scripts/dev/`](scripts/dev/README.md) tem um servidor que imita o contrato lido
+do fonte Clojure, com a linha de origem de cada regra, e um passeio de navegador
+que fotografa cada tela. Ele foi escrito para quando o backend real não subia.
+
+🔴 **Onde o backend real sobe, use o backend real.** O simulador **não** prova
+que ele concorda — prova que o script faz o que se quis que ele fizesse. Diga
+sempre qual dos dois você mediu.
+
+⚠️ **O `passeio-de-telas.mjs` carrega o caminho morto.** A linha 53 lança o
+navegador com `executablePath: '/opt/pw-browsers/chromium'`, que **não existe
+nesta imagem** — é a receita errada da seção antiga, congelada em código. Não foi
+corrigido nesta rodada; quem for mexer no passeio tira o `executablePath` e
+deixa o Playwright achar o próprio build.
 
 ⚠️ **Leia o README de lá antes de usar.** Um simulador incompleto produz
 **achado falso**, e achado falso sobre o trabalho de outra pessoa custa mais caro
 que achado nenhum. As quatro armadilhas que ele já pagou estão listadas.
+
+### 🔴 O texto anterior, medido noutra sandbox — falso desde 22/08/2026
+
+Preservado inteiro, com o veredito colado em cada item. Apagar sairia mais barato
+hoje e mais caro depois: metade do valor deste repositório é o registro dos
+diagnósticos que estavam errados, e este errou de um jeito que vale estudar.
+
+> ## ⚠️ O que a sandbox da nuvem **não** consegue, medido
+>
+> Não deduza estes limites de novo — eles custaram horas:
+>
+> - 🔴 **`repo.clojars.org` é negado** pela política de rede. As dependências
+>   Clojure não resolvem, então **o backend real não sobe aqui**. Maven Central
+>   funciona e resolve só Postgres e Clojure.
+>
+>   ❌ **Falso em 22/08.** Clojars responde 200 e a suíte inteira roda.
+> - 🔴 **`*.code.run` é negado** — não dá para abrir o site nem o painel do
+>   Northflank. **Um teste feito daqui contra aquele host recebe recusa do próprio
+>   proxy, que é indistinguível de "porta fechada".** Nunca use isso como
+>   confirmação; peça à `vale`.
+>
+>   ✅ **Continua valendo em 22/08**, e agora com controle negativo.
+> - 🔴 **`networkidle` do Playwright nunca assenta** (fontes bloqueadas + prefetch
+>   do Next). Use `domcontentloaded` + espera por elemento.
+>
+>   ⚠️ **Não remedido em 22/08** — ninguém rodou e2e. Em aberto.
+> - ⚠️ **O Chromium do Playwright é o build 1194**, e o projeto pede outro. Lance
+>   com `executablePath: '/opt/pw-browsers/chromium'`. Não rode `playwright install`.
+>
+>   ❌ **Falso em 22/08 nas duas metades.** `/opt/pw-browsers` não existe, e o
+>   build instalado é o que o projeto pede.
+> - ✅ **Postgres nativo existe** em `/usr/lib/postgresql/16/bin`, mas `initdb`
+>   recusa rodar como root — crie um usuário e um diretório fora de `/tmp`.
+>
+>   ❌ **Falso em 22/08.** O diretório não existe, não há binário do Postgres no
+>   PATH nem no `dpkg`. O que existe é Docker.
+> - ✅ **Chromium, Node 22 e Java 21** funcionam. `lein` baixa e roda; só as
+>   dependências é que não.
+>
+>   ⚠️ **Meio falso em 22/08.** Java aqui é 17; as dependências resolvem.
+
+### 📌 Por que ela errava — dedução, não medição
+
+**Hipótese, não medição:** aquela seção foi escrita numa sandbox com **política
+de rede e imagem diferentes** das de hoje. Ninguém anotou a data nem a imagem, e
+é por isso que não dá para dizer **quando** deixou de valer — só que em 22/08 já
+não valia.
+
+O que interessa não é o erro, é o formato dele: ela errava **nos dois sentidos**.
+
+| sentido | exemplo | o que custa |
+|---|---|---|
+| proibia o que funciona | "clojars é negado", "o backend real não sobe aqui" | trabalho que nem chegou a ser tentado, e simulador usado onde cabia o backend de verdade |
+| prometia o que não existe | Postgres nativo em `/usr/lib/postgresql/16/bin`, Chromium em `/opt/pw-browsers` | a instância segue a receita, o caminho não está lá, e ela vai depurar o **ambiente** em vez de desconfiar do texto |
+
+🔴 **O segundo tipo é o mais caro**, e é exatamente a família de defeito da nota
+sobre `.ai-instructions/` algumas seções acima: **documentação meio verdadeira
+não dá o sinal de que errou.** Texto todo errado morre no primeiro comando; texto
+que acerta a forma e erra o caminho é obedecido.
+
+📌 **A consequência prática:** ao escrever limite de ambiente aqui, escreva
+**quando** e **onde** foi medido, e com qual comando. Sem isso, a próxima
+instância não tem como saber se está lendo uma medição ou uma lembrança.
 
 ---
 

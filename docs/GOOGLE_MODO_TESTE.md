@@ -138,6 +138,7 @@ No Google Cloud Console, com essa conta:
 1. criar um projeto;
 2. **ativar a Google Calendar API**;
 3. tela de consentimento: tipo **Externo**, e **publicar em "Em produção"** — ✅ [D-014](../mensageria/DECISOES.md), **sem** submeter para verificação. É isto que tira o relógio de 7 dias;
+   🔴 **nome do app: `Agenda Wise`** — não "Deep Saúde". É o nome que a psicóloga lê na tela de autorização, e ele é do **produto**; a Deep Saúde é a empresa dona e uma clínica que o usa ([D-025](../mensageria/DECISOES.md));
 4. **escopos** — os três que o código já pede (`google/oauth.clj:49`):
    ```
    .../auth/calendar.events                  ← Modelo A

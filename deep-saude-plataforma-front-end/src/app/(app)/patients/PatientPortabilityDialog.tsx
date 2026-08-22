@@ -200,7 +200,7 @@ export function PatientPortabilityDialog({ onImported }: { onImported: () => Pro
 
           <section className="space-y-3">
             <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
-              <div><h3 className="text-sm font-semibold">Importar base</h3><p className="mt-1 text-xs text-muted-foreground">CSV, JSON ou SQL gerado pela AgendaWise · até 5 MB e 5.000 pacientes.</p></div>
+              <div><h3 className="text-sm font-semibold">Importar base</h3><p className="mt-1 text-xs text-muted-foreground">CSV, JSON ou SQL gerado pela Agenda Wise · até 5 MB e 5.000 pacientes.</p></div>
               <Select value={strategy} onValueChange={(value: PatientImportStrategy) => { setStrategy(value); if (records.length && !issues.length) setStage('idle'); }}>
                 <SelectTrigger className="w-full bg-card/50 sm:w-[230px]"><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -257,7 +257,7 @@ export function PatientPortabilityDialog({ onImported }: { onImported: () => Pro
 
           <div className="flex items-start gap-2 rounded-xl bg-grafite-tenue px-3 py-2.5 text-[10px] text-grafite-foreground">
             <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
-            <p>Estes arquivos podem conter dados pessoais e clínicos. A AgendaWise não inclui prontuários nesta operação e nunca executa o conteúdo de um arquivo SQL enviado.</p>
+            <p>Estes arquivos podem conter dados pessoais e clínicos. A Agenda Wise não inclui prontuários nesta operação e nunca executa o conteúdo de um arquivo SQL enviado.</p>
           </div>
         </div>
       </DialogContent>

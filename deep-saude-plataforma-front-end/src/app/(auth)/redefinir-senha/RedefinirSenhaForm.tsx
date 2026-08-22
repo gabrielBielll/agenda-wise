@@ -76,7 +76,7 @@ export function RedefinirSenhaForm({ token }: { token: string }) {
             <Leaf className="h-6 w-6" />
           </span>
         </div>
-        <p className="page-eyebrow">Deep Saúde</p>
+        <p className="page-eyebrow">Agenda Wise</p>
         <CardTitle className="text-3xl">Criar nova senha</CardTitle>
         <CardDescription>
           Escolha uma nova senha para acessar sua conta.
