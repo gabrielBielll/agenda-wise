@@ -1,4 +1,4 @@
-# Deep Saúde - Notas Técnicas
+# Agenda Wise — Notas Técnicas
 
 Este documento registra decisões de arquitetura, dívidas técnicas e pontos de atenção para futuras implementações.
 

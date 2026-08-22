@@ -81,7 +81,7 @@
       {:ok true})))
 
 (defn voltar-ao-padrao!
-  "Apaga a escolha da clínica para um estado — volta ao Padrão Deep Saúde.
+  "Apaga a escolha da clínica para um estado — volta ao Padrão Agenda Wise.
 
    📌 Apagar, e não gravar a cor padrão: ver a docstring do namespace."
   [clinica-id estado]

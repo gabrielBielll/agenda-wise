@@ -263,7 +263,7 @@ Este bloco inteiro roda sem nenhuma chamada à API. É o que o Gabriel vai ver.
 |---|---|---|---|
 | **GC-014** | `confirmado` entra no vocabulário de `status-sessao`, com a transição que o produz e os testes | backend | M |
 | **GC-015** | as 11 cores do Google viram tokens medidos nos **dois temas** | front | M |
-| **GC-016** | paleta por clínica: tabela, semente do "Padrão Deep Saúde", tela de troca | backend + front | L |
+| **GC-016** | paleta por clínica: tabela, semente do "Padrão Agenda Wise" (a convenção nasceu na clínica Deep Saúde — R-017), tela de troca | backend + front | L |
 | **GC-017** | a agenda da plataforma pinta por estado, lendo a paleta da clínica | front | M |
 | **GC-018** | o seletor de cor no evento imita o do Google e **propõe mudança de estado** | front + backend | L |
 

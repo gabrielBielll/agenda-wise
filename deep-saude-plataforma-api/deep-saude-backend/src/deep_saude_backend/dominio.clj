@@ -48,7 +48,11 @@
     "pavao" "grafite" "blueberry" "manjericao" "tomate"})
 
 (def paleta-padrao
-  "O \"Padrão Deep Saúde\": a cor de cada estado quando a clínica não escolheu.
+  "O \"Padrão Agenda Wise\": a cor de cada estado quando a clínica não escolheu.
+
+   📌 O rótulo é do PRODUTO porque toda clínica cliente recebe este padrão — a
+   convenção em si nasceu na clínica Deep Saúde (R-017/D-024), e é só de lá que
+   vem a herança do nome antigo.
 
    📌 Reproduz **exatamente** o que a agenda já pinta hoje, para que a migration
    não mude a aparência de ninguém. Trocar é escolha da clínica, não efeito

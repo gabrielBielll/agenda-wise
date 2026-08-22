@@ -196,7 +196,7 @@ function parseJson(content: string) {
 function parseSql(content: string) {
   const match = content.match(/^-- AGENDAWISE_PORTABLE_JSON_BASE64 ([A-Za-z0-9+/=]+)$/m);
   if (!match) {
-    throw new Error('Por segurança, o upload não executa SQL. Use somente um arquivo SQL exportado pela própria AgendaWise.');
+    throw new Error('Por segurança, o upload não executa SQL. Use somente um arquivo SQL exportado pela própria Agenda Wise.');
   }
   return parseJson(decodeBase64Utf8(match[1]));
 }

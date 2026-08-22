@@ -84,7 +84,7 @@
     (is (= dominio/status-sessao (set (keys p)))
         "a paleta efetiva cobre os CINCO estados, mesmo sem nenhuma linha gravada")
     (is (= dominio/paleta-padrao p)
-        "sem escolha, a paleta é exatamente o Padrão Deep Saúde")
+        "sem escolha, a paleta é exatamente o Padrão Agenda Wise")
     (is (every? dominio/cores-agenda (vals p))
         "toda cor do padrão pertence ao vocabulário — senão a tela receberia um nome que não sabe pintar")))
 

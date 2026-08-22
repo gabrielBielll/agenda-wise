@@ -216,7 +216,7 @@ export default function LoginPage() {
         </CardContent>
         <CardFooter className="justify-center border-t border-border/40 px-7 py-4">
           <p className="flex items-center justify-center text-[9px] uppercase tracking-[.1em] text-muted-foreground">
-            <Lock className="mr-2 h-3.5 w-3.5" /> Ambiente seguro Deep Saúde
+            <Lock className="mr-2 h-3.5 w-3.5" /> Ambiente seguro Agenda Wise
           </p>
         </CardFooter>
       </Card>

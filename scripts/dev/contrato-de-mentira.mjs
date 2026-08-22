@@ -214,7 +214,7 @@ const server = createServer(async (req, res) => {
     } else if (formato === 'json') conteudo = json;
     else {
       const marker = Buffer.from(json, 'utf8').toString('base64');
-      conteudo = `-- AgendaWise — backup de pacientes\n-- AGENDAWISE_PORTABLE_JSON_BASE64 ${marker}\nBEGIN;\n${pacientes.map((patient) => `-- ${sqlLiteral(patient.agenda_wise_id)} · ${sqlLiteral(patient.nome)}`).join('\n')}\nCOMMIT;\n`;
+      conteudo = `-- Agenda Wise — backup de pacientes\n-- AGENDAWISE_PORTABLE_JSON_BASE64 ${marker}\nBEGIN;\n${pacientes.map((patient) => `-- ${sqlLiteral(patient.agenda_wise_id)} · ${sqlLiteral(patient.nome)}`).join('\n')}\nCOMMIT;\n`;
     }
     const filename = `agenda-wise-pacientes-${new Date().toISOString().slice(0, 10)}.${formato}`;
     const mime = formato === 'csv' ? 'text/csv' : formato === 'json' ? 'application/json' : 'application/sql';

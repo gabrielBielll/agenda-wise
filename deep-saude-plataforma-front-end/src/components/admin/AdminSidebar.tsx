@@ -102,7 +102,7 @@ export default function AdminSidebar({ isCollapsed = false, className }: { isCol
       <div className={cn("flex items-center gap-2 px-4", isCollapsed && "h-9 justify-center px-2")}>
         <Link href="/admin/dashboard" className="flex items-center gap-2 overflow-hidden">
           <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[13px_13px_13px_4px] bg-accent text-accent-foreground shadow-[var(--quiet-shadow-soft)]"><Leaf className={cn("h-5 w-5", isCollapsed && "h-4 w-4")} /></span>
-          {!isCollapsed && <div><h1 className="font-headline text-xl font-normal">Deep Saúde</h1><p className="text-[8px] uppercase tracking-[.14em] text-muted-foreground">Administração</p></div>}
+          {!isCollapsed && <div><h1 className="font-headline text-xl font-normal">Agenda Wise</h1><p className="text-[8px] uppercase tracking-[.14em] text-muted-foreground">Administração</p></div>}
         </Link>
       </div>
 
@@ -152,7 +152,7 @@ export function AdminSidebarSheetContent() {
       <div className="flex items-center gap-2 border-b px-4 py-3.5">
         <Link href="/admin/dashboard" className="flex items-center gap-2 overflow-hidden">
           <span className="grid h-9 w-9 place-items-center rounded-[13px_13px_13px_4px] bg-accent text-accent-foreground"><Leaf className="h-4 w-4" /></span>
-          <h1 className="font-headline text-xl">Deep Saúde</h1>
+          <h1 className="font-headline text-xl">Agenda Wise</h1>
         </Link>
       </div>
       <nav className="grid gap-2 p-2 text-base font-medium">

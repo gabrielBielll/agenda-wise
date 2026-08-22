@@ -50,7 +50,7 @@ export default function RecuperarSenhaPage() {
             <Leaf className="h-6 w-6" />
           </span>
         </div>
-        <p className="page-eyebrow">Deep Saúde</p>
+        <p className="page-eyebrow">Agenda Wise</p>
         <CardTitle className="text-3xl">Esqueci minha senha</CardTitle>
         <CardDescription>
           Informe o e-mail da sua conta e enviaremos um link para criar uma nova senha.
