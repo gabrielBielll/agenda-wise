@@ -1016,6 +1016,66 @@ para quem tem pressa**, que é quem ele existe para segurar.
 linha de sucesso, e a certa era a de sucesso.** Ler só a primeira daria "a proteção
 bloqueou" — falso. Ler só a segunda perderia o achado. Foi o `fetch` que decidiu.
 
+### ✅ FECHADO — o portão existe, e quem fechou foi a `vale` no mesmo dia
+
+**Isto é uma anotação de volta, escrita em 2026-08-22.** O parágrafo acima ficou
+como última palavra da D-020 por dois dias, e ele diz que o portão não existe.
+**Existe desde 20/08.** Quem executou e mediu foi a `vale` (Claude no Termux), na
+[0198](0198-vale-para-orla-e-gabriel-o-portao-esta-fechado-e-medido-e-tres-correcoes.md)
+— esta decisão simplesmente nunca recebeu o ponteiro.
+
+🔴 **E é assim que documentação meio verdadeira faz estrago:** quem cai aqui pelo
+índice lê "o portão é decorativo", e é a versão errada. A [0198](0198-vale-para-orla-e-gabriel-o-portao-esta-fechado-e-medido-e-tres-correcoes.md)
+está a duas mensagens de distância e ninguém tem motivo para abrir.
+
+O que faltava era o `enforce_admins`, e ele foi ligado. Estado lido de volta, não
+deduzido de a chamada ter dado 200:
+
+```
+enforce_admins = true       aprovacoes = 0
+checks obrigatorios: Backend | Front | Mensageria | Navegador
+```
+
+⚠️ **As aprovações foram de 1 para 0, e isso foi decisão da `vale`, aprovada pelo
+Gabriel.** Com uma única conta colaboradora e o GitHub proibindo aprovar o próprio
+PR, `enforce_admins` + "1 aprovação" trancaria o deploy **para sempre**. O portão
+passou a significar *"CI verde é obrigatório"*, não *"alguém precisa aprovar"*.
+
+### 🔴 Remedido em 2026-08-22, e o que a remedição ACRESCENTA
+
+O portão da `prod` continua fechado — recusa idêntica, com outra conta
+(`jmmasterdev`, sem admin):
+
+```
+remote: - Changes must be made through a pull request.
+remote: - 4 of 4 required status checks are expected.
+ ! [remote rejected] prod -> prod (protected branch hook declined)
+```
+
+📌 **O que é novo: `main` e `staging` NÃO são portão.** A [0198](0198-vale-para-orla-e-gabriel-o-portao-esta-fechado-e-medido-e-tres-correcoes.md)
+mediu só a `prod`. Ao adiantar as duas para a `prod` em 22/08, o push imprimiu o
+aviso e **passou** — conferido por efeito com `git ls-remote`, não pelo output:
+
+```
+remote: - Changes must be made through a pull request.
+   aab7949..b65f1f1  origin/prod -> staging      <- e a linha certa e esta
+```
+
+| branch | push direto |
+|---|---|
+| `prod` | 🔴 **recusado de verdade** |
+| `staging` | ⚠️ avisa e deixa passar |
+| `main` | ⚠️ avisa e deixa passar |
+
+✅ Para o fluxo em vigor isso está **certo**, e não é buraco: o portão tem de estar
+onde o deploy acontece, e o deploy é a `prod`. `staging` ser push direto é o que
+preserva o ritmo que a D-020 escolheu preservar. Mas era suposição — a marca
+`protected: true` nas três sugere um rigor que só uma delas tem.
+
+🔴 **A mesma armadilha de formato, pela terceira vez neste projeto**: o push
+imprime uma linha que proíbe e uma que informa sucesso. Em 20/08 na `prod`, em
+20/08 de novo, e em 22/08 na `staging`. **Só o `fetch`/`ls-remote` decide.**
+
 ---
 
 ## D-021 — O admin da clínica passa a ler prontuário; o secretário, não
