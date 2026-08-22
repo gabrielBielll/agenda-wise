@@ -16,15 +16,27 @@ Uso:
 Controle do estado, para os testes:
     POST /_duble/descompartilhar   -> a agenda passa a responder 403
     POST /_duble/recompartilhar    -> volta ao normal
+    POST /_duble/zerar             -> esquece as agendas e eventos criados
     GET  /_duble/estado            -> o que ele está fingindo agora
 """
 import json
 import sys
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from urllib.parse import unquote
 
 # Estado que os testes manipulam para simular o que só acontece do lado do
 # Google: uma agenda deixar de ser compartilhada com a conta da clínica.
-ESTADO = {"compartilhada": True, "chamadas": []}
+#
+# `criadas` e `eventos` guardam a escrita. Sem guardar, o dublê aceitaria o mesmo
+# `id` de evento duas vezes e o 409 nunca aconteceria — e um teste de
+# idempotência que nunca vê o 409 passa sem medir nada, que é a família de
+# defeito descrita no CLAUDE.md da raiz.
+#
+# `autorizacoes` guarda o header Authorization de cada chamada autenticada. Ver
+# `_autorizado`: sem esse registro não há como um teste perguntar QUAL token
+# saiu, só se saiu algum.
+ESTADO = {"compartilhada": True, "chamadas": [], "criadas": [], "eventos": {},
+          "autorizacoes": []}
 
 AGENDAS = [
     {"id": "psi-ana@clinica.example", "summary": "Ana Souza",
@@ -46,7 +58,26 @@ class Duble(BaseHTTPRequestHandler):
         self.wfile.write(dados)
 
     def _autorizado(self):
-        return (self.headers.get("Authorization") or "").startswith("Bearer ")
+        # 🔴 O header é REGISTRADO antes do veredito, e é isso que dá ao teste um
+        # instrumento para a pergunta "que token saiu?".
+        #
+        # Só checar o prefixo "Bearer " é permissivo demais para o defeito real:
+        # quem passasse o mapa inteiro da conexão do banco no lugar do access
+        # token continuaria mandando algo que começa com "Bearer ", o evento
+        # seria criado, e o teste ficaria verde sobre um erro — a família de
+        # defeito do CLAUDE.md da raiz. Registrar em vez de recusar mantém o
+        # dublê útil para quem o usa à mão com um token qualquer, e move a
+        # decisão para quem está medindo.
+        autorizacao = self.headers.get("Authorization")
+        ESTADO["autorizacoes"].append(autorizacao)
+        return (autorizacao or "").startswith("Bearer ")
+
+    def _corpo_json(self):
+        bruto = self.rfile.read(int(self.headers.get("Content-Length") or 0))
+        try:
+            return json.loads(bruto.decode() or "{}")
+        except ValueError:
+            return {}
 
     def do_POST(self):
         caminho = self.path.split("?")[0]
@@ -77,6 +108,80 @@ class Duble(BaseHTTPRequestHandler):
         if caminho == "/_duble/recompartilhar":
             ESTADO["compartilhada"] = True
             return self._responder(200, ESTADO)
+
+        if caminho == "/_duble/zerar":
+            ESTADO["criadas"] = []
+            ESTADO["eventos"] = {}
+            ESTADO["chamadas"] = []
+            ESTADO["autorizacoes"] = []
+            return self._responder(200, ESTADO)
+
+        # calendars.insert — a agenda que o app cria na conta da psicóloga
+        # (GC-013). O escopo `calendar.app.created` só escreve nas agendas que o
+        # próprio app criou, então é esta chamada que habilita todas as outras.
+        if caminho == "/calendar/v3/calendars":
+            if not self._autorizado():
+                return self._responder(401, {"error": "sem token"})
+            corpo = self._corpo_json()
+            agenda = {
+                # O Google devolve um id opaco que o cliente NÃO escolhe — ao
+                # contrário do id de evento. Quem gravar `vinculo_agenda` tem de
+                # usar o que voltou daqui, não montar um.
+                "id": "agenda-criada-%d@group.calendar.google.com" % (len(ESTADO["criadas"]) + 1),
+                "summary": corpo.get("summary"),
+                "timeZone": corpo.get("timeZone", "America/Sao_Paulo"),
+                "kind": "calendar#calendar",
+                "etag": '"agenda-%d"' % (len(ESTADO["criadas"]) + 1),
+            }
+            ESTADO["criadas"].append(agenda)
+            ESTADO["eventos"][agenda["id"]] = {}
+            return self._responder(200, agenda)
+
+        # events.insert — respeita o `id` que o cliente mandou (D9) e devolve
+        # 409 quando ele já existe.
+        if caminho.startswith("/calendar/v3/calendars/") and caminho.endswith("/events"):
+            if not self._autorizado():
+                return self._responder(401, {"error": "sem token"})
+            if not ESTADO["compartilhada"]:
+                # Escrever em agenda que perdeu o acesso é 403, igual à leitura.
+                return self._responder(403, {"error": {"code": 403, "message": "Forbidden"}})
+
+            calendario = unquote(caminho[len("/calendar/v3/calendars/"):-len("/events")])
+            corpo = self._corpo_json()
+            agenda_eventos = ESTADO["eventos"].setdefault(calendario, {})
+            evento_id = corpo.get("id")
+
+            # 🔴 O caso que faz a idempotência ser exercitável.
+            #
+            # O Google recusa `insert` com id repetido; é isso que transforma a
+            # reentrega do outbox em "já está lá" em vez de sessão duplicada na
+            # agenda de uma pessoa de verdade. O dublê precisa recusar também,
+            # senão o teste mede o dublê sendo permissivo e não o nosso lado
+            # tratando o 409.
+            if evento_id and evento_id in agenda_eventos:
+                return self._responder(409, {
+                    "error": {
+                        "errors": [{"domain": "global",
+                                    "reason": "duplicate",
+                                    "message": "The requested identifier already exists."}],
+                        "code": 409,
+                        "message": "The requested identifier already exists.",
+                    }
+                })
+
+            if not evento_id:
+                # Sem id do cliente o Google gera um. Aceitar em silêncio seria
+                # esconder de quem escreveu o código que a idempotência não está
+                # ligada naquela chamada.
+                evento_id = "gerado-pelo-google-%d" % (len(agenda_eventos) + 1)
+
+            evento = dict(corpo)
+            evento["id"] = evento_id
+            evento["status"] = "confirmed"
+            evento["etag"] = '"evento-%s-%d"' % (evento_id, len(agenda_eventos) + 1)
+            evento["htmlLink"] = "https://www.google.com/calendar/event?eid=%s" % evento_id
+            agenda_eventos[evento_id] = evento
+            return self._responder(200, evento)
 
         return self._responder(404, {"error": "não implementado no dublê"})
 
@@ -133,8 +238,22 @@ class Duble(BaseHTTPRequestHandler):
 #   - Comportamento real de cota: 429 e os limites por usuário
 #   - Formato exato de payloads que o Google mudar sem avisar
 #
+# E, desde que ele aprendeu a escrever (2026-08-22), mais quatro:
+#
+#   - 🔴 **A restrição do escopo `calendar.app.created`.** Aqui QUALQUER agenda
+#     aceita `events.insert`; no Google de verdade, com esse escopo, só as que o
+#     próprio app criou aceitam. Um teste que escreva numa agenda de `AGENDAS`
+#     passa aqui e tomaria 403 lá.
+#   - Se o Google aceita mesmo o charset/tamanho do nosso id (`rrule/evento-id`).
+#     O dublê aceita qualquer string como id.
+#   - `conferenceData`/Meet em conta Gmail comum — não implementado nem medido.
+#   - Validação de payload: campos faltando, fuso inválido, RRULE malformado.
+#     O dublê guarda o que receber sem conferir nada.
+#
 # O que ele cobre é o nosso lado: paginação, cifragem do refresh token, o
-# caminho de 403 virando `sem_acesso`, e as respostas de erro dos handlers.
+# caminho de 403 virando `sem_acesso`, as respostas de erro dos handlers, e —
+# o motivo de ele guardar estado — o **409 do id repetido**, que é o que prova
+# que a reentrega do outbox não duplica sessão.
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
